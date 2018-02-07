@@ -13,12 +13,12 @@ handlers:
 # Python libraries that use C extensions can
 # only be included if they are part of the App Engine SDK 
 # Using Third Party Libraries: https://cloud.google.com/appengine/docs/python/tools/using-libraries-python-27
-#libraries:
-#- name: MySQLdb
-#  version: 1.2.5
+libraries:
+- name: MySQLdb
+ version: 1.2.5
 
 beta_settings:
-    cloud_sql_instances: arevel-0:us-central1:areveldb
+    cloud_sql_instances: arevel-0:us-central1:arevel
 
 env_variables:
   DJANGO_SETTINGS_MODULE: 'arevel.settings'

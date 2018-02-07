@@ -1,7 +1,7 @@
 from django.conf.urls import include, url
 from django.contrib import admin
 
-from code.views import index
+from workspace.views import index
 
 urlpatterns = [
     url(r'^$', index),
