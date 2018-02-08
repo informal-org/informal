@@ -1,8 +1,11 @@
 from django.http import HttpResponse, JsonResponse
 from django.conf import settings
+from django.shortcuts import render
+
 
 def index(request):
-    return HttpResponse("Hello, Arevel.")
+    # return HttpResponse("Hello, Arevel.")
+    return render(request, "index.html")
 
 
 def config(request):
