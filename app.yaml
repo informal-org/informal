@@ -37,3 +37,4 @@ skip_files:
 - ^(.*/)?.*/RCS/.*$
 - ^(.*/)?\..*$
 - ^env/.*$
+- ^node_modules/.*$

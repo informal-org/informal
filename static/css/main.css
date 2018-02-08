@@ -1,0 +1,11 @@
+html, body {
+    font-size: 11pt;
+    font-family: "Open Sans", "Arial", sans-serif;
+    min-height: 100vh;
+}
+
+#app {
+    background-color: #F8FAFF;
+    min-height: 100%;
+}
+

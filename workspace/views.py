@@ -5,7 +5,7 @@ from django.shortcuts import render
 
 def index(request):
     # return HttpResponse("Hello, Arevel.")
-    return render(request, "index.html")
+    return render(request, "workspace.html")
 
 
 def config(request):

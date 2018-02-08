@@ -2,6 +2,9 @@
 .vscode
 .idea
 
+node_modules/
+static/js/arevel.js
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
