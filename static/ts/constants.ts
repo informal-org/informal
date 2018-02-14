@@ -1,0 +1,5 @@
+
+let TYPE_FORMULA = "FORMULA";
+let TYPE_BOOLEAN = "BOOL";
+let TYPE_STRING = "STR";
+let TYPE_NUMBER = "NUM";

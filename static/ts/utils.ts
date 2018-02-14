@@ -75,6 +75,10 @@ export function isBigNum(value) {
     return isInstanceOf(value, "Big")
 }
 
+export function isNumber(value) {
+    return isBigNum(value) || typeof value == "number";
+}
+
 export function isInstanceOf(value, classname) {
     if(value !== undefined && value !== null && value.constructor !== undefined){
         return value.constructor.name == classname
@@ -225,4 +229,26 @@ export function formatValue(value) {
     }
 
     return value;
+}
+
+export function detectType(value: string) {
+    if(isFormula(value)){
+        return TYPE_FORMULA;
+    }
+    let literal = castLiteral(value);
+
+    if(isString(literal)) {
+        return TYPE_STRING;
+    }
+
+    if(literal === true || literal === false){
+        return TYPE_BOOLEAN;
+    }
+
+    if(isNumber(literal)){
+        return TYPE_NUMBER;
+    }
+
+    return undefined;
+
 }
