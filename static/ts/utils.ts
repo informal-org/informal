@@ -1,5 +1,6 @@
 // src/utils.ts
 import { Big } from 'big.js';
+import * as constants from "./constants";
 
 
 export function generate_random_id(){
@@ -72,13 +73,16 @@ export function isFormula(value: string){
 
 // @ts-ignore: Allow undefined type since we're detecting type
 export function isBigNum(value) {
-    return isInstanceOf(value, "Big")
+    // == Big, but the class name gets mangled in minification. So indirect ref.
+    return isInstanceOf(value, constants.ZERO.constructor.name)
 }
 
+// @ts-ignore: implicit parameter type
 export function isNumber(value) {
     return isBigNum(value) || typeof value == "number";
 }
 
+// @ts-ignore: implicit param types
 export function isInstanceOf(value, classname) {
     if(value !== undefined && value !== null && value.constructor !== undefined){
         return value.constructor.name == classname
@@ -86,10 +90,10 @@ export function isInstanceOf(value, classname) {
     return false
 }
 
+// TODO
 export function isCell(value) {
-    return isInstanceOf(value, "Cell")
+    return isInstanceOf(value, Value.constructor.name)
 }
-
 
 export function castLiteral(value: string){
     if(value != null && value != undefined){
@@ -106,28 +110,22 @@ export function castLiteral(value: string){
     return value;
 }
 
-
-
-let ZERO = Big(0);
-let ONE = Big(1);
-
-
 export function fudge(result: Big) {
     // If the difference in decimal places and the max is less than the precision we care about, fudge it.
     // Fudge the result of a computation for rounding errors
     // i.e (1/3) * 3 = 1
     // 0.33333333333333333333 = 20 decimals
-    let decimal = result.mod(ONE);
+    let decimal = result.mod(constants.ONE);
     let p = ".00000000000000000001"
     let precision = Big(p)   // 20 decimals
 
-    let max = ONE.minus(precision);
-    if(decimal.gt(ZERO)){
+    let max = constants.ONE.minus(precision);
+    if(decimal.gt(constants.ZERO)){
         // 0.99999999... - 0.99999 < 0.000001
         // 0.00000001 - 0.000001 < precision
         let upper = decimal.minus(max);
         let lower = decimal.minus(precision);
-        if( (lower.gte(ZERO) && lower.lte(precision)) || (upper.gte(ZERO) && upper.lte(precision)) ){
+        if( (lower.gte(constants.ZERO) && lower.lte(precision)) || (upper.gte(constants.ZERO) && upper.lte(precision)) ){
             return result.round()
         }
     }
@@ -141,10 +139,13 @@ export function isValidName(name?: string){
     if(name === null || name === undefined || name === "") {
         return false;
     }
+
     if(name.length > 20) {
         return false;
     }
+
     let uname = name.toUpperCase()
+    // Must start with a letter and contain just non-whitespace chars (\w) and _-
     return /^[A-Z]\w*$/.test(uname)
 }
 
@@ -209,46 +210,86 @@ export function isEditMode(selected: Boolean[], index: number) {
     return selected[index] == true && selected.filter(t => t == true).length == 1
 }
 
-export function formatValue(value) {
-    if(value !== undefined){
-        // console.log("result is " + result);
-        if(value.constructor.name == "Big"){
-            return value.toString().replace('"', "")
-        } else if(isBoolean(value)) {
-            return value.toString().toUpperCase()
-        } else if (isCell(value)) {
-            return value.evaluate()
+
+export function formatValue(value: any, valueType?: string) : any {
+    if(value !== undefined) {
+        if (valueType == undefined) {
+            valueType = detectType(value);
         }
 
-        if(Array.isArray(value)) {
-            console.log("Cormatting array")
-            return value.map((v) => {
-                return formatValue(v)
-            }).join(", ")
+        switch (valueType) {
+            case constants.TYPE_NUMBER:
+                // Replace quotes for Big
+                return value.toString().replace('"', "");
+            case constants.TYPE_BOOLEAN:
+                return value.toString().toUpperCase()
+            case constants.TYPE_ARRAY:
+                return value.map((v) => {
+                    return formatValue(v, undefined);
+                }).join(", ")
+
+            default:
+                return value;
         }
     }
+
+        // TODO: When does this happen?
+//        else if (isCell(value)) {
+//            return value.evaluate()
+//        }
+
 
     return value;
 }
 
-export function detectType(value: string) {
+export function detectType(value: any) {
     if(isFormula(value)){
-        return TYPE_FORMULA;
+        return constants.TYPE_FORMULA;
     }
+
+    if(Array.isArray(value)){
+        return constants.TYPE_ARRAY;
+    }
+
     let literal = castLiteral(value);
 
     if(isString(literal)) {
-        return TYPE_STRING;
+        return constants.TYPE_STRING;
     }
 
     if(literal === true || literal === false){
-        return TYPE_BOOLEAN;
+        return constants.TYPE_BOOLEAN;
     }
 
     if(isNumber(literal)){
-        return TYPE_NUMBER;
+        return constants.TYPE_NUMBER;
     }
 
     return undefined;
+}
+
+export function toJs(value: any, valueType?: string) {
+    if(value == undefined || value == null){
+        return value;
+    }
+
+    switch(valueType) {
+        case constants.TYPE_NUMBER:
+            // Replace quotes for Big
+            return Number(value);
+        case constants.TYPE_BOOLEAN:
+            return castBoolean(value);
+        case constants.TYPE_STRING:
+            // Assuming this has been evaluated.
+            return value;
+        case constants.TYPE_ARRAY:
+            return value.map((v) => {
+                return toJs(v);
+            });
+        default:
+            return value;
+    }
+    // case formula should not happen since this method is meant to be used with results.
+
 
 }

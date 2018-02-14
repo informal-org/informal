@@ -1,4 +1,4 @@
-import {castBoolean, isTrue, isFalse, castLiteral, isBigNum, cleanBoolStr} from '../utils'
+import {castBoolean, isTrue, isFalse, castLiteral, isBigNum, cleanBoolStr, detectType} from '../utils'
 import { Big } from 'big.js';
 import {} from 'jest';
 
@@ -62,4 +62,20 @@ test('test casting literals', () => {
     expect(isBigNum("blah")).toBe(false);
 
     expect(castLiteral("something")).toEqual("something")
+});
+
+
+test('detects correct types', () => {
+    // @ts-ignore:
+    expect(detectType("=1 + 1")).toBe("FORMULA");
+    expect(detectType("true")).toBe("BOOL");
+    expect(detectType("false")).toBe("BOOL");
+    expect(detectType("FaLse")).toBe("BOOL");
+    expect(detectType("1")).toBe("NUM");
+    expect(detectType("10.1")).toBe("NUM");
+    expect(detectType(new Big("10.1"))).toBe("NUM");
+
+    expect(detectType("hello")).toBe("STR");
+    expect(detectType("'hello'")).toBe("STR");
+
 });

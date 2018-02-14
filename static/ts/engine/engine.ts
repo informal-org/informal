@@ -1,5 +1,6 @@
-import {castLiteral, detectType, formatValue, isValidName} from "../utils";
-import {} from "../constants.ts"
+import * as util from '../utils';
+import * as constants from "../constants"
+import {isValidName} from "../utils";
 
 
 
@@ -8,9 +9,11 @@ export class Value {
     name: string;
 
     type: string;
-    value: string | string[] | Value[] = "";
+    expr: string = "";
 
     depends_on: Value[] = [];
+     // Used in the initial stage when some names aren't defined till later.
+    _unresolved_dependencies: string[] = [];
     used_by: Value[] = [];
 
     parent: Group | null = null;
@@ -21,17 +24,15 @@ export class Value {
     _parsed = null;
     _result = null;
     _is_stale = true;
-    _value_type: string = "";   // One of FORMULA, BOOL, STR, NUM
-
-    // Temporary shadow node used to make edits to before they're verified and commited.
-    _shadow: Object | null = null;
+    _expr_type: string = "";   // One of FORMULA, BOOL, STR, NUM
+    _result_type: string = "";  // Usually the same as _expr_type, except when it's a function.
 
     constructor(value: string, engine: Engine) {
         this.type = "value";
         this.engine = engine;
         this.id = util.generate_random_id();
 
-        this.setValue(newValue);
+        this.setValue(value);
     }
 
     addDependency(other: Value) {
@@ -40,11 +41,21 @@ export class Value {
     }
 
     rename(newName: string) {
-        let shadow = this.getShadow();
+        if(newName == this.name){
+            return;
+        }
+
         let NAME_ERROR = "Variable names should start with a letter and can only contain letters, numbers, _ and -";
-        if(newName == ""){
-            shadow.name = newName;
+        if(isValidName(newName) && (this.parent == null || !(newName in this.parent.name_map))){
+
+            if(this.parent != null){
+                this.parent.unbind(this);
+                this.parent.bind(newName, this);
+            }
+
+            this.name = newName;
             this.removeError(NAME_ERROR);
+
         } else {
             this.addError(NAME_ERROR)
         }
@@ -63,11 +74,10 @@ export class Value {
 
     setValue(newValue: string) {
         // TODO: parse and set dependencies.
-        // TODO: Set shadow
-        this.value = newValue;
-        this._value_type = detectType(newValue);
-        if(this._value_type == TYPE_FORMULA){
-            this._parsed = parseFormula(this.value, this.engine);
+        this.expr = newValue;
+        this._expr_type = util.detectType(newValue);
+        if(this._expr_type == constants.TYPE_FORMULA){
+            this._parsed = parseFormula(this.expr, this.engine);
         } else {
             this._parsed = null;
         }
@@ -75,35 +85,29 @@ export class Value {
         // todo - OTHER TYPES, ESP STRING
     }
 
-    to_string() {
-        return formatValue(this.value);
+    toString() {
+        return util.formatValue(this.expr, this._expr_type);
     }
 
-    to_json() {
-
-    }
-
-    getShadow(){
-        if(this._shadow == null){
-            // Create it.
-            this._shadow = {
-                name: this.name,
-                value: this.value
-            }
-            return this._shadow;
-        }
-        return this._shadow;
+    // To javascript for interop
+    toJs() {
+        // TODO: This should be done with result
+        return util.toJs(this.expr, this._exprtype);
     }
 
     _doEvaluate(){
-        let EVAL_ERR_PREFIX = "Evaluation error: "
+        /*
         // Does the core of evaluate without any of the caching layers.
         // Can be overwritten.
-        if(this.value == undefined || this.value == null){
+         */
+
+
+        let EVAL_ERR_PREFIX = "Evaluation error: "
+        if(this.expr == undefined || this.expr == null){
             return undefined;
         }
 
-        if(this._value_type == TYPE_FORMULA){
+        if(this._expr_type == constants.TYPE_FORMULA){
             // Is formula
             try {
                 let result = evaluateExpr(this._parsed, this.engine);
@@ -115,26 +119,20 @@ export class Value {
 
                 this.addError(EVAL_ERR_PREFIX + err.message.replace("[big.js]", ""))
                 // TODO: Return value
-                return this.value;
+                return this.expr;
             }
         }
-        else if(this._value_type == TYPE_STRING) {
-            return evaluateStr(this.value, this.engine);
+        else if(this._expr_type == constants.TYPE_STRING) {
+            return evaluateStr(this.expr, this.engine);
         } else {
             // Numbers and booleans
-            return castLiteral(this.value);
+            return castLiteral(this.expr);
         }
 
     }
 
     // @ts-ignore - return type any.
     evaluate() {
-
-        // If the cell is being modified, evaluate shadow instead.
-        if(this._shadow != null){
-            return this._shadow.evaluate()
-        }
-
         if(this._is_stale){
             // Re-evaluate and set this._result;
             return this._doEvaluate();
@@ -161,8 +159,18 @@ export class Value {
         // Error any cells still using this.
     }
 
+
+    lookup(name: string) {
+        // TODO: Support fully qualified names.
+        if(this.parent){
+            return this.parent.lookup(name);
+        }
+        return [];
+    }
+
 }
 
+// Essentially just a list of values
 export class Group extends Value {
     // Name => Value
     name_map: {
@@ -175,6 +183,8 @@ export class Group extends Value {
     } = {};
 
     stale_nodes: Value[];
+
+    expr : Value[] = [];
 
     constructor(engine: Engine) {
         super([], engine);
@@ -192,25 +202,96 @@ export class Group extends Value {
     }
 
     _doEvaluate(){
-        return this.value;
+        return this.expr;
     }
 
     destruct(){
         super.destruct();
-        while(this.value.length > 0){
+        while(this.expr.length > 0){
             // Pop elements from end of list
-            this.value.pop().destruct();
+            this.expr.pop().destruct();
         }
     }
 
+    addChild(child: Value) {
+        child.parent = this;
+        this.expr.push(child);
+        this.id_map[child.id] = child;
+
+        // TODO: What is the name is taken?
+        if(child.name != "" && !(child.name in this.name_map)){
+            this.name_map[child.name] = child;
+        }
+
+    }
+
     removeChild(child: Value){
-        this.value.splice(this.value.indexOf(child), 1);
+        this.expr.splice(this.expr.indexOf(child), 1);
         // TODO: unbind cell
         // remove from all cells.
         // remove from id map and name map.
         delete this.name_map[child.name];
         delete this.id_map[child.name];
     }
+
+    // TODO: Test this method.
+    lookup(name: string, exclude?: Value) {
+        /*
+         Lookup a name in an environment.
+         Return a list of found Values.
+         Priority - lookup in self, then in children, then in parent.
+
+         Exclude specifies Values not to search in (to prevent infinite recursion).
+        */
+        if(this === exclude){
+            return [];
+        }
+        if(name in this.name_map){
+            return [this.name_map[name]];
+        }
+        let nameResolutions: Value[] = [];
+
+        this.expr.forEach((child) => {
+            if(child != exclude){
+                nameResolutions = nameResolutions.concat(child.lookup(name, this));
+            }
+        });
+
+        if(this.parent !== null && this.parent !== exclude) {
+            nameResolutions = nameResolutions.concat(this.parent.lookup(name, this));
+        }
+
+        return nameResolutions;
+    }
+
+    bind(name: string, value: Value){
+        let uname = name.toUpperCase();
+        if(!isValidName(uname)){
+            throw Error("Invalid name");
+        }
+        if(uname in this.name_map){
+            throw Error("Name is already being used");
+        }
+
+        this.name_map[uname] = value;
+    }
+
+    unbind(value: Value){
+        let uname = value.name.toUpperCase();
+        if(this.name_map[uname] == value){
+            delete this.name_map[uname];
+        }
+    }
+}
+
+
+// TODO
+export class Table extends Group {
+    // Can be used for single objects, as a map, or for more complex tables.
+    // Distinction from above is multiple lists. It's more of a matrix.
+    // So it's a list of groups. Neat.
+
+    value: Group[] = [];
 
 }
 
@@ -222,17 +303,12 @@ export class Engine {
     }
 
 
+    // TODO;
     rename(value: Value, name: string) {
-        let shadow = value.getShadow();
-        if(name == "" || isValidName((name))){
-
-            // @ts-ignore: prop name does exist.
-            shadow.name = name;
+        if(isValidName((name))){
+            value.name = name;
 
         }
     }
 
-    commit(value: Value) {
-        // Commit the modifications in shadow.
-    }
 }
