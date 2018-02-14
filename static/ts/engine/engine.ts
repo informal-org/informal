@@ -8,7 +8,7 @@ export class Value {
     id: string;
     name: string;
 
-    type: string;
+    type: string = "value";
     expr: string = "";
 
     depends_on: Value[] = [];
@@ -28,10 +28,8 @@ export class Value {
     _result_type: string = "";  // Usually the same as _expr_type, except when it's a function.
 
     constructor(value: string, engine: Engine) {
-        this.type = "value";
         this.engine = engine;
         this.id = util.generate_random_id();
-
         this.setValue(value);
     }
 
@@ -160,12 +158,15 @@ export class Value {
     }
 
 
-    lookup(name: string) {
-        // TODO: Support fully qualified names.
-        if(this.parent){
-            return this.parent.lookup(name);
+    lookup(name: string, exclude?: Value) {
+        if(this.parent == null){
+            return [];
         }
-        return [];
+        if(exclude !== undefined && this.parent.id == exclude.id){
+            return [];
+        }
+        // TODO: Support fully qualified names. In which case, this would remove part of path?
+        return this.parent.lookup(name);
     }
 
 }
@@ -185,6 +186,8 @@ export class Group extends Value {
     stale_nodes: Value[];
 
     expr : Value[] = [];
+
+    type: string = "group";
 
     constructor(engine: Engine) {
         super([], engine);
@@ -217,12 +220,7 @@ export class Group extends Value {
         child.parent = this;
         this.expr.push(child);
         this.id_map[child.id] = child;
-
-        // TODO: What is the name is taken?
-        if(child.name != "" && !(child.name in this.name_map)){
-            this.name_map[child.name] = child;
-        }
-
+        this.bind(child.name, child);
     }
 
     removeChild(child: Value){
@@ -243,22 +241,27 @@ export class Group extends Value {
 
          Exclude specifies Values not to search in (to prevent infinite recursion).
         */
-        if(this === exclude){
+        let uname = name.toUpperCase();
+        console.log("looking up " + uname + " exclude " + exclude + " on " + this.id);
+
+        if(undefined !== exclude && this.id === exclude.id) {
             return [];
         }
-        if(name in this.name_map){
-            return [this.name_map[name]];
+        if(uname in this.name_map){
+            return [this.name_map[uname]];
         }
         let nameResolutions: Value[] = [];
 
+        let thisNode = this;
+
         this.expr.forEach((child) => {
-            if(child != exclude){
-                nameResolutions = nameResolutions.concat(child.lookup(name, this));
+            if(exclude === undefined || child.id !== exclude.id){
+                nameResolutions = nameResolutions.concat(child.lookup(uname, thisNode));
             }
         });
 
-        if(this.parent !== null && this.parent !== exclude) {
-            nameResolutions = nameResolutions.concat(this.parent.lookup(name, this));
+        if(this.parent !== null && (exclude === undefined || this.parent.id !== exclude.id)) {
+            nameResolutions = nameResolutions.concat(this.parent.lookup(uname, this));
         }
 
         return nameResolutions;
@@ -277,6 +280,10 @@ export class Group extends Value {
     }
 
     unbind(value: Value){
+        if(value == null || value.name == null || value.name == ""){
+            return;
+        }
+
         let uname = value.name.toUpperCase();
         if(this.name_map[uname] == value){
             delete this.name_map[uname];
@@ -292,6 +299,8 @@ export class Table extends Group {
     // So it's a list of groups. Neat.
 
     value: Group[] = [];
+
+    type: string = "table";
 
 }
 
@@ -310,5 +319,7 @@ export class Engine {
 
         }
     }
+
+
 
 }
