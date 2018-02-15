@@ -27,23 +27,51 @@ export class Value {
     _expr_type: string = "";   // One of FORMULA, BOOL, STR, NUM
     _result_type: string = "";  // Usually the same as _expr_type, except when it's a function.
 
-    constructor(value: string, engine: Engine) {
+    constructor(value: string, engine: Engine, parent?: Group, name?: string) {
         this.engine = engine;
         this.id = util.generate_random_id();
         this.setValue(value);
+        this.parent = parent !== undefined ? parent : null;
+
+        this.rename(name);
+
+        if(parent !== undefined){
+            parent.id_map[this.id] = this;
+        }
     }
+
 
     addDependency(other: Value) {
         this.depends_on.push(other);
         other.used_by.push(this);
     }
 
-    rename(newName: string) {
+    removeDependency(other: Value) {
+        if(this.depends_on.indexOf(other) != -1){
+            this.depends_on.splice(this.depends_on.indexOf(other), 1);
+        }
+        if(other.used_by.indexOf(this) != -1){
+            other.used_by.splice(other.used_by.indexOf(this), 1);
+        }
+
+    }
+
+    rename(newName?: string) {
         if(newName == this.name){
             return;
         }
-
         let NAME_ERROR = "Variable names should start with a letter and can only contain letters, numbers, _ and -";
+
+        if((newName === "" || newName === undefined)) {
+            if(this.parent !== null){
+                newName = this.parent.generateName();
+            } else {
+                this.addError(NAME_ERROR);
+                newName = "";
+            }
+        }
+
+
         if(isValidName(newName) && (this.parent == null || !(newName in this.parent.name_map))){
 
             if(this.parent != null){
@@ -140,11 +168,11 @@ export class Value {
         return this._result;
     }
 
-    markDirty(){
+    markStale(){
         if(!this._is_stale){
             this._is_stale = true;
             // Touch all of the cells that depend on this as well.
-            this.used_by.forEach((val) => val.markDirty());
+            this.used_by.forEach((val) => val.markStale());
         }
     }
 
@@ -189,8 +217,9 @@ export class Group extends Value {
 
     type: string = "group";
 
-    constructor(engine: Engine) {
-        super([], engine);
+    constructor(engine: Engine, parent?: Group, name?: string) {
+        // @ts-ignore
+        super([], engine, parent, name);
     }
 
     lookup(name: string) : Value | undefined {
@@ -225,14 +254,10 @@ export class Group extends Value {
 
     removeChild(child: Value){
         this.expr.splice(this.expr.indexOf(child), 1);
-        // TODO: unbind cell
-        // remove from all cells.
-        // remove from id map and name map.
         delete this.name_map[child.name];
         delete this.id_map[child.name];
     }
 
-    // TODO: Test this method.
     lookup(name: string, exclude?: Value) {
         /*
          Lookup a name in an environment.
@@ -242,7 +267,6 @@ export class Group extends Value {
          Exclude specifies Values not to search in (to prevent infinite recursion).
         */
         let uname = name.toUpperCase();
-        console.log("looking up " + uname + " exclude " + exclude + " on " + this.id);
 
         if(undefined !== exclude && this.id === exclude.id) {
             return [];
@@ -289,6 +313,21 @@ export class Group extends Value {
             delete this.name_map[uname];
         }
     }
+
+
+
+    generateName(){
+        let length: number = this.expr.length;
+        for(let i = length + 1; i < (length * 2) + 2; i++){
+            let name = "Cell" + i;
+            if(!(name in this.name_map)){
+                return name;
+            }
+        }
+        return ""
+    }
+
+
 }
 
 
