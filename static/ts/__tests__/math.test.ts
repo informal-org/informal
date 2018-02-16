@@ -1,12 +1,12 @@
 import {} from 'jest';
-import { Environment, Engine } from '../engine';
+import { Engine } from '../engine/engine';
 import { Big } from 'big.js';
-import { evaluateExpr, parseFormula } from '../expr';
+import { evaluateExpr, parseFormula } from '../engine/expr';
 import { castLiteral } from '../utils';
 
 test('precise floating point math', () => {
     let engine = new Engine()
-    let env = engine.rootEnv;
+    let env = engine.root;
 
     expect(evaluateExpr(parseFormula("=0.1 + 0.2"), env).eq(new Big("0.3"))).toEqual(true)
     expect(evaluateExpr(parseFormula("=1.0 / 10"), env).eq(new Big("0.1"))).toEqual(true)
@@ -21,7 +21,7 @@ test('precise floating point math', () => {
 
 test('operator precedence', () => {
     let engine = new Engine()
-    let env = engine.rootEnv;
+    let env = engine.root;
 
     // Wrong order
     expect(evaluateExpr(parseFormula("=3 + 4 * 5"), env).eq(new Big("35"))).toEqual(false) // Left to right precedence
@@ -40,7 +40,7 @@ test('operator precedence', () => {
 test('rounding mode', () => {
 
     let engine = new Engine()
-    let env = engine.rootEnv;
+    let env = engine.root;
 
     // Round-up method
     // @ts-ignore: Assume return value is Big

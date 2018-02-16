@@ -8,10 +8,8 @@ test('test defining names', () => {
 
     console.log("Root: " + engine.root.id);
     // TODO: Create cell methods.
-    let v = new Value("val", engine);
+    let v = new Value("val", engine.root, "hello");
     console.log("Value: " + v.id);
-    v.rename("hello");
-    engine.root.addChild(v);
 
     expect(engine.root.lookup("hello")).toEqual([v]);
 

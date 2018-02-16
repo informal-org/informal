@@ -1,14 +1,14 @@
-import { CellError } from "./errors";
-import { Cell } from "./engine";
+import { Value } from "./engine";
+import {ValueError} from "./errors";
 
-export function getEvalOrder(cells: Cell[]){
+export function getEvalOrder(cells: Value[]){
     /*
     Perform a topological sort of the node dependencies to get the evaluation order.
     */
 
-    let eval_order: Cell[] = [];
-    let leafs: Cell[] = [];
-    // Cell -> # of nodes that depend on it.
+    let eval_order: Value[] = [];
+    let leafs: Value[] = [];
+    // Value -> # of nodes that depend on it.
     let depend_count: {
         [index: string]: number
     } = {};
@@ -45,16 +45,16 @@ export function getEvalOrder(cells: Cell[]){
     let unmet_dependencies = Object.keys(depend_count)
     if(unmet_dependencies.length > 0){
         let cell_id_map: {
-            [index: string]: Cell
+            [index: string]: Value
         } = {};
 
         cells.forEach((cell) => {
             cell_id_map[cell.id] = cell;
         });
 
-        let unmet_cells: Cell[] = unmet_dependencies.map((cell_id) => cell_id_map[cell_id]);
-        let err: CellError = new CellError("Cycle detected");
-        err.cells = unmet_cells;
+        let unmet_cells: Value[] = unmet_dependencies.map((cell_id) => cell_id_map[cell_id]);
+        let err: ValueError = new ValueError("Cycle detected");
+        err.values = unmet_cells;
         throw err
     } else {
         return eval_order;

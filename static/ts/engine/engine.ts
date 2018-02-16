@@ -27,17 +27,16 @@ export class Value {
     _expr_type: string = "";   // One of FORMULA, BOOL, STR, NUM
     _result_type: string = "";  // Usually the same as _expr_type, except when it's a function.
 
-    constructor(value: string, engine: Engine, parent?: Group, name?: string) {
-        this.engine = engine;
+    constructor(value: string, parent?: Group, name?: string) {
         this.id = util.generate_random_id();
-        this.setValue(value);
-        this.parent = parent !== undefined ? parent : null;
-
-        this.rename(name);
-
         if(parent !== undefined){
+            this.engine = parent.engine;
+            this.parent = parent;
             parent.id_map[this.id] = this;
         }
+
+        this.rename(name);
+        this.setValue(value);
     }
 
 
@@ -197,6 +196,19 @@ export class Value {
         return this.parent.lookup(name);
     }
 
+
+    resolve(name: string) {
+        let options = this.lookup(name);
+        // Find the options we depend on.
+        if(options.length > 0){
+            let deps = this.depends_on;
+            let found = options.filter((opt) => deps.indexOf(opt) != -1);
+            // Return first dependency or just first matched name. IDC.
+            return found.length > 0 ? found[0] : options[0];
+        }
+        return null;
+    }
+
 }
 
 // Essentially just a list of values
@@ -217,21 +229,21 @@ export class Group extends Value {
 
     type: string = "group";
 
-    constructor(engine: Engine, parent?: Group, name?: string) {
+    constructor(parent?: Group, name?: string) {
         // @ts-ignore
-        super([], engine, parent, name);
+        super([], parent, name);
     }
 
-    lookup(name: string) : Value | undefined {
-        let uname = name.toUpperCase();
-        if(uname in this.name_map){
-            return this.name_map[uname];
-        }
-        if(this.parent !== null){
-            return this.parent.lookup(name)
-        }
-        return undefined;
-    }
+    // lookup(name: string) : Value | undefined {
+    //     let uname = name.toUpperCase();
+    //     if(uname in this.name_map){
+    //         return this.name_map[uname];
+    //     }
+    //     if(this.parent !== null){
+    //         return this.parent.lookup(name)
+    //     }
+    //     return undefined;
+    // }
 
     _doEvaluate(){
         return this.expr;
@@ -347,7 +359,8 @@ export class Engine {
     root: Group;
 
     constructor() {
-        this.root = new Group(this);
+        this.root = new Group();
+        this.root.engine = this;
     }
 
 

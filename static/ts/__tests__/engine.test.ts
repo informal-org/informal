@@ -1,29 +1,29 @@
-import {Engine} from '../engine'
+import {Engine, Value} from '../engine/engine'
 import {} from 'jest';
-import { getEvalOrder } from '../evaluation';
+import { getEvalOrder } from '../engine/evaluation';
 
 // Test variable not found.
 test('dependency order maintained', () => {
     let engine = new Engine()
-    let env = engine.rootEnv;
+    let env = engine.root;
 
-    let a = env.createCell("number", "A");
-    let b = env.createCell("number", "B");
-    let c = env.createCell("number", "C");
-    let d = env.createCell("number", "D");
-    let e = env.createCell("number", "E");
-    let f = env.createCell("number", "F");
+    let a = new Value("A", env);
+    let b = new Value("B", env);
+    let c = new Value("C", env);
+    let d = new Value("D", env);
+    let e = new Value("E", env);
+    let f = new Value("F", env);
 
     // #       a
     // #    b    c
     // #         d
     // #       e   f
 
-    a.addDependency(b)
-    a.addDependency(c)
-    c.addDependency(d)
-    d.addDependency(e)
-    d.addDependency(f)
+    a.addDependency(b);
+    a.addDependency(c);
+    c.addDependency(d);
+    d.addDependency(e);
+    d.addDependency(f);
 
     let cells = [a, b, c, d, e, f];
     let evalOrder = getEvalOrder(cells);
@@ -45,16 +45,16 @@ test('dependency order maintained', () => {
   });
 
   test('throws an error on cycles', () => {
-    let engine = new Engine()
-    let env = engine.rootEnv;
+    let engine = new Engine();
+    let env = engine.root;
 
 
-    let a = env.createCell("number", "A");
-    let b = env.createCell("number", "B");
-    let c = env.createCell("number", "C");
-    let d = env.createCell("number", "D");
-    let e = env.createCell("number", "E");
-    let f = env.createCell("number", "F");
+    let a = new Value("A", env);
+    let b = new Value("B", env);
+    let c = new Value("C", env);
+    let d = new Value("D", env);
+    let e = new Value("E", env);
+    let f = new Value("F", env);
 
     // #       a
     // #    b    c
@@ -62,25 +62,25 @@ test('dependency order maintained', () => {
     // #       e   f
     //             d
 
-    a.addDependency(b)
-    a.addDependency(c)
-    c.addDependency(d)
-    d.addDependency(e)
-    d.addDependency(f)
-    f.addDependency(d)
+    a.addDependency(b);
+    a.addDependency(c);
+    c.addDependency(d);
+    d.addDependency(e);
+    d.addDependency(f);
+    f.addDependency(d);
 
     let cells = [a, b, c, d, e, f];
     // Expect a return value
     try {
         expect(getEvalOrder(cells)).toThrow()
     } catch(err){
-        expect(err.name).toEqual("CellError")
-        expect(err).toHaveProperty("cells");
+        expect(err.name).toEqual("ValueError")
+        expect(err).toHaveProperty("values");
 
-        expect(err.cells).toContainEqual(a);
-        expect(err.cells).toContainEqual(c);
-        expect(err.cells).toContainEqual(d);
-        expect(err.cells).toContainEqual(f);
-        expect(err.cells.length).toEqual(4);
+        expect(err.values).toContainEqual(a);
+        expect(err.values).toContainEqual(c);
+        expect(err.values).toContainEqual(d);
+        expect(err.values).toContainEqual(f);
+        expect(err.values.length).toEqual(4);
     }
   });

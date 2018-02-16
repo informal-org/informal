@@ -1,9 +1,9 @@
 /* Expression evaluation module */
 import { Big } from 'big.js';
-import * as util from './utils';
-import { castBoolean, isCell, formatValue } from './utils';
-import { Cell, Environment } from './engine';
-import { CellError } from './errors';
+import * as util from '../utils';
+import { castBoolean, isCell, formatValue } from '../utils';
+import { Value, Group } from './engine';
+// import { CellError } from './errors';
 
 var jsep = require("jsep")
 Big.RM = 2 // ROUND_HALF_EVEN - banker's roll
@@ -27,7 +27,8 @@ function itemwiseApply(a, b, funcName, doFudge=false, func=undefined) {
             if(doFudge){
                 result = util.fudge(result);
             }
-            let resultCell = new Cell(ai.type, result, ai.env, ai.name);
+            // let resultCell = new Value(ai.type, result, ai.env, ai.name);
+            let resultCell = new Value(result, ai, ai.name);
             // resultCell.parent_group = aVal.parent_group;
             return resultCell
         });
@@ -47,7 +48,8 @@ function itemwiseApply(a, b, funcName, doFudge=false, func=undefined) {
             if(doFudge){
                 result = util.fudge(result);
             }
-            let resultCell = new Cell(ai.type, result, ai.env, ai.name);
+            // let resultCell = new Value(ai.type, result, ai.env, ai.name);
+            let resultCell = new Value(result, ai, ai.name);
             // resultCell.parent_group = aVal.parent_group;
             return resultCell;
         })
@@ -68,7 +70,8 @@ function itemwiseApply(a, b, funcName, doFudge=false, func=undefined) {
             if(doFudge){
                 result = util.fudge(result);
             }
-            let resultCell = new Cell(bi.type, result, bi.env, bi.name);
+            // let resultCell = new Value(bi.type, result, bi.env, bi.name);
+            let resultCell = new Value(result, bi, bi.name);
             // resultCell.parent_group = bVal.parent_group;
             return resultCell;
         })
@@ -162,7 +165,7 @@ var UNARY_OPS = {
     "not" : function(a: boolean) {
         if(Array.isArray(a)) {
             return a.map((aItem) => {
-                return new Cell(aItem.type, !aItem.evaluate(), aItem.env, aItem.name);
+                return new Value(aItem.type, !aItem.evaluate(), aItem.env, aItem.name);
             })
         }
         return !a;
@@ -201,7 +204,7 @@ export var BUILTIN_FUN = {
 
 // TODO: Test cases to verify operator precedence
 // @ts-ignore
-export function _do_eval(node, env: Environment) {
+export function _do_eval(node, env: Group) {
     if(node.type === "BinaryExpression") {
         // @ts-ignore
         return BINARY_OPS[node.operator](_do_eval(node.left, env), _do_eval(node.right, env));
@@ -223,33 +226,26 @@ export function _do_eval(node, env: Environment) {
             return BUILTIN_FUN[uname];
         }
 
-        let idEnv = env.findEnv(uname);
+        let match = env.resolve(uname);
         // Found the name in an environment
-        if(idEnv !== null && idEnv !== undefined){
-            return idEnv.lookup(uname).evaluate()
+        // if(idEnv !== null && idEnv !== undefined){
+        // TODO: How to properly resolve multiple matches.
+        if(match){
+            match.evaluate();
         }
+        //}
         // TODO: Return as string literal in this case?
         // Probably not - should be lookup error
         return node.name
     } else if (node.type === "Compound") { // a, b
         let compound = [];
         node.body.forEach(subnode => {
-            // compound.concat(subarray)
-            window.evalDepth += 1;
-
-            if(window.evalDepth > 2000) {
-                // The app doesn't work after this, but atleast it doesn't kill the tab.
-                console.log("Error: Self-referencing cells.");
-                let err: CellError = new CellError("Cycle detected");
-                err.cells = [this];
-                throw err
-            }
 
             let subresult = _do_eval(subnode, env);
-            window.evalDepth -= 1;
-            // Wrap scalar constants in a cell so it can be rendered in CellList
+
+            // Wrap scalar constants in a Value so it can be rendered in CellList
             if(!Array.isArray(subresult) && !isCell(subresult)) {
-                subresult = new Cell("", subresult, env, "");
+                subresult = new Value(subresult, env);
             }
             compound = compound.concat(subresult);
         })
@@ -267,21 +263,10 @@ export function _do_eval(node, env: Environment) {
 
         let args = [];
         node.arguments.forEach(subnode => {
-            // compound.concat(subarray)
-            window.evalDepth += 1;
-
-            if(window.evalDepth > 2000) {
-                // The app doesn't work after this, but atleast it doesn't kill the tab.
-                console.log("Error: Self-referencing cells.");
-                let err: CellError = new CellError("Cycle detected");
-                throw err
-            }
-
             let subresult = _do_eval(subnode, env);
-            window.evalDepth -= 1;
-            // Wrap scalar constants in a cell so it can be rendered in CellList
+            // Wrap scalar constants in a Value so it can be rendered in CellList
             // if(!Array.isArray(subresult) && !isCell(subresult)) {
-            //     subresult = new Cell("", subresult, env, "");
+            //     subresult = new Value("", subresult, env, "");
             // }
             args = args.concat(subresult);
         });
@@ -298,12 +283,12 @@ export function _do_eval(node, env: Environment) {
         // Name lookup
         // TODO: Handle name errors better.
         // TODO: Support [bracket name] syntax for spaces.
-        return env.lookup(node.name).evaluate();
+        return env.resolve(node.name).evaluate();
     }
 };
 
 // @ts-ignore
-function getDependencies(node, env: Environment) : Cell[] {
+function getDependencies(node, env: Environment) : Value[] {
     /* Parse through an expression tree and return list of dependencies */
     if(node.type === "BinaryExpression") {
         let left = getDependencies(node.left, env)
