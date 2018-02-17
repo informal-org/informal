@@ -22,7 +22,7 @@
 
     <!-- <header class="DashHeader">
         <div class="Navbar--toolbar ui menu">
-            <button class="item" @click="addValue">+ Value</button>
+            <button class="item" @click="addValue">+ Valuengie</button>
             <button class="item" @click="addRef">+ Reference</button>
             <button class="item" @click="addGroup">+ Group</button>
             <div class="item">+ Table</div>
@@ -34,14 +34,8 @@
 
     <div class="BodyWrapper HeaderOffset">
         <div class="DataContainer DashForm">
-            <Cell-List v-bind:cells="engine.rootEnv.getAllCells()"
-            v-bind:onadd="addValue"
-            v-bind:selected="selected"
-            v-bind:selecting="selecting"
-            v-bind:isroot="true"
-            >
-
-        </Cell-List>
+            <Cell-List v-bind:group="engine.root"
+            ></Cell-List>
         </div>
 
     </div> <!-- Body wrapper-->

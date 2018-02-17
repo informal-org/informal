@@ -225,6 +225,7 @@ export class Value {
         return null;
     }
 
+
 }
 
 // Essentially just a list of values
@@ -387,6 +388,7 @@ export class Engine {
     constructor() {
         this.root = new Group();
         this.root.engine = this;
+        this.root.name = "ROOT";
     }
 
     //
