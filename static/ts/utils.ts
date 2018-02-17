@@ -265,7 +265,7 @@ export function detectType(value: any) {
         return constants.TYPE_NUMBER;
     }
 
-    return undefined;
+    return "";
 }
 
 export function toJs(value: any, valueType?: string) {

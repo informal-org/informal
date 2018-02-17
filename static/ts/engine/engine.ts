@@ -1,6 +1,6 @@
 import * as util from '../utils';
 import * as constants from "../constants"
-import {isValidName, castLiteral} from "../utils";
+import {isValidName, castLiteral, detectType} from "../utils";
 
 import {parseFormula, evaluateExpr, evaluateStr} from "./expr"
 
@@ -8,10 +8,11 @@ import {parseFormula, evaluateExpr, evaluateStr} from "./expr"
 
 export class Value {
     id: string;
-    name: string;
+    // @ts-ignore
+    private _name: string;
 
     type: string = "value";
-    expr: string = "";
+    private _expr: string;
 
     depends_on: Value[] = [];
      // Used in the initial stage when some names aren't defined till later.
@@ -19,6 +20,7 @@ export class Value {
     used_by: Value[] = [];
 
     parent: Group | null = null;
+    // @ts-ignore
     engine: Engine;
 
     errors: string[] = [];
@@ -36,8 +38,9 @@ export class Value {
             parent.addChild(this);
         }
 
-        this.rename(name);
-        this.setValue(value);
+        // @ts-ignore: string | undefined
+        this.name = name;
+        this.expr = value;
     }
 
 
@@ -47,17 +50,24 @@ export class Value {
     }
 
     removeDependency(other: Value) {
+        // @ts-ignore: Remove is a custom method
         this.depends_on.remove(other);
+        // @ts-ignore: Remove is a custom method
         other.used_by.remove(this);
     }
 
-    rename(newName?: string) {
-        if(newName == this.name){
+    get name(): string {
+        return this._name;
+    }
+
+    set name(newName: string) {
+        if(newName == this._name){
             return;
         }
         let NAME_ERROR = "Variable names should start with a letter and can only contain letters, numbers, _ and -";
 
-        if(!util.isDefinedStr(newName)) {
+        // newName == undefined is redundant: hint for typescript
+        if(!util.isDefinedStr(newName) || newName == undefined) {
             if(this.parent !== null){
                 newName = this.parent.generateName();
             } else {
@@ -72,11 +82,12 @@ export class Value {
                 this.parent.bind(newName, this);
             }
 
-            this.name = newName;
+            this._name = newName;
             this.removeError(NAME_ERROR);
         } else {
             this.addError(NAME_ERROR)
         }
+
     }
 
     _nameAvailable(name: string){
@@ -95,9 +106,13 @@ export class Value {
         this.errors = this.errors.filter((err) => !err.startsWith(prefix));
     }
 
-    setValue(newValue: string) {
+    get expr(){
+        return this._expr;
+    }
+
+    set expr(newValue: string){
         // TODO: parse and set dependencies.
-        this.expr = newValue;
+        this._expr = newValue;
         this._expr_type = util.detectType(newValue);
         if(this._expr_type == constants.TYPE_FORMULA){
             this._parsed = parseFormula(this.expr);
@@ -114,7 +129,6 @@ export class Value {
 
     // To javascript for interop
     toJs() {
-        // TODO: This should be done with result
         return util.toJs(this._result, this._result_type);
     }
 
@@ -128,11 +142,12 @@ export class Value {
         if(this.expr == undefined || this.expr == null){
             return undefined;
         }
+        this._expr_type = detectType(this.expr);
 
         if(this._expr_type == constants.TYPE_FORMULA){
             // Is formula
             try {
-                let result = evaluateExpr(this._parsed, this.engine);
+                let result = evaluateExpr(this._parsed, this);
                 this.removeError(EVAL_ERR_PREFIX);
                 return result;
             } catch(err) {
@@ -145,7 +160,7 @@ export class Value {
             }
         }
         else if(this._expr_type == constants.TYPE_STRING) {
-            return evaluateStr(this.expr, this.engine);
+            return evaluateStr(this.expr, this);
         } else {
             // Numbers and booleans
             return castLiteral(this.expr);
@@ -158,6 +173,7 @@ export class Value {
         if(this._is_stale){
             // Re-evaluate and set this._result;
             this._result = this._doEvaluate();
+            this._result_type = detectType(this._result);
             this._is_stale = false;
         }
 
@@ -224,8 +240,6 @@ export class Group extends Value {
 
     stale_nodes: Value[];
 
-    expr : Value[] = [];
-
     type: string = "group";
 
     _expr_type = constants.TYPE_ARRAY;
@@ -244,7 +258,10 @@ export class Group extends Value {
         super.destruct();
         while(this.expr.length > 0){
             // Pop elements from end of list
-            this.expr.pop().destruct();
+            let cell = this.expr.pop();
+            if(cell != undefined){
+                cell.destruct();
+            }
         }
     }
 
@@ -261,6 +278,7 @@ export class Group extends Value {
 
     removeChild(child: Value){
         child.parent = null;
+        // @ts-ignore: Remove is a custom method
         this.expr.remove(child);
         delete this.id_map[child.id];
         this.unbind(child);

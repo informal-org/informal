@@ -205,13 +205,13 @@ export var BUILTIN_FUN = {
 
 // TODO: Test cases to verify operator precedence
 // @ts-ignore
-export function _do_eval(node, env: Group) {
+export function _do_eval(node, context: Value) {
     if(node.type === "BinaryExpression") {
         // @ts-ignore
-        return BINARY_OPS[node.operator](_do_eval(node.left, env), _do_eval(node.right, env));
+        return BINARY_OPS[node.operator](_do_eval(node.left, context), _do_eval(node.right, context));
     } else if(node.type === "UnaryExpression") {
         // @ts-ignore
-        return UNARY_OPS[node.operator](_do_eval(node.argument, env));
+        return UNARY_OPS[node.operator](_do_eval(node.argument, context));
     } else if(node.type === "Literal") {
         return util.castLiteral(node.value);
     } else if(node.type === "Identifier") {
@@ -227,7 +227,7 @@ export function _do_eval(node, env: Group) {
             return BUILTIN_FUN[uname];
         }
 
-        let match = env.resolve(uname);
+        let match = context.resolve(uname);
         // Found the name in an environment
         // if(idEnv !== null && idEnv !== undefined){
         // TODO: How to properly resolve multiple matches.
@@ -242,11 +242,11 @@ export function _do_eval(node, env: Group) {
         let compound = [];
         node.body.forEach(subnode => {
 
-            let subresult = _do_eval(subnode, env);
+            let subresult = _do_eval(subnode, context);
 
             // Wrap scalar constants in a Value so it can be rendered in CellList
             if(!Array.isArray(subresult) && !isCell(subresult)) {
-                subresult = new Value(subresult, env);
+                subresult = new Value(subresult, context);
             }
             compound = compound.concat(subresult);
         })
@@ -260,11 +260,11 @@ export function _do_eval(node, env: Group) {
         // This.world
         return node
     } else if (node.type == "CallExpression") {​
-        let func = _do_eval(node.callee, env);
+        let func = _do_eval(node.callee, context);
 
         let args = [];
         node.arguments.forEach(subnode => {
-            let subresult = _do_eval(subnode, env);
+            let subresult = _do_eval(subnode, context);
             // Wrap scalar constants in a Value so it can be rendered in CellList
             // if(!Array.isArray(subresult) && !isCell(subresult)) {
             //     subresult = new Value("", subresult, env, "");
@@ -284,19 +284,19 @@ export function _do_eval(node, env: Group) {
         // Name lookup
         // TODO: Handle name errors better.
         // TODO: Support [bracket name] syntax for spaces.
-        return env.resolve(node.name).evaluate();
+        return context.resolve(node.name).evaluate();
     }
 };
 
 // @ts-ignore
-function getDependencies(node, env: Group) : Value[] {
+function getDependencies(node, context: Value) : Value[] {
     /* Parse through an expression tree and return list of dependencies */
     if(node.type === "BinaryExpression") {
-        let left = getDependencies(node.left, env)
-        let right = getDependencies(node.right, env);
+        let left = getDependencies(node.left, context)
+        let right = getDependencies(node.right, context);
         return left.concat(right);
     } else if(node.type === "UnaryExpression") {
-        return getDependencies(node.argument, env);
+        return getDependencies(node.argument, context);
     } else if(node.type === "Literal") {
         return []
     } else if(node.type === "Identifier") {
@@ -305,7 +305,7 @@ function getDependencies(node, env: Group) : Value[] {
             return [];
         }
         // todo LOOKUP NAME
-        return [env.resolve(node.name)]
+        return [context.resolve(node.name)]
     } else {
         console.log("UNHANDLED eval CASE")
         console.log(node);
@@ -314,13 +314,13 @@ function getDependencies(node, env: Group) : Value[] {
         // Name lookup
         // TODO: Handle name errors better.
         // TODO: Support [bracket name] syntax for spaces.
-        return [env.resolve(node.name)];
+        return [context.resolve(node.name)];
     }
 }
 
 // @ts-ignore
-export function evaluateExpr(parsed, env: Group) {
-    return _do_eval(parsed, env);
+export function evaluateExpr(parsed, context: Value) {
+    return _do_eval(parsed, context);
 }
 
 
@@ -332,14 +332,14 @@ export function parseFormula(expr: string){
 }
 
 // TODO: Factor this into dependency calculations
-export function evaluateStr(strExpr: string, env: Group) {
+export function evaluateStr(strExpr: string, context: Value) {
     let pattern = /{{([^}]+)}}/g;   // Any string in {{ NAME }}
     let match = pattern.exec(strExpr);
     let strResult = strExpr;
 
     while (match != null) {
         let name = match[1];
-        let ref = env.resolve(name);
+        let ref = context.resolve(name);
         if(ref !== null) {
             let refEval = ref.evaluate();
             let value = formatValue(refEval);
