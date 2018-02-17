@@ -10,9 +10,10 @@ export class Value {
     id: string;
     // @ts-ignore
     private _name: string;
+    private _expr: any;
 
     type: string = "value";
-    private _expr: string;
+
 
     depends_on: Value[] = [];
      // Used in the initial stage when some names aren't defined till later.
@@ -92,7 +93,7 @@ export class Value {
 
     _nameAvailable(name: string){
         // Check if a name is available in parent scope.
-        return this.parent == null || !(name in this.parent.name_map;
+        return this.parent == null || !(name in this.parent.name_map);
     }
 
     addError(message: string){
@@ -256,8 +257,10 @@ export class Group extends Value {
 
     destruct(){
         super.destruct();
+
         while(this.expr.length > 0){
             // Pop elements from end of list
+            // @ts-ignore: it is an array. pop does exist.
             let cell = this.expr.pop();
             if(cell != undefined){
                 cell.destruct();
@@ -267,6 +270,7 @@ export class Group extends Value {
 
     addChild(child: Value) {
         child.parent = this;
+        // @ts-ignore: is array. push exists.
         this.expr.push(child);
         this.id_map[child.id] = child;
 
