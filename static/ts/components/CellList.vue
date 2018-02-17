@@ -15,7 +15,7 @@
         <ul class="list-group">
             <template v-for="cell in group.expr">
                 <template v-if="cell.type == 'group'">
-                    <Group :key="cell.id" v-bind:group="cell"></Group>
+                    <Cell-List :key="cell.id" v-bind:group="cell"></Cell-List>
                 </template>
                 <template v-else>
                     <Cell :key="cell.id" v-bind:cell="cell"></Cell>

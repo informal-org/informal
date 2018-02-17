@@ -14,7 +14,6 @@ export class Value {
 
     type: string = "value";
 
-
     depends_on: Value[] = [];
      // Used in the initial stage when some names aren't defined till later.
     _unresolved_dependencies: string[] = [];
@@ -44,7 +43,6 @@ export class Value {
         this.expr = value;
     }
 
-
     addDependency(other: Value) {
         this.depends_on.push(other);
         other.used_by.push(this);
@@ -62,7 +60,7 @@ export class Value {
     }
 
     set name(newName: string) {
-        if(newName == this._name){
+        if(util.isDefinedStr(this._name) && newName == this._name){
             return;
         }
         let NAME_ERROR = "Variable names should start with a letter and can only contain letters, numbers, _ and -";
@@ -223,6 +221,10 @@ export class Value {
             return found.length > 0 ? found[0] : options[0];
         }
         return null;
+    }
+
+    isArrResult(){
+        return this._result_type == constants.TYPE_ARRAY;
     }
 
 
