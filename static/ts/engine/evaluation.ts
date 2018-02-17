@@ -23,11 +23,11 @@ export function getEvalOrder(cells: Value[]){
 
     while(leafs.length > 0) {
         let cell = leafs.shift();   // Pop first element
-        if(cell != undefined){  // Unnecessary check to appeaes typescript.
+        if(cell != undefined){  // Unnecessary check to appease typescript.
             eval_order.push(cell);
             cell.used_by.forEach(cell_user => {
                 if(cell_user.id in depend_count){
-                    depend_count[cell_user.id] -= 1
+                    depend_count[cell_user.id] -= 1;
                     if(depend_count[cell_user.id] <= 0){
                         // Remove nodes without any dependencies
                         delete depend_count[cell_user.id]
@@ -42,7 +42,7 @@ export function getEvalOrder(cells: Value[]){
             })
         }
     }
-    let unmet_dependencies = Object.keys(depend_count)
+    let unmet_dependencies = Object.keys(depend_count);
     if(unmet_dependencies.length > 0){
         let cell_id_map: {
             [index: string]: Value

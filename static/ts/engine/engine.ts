@@ -1,6 +1,8 @@
 import * as util from '../utils';
 import * as constants from "../constants"
-import {isValidName} from "../utils";
+import {isValidName, castLiteral} from "../utils";
+
+import {parseFormula, evaluateExpr, evaluateStr} from "./expr"
 
 
 
@@ -27,12 +29,11 @@ export class Value {
     _expr_type: string = "";   // One of FORMULA, BOOL, STR, NUM
     _result_type: string = "";  // Usually the same as _expr_type, except when it's a function.
 
-    constructor(value: string, parent?: Group, name?: string) {
+    constructor(value: any, parent?: Group, name?: string) {
         this.id = util.generate_random_id();
         if(parent !== undefined){
             this.engine = parent.engine;
-            this.parent = parent;
-            parent.id_map[this.id] = this;
+            parent.addChild(this);
         }
 
         this.rename(name);
@@ -46,13 +47,8 @@ export class Value {
     }
 
     removeDependency(other: Value) {
-        if(this.depends_on.indexOf(other) != -1){
-            this.depends_on.splice(this.depends_on.indexOf(other), 1);
-        }
-        if(other.used_by.indexOf(this) != -1){
-            other.used_by.splice(other.used_by.indexOf(this), 1);
-        }
-
+        this.depends_on.remove(other);
+        other.used_by.remove(this);
     }
 
     rename(newName?: string) {
@@ -61,18 +57,16 @@ export class Value {
         }
         let NAME_ERROR = "Variable names should start with a letter and can only contain letters, numbers, _ and -";
 
-        if((newName === "" || newName === undefined)) {
+        if(!util.isDefinedStr(newName)) {
             if(this.parent !== null){
                 newName = this.parent.generateName();
             } else {
                 this.addError(NAME_ERROR);
-                newName = "";
+                return;
             }
         }
 
-
-        if(isValidName(newName) && (this.parent == null || !(newName in this.parent.name_map))){
-
+        if(isValidName(newName) && this._nameAvailable(newName)){
             if(this.parent != null){
                 this.parent.unbind(this);
                 this.parent.bind(newName, this);
@@ -80,14 +74,18 @@ export class Value {
 
             this.name = newName;
             this.removeError(NAME_ERROR);
-
         } else {
             this.addError(NAME_ERROR)
         }
     }
 
+    _nameAvailable(name: string){
+        // Check if a name is available in parent scope.
+        return this.parent == null || !(name in this.parent.name_map;
+    }
+
     addError(message: string){
-        if(this.errors.indexOf(message) == -1){
+        if(this.errors.indexOf(message) == -1){ // Only add non-existent errors.
             this.errors.push(message)
         }
     }
@@ -102,7 +100,7 @@ export class Value {
         this.expr = newValue;
         this._expr_type = util.detectType(newValue);
         if(this._expr_type == constants.TYPE_FORMULA){
-            this._parsed = parseFormula(this.expr, this.engine);
+            this._parsed = parseFormula(this.expr);
         } else {
             this._parsed = null;
         }
@@ -117,7 +115,7 @@ export class Value {
     // To javascript for interop
     toJs() {
         // TODO: This should be done with result
-        return util.toJs(this.expr, this._exprtype);
+        return util.toJs(this._result, this._result_type);
     }
 
     _doEvaluate(){
@@ -125,7 +123,6 @@ export class Value {
         // Does the core of evaluate without any of the caching layers.
         // Can be overwritten.
          */
-
 
         let EVAL_ERR_PREFIX = "Evaluation error: "
         if(this.expr == undefined || this.expr == null){
@@ -160,7 +157,8 @@ export class Value {
     evaluate() {
         if(this._is_stale){
             // Re-evaluate and set this._result;
-            return this._doEvaluate();
+            this._result = this._doEvaluate();
+            this._is_stale = false;
         }
 
         // Return cached.
@@ -180,12 +178,13 @@ export class Value {
         if(this.parent){
             this.parent.removeChild(this);
         }
-        // TODO: Remove it as a dependent for all cells this depends on.
-        // Error any cells still using this.
+        while(this.used_by.length > 0){
+            this.used_by[this.used_by.length - 1].removeDependency(this);
+        }
     }
 
 
-    lookup(name: string, exclude?: Value) {
+    lookup(name: string, exclude?: Group) {
         if(this.parent == null){
             return [];
         }
@@ -196,8 +195,8 @@ export class Value {
         return this.parent.lookup(name);
     }
 
-
     resolve(name: string) {
+        // Heuristic: In case of multiple matches, resolve to the node in our dependency list.
         let options = this.lookup(name);
         // Find the options we depend on.
         if(options.length > 0){
@@ -229,21 +228,13 @@ export class Group extends Value {
 
     type: string = "group";
 
+    _expr_type = constants.TYPE_ARRAY;
+    _result_type = constants.TYPE_ARRAY;
+
     constructor(parent?: Group, name?: string) {
         // @ts-ignore
         super([], parent, name);
     }
-
-    // lookup(name: string) : Value | undefined {
-    //     let uname = name.toUpperCase();
-    //     if(uname in this.name_map){
-    //         return this.name_map[uname];
-    //     }
-    //     if(this.parent !== null){
-    //         return this.parent.lookup(name)
-    //     }
-    //     return undefined;
-    // }
 
     _doEvaluate(){
         return this.expr;
@@ -261,16 +252,42 @@ export class Group extends Value {
         child.parent = this;
         this.expr.push(child);
         this.id_map[child.id] = child;
-        this.bind(child.name, child);
+
+        if(child.name !== undefined){
+            this.bind(child.name, child);
+        }
+
     }
 
     removeChild(child: Value){
-        this.expr.splice(this.expr.indexOf(child), 1);
-        delete this.name_map[child.name];
-        delete this.id_map[child.name];
+        child.parent = null;
+        this.expr.remove(child);
+        delete this.id_map[child.id];
+        this.unbind(child);
     }
 
-    lookup(name: string, exclude?: Value) {
+    _childLookup(uname: string, exclude?: Group){
+        let matches: Value[] = [];
+        let thisNode: Group = this;
+        this.expr.forEach((child) => {
+            if(exclude === undefined || child.id != exclude.id){
+                matches = matches.concat(child.lookup(uname, thisNode));
+            }
+        });
+        return matches;
+    }
+
+    _parentLookup(uname: string, exclude?: Group){
+        let matches: Value[] = [];
+        let thisNode: Group = this;
+
+        if(this.parent !== null && (exclude === undefined || this.parent.id !== exclude.id)) {
+            matches = matches.concat(this.parent.lookup(uname, thisNode));
+        }
+        return matches;
+    }
+
+    lookup(name: string, exclude?: Group) {
         /*
          Lookup a name in an environment.
          Return a list of found Values.
@@ -278,28 +295,19 @@ export class Group extends Value {
 
          Exclude specifies Values not to search in (to prevent infinite recursion).
         */
-        let uname = name.toUpperCase();
-
-        if(undefined !== exclude && this.id === exclude.id) {
+        // Lookup name in direct environment
+        if(exclude !== undefined && this.id === exclude.id) {
             return [];
         }
+
+        let uname = name.toUpperCase().trim();
         if(uname in this.name_map){
             return [this.name_map[uname]];
         }
+
         let nameResolutions: Value[] = [];
-
-        let thisNode = this;
-
-        this.expr.forEach((child) => {
-            if(exclude === undefined || child.id !== exclude.id){
-                nameResolutions = nameResolutions.concat(child.lookup(uname, thisNode));
-            }
-        });
-
-        if(this.parent !== null && (exclude === undefined || this.parent.id !== exclude.id)) {
-            nameResolutions = nameResolutions.concat(this.parent.lookup(uname, this));
-        }
-
+        nameResolutions = nameResolutions.concat(this._childLookup(uname, exclude));
+        nameResolutions = nameResolutions.concat(this._parentLookup(uname, exclude));
         return nameResolutions;
     }
 
@@ -326,8 +334,6 @@ export class Group extends Value {
         }
     }
 
-
-
     generateName(){
         let length: number = this.expr.length;
         for(let i = length + 1; i < (length * 2) + 2; i++){
@@ -338,22 +344,20 @@ export class Group extends Value {
         }
         return ""
     }
-
-
 }
 
-
-// TODO
-export class Table extends Group {
-    // Can be used for single objects, as a map, or for more complex tables.
-    // Distinction from above is multiple lists. It's more of a matrix.
-    // So it's a list of groups. Neat.
-
-    value: Group[] = [];
-
-    type: string = "table";
-
-}
+//
+// // TODO
+// export class Table extends Group {
+//     // Can be used for single objects, as a map, or for more complex tables.
+//     // Distinction from above is multiple lists. It's more of a matrix.
+//     // So it's a list of groups. Neat.
+//
+//     value: Group[] = [];
+//
+//     type: string = "table";
+//
+// }
 
 export class Engine {
     root: Group;
@@ -363,15 +367,12 @@ export class Engine {
         this.root.engine = this;
     }
 
-
-    // TODO;
-    rename(value: Value, name: string) {
-        if(isValidName((name))){
-            value.name = name;
-
-        }
-    }
-
-
-
+    //
+    // // TODO;
+    // rename(value: Value, name: string) {
+    //     if(isValidName((name))){
+    //         value.name = name;
+    //     }
+    // }
+    //
 }

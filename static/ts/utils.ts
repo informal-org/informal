@@ -1,11 +1,39 @@
 // src/utils.ts
 import { Big } from 'big.js';
+import { Value } from './engine/engine';
 import * as constants from "./constants";
+
+
+Array.prototype.remove = function(item) {
+    if(this.indexOf(item) != -1){
+        this.splice(this.indexOf(item), 1);
+    }
+};
+
+
+// https://stackoverflow.com/questions/5306680
+Array.prototype.move = function (old_index, new_index) {
+    if (new_index >= this.length) {
+        var k = new_index - this.length;
+        while ((k--) + 1) {
+            this.push(undefined);
+        }
+    }
+
+    this.splice(new_index, 0, this.splice(old_index, 1)[0]);
+    return this; // for testing purposes
+};
+
+
+// TODO: Does this work when used?
+String.prototype.add = function(other) {
+    console.log("Adding")
+    return this + other;
+};
 
 
 export function generate_random_id(){
     // Source: S/O 105034 - Broofa
-    // TODO: Replace with a more rigorous UID
     return 'xxxxxxxxxxxxxxxyxxxxxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
         var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
         return v.toString(16);
@@ -30,73 +58,59 @@ export function castBoolean(value: string) {
     let cleaned = cleanBoolStr(value);
     if(cleaned === "TRUE") return true;
     else if(cleaned === "FALSE") return false;
-    return undefined;   // TODO
+    return undefined;
 }
 
-export function isBoolean(value: string){
-    // Raw boolean values
-    // @ts-ignore: Allow booleans
-    if(u === true || u === false){
-        return true;
-    }
-
-    let u = cleanBoolStr(value);
-    if(u === 'TRUE' || u === 'FALSE'){
-        return true;
-    }
-    return false;
+export function isBoolean(value: string | boolean){
+    return isTrue(value) || isFalse(value);
 }
 
 
-export function isTrue(value: string) {
+export function isTrue(value: string | boolean) {
     // Checks is true or
     // @ts-ignore: Allow booleans
     return value === true ||  cleanBoolStr(value) === "TRUE";
 }
 
-export function isFalse(value: string){
+export function isFalse(value: string | boolean){
     // @ts-ignore: Allow booleans
     return value === false ||  cleanBoolStr(value) === "FALSE";
 }
 
-export function isString(value: string) {
-    return typeof value === 'string' || value instanceof String;
+export function isString(value: any) {
+    return typeof value === (typeof "string") || value instanceof String;
 }
 
 export function isFormula(value: string){
-    if(value !== null && value !== undefined){
-        let valStr = value.toString();
+    if(isDefinedStr(value)){
+        let valStr = value.toString().trim();
         return valStr.length > 0 && valStr[0] == "=";
     }
     return false;
 }
 
-// @ts-ignore: Allow undefined type since we're detecting type
-export function isBigNum(value) {
+export function isBigNum(value: any) {
     // == Big, but the class name gets mangled in minification. So indirect ref.
     return isInstanceOf(value, constants.ZERO.constructor.name)
 }
 
-// @ts-ignore: implicit parameter type
-export function isNumber(value) {
-    return isBigNum(value) || typeof value == "number";
+export function isNumber(value: any) {
+    return isBigNum(value) || typeof value === (typeof 0);
 }
 
-// @ts-ignore: implicit param types
-export function isInstanceOf(value, classname) {
+export function isInstanceOf(value: any, class_name: string) {
     if(value !== undefined && value !== null && value.constructor !== undefined){
-        return value.constructor.name == classname
+        return value.constructor.name === class_name
     }
     return false
 }
 
-// TODO
-export function isCell(value) {
+export function isCell(value: any) {
     return isInstanceOf(value, Value.constructor.name)
 }
 
 export function castLiteral(value: string){
-    if(value != null && value != undefined){
+    if(isDefinedStr(value)){
         let bool = castBoolean(value);
         if(bool !== undefined){
             return bool
@@ -113,11 +127,11 @@ export function castLiteral(value: string){
 export function fudge(result: Big) {
     // If the difference in decimal places and the max is less than the precision we care about, fudge it.
     // Fudge the result of a computation for rounding errors
-    // i.e (1/3) * 3 = 1
+    // i.e (1/3) * 3 = 1 rather than 0.9999999
     // 0.33333333333333333333 = 20 decimals
     let decimal = result.mod(constants.ONE);
     let p = ".00000000000000000001"
-    let precision = Big(p)   // 20 decimals
+    let precision = Big(p);  // 20 decimals
 
     let max = constants.ONE.minus(precision);
     if(decimal.gt(constants.ZERO)){
@@ -132,11 +146,15 @@ export function fudge(result: Big) {
     return result;
 }
 
+export function isDefinedStr(str?: string) {
+    return str !== null && str !== undefined && str !== "";
+}
+
 
 export function isValidName(name?: string){
     // TODO: Valid character set
-    // TODO: name == ""
-    if(name === null || name === undefined || name === "") {
+    // Undefined check is redundant, but used as type hint to TS
+    if(!isDefinedStr(name) || name == undefined) {
         return false;
     }
 
@@ -144,71 +162,53 @@ export function isValidName(name?: string){
         return false;
     }
 
-    let uname = name.toUpperCase()
+    let uname = name.toUpperCase();
     // Must start with a letter and contain just non-whitespace chars (\w) and _-
-    return /^[A-Z]\w*$/.test(uname)
+    return /^[A-Z]\w*$/.test(uname);
 }
 
-
-// https://stackoverflow.com/questions/5306680
-Array.prototype.move = function (old_index, new_index) {
-    if (new_index >= this.length) {
-        var k = new_index - this.length;
-        while ((k--) + 1) {
-            this.push(undefined);
-        }
-    }
-    this.splice(new_index, 0, this.splice(old_index, 1)[0]);
-    return this; // for testing purposes
-};
-
-// TODO: Does this work when used?
-String.prototype.add = function(other) {
-    console.log("Adding")
-    return this + other;
-};
-
-export function groupSelectionPolicy(selection: Boolean[], cells: Cell[]){
-    // Enforce the following rule:
-    // If a group item is selected, either 'all' or 'none' or it's children must be selected
-    // else the group shouldn't be selected.
-    // This enforces absolute click on group rather than bubbled clicks.
-
-    for(let i = 0; i < selection.length; i++){
-        if(selection[i] === true && cells[i].is_group === true){
-            let group = cells[i];
-            let firstChildValue = undefined;
-
-            // Special case to not select group if the list only has a single item
-            // lest that item becomes uneditable.
-            if(group.value.length == 1 && selection[i + 1] == true){
-                selection[i] = false;
-            }
-            // Offset by one to account for next position in cells array.
-            for(let childIndex = 1; childIndex < group.value.length + 1; childIndex++){
-                if(childIndex == 1){
-                    // Initialize to the first child's value to see if all else match (all true vs all false)
-                    firstChildValue = selection[i + childIndex]
-                } else {
-                    if(selection[i + childIndex] !== firstChildValue){
-                        selection[i] = false;
-                    }
-                }
-            }
-        }
-    }
-    return selection;
-}
-
-export function isEditMode(selected: Boolean[], index: number) {
-    // Check if item at index is the only true value.
-    // Not in edit mode when multiple items are selected.
-    // TODO; Micro optimization - terminate early without all count.
-    if(selected == undefined) {
-        return false;
-    }
-    return selected[index] == true && selected.filter(t => t == true).length == 1
-}
+//
+// export function groupSelectionPolicy(selection: Boolean[], cells: Cell[]){
+//     // Enforce the following rule:
+//     // If a group item is selected, either 'all' or 'none' or it's children must be selected
+//     // else the group shouldn't be selected.
+//     // This enforces absolute click on group rather than bubbled clicks.
+//
+//     for(let i = 0; i < selection.length; i++){
+//         if(selection[i] === true && cells[i].is_group === true){
+//             let group = cells[i];
+//             let firstChildValue = undefined;
+//
+//             // Special case to not select group if the list only has a single item
+//             // lest that item becomes uneditable.
+//             if(group.value.length == 1 && selection[i + 1] == true){
+//                 selection[i] = false;
+//             }
+//             // Offset by one to account for next position in cells array.
+//             for(let childIndex = 1; childIndex < group.value.length + 1; childIndex++){
+//                 if(childIndex == 1){
+//                     // Initialize to the first child's value to see if all else match (all true vs all false)
+//                     firstChildValue = selection[i + childIndex]
+//                 } else {
+//                     if(selection[i + childIndex] !== firstChildValue){
+//                         selection[i] = false;
+//                     }
+//                 }
+//             }
+//         }
+//     }
+//     return selection;
+// }
+//
+// export function isEditMode(selected: Boolean[], index: number) {
+//     // Check if item at index is the only true value.
+//     // Not in edit mode when multiple items are selected.
+//     // TODO; Micro optimization - terminate early without all count.
+//     if(selected == undefined) {
+//         return false;
+//     }
+//     return selected[index] == true && selected.filter(t => t == true).length == 1
+// }
 
 
 export function formatValue(value: any, valueType?: string) : any {
@@ -290,6 +290,4 @@ export function toJs(value: any, valueType?: string) {
             return value;
     }
     // case formula should not happen since this method is meant to be used with results.
-
-
 }

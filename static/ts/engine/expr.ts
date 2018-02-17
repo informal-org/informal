@@ -3,10 +3,10 @@ import { Big } from 'big.js';
 import * as util from '../utils';
 import { castBoolean, isCell, formatValue } from '../utils';
 import { Value, Group } from './engine';
-// import { CellError } from './errors';
 
-var jsep = require("jsep")
-Big.RM = 2 // ROUND_HALF_EVEN - banker's roll
+// @ts-ignore
+var jsep = require("jsep");
+Big.RM = 2;     // ROUND_HALF_EVEN - banker's roll
 
 // Create new cells as result, but don't bind or store in all cells list.
 // TODO: What about names bound to this later?
@@ -145,7 +145,7 @@ var BINARY_OPS = {
     "or" : (a: string, b: string) => {
         return itemwiseApply(a, b, "", false, boolOr);
     },
-    "where": (a: Array, b: Array) => {
+    "where": (a: Array<any>, b: Array<any>) => {
         return a.filter((aItem, aIndex) => b[aIndex].evaluate() == true)
     }
 };
@@ -159,18 +159,20 @@ jsep.addBinaryOp("where", 0); // Should be evaluated after "=" and other conditi
 
 jsep.addUnaryOp("not"); //  TODO - guess
 
+// TODO: Verify is boolean, else typos lead to true.
+function unaryNot(a: boolean){
+    if(Array.isArray(a)) {
+        return a.map((aItem) => {
+            return new Value(!aItem.evaluate(), aItem.env, aItem.name);
+        })
+    }
+    return !a;
+}
+
 
 var UNARY_OPS = {
-    "-" : function(a: Big) { return a.times(-1); },
-    "not" : function(a: boolean) {
-        if(Array.isArray(a)) {
-            return a.map((aItem) => {
-                return new Value(aItem.type, !aItem.evaluate(), aItem.env, aItem.name);
-            })
-        }
-        return !a;
-    },    // Verify is boolean, else typos lead to true.
-    // "+" : function(a: number) { return -a; }
+    "-" : (a: Big) => { return a.times(-1); },
+    "not" : (a: boolean) => unaryNot(a)
 };
 
 export var BUILTIN_FUN = {
@@ -198,8 +200,7 @@ export var BUILTIN_FUN = {
             }
         ]
     }
-
-}
+};
 
 
 // TODO: Test cases to verify operator precedence
@@ -288,7 +289,7 @@ export function _do_eval(node, env: Group) {
 };
 
 // @ts-ignore
-function getDependencies(node, env: Environment) : Value[] {
+function getDependencies(node, env: Group) : Value[] {
     /* Parse through an expression tree and return list of dependencies */
     if(node.type === "BinaryExpression") {
         let left = getDependencies(node.left, env)
@@ -304,7 +305,7 @@ function getDependencies(node, env: Environment) : Value[] {
             return [];
         }
         // todo LOOKUP NAME
-        return [env.lookup(node.name)]
+        return [env.resolve(node.name)]
     } else {
         console.log("UNHANDLED eval CASE")
         console.log(node);
@@ -313,21 +314,14 @@ function getDependencies(node, env: Environment) : Value[] {
         // Name lookup
         // TODO: Handle name errors better.
         // TODO: Support [bracket name] syntax for spaces.
-        return [env.lookup(node.name)];
+        return [env.resolve(node.name)];
     }
 }
 
 // @ts-ignore
-export function evaluateExpr(parsed, env: Environment) {
-    // try {
-    return _do_eval(parsed, env)
-    // } catch (err) {
-    //     console.log("Evaluation failed for " + parsed);
-    //     console.log(err)
-    //     // TODO - propagate
-    // }
+export function evaluateExpr(parsed, env: Group) {
+    return _do_eval(parsed, env);
 }
-
 
 
 export function parseFormula(expr: string){
@@ -338,25 +332,18 @@ export function parseFormula(expr: string){
 }
 
 // TODO: Factor this into dependency calculations
-export function evaluateStr(strExpr: string, env: Environment) {
-    let pattern = /{{([^}]+)}}/g;
+export function evaluateStr(strExpr: string, env: Group) {
+    let pattern = /{{([^}]+)}}/g;   // Any string in {{ NAME }}
     let match = pattern.exec(strExpr);
-
     let strResult = strExpr;
-    let startIndex = 0;
-    while (match != null) {
-        // TODO: Could be done using the index
-        // matched text: match[0]
-        // match start: match.index
-        // capturing group n: match[n]
-        // let ref = env.lookup(match[1].trim());
-        let name = match[1].trim();
 
-        if(env.findEnv(name) !== undefined) {
-            let ref = env.lookup(name);
+    while (match != null) {
+        let name = match[1];
+        let ref = env.resolve(name);
+        if(ref !== null) {
             let refEval = ref.evaluate();
             let value = formatValue(refEval);
-            strResult = strResult.replace(new RegExp(match[0], "g"), value)
+            strResult = strResult.replace(new RegExp(match[0], "g"), value);
         }
 
         match = pattern.exec(strExpr);
