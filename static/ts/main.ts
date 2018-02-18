@@ -10,7 +10,7 @@ let eng = new Engine();
 new Value("Hello", eng.root);
 new Value(23, eng.root);
 
-new Value("= 1 2", eng.root);
+new Value("= 1 39 129 459", eng.root);
 
 Vue.use(Vuex);
 

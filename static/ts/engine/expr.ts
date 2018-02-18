@@ -92,25 +92,25 @@ var BINARY_OPS = {
 
     // TODO: Case insensitive AND, OR, NOT
     // TODO: Array operations on these.
-    "and" : (a: string, b: string) => {
+    "AND" : (a: string, b: string) => {
         return itemwiseApply(a, b, "", false, boolAnd);
     },
-    "or" : (a: string, b: string) => {
+    "OR" : (a: string, b: string) => {
         return itemwiseApply(a, b, "", false, boolOr);
     },
-    "where": (a: Array<any>, b: Array<any>) => {
-        return a.filter((aItem, aIndex) => b[aIndex].evaluate() == true)
+    "WHERE": (a: Array<any>, b: Array<any>) => {
+        return a.filter((aItem, aIndex) => b[aIndex] == true)
     }
 };
 
 
 jsep.addBinaryOp("=", 6);
 // TODO: Make these case insensitive as well
-jsep.addBinaryOp("or", 1);
-jsep.addBinaryOp("and", 2);
-jsep.addBinaryOp("where", 0); // Should be evaluated after "=" and other conditionals. So < 6.
+jsep.addBinaryOp("OR", 1);
+jsep.addBinaryOp("AND", 2);
+jsep.addBinaryOp("WHERE", 0); // Should be evaluated after "=" and other conditionals. So < 6.
 
-jsep.addUnaryOp("not"); //  TODO - guess
+jsep.addUnaryOp("NOT"); //  TODO - guess
 
 // TODO: Verify is boolean, else typos lead to true.
 function unaryNot(a: boolean){
@@ -126,7 +126,7 @@ function unaryNot(a: boolean){
 
 var UNARY_OPS = {
     "-" : (a: Big) => { return a.times(-1); },
-    "not" : (a: boolean) => unaryNot(a)
+    "NOT" : (a: boolean) => unaryNot(a)
 };
 
 export var BUILTIN_FUN = {
@@ -161,11 +161,13 @@ export var BUILTIN_FUN = {
 // @ts-ignore
 export function _do_eval(node, context: Value) {
     if(node.type === "BinaryExpression") {
+        let op = node.operator.toUpperCase();
         // @ts-ignore
-        return BINARY_OPS[node.operator](_do_eval(node.left, context), _do_eval(node.right, context));
+        return BINARY_OPS[op](_do_eval(node.left, context), _do_eval(node.right, context));
     } else if(node.type === "UnaryExpression") {
+        let op = node.operator.toUpperCase();
         // @ts-ignore
-        return UNARY_OPS[node.operator](_do_eval(node.argument, context));
+        return UNARY_OPS[op](_do_eval(node.argument, context));
     } else if(node.type === "Literal") {
         return util.castLiteral(node.value);
     } else if(node.type === "Identifier") {
@@ -216,8 +218,8 @@ export function _do_eval(node, context: Value) {
         });
 
         let result = func.apply(null, args);
-        console.log("Func result");
-        console.log(result);
+        // console.log("Func result");
+        // console.log(result);
         return result;
     } else {
         console.log("UNHANDLED eval CASE")
@@ -269,12 +271,25 @@ export function evaluateExpr(parsed, context: Value) {
     return null;
 }
 
+export function uppercaseKeywords(formula: string) {
+    // Convert reserved keywords like "and" to uppercase AND so they can be matched by jsep regardless of case.
+    let reserved_words = ["where", "and", "or"];
+    // This could potentially be done in a single regex rather than multiple passes over string
+    // but this is good enough for normal sized expressions.
+    reserved_words.forEach((keyword) => {
+        let keyexp = "(\\W|\^)" + keyword + "(\\W|\$)";
+        formula = formula.replace(new RegExp(keyexp, 'gi'), "$1" + keyword.toUpperCase() + "$2");
+    })
+    return formula;
+}
+
 
 export function parseFormula(expr: string){
     // Assert is formula
     // Return jsep expression
     let formula = expr.substring(1);
     if(util.isDefinedStr(formula)){
+        formula = uppercaseKeywords(formula);
         let parsed = jsep(formula);
         return parsed;
     }
