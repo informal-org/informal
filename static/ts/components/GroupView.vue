@@ -6,13 +6,21 @@
 
             <input maxlength="20" class="DataLabel" v-model="group.name" placeholder="Name..."/>
         </template>
-        <template v-else>
+        <div v-else @mousedown="select">
             <label class="DataLabel">{{ group.name }}&nbsp;</label>
-        </template>
+        </div>
 
         <Cell-List v-bind:cells="group.expr"></Cell-List>
 
+        <template>
+            <a class="list-group-item list-group-item-action AddItem" @mousedown="addCell">
+                <i class="fas fa-plus"></i>
+                Add Cell
+                </a>
+        </template>
+
         <Cell-Errors v-bind:cell="group"></Cell-Errors>
+
     </li>
 </template>
 
@@ -27,12 +35,14 @@ export default Vue.component('GroupView', {
     },
     methods: {
         addCell: function(event: Event) {
-            // todo: Vuex this
-            // let c = new Cell("", "test", this.cellgroup.env, "hello");
-            // let c = this.cellgroup.env.createCell("", "", "")
-            // this.cellgroup.addChild(c);
-            // window.lastAddedIndex = this.cellgroup.env.all_cells.indexOf(c);
+            let c = new Value("", this.group);
+            // Select it for editing.
+            this.$store.commit("setEdit", c);
         },
+        select: function(event: Event) {
+            this.$store.commit("setEdit", this.group);
+        }
+
     },
 });
 </script>

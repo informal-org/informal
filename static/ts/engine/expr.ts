@@ -10,6 +10,7 @@ Big.RM = 2;     // ROUND_HALF_EVEN - banker's roll
 
 function itemApply(ai: any, bi: any, funcName: string, doFudge: boolean, func?: Function) {
     // Figure out what function to call. 
+    console.log("func name " + funcName);
     var result = func === undefined ? ai[funcName](bi) : func(ai, bi);
     if(doFudge){
         result = util.fudge(result);
@@ -20,6 +21,7 @@ function itemApply(ai: any, bi: any, funcName: string, doFudge: boolean, func?: 
 // Create new cells as result, but don't bind or store in all cells list.
 // TODO: What about names bound to this later?
 function itemwiseApply(a: any, b: any, funcName: string, doFudge=false, func=undefined) {
+    console.log("itemwise apply func name " + funcName);
     if(Array.isArray(a) && Array.isArray(b)){   // [a] * [b]
         // ASSERT BOTH ARE SAME LENGTH
         let resultList = a.map(function(ai, i) {
@@ -114,7 +116,8 @@ jsep.addUnaryOp("not"); //  TODO - guess
 function unaryNot(a: boolean){
     if(Array.isArray(a)) {
         return a.map((aItem) => {
-            return new Value(!aItem.evaluate(), aItem.env, aItem.name);
+            !aItem;
+            // return new Value(!aItem.evaluate(), aItem.env, aItem.name);
         })
     }
     return !a;
@@ -178,17 +181,12 @@ export function _do_eval(node, context: Value) {
             return BUILTIN_FUN[uname];
         }
 
-        console.log("options " + context.lookup(uname));
-
         let match = context.resolve(uname);
         // Found the name in an environment
-        // if(idEnv !== null && idEnv !== undefined){
-        // TODO: How to properly resolve multiple matches.
-        console.log("Found match " + match);
+
         if(match !== null){
             return match.evaluate();
         }
-        //}
         // TODO: Return as string literal in this case?
         // Probably not - should be lookup error
         return node.name

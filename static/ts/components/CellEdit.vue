@@ -40,14 +40,10 @@ export default Vue.component('CellEdit', {
     },
     computed: {
         isLargeItem: function() : boolean {
-            // TODO: Check if text is long or not
-            if(this.cell.type === "object"){
-                return true;
-            } else if(this.cell.type === "text" && this.cell.expr.length > 100){
+            if(this.cell._expr_type === "STR" && this.cell.expr.length > 50){
                 return true;
             }
-            // return false;
-            return this.cell.expr.toString().length > 50;
+            return false;
         },
         classObject: function() : object {
             // var typeClass = "DataType--" + this.cell.type;

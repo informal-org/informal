@@ -26,7 +26,7 @@ Array.prototype.move = function (old_index, new_index) {
 
 
 // TODO: Does this work when used?
-String.prototype.add = function(other) {
+String.prototype.plus = function(other) {
     console.log("Adding")
     return this + other;
 };

@@ -53,13 +53,7 @@ export default Vue.component('CellView', {
     },
     methods: {
         select: function(event: Event) {
-            // @ts-ignore:
-            if(this.isEdit) {
-                // Hide this mousedown event from selector so our input boxes can be edited.
-                event.stopPropagation();
-            }
             this.$store.commit("setEdit", this.cell);
-            console.log("Setting edit");
         }
     }
 });

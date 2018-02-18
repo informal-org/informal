@@ -155,7 +155,6 @@ export class Value {
         if(this._expr_type == constants.TYPE_FORMULA){
             // Is formula
             try {
-                console.log("Eval formula");
                 let result = evaluateExpr(this._parsed, this);
                 this.removeError(EVAL_ERR_PREFIX);
                 return result;
