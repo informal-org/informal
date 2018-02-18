@@ -15,13 +15,7 @@
             <template v-else>
                 <input type="text" placeholder="Value" v-model="cell.expr" class="DataInput" autofocus/>
                 
-                <template v-if="cell.isArrResult()">
-                    <Result-View v-bind:value="cell._result"></Result-View>
-                </template>
-                <template v-else>
-                    <p>{{ cell.toString() }}</p>
-                </template>
-                    
+                <Result-View v-bind:value="cell.evaluate()"></Result-View>
             </template>
         </span>
 

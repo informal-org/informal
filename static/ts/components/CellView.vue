@@ -3,16 +3,7 @@
         <label class="DataLabel">{{ cell.name }}</label>
         <span class="DataValue">
             <!-- Auto-reflow to next line due to div -->
-            <template v-if="cell.isArrResult()">
-                
-                <Result-View v-bind:value="cell.evaluate()"></Result-View>
-
-                
-
-            </template>
-            <template v-else>
-                {{ cell.toString() }}
-            </template>
+            <Result-View v-bind:value="cell.evaluate()"></Result-View>
         </span>
 
         <Cell-Errors v-bind:cell="cell"></Cell-Errors>
