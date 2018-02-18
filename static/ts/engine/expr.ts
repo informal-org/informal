@@ -8,87 +8,39 @@ import { Value, Group } from './engine';
 var jsep = require("jsep");
 Big.RM = 2;     // ROUND_HALF_EVEN - banker's roll
 
+function itemApply(ai: any, bi: any, funcName: string, doFudge: boolean, func?: Function) {
+    // Figure out what function to call. 
+    var result = func === undefined ? ai[funcName](bi) : func(ai, bi);
+    if(doFudge){
+        result = util.fudge(result);
+    }
+    return result;
+}
+
 // Create new cells as result, but don't bind or store in all cells list.
 // TODO: What about names bound to this later?
-function itemwiseApply(a, b, funcName, doFudge=false, func=undefined) {
-
+function itemwiseApply(a: any, b: any, funcName: string, doFudge=false, func=undefined) {
     if(Array.isArray(a) && Array.isArray(b)){   // [a] * [b]
         // ASSERT BOTH ARE SAME LENGTH
         let resultList = a.map(function(ai, i) {
-            let aVal = ai.evaluate();
-            let bVal = b[i].evaluate();
-
-            var result;
-            if(func !== undefined){
-                result = func(aVal, bVal)
-            } else {
-                result = aVal[funcName](bVal)
-            }
-            if(doFudge){
-                result = util.fudge(result);
-            }
-            // let resultCell = new Value(ai.type, result, ai.env, ai.name);
-            let resultCell = new Value(result, ai, ai.name);
-            // resultCell.parent_group = aVal.parent_group;
-            return resultCell
+            return itemApply(ai, b[i], funcName, doFudge, func);
         });
         return resultList;
     }
     else if(Array.isArray(a)) { // [a] * 2
         let resultList = a.map((ai) => {
-            let aVal = ai.evaluate();   // TODO: What if this is wrong type?
-
-            var result;
-            if(func !== undefined){
-                result = func(aVal, b)
-            } else {
-                result = aVal[funcName](b)
-            }
-
-            if(doFudge){
-                result = util.fudge(result);
-            }
-            // let resultCell = new Value(ai.type, result, ai.env, ai.name);
-            let resultCell = new Value(result, ai, ai.name);
-            // resultCell.parent_group = aVal.parent_group;
-            return resultCell;
+            return itemApply(ai, b, funcName, doFudge, func);
         })
         return resultList;
 
     } else if(Array.isArray(b)) {   // 2 * [a]
         let resultList = b.map((bi) => {
-            let bVal = bi.evaluate();   // TODO: What if this is wrong type?
-
-            var result;
-            if(func !== undefined){
-                result = func(a, bVal)
-            } else {
-                result = a[funcName](bVal)
-            }
-
-
-            if(doFudge){
-                result = util.fudge(result);
-            }
-            // let resultCell = new Value(bi.type, result, bi.env, bi.name);
-            let resultCell = new Value(result, bi, bi.name);
-            // resultCell.parent_group = bVal.parent_group;
-            return resultCell;
+            return itemApply(a, bi, funcName, doFudge, func);
         })
         return resultList;
 
     } else {    // 1 + 2 : both are scalar values
-        var result;
-        if(func !== undefined){
-            result = func(a, b)
-        } else {
-            result = a[funcName](b)
-        }
-
-        if(doFudge){
-            result = util.fudge(result);
-        }
-        return result;
+        return itemApply(a, b, funcName, doFudge, func);
     }
 }
 
@@ -121,7 +73,6 @@ var BINARY_OPS = {
     "/" : (a: Big, b: Big) => { return itemwiseApply(a, b, "div", true); },
     "%" : (a: Big, b: Big) => { return itemwiseApply(a, b, "mod"); },
 
-    //  TODO: itemwise support?
     "=" : (a: Big, b: Big) => { return itemwiseApply(a, b, "eq");},//
     ">" : (a: Big, b: Big) => { return itemwiseApply(a, b, "gt"); },
     ">=" : (a: Big, b: Big) => { return itemwiseApply(a, b, "gte"); },    // TODO
@@ -242,18 +193,9 @@ export function _do_eval(node, context: Value) {
         // Probably not - should be lookup error
         return node.name
     } else if (node.type === "Compound") { // a, b
-        let compound = [];
-        node.body.forEach(subnode => {
-
-            let subresult = _do_eval(subnode, context);
-
-            // Wrap scalar constants in a Value so it can be rendered in CellList
-            if(!Array.isArray(subresult) && !isCell(subresult)) {
-                subresult = new Value(subresult, context);
-            }
-            compound = compound.concat(subresult);
-        })
-        return compound;
+        return node.body.map((subnode) => {
+            return _do_eval(subnode, context);
+        });
     } else if (node.type === "ThisExpression") {
         console.log(node);
         // Treat "this" as a non-keyword

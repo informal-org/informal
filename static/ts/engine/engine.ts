@@ -34,8 +34,11 @@ export class Value {
     constructor(value: any, parent?: Group, name?: string) {
         this.id = util.generate_random_id();
         if(parent !== undefined){
-            this.engine = parent.engine;            
-            parent.addChild(this);
+            this.engine = parent.engine;
+            if(parent instanceof Group){
+                parent.addChild(this);
+            }
+            
         }
 
         // @ts-ignore: string | undefined
@@ -273,7 +276,7 @@ export class Group extends Value {
     }
 
     _doEvaluate(){
-        return this.expr;
+        return this.expr.map((val: Value) => val.evaluate());
     }
 
     destruct(){
@@ -298,7 +301,6 @@ export class Group extends Value {
         if(child.name !== undefined){
             this.bind(child.name, child);
         }
-
     }
 
     removeChild(child: Value){

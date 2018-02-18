@@ -16,11 +16,7 @@
                 <input type="text" placeholder="Value" v-model="cell.expr" class="DataInput" autofocus/>
                 
                 <template v-if="cell.isArrResult()">
-                    <p>Array</p>
-                    <!-- TODO -->
-                    <!-- <Cell-List v-bind:group="cell._result"
-                        ></Cell-List> -->
-                        <!-- v-bind:parent="this.value[0].parent_group" -->
+                    <Result-View v-bind:value="cell._result"></Result-View>
                 </template>
                 <template v-else>
                     <p>{{ cell.toString() }}</p>

@@ -4,19 +4,18 @@
         <span class="DataValue">
             <!-- Auto-reflow to next line due to div -->
             <template v-if="cell.isArrResult()">
-                <p>Array</p>
-                <!-- <Cell-List v-bind:cells="cell._result"
-                    ></Cell-List> -->
-<!-- v-bind:parent="this.value[0].parent_group" -->
+                
+                <Result-View v-bind:value="cell.evaluate()"></Result-View>
+
+                
+
             </template>
             <template v-else>
                 {{ cell.toString() }}
             </template>
         </span>
 
-
         <Cell-Errors v-bind:cell="cell"></Cell-Errors>
-
     </div>
 </template>
 

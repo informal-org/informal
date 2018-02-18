@@ -8,9 +8,9 @@ import {Engine, Value, Group} from './engine/engine'
 
 let eng = new Engine();
 new Value("Hello", eng.root);
-
 new Value(23, eng.root);
 
+new Value("= 1 2", eng.root);
 
 Vue.use(Vuex);
 
@@ -32,6 +32,7 @@ import CellList from './components/CellList.vue';
 import GroupView from './components/GroupView.vue';
 import DestructBtn from './components/DestructBtn.vue';
 import CellErrors from './components/CellErrors.vue';
+import ResultView from './components/ResultView.vue';
 
 let arevelapp = new Vue({
     el: "#app",
@@ -47,6 +48,7 @@ let arevelapp = new Vue({
         CellList,
         DestructBtn,
         CellErrors,
-        GroupView
+        GroupView,
+        ResultView
     }
 });

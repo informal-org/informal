@@ -25,7 +25,7 @@ import {Group, Value} from "../engine/engine";
 export default Vue.component('CellList', {
     name: 'CellList',
     props: {
-        'cells': { type: Array },
+        'cells': {type: Array},
     },
     methods: {
         addCell: function(event: Event) {
