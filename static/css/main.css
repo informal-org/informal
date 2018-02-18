@@ -9,3 +9,176 @@ html, body {
     min-height: 100%;
 }
 
+p {
+    color: black;
+}
+
+
+.DataRow {
+    background-color: white;
+}
+
+.DataContainer {
+    max-width: 680px !important;
+    margin: 0 auto;
+    padding: 15px;
+}
+
+/* View mode label */
+label.DataLabel {
+    text-transform: uppercase;
+    color: #949697;
+    font-size: 0.85rem;
+}
+
+/* Edit mode label for the label input field */
+.DataLabel label {
+
+}
+
+.DataLabel input {
+    text-transform: uppercase;
+}
+
+/* Todo align right on input */
+
+.DataInput {
+    padding: 3px 5px;
+    width: 100%;
+}
+
+.DataValue {
+    min-width: 43%;
+    margin-left: 25%;
+    display: inline-block;
+}
+
+.full.width {
+    width: 100%;
+}
+
+.DashForm input {
+    border: 1px solid #e2ecf4;
+    padding: 4px;
+    max-height: 30.5px;
+    max-width: 100%;
+    margin: 4px 0;
+}
+
+.DataLabel input {
+    border-color: rgba(255, 255, 255, 0.9);
+    background: rgba(255, 255, 255, 0.5);
+    font-weight: bold;
+}
+
+.DataLabel input:hover, .DataLabel input:active, .DataLabel input:focus {
+    border-color: #e2ecf4;
+} 
+
+.border-bottom {
+    border-bottom: 1px solid #bdc3c7;
+}
+
+.DataRow.edit {
+    background-color: #D3E6F7;
+}
+
+
+
+.DataRow.CellType--cellgroup {
+    margin-top: 100px !important;
+}
+
+.DataType--boolean .DataValue {
+    font-style: italic;
+}
+
+.DataType--bignum .DataValue {
+    text-align: right;
+}
+
+.DataRow--large .DataLabel, .DataRow--large .DataValue  {
+    width: 100%;
+    margin: 0;
+}
+
+.DataRow--large .DataLabel, .DataGroup .DataLabel {
+    margin-bottom: 0.25rem;
+}
+
+.DataRow--large .DataValue textarea {
+    min-height: 150px;
+}
+
+.DashForm .list-group-item {
+    padding: 0.5rem 1rem;
+}
+
+.DataLabel {
+    margin-bottom: 0;
+}
+
+.DataRow .close, .DataGroup .close {
+    position: absolute;
+    right: 20px;
+    z-index: 100;
+}
+
+.CellError {
+    padding: .25rem .5rem;
+    margin-bottom: .5rem;
+    border-radius: 3px;
+    font-size: .9rem;
+}
+
+.navbar {
+    border-bottom: 1px solid #efefef;
+}
+
+.DataValue .DataRow {
+    background-color: rgba(255, 255, 255, 0.5);
+}
+
+.AddItem {
+    background-color: #2980b9;
+    color: white !important;
+    font-weight: bold;
+    border-top: 1px solid #E4F1FE;
+    border-bottom: 2px solid #2c3e50;
+}
+
+.AddItem:hover {
+    background-color: #3498db;
+    border-bottom: 2px solid #2980b9;
+    cursor: pointer;
+}
+
+.selectable {
+    cursor: pointer;
+}
+
+.input.box label, .DataLabel {
+    display: inline-block;
+    font-weight: bold;
+    color: #333;
+    width: 25%;
+    text-align: left;
+    padding-right: 5px;
+    vertical-align: top;
+
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+
+.DataInput {
+    padding: 3px 5px;
+    width: 100%;
+}
+
+.DataValue {
+    min-width: 43%;
+    margin-left: 25%;
+    display: inline-block;
+}

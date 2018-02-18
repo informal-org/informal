@@ -320,15 +320,22 @@ function getDependencies(node, context: Value) : Value[] {
 
 // @ts-ignore
 export function evaluateExpr(parsed, context: Value) {
-    return _do_eval(parsed, context);
+    if(parsed != null){
+        return _do_eval(parsed, context);
+    }
+    return null;
 }
 
 
 export function parseFormula(expr: string){
     // Assert is formula
     // Return jsep expression
-    let parsed = jsep(expr.substring(1));
-    return parsed;
+    let formula = expr.substring(1);
+    if(util.isDefinedStr(formula)){
+        let parsed = jsep(formula);
+        return parsed;
+    }
+    return null;
 }
 
 // TODO: Factor this into dependency calculations

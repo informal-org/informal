@@ -34,7 +34,7 @@ export class Value {
     constructor(value: any, parent?: Group, name?: string) {
         this.id = util.generate_random_id();
         if(parent !== undefined){
-            this.engine = parent.engine;
+            this.engine = parent.engine;            
             parent.addChild(this);
         }
 
@@ -118,12 +118,18 @@ export class Value {
         } else {
             this._parsed = null;
         }
+        this.markStale();
 
         // todo - OTHER TYPES, ESP STRING
     }
 
+    exprString() {
+        return util.formatValue(this._expr, this._expr_type);
+    }
+
     toString() {
-        return util.formatValue(this.expr, this._expr_type);
+        // return util.formatValue(this._result, this._result_type);
+        return util.formatValue(this.evaluate(), this._result_type);
     }
 
     // To javascript for interop
@@ -139,13 +145,14 @@ export class Value {
 
         let EVAL_ERR_PREFIX = "Evaluation error: "
         if(this.expr == undefined || this.expr == null){
-            return undefined;
+            return null;
         }
         this._expr_type = detectType(this.expr);
 
         if(this._expr_type == constants.TYPE_FORMULA){
             // Is formula
             try {
+                console.log("Eval formula");
                 let result = evaluateExpr(this._parsed, this);
                 this.removeError(EVAL_ERR_PREFIX);
                 return result;
@@ -159,21 +166,24 @@ export class Value {
             }
         }
         else if(this._expr_type == constants.TYPE_STRING) {
+            console.log("Eval str")
             return evaluateStr(this.expr, this);
         } else {
             // Numbers and booleans
             return castLiteral(this.expr);
         }
-
+        return null;
     }
 
     // @ts-ignore - return type any.
     evaluate() {
+        console.log("Evaluate? " + this._is_stale);
         if(this._is_stale){
             // Re-evaluate and set this._result;
             this._result = this._doEvaluate();
+            console.log("Eval result" + this._result);
             this._result_type = detectType(this._result);
-            this._is_stale = false;
+            this.markClean();
         }
 
         // Return cached.
@@ -183,8 +193,18 @@ export class Value {
     markStale(){
         if(!this._is_stale){
             this._is_stale = true;
+            this.engine.stale_nodes.push(this);
+            
             // Touch all of the cells that depend on this as well.
             this.used_by.forEach((val) => val.markStale());
+        }
+    }
+
+    markClean(){
+        if(this._is_stale){
+            this._is_stale = false;
+            // @ts-ignore: Remove is a custom method.
+            this.engine.stale_nodes.remove(this);
         }
     }
 
@@ -386,6 +406,8 @@ export class Group extends Value {
 
 export class Engine {
     root: Group;
+
+    stale_nodes: Value[] = [];
 
     constructor() {
         this.root = new Group();
