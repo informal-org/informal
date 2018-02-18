@@ -177,11 +177,9 @@ export class Value {
 
     // @ts-ignore - return type any.
     evaluate() {
-        console.log("Evaluate? " + this._is_stale);
         if(this._is_stale){
             // Re-evaluate and set this._result;
             this._result = this._doEvaluate();
-            console.log("Eval result" + this._result);
             this._result_type = detectType(this._result);
             this.markClean();
         }

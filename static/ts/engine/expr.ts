@@ -218,7 +218,7 @@ export function _do_eval(node, context: Value) {
         // Usually boolean's are literals if typed as 'true', but identifiers
         // if case is different.
         let bool = castBoolean(node.name);
-        if(bool != undefined){
+        if(bool !== undefined){
             return bool;
         }
 
@@ -227,12 +227,15 @@ export function _do_eval(node, context: Value) {
             return BUILTIN_FUN[uname];
         }
 
+        console.log("options " + context.lookup(uname));
+
         let match = context.resolve(uname);
         // Found the name in an environment
         // if(idEnv !== null && idEnv !== undefined){
         // TODO: How to properly resolve multiple matches.
-        if(match){
-            match.evaluate();
+        console.log("Found match " + match);
+        if(match !== null){
+            return match.evaluate();
         }
         //}
         // TODO: Return as string literal in this case?
