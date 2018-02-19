@@ -5,7 +5,7 @@ threadsafe: yes
 
 handlers:
 - url: /static
-  static_dir: dist/static/
+  static_dir: dist/static
 - url: .*
   script: arevel.wsgi.application
 
