@@ -157,6 +157,40 @@ export var BUILTIN_FUN = {
 };
 
 
+export function resolveMember(node, context: Value){
+    // cell4.name.blah
+    // { "type": "MemberExpression", "computed": false, 
+    // "object": { "type": "MemberExpression", "computed": false, 
+        // "object": { "type": "Identifier", "name": "cell4" }, 
+        // "property": { "type": "Identifier", "name": "name" } }, 
+    // "property": { "type": "Identifier", "name": "blah" } } 
+    // Object could be recursive for nested a.b.c style lookup.
+    // let object = null;
+
+    // let subnode = node;
+    // while(node) {
+
+    // }
+    // let object = context.resolve(node.object.name);
+    // if(object !== null){
+    //     return object.resolve(node.property.name)
+    // }
+
+    let object = null;
+    if(node.object.type === "MemberExpression"){
+        object = resolveMember(node.object, context);
+    } else {
+        // Assert is identifier
+        object = context.resolve(node.object.name);
+    }
+
+    if(object !== null){
+        return object.resolve(node.property.name);
+    }
+    return null;
+
+}
+
 // TODO: Test cases to verify operator precedence
 // @ts-ignore
 export function _do_eval(node, context: Value) {
@@ -201,9 +235,10 @@ export function _do_eval(node, context: Value) {
         // Treat "this" as a non-keyword
         return "this"
     } else if (node.type === "MemberExpression") {
-        // TODO
-        // This.world
-        return node
+        // assert property == Identifier.
+        // return node
+        return resolveMember(node, context).evaluate();
+        
     } else if (node.type == "CallExpression") {​
         let func = _do_eval(node.callee, context);
 
