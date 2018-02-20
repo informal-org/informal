@@ -4,8 +4,6 @@ import {isValidName, castLiteral, detectType} from "../utils";
 
 import {parseFormula, evaluateExpr, evaluateStr} from "./expr"
 
-
-
 export class Value {
     id: string;
     // @ts-ignore
@@ -392,16 +390,54 @@ export class Group extends Value {
 
 //
 // // TODO
-// export class Table extends Group {
-//     // Can be used for single objects, as a map, or for more complex tables.
-//     // Distinction from above is multiple lists. It's more of a matrix.
-//     // So it's a list of groups. Neat.
-//
-//     value: Group[] = [];
-//
-//     type: string = "table";
-//
-// }
+export class Table extends Group {
+    // Can be used for single objects, as a map, or for more complex tables.
+    // Distinction from above is multiple lists. It's more of a matrix.
+    // So it's a list of groups. Neat.
+
+    // expr: Group[] = [];
+    type: string = "table";
+
+    _expr_type = constants.TYPE_ARRAY;
+    _result_type = constants.TYPE_ARRAY;
+
+
+    getColumnNames() {
+        return this.expr.map((grp: Group) => grp.name);
+    }
+
+    numRows() {
+        return this.expr !== [] ? this.expr[0].expr.length : 0;
+    }
+
+    getRow(index: number) {
+        let row = [];   // Use an array rather than a dictionary here to preserve ordering.
+        this.expr.forEach((grp: Group) => {
+            row.push({
+                "key": grp.name, 
+                "value": grp.expr[index].evaluate()
+            });
+        })
+        // return this.expr.map((grp: Group) => grp.expr[index].evaluate());
+        return row;
+    }
+
+    getRows(){
+        let rows = [];
+        for(let i = 0; i < this.numRows(); i++){
+            rows.push(this.getRow(i));
+        }
+        return rows;
+    }
+
+    _doEvaluate(){
+        // It's returned in a row oriented format so we can apply row filtering to it easily using WHERE.
+        return this.getRows();
+    }
+
+
+
+}
 
 export class Engine {
     root: Group;

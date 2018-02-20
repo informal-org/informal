@@ -265,6 +265,11 @@ export function detectType(value: any) {
         return constants.TYPE_NUMBER;
     }
 
+    // Do this afterwards, because some of the above are also objects of specific type.
+    if(typeof value == "object"){
+        return constants.TYPE_OBJECT;
+    }
+
     return "";
 }
 
