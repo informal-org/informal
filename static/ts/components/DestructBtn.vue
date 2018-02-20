@@ -1,5 +1,5 @@
 <template>
-    <button type="button" class="close" aria-label="Close" v-on:click="cell.destruct()">
+    <button title="Delete" type="button" class="close" aria-label="Delete" v-on:click="cell.destruct()">
         <span aria-hidden="true">&times;</span>
     </button>
 </template>
