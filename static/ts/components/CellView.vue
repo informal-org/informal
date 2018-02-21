@@ -1,9 +1,23 @@
 <template>
-    <div v-bind:class="classObject" @mousedown="select" data-id="cell.id">
+    <div v-bind:class="classObject" data-id="cell.id" @click="select">
         <label class="DataLabel">{{ cell.name }}</label>
-        <span class="DataValue">
+        <span class="">
             <!-- Auto-reflow to next line due to div -->
-            <Result-View v-bind:value="cell.evaluate()"></Result-View>
+            
+
+            <template v-if="cell.type == 'group'">
+                <Group-View :key="cell.id" v-bind:group="cell"></Group-View>
+            </template>
+            <template v-else-if="cell.type == 'table'">
+                <Cell-Table :key="cell.id" v-bind:table="cell"></Cell-Table>
+            </template>
+            <template v-else>
+                <Cell-Edit v-if="$store.state.editCell === cell" v-bind:cell="cell"></Cell-Edit>
+                <span v-else>{{ cell.toString() }}</span>
+            </template>
+
+
+
         </span>
 
         <Cell-Errors v-bind:cell="cell"></Cell-Errors>
@@ -53,7 +67,11 @@ export default Vue.component('CellView', {
     },
     methods: {
         select: function(event: Event) {
+            console.log("Selecting ");
+            console.log(event);
+            console.log(this.cell.type);
             this.$store.commit("setEdit", this.cell);
+            event.stopPropagation();
         }
     }
 });

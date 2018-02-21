@@ -3,8 +3,21 @@
         <!-- <label class="DataLabel">{{ value.name }}</label>
         <span class="DataValue"> -->
             <!-- Auto-reflow to next line due to div -->
+
+            <template v-if="value.type == 'group'">
+                <Group-View :key="value.id" v-bind:group="value"></Group-View>
+            </template>
+            <template v-else-if="value.type == 'table'">
+                <Cell-Table :key="value.id" v-bind:table="value"></Cell-Table>
+            </template>
+            <template v-else>
+                <!-- <Cell-View :key="cell.id" v-bind:cell="cell"></Cell-View> -->
+                {{ asStr }}
+            </template>
+
+            <!--
+
             <template v-if="isTable">
-                
                 <table class="table">
                     <thead>
                         <tr>
@@ -29,6 +42,7 @@
             <template v-else>
                 {{ asStr }}
             </template>
+            -->
         <!-- </span> -->
     </div>
 

@@ -1,5 +1,5 @@
 <template>
-    <div v-bind:class="classObject" data-id="cell.id">
+    <div v-bind:class="classObject" data-id="cell.id" @click="blockClick">
         <DestructBtn v-bind:cell="cell"></DestructBtn>
 
         <span class="DataLabel">
@@ -8,15 +8,24 @@
             <input maxlength="20" v-model="cell.name" placeholder="Name..."/>
         </span>
         <span class="DataValue">
-            <label>Value</label>
-            <template v-if="isLargeItem">
-                <textarea v-model="cell.expr" class="DataInput"></textarea>
+            <template v-if="cell.type == 'group'">
+                <Group-View :key="cell.id" v-bind:group="cell"></Group-View>
+            </template>
+            <template v-else-if="cell.type == 'table'">
+                <Cell-Table :key="cell.id" v-bind:table="cell"></Cell-Table>
             </template>
             <template v-else>
-                <input type="text" placeholder="Value" v-model="cell.expr" class="DataInput" autofocus/>
-                
-                <Result-View v-bind:value="cell.evaluate()"></Result-View>
+                <label>Value</label>
+                <template v-if="isLargeItem">
+                    <textarea v-model="cell.expr" class="DataInput"></textarea>
+                </template>
+                <template v-else>
+                    <input type="text" placeholder="Value" v-model="cell.expr" class="DataInput" autofocus/>
+                    
+                    <Result-View v-bind:value="cell.evaluate()"></Result-View>
+                </template>
             </template>
+
         </span>
 
         <Cell-Errors v-bind:cell="cell"></Cell-Errors>
@@ -61,6 +70,12 @@ export default Vue.component('CellEdit', {
             return classes;
         },
     },
+    methods: {
+        blockClick: function(e: Event) {
+            // Block click from propagating upwards and selecing something else while you're editing.
+            e.stopPropagation();
+        }
+    }
 });
 </script>
 

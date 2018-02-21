@@ -175,7 +175,7 @@ export function resolveMember(node, context: Value){
     // if(object !== null){
     //     return object.resolve(node.property.name)
     // }
-
+    console.log(node);
     let object = null;
     if(node.object.type === "MemberExpression"){
         object = resolveMember(node.object, context);
@@ -184,11 +184,13 @@ export function resolveMember(node, context: Value){
         object = context.resolve(node.object.name);
     }
 
+    console.log("object is");
+    console.log(object.name);
+
     if(object !== null){
         return object.resolve(node.property.name);
     }
     return null;
-
 }
 
 // TODO: Test cases to verify operator precedence
@@ -196,6 +198,13 @@ export function resolveMember(node, context: Value){
 export function _do_eval(node, context: Value) {
     if(node.type === "BinaryExpression") {
         let op = node.operator.toUpperCase();
+        // console.log("binary op " + node);
+        // console.log(node);
+        // console.log(node.left)
+        // console.log(node.right)
+        // if(node.left == false){
+        //    return node;
+        //}
         // @ts-ignore
         return BINARY_OPS[op](_do_eval(node.left, context), _do_eval(node.right, context));
     } else if(node.type === "UnaryExpression") {
@@ -221,7 +230,13 @@ export function _do_eval(node, context: Value) {
         // Found the name in an environment
 
         if(match !== null){
-            return match.evaluate();
+            // return match.evaluate();
+            if(match.type == "value"){
+                // Values store raw values. 
+                // Other types store aggregate types, which should remain those types.
+                return match.evaluate();
+            }
+            return match;
         }
         // TODO: Return as string literal in this case?
         // Probably not - should be lookup error

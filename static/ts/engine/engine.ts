@@ -245,6 +245,7 @@ export class Value {
         return this._result_type == constants.TYPE_ARRAY;
     }
 
+    
 
 }
 
@@ -273,7 +274,8 @@ export class Group extends Value {
     }
 
     _doEvaluate(){
-        return this.expr.map((val: Value) => val.evaluate());
+        // return this.expr.map((val: Value) => val.evaluate());
+        return this.expr
     }
 
     destruct(){
@@ -348,7 +350,7 @@ export class Group extends Value {
         }
 
         let nameResolutions: Value[] = [];
-        nameResolutions = nameResolutions.concat(this._childLookup(uname, exclude));
+        // nameResolutions = nameResolutions.concat(this._childLookup(uname, exclude));
         nameResolutions = nameResolutions.concat(this._parentLookup(uname, exclude));
         return nameResolutions;
     }
@@ -401,7 +403,6 @@ export class Table extends Group {
     _expr_type = constants.TYPE_ARRAY;
     _result_type = constants.TYPE_ARRAY;
 
-
     getColumnNames() {
         return this.expr.map((grp: Group) => grp.name);
     }
@@ -411,15 +412,17 @@ export class Table extends Group {
     }
 
     getRow(index: number) {
-        let row = [];   // Use an array rather than a dictionary here to preserve ordering.
-        this.expr.forEach((grp: Group) => {
-            row.push({
-                "key": grp.name, 
-                "value": grp.expr[index].evaluate()
-            });
-        })
-        // return this.expr.map((grp: Group) => grp.expr[index].evaluate());
-        return row;
+        // let row = [];   // Use an array rather than a dictionary here to preserve ordering.
+        // this.expr.forEach((grp: Group) => {
+        //     row.push({
+        //         "key": grp.name, 
+        //         "value": grp.expr[index].evaluate()
+        //     });
+        // })
+        return this.expr.map((grp: Group) => grp.expr[index]
+        //.evaluate()
+        );
+        //return row;
     }
 
     getRows(){
@@ -432,7 +435,8 @@ export class Table extends Group {
 
     _doEvaluate(){
         // It's returned in a row oriented format so we can apply row filtering to it easily using WHERE.
-        return this.getRows();
+        // return this.getRows();
+        return this.expr
     }
 
 

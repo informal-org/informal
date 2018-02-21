@@ -1,14 +1,15 @@
 <template>
-    <li class="list-group-item DataGroup">
+    <!-- <li class="list-group-item DataGroup"> -->
+    <span>
 
-        <template v-if="$store.state.editCell === group">
+        <!-- <template v-if="$store.state.editCell === group">
             <DestructBtn v-bind:cell="group"></DestructBtn>
 
             <input maxlength="20" class="DataLabel" v-model="group.name" placeholder="Name..."/>
         </template>
         <div v-else @mousedown="select">
             <label class="DataLabel">{{ group.name }}&nbsp;</label>
-        </div>
+        </div> -->
 
         <Cell-List v-bind:cells="group.expr"></Cell-List>
 
@@ -21,7 +22,7 @@
 
         <Cell-Errors v-bind:cell="group"></Cell-Errors>
 
-    </li>
+    </span>
 </template>
 
 <script lang="ts">

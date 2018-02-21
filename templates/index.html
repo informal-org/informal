@@ -1,12 +1,55 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>Title</title>
-    <link rel="stylesheet" href="/static/css/main.css"/>
+    <title>Arevel</title>
+    <meta lang="en_US">
+    <meta charset="utf-8">
+    <meta name="description" content="">
+
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+    <link href="https://use.fontawesome.com/releases/v5.0.6/css/all.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/main.css">
+
 </head>
 <body>
-<h1>Hello Index</h1>
+
+    <nav class="navbar navbar-toggleable-md navbar-inverted bg-faded">
+        <a class="navbar-brand" href="#">AREVEL</a>
+    </nav>
+
+
+    <div id="app" ref="app">
+
+    <!-- <header class="DashHeader">
+        <div class="Navbar--toolbar ui menu">
+            <button class="item" @click="addValue">+ Valuengie</button>
+            <button class="item" @click="addRef">+ Reference</button>
+            <button class="item" @click="addGroup">+ Group</button>
+            <div class="item">+ Table</div>
+            <div class="item">+ Record</div>
+        </div>
+    </header> -->
+
+    <div class="selection"></div>
+
+    <div class="BodyWrapper HeaderOffset">
+        <div class="DataContainer DashForm">
+            <Cell-View v-bind:cell="engine.root"
+            ></Cell-View>
+        </div>
+
+    </div> <!-- Body wrapper-->
+
+    </div>
+
+    <!--
+      <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+      <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+    -->
+
+    <!-- Note: Development version -->
+
+    <script src="/static/js/arevel.js"></script>
 
 </body>
 </html>

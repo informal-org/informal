@@ -10,9 +10,9 @@
                 </tr>
             </thead>
             <tbody>
-                <tr v-for="row in table.evaluate()">
+                <tr v-for="row in table.getRows()">
                     <td v-for="col in row">
-                        <Result-View v-bind:value="col.value"></Result-View>
+                        <Result-View v-bind:value="col.evaluate()"></Result-View>
                     </td>
                 </tr>
             </tbody>

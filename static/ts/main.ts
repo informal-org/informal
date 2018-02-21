@@ -9,8 +9,15 @@ import {Engine, Value, Group, Table} from './engine/engine'
 let eng = new Engine();
 new Value("Hello", eng.root);
 new Value(23, eng.root);
-new Value("= 1 39 129 459", eng.root);
 
+new Value("=cell2", eng.root);
+// new Value("= 1 39 129 459", eng.root);
+
+let g = new Group(eng.root)
+new Value(1, g)
+new Value(2, g)
+new Value(3, g)
+new Value(4, g)
 
 let tbl = new Table(eng.root, "Products");
 let g1 = new Group(tbl, "Item");
@@ -23,9 +30,7 @@ new Value(10, g2)
 new Value(50, g2)
 new Value(100, g2)
 
-
-
-new Value("= products", eng.root);
+// new Value("=products", eng.root);
 
 
 Vue.use(Vuex);
