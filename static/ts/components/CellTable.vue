@@ -1,8 +1,7 @@
 <template>
 
 <div>
-    <label class="DataLabel">{{ table.name }}</label>
-    <span class="DataValue">
+    <span class="">
         <table class="table">
             <thead>
                 <tr>

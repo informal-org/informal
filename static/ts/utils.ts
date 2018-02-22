@@ -249,6 +249,9 @@ export function detectType(value: any) {
     }
 
     if(Array.isArray(value)){
+        if(value.length > 0 && Array.isArray(value[0])){
+            return constants.TYPE_TABLE;
+        }
         return constants.TYPE_ARRAY;
     }
 

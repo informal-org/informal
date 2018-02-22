@@ -1,52 +1,9 @@
 <template>
     <div>
-        <!-- <label class="DataLabel">{{ value.name }}</label>
-        <span class="DataValue"> -->
-            <!-- Auto-reflow to next line due to div -->
-
-            <template v-if="value.type == 'group'">
-                <Group-View :key="value.id" v-bind:group="value"></Group-View>
-            </template>
-            <template v-else-if="value.type == 'table'">
-                <Cell-Table :key="value.id" v-bind:table="value"></Cell-Table>
-            </template>
-            <template v-else>
-                <!-- <Cell-View :key="cell.id" v-bind:cell="cell"></Cell-View> -->
-                {{ asStr }}
-            </template>
-
-            <!--
-
-            <template v-if="isTable">
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th v-for="colname in columnNames" v-bind:key="colname" scope="col">{{ colname }}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="row in value">
-                            <td v-for="col in row">
-                                <Result-View v-bind:value="col.value"></Result-View>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-
-            </template>
-            <template v-else-if="isArrResult">
-                <ul class="list-group">
-                    <Result-View v-for="val in value" v-bind:value="val"></Result-View>
-                </ul>
-            </template>
-            <template v-else>
-                {{ asStr }}
-            </template>
-            -->
-        <!-- </span> -->
+        <Cell-View v-if="cell._result_type === 'OBJ'" v-bind:cell="cell.evaluate()"/>
+        <Cell-List v-else-if="cell._result_type === 'ARR'" v-bind:cells="cell.evaluate()"/>
+        <span v-else>{{ cell.toString() }}</span>
     </div>
-
-
 </template>
 
 <script lang="ts">
@@ -56,28 +13,28 @@ import * as constants from '../constants';
 
 export default Vue.component('ResultView', {
     name: 'ResultView',
-    props: ['value'],
-    computed: {
-        isTable: function() : boolean {
-            return (util.detectType(this.value) === constants.TYPE_ARRAY
-             && this.value.length > 0 && util.detectType(this.value[0]) === constants.TYPE_ARRAY    // Has a row
-             && this.value[0].length > 0 && util.detectType(this.value[0][0]) === constants.TYPE_OBJECT // Has atleast a column.
-            ); 
-        },
-        columnNames: function() {
-            // Extract column names from first row. Assume all rows follow same schema.
-            return this.value[0].map((row) => row.key);
-        },
-        isArrResult: function() : boolean {
-            return util.detectType(this.value) == constants.TYPE_ARRAY;
-        },
-        valType: function() : string {
-            return util.detectType(this.value);
-        },
-        asStr: function() : string {
-            return util.formatValue(this.value);
-        }
-    }
+    props: ['cell'],
+    // computed: {
+    //     isTable: function() : boolean {
+    //         return (util.detectType(this.value) === constants.TYPE_ARRAY
+    //          && this.value.length > 0 && util.detectType(this.value[0]) === constants.TYPE_ARRAY    // Has a row
+    //          && this.value[0].length > 0 && util.detectType(this.value[0][0]) === constants.TYPE_OBJECT // Has atleast a column.
+    //         ); 
+    //     },
+    //     columnNames: function() {
+    //         // Extract column names from first row. Assume all rows follow same schema.
+    //         return this.value[0].map((row) => row.key);
+    //     },
+    //     isArrResult: function() : boolean {
+    //         return util.detectType(this.value) == constants.TYPE_ARRAY;
+    //     },
+    //     valType: function() : string {
+    //         return util.detectType(this.value);
+    //     },
+    //     asStr: function() : string {
+    //         return util.formatValue(this.value);
+    //     }
+    // }
 });
 </script>
 

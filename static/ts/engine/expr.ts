@@ -2,7 +2,7 @@
 import { Big } from 'big.js';
 import * as util from '../utils';
 import { castBoolean, isCell, formatValue } from '../utils';
-import { Value, Group } from './engine';
+import { Value, Group, Table } from './engine';
 
 // @ts-ignore
 var jsep = require("jsep");
@@ -111,7 +111,26 @@ var BINARY_OPS = {
         return itemwiseApply(a, b, "", false, boolOr);
     },
     "WHERE": (a: Array<any>, b: Array<any>) => {
-        return unboxVal(a).filter((aItem, aIndex) => unboxVal(b[aIndex]) == true)
+        console.log("Where");
+        
+        let aVal = unboxVal(a);
+        console.log(aVal);
+        if(Array.isArray(aVal) && aVal.length > 0 && aVal[0].type === "group" ){
+            console.log("Is table");
+            
+            // Is array - filter by row for each column.
+            return new Table(aVal.map((column, colIndex) => {
+                let g = new Group(unboxVal(column).filter((row, rowIndex) => {
+                    return unboxVal(b[rowIndex]) == true;
+                }));
+                g.name = column.name;
+                return g;
+            }));
+        }
+        console.log("nto table");
+        return unboxVal(a).filter((aItem, aIndex) => {
+            return unboxVal(b[aIndex]) == true
+        })
     }
 };
 

@@ -228,6 +228,14 @@ export class Value {
         if(exclude !== undefined && this.parent.id == exclude.id){
             return [];
         }
+        if(this._result !== null && this._result.type === "table"){
+            console.log("Resolve is defined")
+            let resolution = this._result.lookup(name, this);
+            if(resolution.length > 0) {
+                return resolution;
+            }
+        }
+
         // TODO: Support fully qualified names. In which case, this would remove part of path?
         return this.parent.lookup(name);
     }
@@ -272,9 +280,14 @@ export class Group extends Value {
     _expr_type = constants.TYPE_ARRAY;
     _result_type = constants.TYPE_ARRAY;
 
-    constructor(parent?: Group, name?: string) {
+    constructor(value?: Array<Value>, parent?: Group, name?: string) {
         // @ts-ignore
         super([], parent, name);
+        if(value !== undefined){
+            value.forEach((val) => {
+                this.addChild(val);
+            })
+        }
     }
 
     _doEvaluate(){
@@ -335,6 +348,7 @@ export class Group extends Value {
         return matches;
     }
 
+
     lookup(name: string, exclude?: Group) {
         /*
          Lookup a name in an environment.
@@ -356,6 +370,7 @@ export class Group extends Value {
         let nameResolutions: Value[] = [];
         // nameResolutions = nameResolutions.concat(this._childLookup(uname, exclude));
         nameResolutions = nameResolutions.concat(this._parentLookup(uname, exclude));
+        nameResolutions = nameResolutions.concat(this._resultLookup(uname, exclude));
         return nameResolutions;
     }
 

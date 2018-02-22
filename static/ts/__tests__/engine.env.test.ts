@@ -23,7 +23,7 @@ test('find variable in parent environment', () => {
   let engine = new Engine();
   let parentEnv = engine.root;
 
-  let childEnv = new Group(parentEnv);
+  let childEnv = new Group([], parentEnv);
 
   let c = new Value("42", parentEnv, "a");
 
@@ -41,11 +41,11 @@ test('find variable in deep environment', () => {
   let engine = new Engine();
   let e1 = engine.root;
 
-  let e2 = new Group(e1);
-  let e3 = new Group(e2);
-  let e4 = new Group(e3);
-  let e5 = new Group(e4);
-  let e6 = new Group(e5);
+  let e2 = new Group([], e1);
+  let e3 = new Group([], e2);
+  let e4 = new Group([], e3);
+  let e5 = new Group([], e4);
+  let e6 = new Group([], e5);
 
   // @ts-ignore:
   let c = new Value("42", e2, "a");
@@ -61,10 +61,10 @@ test('find variable in deep environment', () => {
 test('find variable in multiple scopes', () => {
   let engine = new Engine();
   let e1 = engine.root;
-  let e2 = new Group(e1);
-  let e3 = new Group(e2);
-  let e4 = new Group(e3);
-  let e5 = new Group(e4);
+  let e2 = new Group([], e1);
+  let e3 = new Group([], e2);
+  let e4 = new Group([], e3);
+  let e5 = new Group([], e4);
 
   // @ts-ignore:
   let c1 = new Value("42", e2, "a");

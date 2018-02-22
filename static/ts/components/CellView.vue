@@ -16,9 +16,7 @@
                     <Cell-Edit v-bind:cell="cell"></Cell-Edit>
                 </template>
                 <template v-else>
-                    <Cell-View v-if="cell._result_type === 'OBJ'" v-bind:cell="cell.evaluate()"/>
-                    <Cell-List v-else-if="cell._result_type === 'ARR'" v-bind:cells="cell.evaluate()"/>
-                    <span v-else>{{ cell.toString() }}</span>
+                    <Result-View v-bind:cell="cell"/>
                 </template>
             </template>
 

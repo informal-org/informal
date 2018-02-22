@@ -13,26 +13,29 @@ new Value(23, eng.root);
 new Value("=cell2", eng.root);
 // new Value("= 1 39 129 459", eng.root);
 
-let g = new Group(eng.root, "mylist")
+let g = new Group([], eng.root, "mylist")
 new Value(1, g)
 new Value(2, g)
 new Value(3, g)
 new Value(4, g)
 
-let tbl = new Table(eng.root, "Products");
-let g1 = new Group(tbl, "Item");
+let tbl = new Table([], eng.root, "Products");
+let g1 = new Group([], tbl, "Item");
 new Value("Apple", g1)
 new Value("Orange", g1)
 new Value("Raspberry", g1)
 
-let g2 = new Group(tbl, "Price");
+let g2 = new Group([], tbl, "Price");
 new Value(10, g2)
 new Value(50, g2)
 new Value(100, g2)
 
 new Value("=mylist where mylist > 3", eng.root);
-new Value("=not (mylist > 2)", eng.root);
+// new Value("=not (mylist > 2)", eng.root);
+new Value("=products where products.price > 10", eng.root);
 
+
+new Value("=cell8.price", eng.root);
 
 
 Vue.use(Vuex);

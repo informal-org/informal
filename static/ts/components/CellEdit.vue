@@ -23,11 +23,7 @@
                 <template v-else>
                     <input type="text" placeholder="Value" v-model="cell.expr" class="DataInput" autofocus/>
                     
-                    <!-- Result -->
-                    <Cell-View v-if="cell._result_type === 'OBJ'" v-bind:cell="cell.evaluate()"/>
-                    <Cell-List v-else-if="cell._result_type === 'ARR'" v-bind:cells="cell.evaluate()"/>
-                    <span v-else>{{ cell.toString() }}</span>
-
+                    <Result-View v-bind:cell="cell"/>
                 </template>
             </template>
 
