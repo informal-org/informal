@@ -12,7 +12,8 @@
             <tbody>
                 <tr v-for="row in table.getRows()">
                     <td v-for="col in row">
-                        <Result-View v-bind:value="col.evaluate()"></Result-View>
+                        <!-- <Result-View v-bind:value="col.evaluate()"></Result-View> -->
+                        <Cell-View v-bind:cell="col"></Cell-View>
                     </td>
                 </tr>
             </tbody>

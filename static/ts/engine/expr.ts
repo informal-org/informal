@@ -8,20 +8,32 @@ import { Value, Group } from './engine';
 var jsep = require("jsep");
 Big.RM = 2;     // ROUND_HALF_EVEN - banker's roll
 
+function unboxVal(value: any){
+    if(value !== undefined && value.evaluate !== undefined){
+        return value.evaluate();
+    }
+    return value;
+}
+
 function itemApply(ai: any, bi: any, funcName: string, doFudge: boolean, func?: Function) {
     // Figure out what function to call. 
-    console.log("func name " + funcName);
-    var result = func === undefined ? ai[funcName](bi) : func(ai, bi);
+    let aVal = unboxVal(ai);
+    let bVal = unboxVal(bi);
+    
+    var result = func === undefined ? aVal[funcName](bVal) : func(aVal, bVal);
     if(doFudge){
         result = util.fudge(result);
     }
-    return result;
+    return new Value(result);
 }
 
 // Create new cells as result, but don't bind or store in all cells list.
 // TODO: What about names bound to this later?
-function itemwiseApply(a: any, b: any, funcName: string, doFudge=false, func=undefined) {
+function itemwiseApply(aRaw: any, bRaw: any, funcName: string, doFudge=false, func=undefined) {
     console.log("itemwise apply func name " + funcName);
+    let a = unboxVal(aRaw);
+    let b = unboxVal(bRaw);
+
     if(Array.isArray(a) && Array.isArray(b)){   // [a] * [b]
         // ASSERT BOTH ARE SAME LENGTH
         let resultList = a.map(function(ai, i) {
@@ -99,7 +111,7 @@ var BINARY_OPS = {
         return itemwiseApply(a, b, "", false, boolOr);
     },
     "WHERE": (a: Array<any>, b: Array<any>) => {
-        return a.filter((aItem, aIndex) => b[aIndex] == true)
+        return unboxVal(a).filter((aItem, aIndex) => unboxVal(b[aIndex]) == true)
     }
 };
 
@@ -116,16 +128,16 @@ jsep.addUnaryOp("NOT"); //  TODO - guess
 function unaryNot(a: boolean){
     if(Array.isArray(a)) {
         return a.map((aItem) => {
-            !aItem;
+            return new Value(!unboxVal(aItem));
             // return new Value(!aItem.evaluate(), aItem.env, aItem.name);
         })
     }
-    return !a;
+    return !unboxVal(a);
 }
 
 
 var UNARY_OPS = {
-    "-" : (a: Big) => { return a.times(-1); },
+    "-" : (a: Big) => { return unboxVal(a).times(-1); },
     "NOT" : (a: boolean) => unaryNot(a)
 };
 
@@ -323,7 +335,7 @@ export function evaluateExpr(parsed, context: Value) {
 
 export function uppercaseKeywords(formula: string) {
     // Convert reserved keywords like "and" to uppercase AND so they can be matched by jsep regardless of case.
-    let reserved_words = ["where", "and", "or"];
+    let reserved_words = ["where", "and", "or", "not"];
     // This could potentially be done in a single regex rather than multiple passes over string
     // but this is good enough for normal sized expressions.
     reserved_words.forEach((keyword) => {

@@ -36,7 +36,6 @@ export class Value {
             if(parent instanceof Group){
                 parent.addChild(this);
             }
-            
         }
 
         // @ts-ignore: string | undefined
@@ -71,7 +70,7 @@ export class Value {
             if(this.parent !== null){
                 newName = this.parent.generateName();
             } else {
-                this.addError(NAME_ERROR);
+                // this.addError(NAME_ERROR);
                 return;
             }
         }
@@ -191,7 +190,9 @@ export class Value {
     markStale(){
         if(!this._is_stale){
             this._is_stale = true;
-            this.engine.stale_nodes.push(this);
+            if(this.engine !== undefined){
+                this.engine.stale_nodes.push(this);
+            }
             
             // Touch all of the cells that depend on this as well.
             this.used_by.forEach((val) => val.markStale());
@@ -202,7 +203,10 @@ export class Value {
         if(this._is_stale){
             this._is_stale = false;
             // @ts-ignore: Remove is a custom method.
-            this.engine.stale_nodes.remove(this);
+            if(this.engine !== undefined){
+                this.engine.stale_nodes.remove(this);
+            }
+                
         }
     }
 

@@ -12,11 +12,15 @@
                 <Cell-Table :key="cell.id" v-bind:table="cell"></Cell-Table>
             </template>
             <template v-else>
-                <Cell-Edit v-if="$store.state.editCell === cell" v-bind:cell="cell"></Cell-Edit>
-                <span v-else>{{ cell.toString() }}</span>
+                <template v-if="$store.state.editCell === cell">
+                    <Cell-Edit v-bind:cell="cell"></Cell-Edit>
+                </template>
+                <template v-else>
+                    <Cell-View v-if="cell._result_type === 'OBJ'" v-bind:cell="cell.evaluate()"/>
+                    <Cell-List v-else-if="cell._result_type === 'ARR'" v-bind:cells="cell.evaluate()"/>
+                    <span v-else>{{ cell.toString() }}</span>
+                </template>
             </template>
-
-
 
         </span>
 

@@ -13,7 +13,7 @@ new Value(23, eng.root);
 new Value("=cell2", eng.root);
 // new Value("= 1 39 129 459", eng.root);
 
-let g = new Group(eng.root)
+let g = new Group(eng.root, "mylist")
 new Value(1, g)
 new Value(2, g)
 new Value(3, g)
@@ -30,7 +30,9 @@ new Value(10, g2)
 new Value(50, g2)
 new Value(100, g2)
 
-// new Value("=products", eng.root);
+new Value("=mylist where mylist > 3", eng.root);
+new Value("=not (mylist > 2)", eng.root);
+
 
 
 Vue.use(Vuex);

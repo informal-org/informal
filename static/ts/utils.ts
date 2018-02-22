@@ -227,9 +227,10 @@ export function formatValue(value: any, valueType?: string) : any {
                 return value.map((v) => {
                     return formatValue(v, undefined);
                 }).join(", ")
-
+            case constants.TYPE_STRING:
+                return value
             default:
-                return value;
+                return "Default";
         }
     }
 

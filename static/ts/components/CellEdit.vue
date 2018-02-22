@@ -7,7 +7,7 @@
             <br>
             <input maxlength="20" v-model="cell.name" placeholder="Name..."/>
         </span>
-        <span class="DataValue">
+        <span>
             <template v-if="cell.type == 'group'">
                 <Group-View :key="cell.id" v-bind:group="cell"></Group-View>
             </template>
@@ -15,6 +15,7 @@
                 <Cell-Table :key="cell.id" v-bind:table="cell"></Cell-Table>
             </template>
             <template v-else>
+                <br>
                 <label>Value</label>
                 <template v-if="isLargeItem">
                     <textarea v-model="cell.expr" class="DataInput"></textarea>
