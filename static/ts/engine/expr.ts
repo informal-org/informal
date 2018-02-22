@@ -20,7 +20,26 @@ function itemApply(ai: any, bi: any, funcName: string, doFudge: boolean, func?: 
     let aVal = unboxVal(ai);
     let bVal = unboxVal(bi);
     
-    var result = func === undefined ? aVal[funcName](bVal) : func(aVal, bVal);
+    var result;
+    if(func !== undefined){
+        result = func(aVal, bVal);
+    } else if(typeof aVal == "object" && funcName in aVal){
+        // Hack: Convert from big -> Number
+        if(funcName == "pow"){
+            result = aVal[funcName](Number(bVal.valueOf()))
+        } else {
+            result = aVal[funcName](bVal);
+        }
+        
+    } else {
+        // HACK: Try to map some common functions back.
+        if(funcName == "eq"){
+            result = aVal === bVal;
+        } else if(funcName == "plus") {
+            result = aVal + bVal;
+        }
+    }
+
     if(doFudge){
         result = util.fudge(result);
     }
@@ -33,6 +52,8 @@ function itemwiseApply(aRaw: any, bRaw: any, funcName: string, doFudge=false, fu
     console.log("itemwise apply func name " + funcName);
     let a = unboxVal(aRaw);
     let b = unboxVal(bRaw);
+    console.log(a);
+    console.log(b);
 
     if(Array.isArray(a) && Array.isArray(b)){   // [a] * [b]
         // ASSERT BOTH ARE SAME LENGTH
@@ -85,7 +106,8 @@ var BINARY_OPS = {
     "-" : (a: Big, b: Big) => { return itemwiseApply(a, b, "minus"); },
     "*" : (a: Big, b: Big) => { return itemwiseApply(a, b, "times", true); },
     "/" : (a: Big, b: Big) => { return itemwiseApply(a, b, "div", true); },
-    "%" : (a: Big, b: Big) => { return itemwiseApply(a, b, "mod"); },
+    "^" : (a: Big, b: Big) => { return itemwiseApply(a, b, "pow"); },
+    "MOD" : (a: Big, b: Big) => { return itemwiseApply(a, b, "mod"); },
 
     "=" : (a: Big, b: Big) => { return itemwiseApply(a, b, "eq");},//
     ">" : (a: Big, b: Big) => { return itemwiseApply(a, b, "gt"); },
@@ -139,9 +161,32 @@ jsep.addBinaryOp("=", 6);
 // TODO: Make these case insensitive as well
 jsep.addBinaryOp("OR", 1);
 jsep.addBinaryOp("AND", 2);
+jsep.addBinaryOp("MOD", 10);
+
+
 jsep.addBinaryOp("WHERE", 0); // Should be evaluated after "=" and other conditionals. So < 6.
 
 jsep.addUnaryOp("NOT"); //  TODO - guess
+
+
+// Remove un-supported operations - use verbal names for these instead. 
+jsep.removeBinaryOp("%");
+jsep.removeBinaryOp("||");
+jsep.removeBinaryOp("&&");
+jsep.removeBinaryOp("|");
+jsep.removeBinaryOp("&");
+jsep.removeBinaryOp("==");
+jsep.removeBinaryOp("!=");  // not (a = b). Excel does <>
+jsep.removeBinaryOp("===");
+jsep.removeBinaryOp("!==");
+jsep.removeBinaryOp("<<");
+jsep.removeBinaryOp(">>");
+jsep.removeBinaryOp(">>>");
+
+
+jsep.removeUnaryOp("!")
+jsep.removeUnaryOp("~")
+
 
 // TODO: Verify is boolean, else typos lead to true.
 function unaryNot(a: boolean){
@@ -354,7 +399,7 @@ export function evaluateExpr(parsed, context: Value) {
 
 export function uppercaseKeywords(formula: string) {
     // Convert reserved keywords like "and" to uppercase AND so they can be matched by jsep regardless of case.
-    let reserved_words = ["where", "and", "or", "not"];
+    let reserved_words = ["where", "and", "or", "not", "mod"];
     // This could potentially be done in a single regex rather than multiple passes over string
     // but this is good enough for normal sized expressions.
     reserved_words.forEach((keyword) => {

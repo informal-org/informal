@@ -30,7 +30,9 @@ new Value(10, g2)
 new Value(50, g2)
 new Value(100, g2)
 
-new Value("=mylist where mylist > 3", eng.root);
+new Value("=products.item = 'Apple' ", eng.root);
+
+// new Value("=mylist where mylist > 3", eng.root);
 // new Value("=not (mylist > 2)", eng.root);
 new Value("=products where products.price > 10", eng.root);
 
