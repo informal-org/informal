@@ -370,7 +370,7 @@ export class Group extends Value {
         let nameResolutions: Value[] = [];
         // nameResolutions = nameResolutions.concat(this._childLookup(uname, exclude));
         nameResolutions = nameResolutions.concat(this._parentLookup(uname, exclude));
-        nameResolutions = nameResolutions.concat(this._resultLookup(uname, exclude));
+        //nameResolutions = nameResolutions.concat(this._resultLookup(uname, exclude));
         return nameResolutions;
     }
 

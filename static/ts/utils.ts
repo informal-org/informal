@@ -229,6 +229,10 @@ export function formatValue(value: any, valueType?: string) : any {
                 }).join(", ")
             case constants.TYPE_STRING:
                 return value
+            case constants.TYPE_TABLE:
+                return value.map((v) => {
+                    return formatValue(v, undefined);
+                }).join(", ")
             default:
                 return "Default";
         }
