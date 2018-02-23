@@ -133,13 +133,9 @@ var BINARY_OPS = {
         return itemwiseApply(a, b, "", false, boolOr);
     },
     "WHERE": (a: Array<any>, b: Array<any>) => {
-        console.log("Where");
         
         let aVal = unboxVal(a);
-        console.log(aVal);
         if(Array.isArray(aVal) && aVal.length > 0 && aVal[0].type === "group" ){
-            console.log("Is table");
-            
             // Is array - filter by row for each column.
             return new Table(aVal.map((column, colIndex) => {
                 let g = new Group(unboxVal(column).filter((row, rowIndex) => {
@@ -149,7 +145,6 @@ var BINARY_OPS = {
                 return g;
             }));
         }
-        console.log("nto table");
         return unboxVal(a).filter((aItem, aIndex) => {
             return unboxVal(b[aIndex]) == true
         })

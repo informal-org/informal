@@ -20,6 +20,7 @@
     "@types/jest": "^22.0.0",
     "big.js": "^5.0.3",
     "esprima": "^4.0.0",
+    "get-parameter-names": "^0.3.0",
     "gun": "^0.9.7",
     "jasmine": "^2.8.0",
     "jsep": "^0.3.3",

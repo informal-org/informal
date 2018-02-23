@@ -4,8 +4,6 @@
             <Cell-Edit v-if="$store.state.editCell === cell" v-bind:cell="cell" :key="cell.id"></Cell-Edit>
             <Cell-View v-else v-bind:cell="cell" :key="cell.id"/>
         </template>
-        
-
     </ul>
 </template>
 

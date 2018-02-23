@@ -4,6 +4,11 @@ import {isValidName, castLiteral, detectType} from "../utils";
 
 import {parseFormula, evaluateExpr, evaluateStr} from "./expr"
 
+// import * as getParams from 'get-parameter-names';
+
+import {BUILTIN_FN} from './stdlib';
+// var get = require('get-parameter-names')
+
 export class Value {
     id: string;
     // @ts-ignore
@@ -119,8 +124,13 @@ export class Value {
             this._parsed = null;
         }
         this.markStale();
+        this._setExprHook(newValue);
 
         // todo - OTHER TYPES, ESP STRING
+    }
+
+    _setExprHook(newValue: string){
+        // Pass - hook for child classes to do followup actions
     }
 
     exprString() {
@@ -457,9 +467,53 @@ export class Table extends Group {
         // return this.getRows();
         return this.expr
     }
+}
 
+export class FunctionCall extends Value {
+    type = "func";
 
+    // Expr = function name
 
+    // List of parameters
+    args: Value[] = [];
+
+    availableFunctions() {
+        return Object.keys(BUILTIN_FN);
+    }
+
+    isValidFn(){
+        return this._expr !== undefined && this._expr !== "" && this.expr in BUILTIN_FN;
+    }
+
+    getArgNames() {
+        return this.isValidFn() ? BUILTIN_FN[this.expr].args : [];
+    }
+
+    _setExprHook(newValue: string){
+        let thisCell = this;
+        this.args = this.getArgNames().map((name) => {
+            let v = new Value("", thisCell, name);
+            thisCell.addDependency(v);
+            return v;
+        })
+        this.evaluate();
+    }
+
+    _doEvaluate(){
+        if(this.isValidFn()){
+            let stdfn =  BUILTIN_FN[this.expr];
+            let parameters = this.args.map((arg) => {
+                arg.evaluate();
+                return arg.toJs();
+            });
+            return stdfn.fn.apply(null, parameters);
+        }
+        return "Invalid";
+    }
+
+    getDescription() {
+        return this.isValidFn() ? BUILTIN_FN[this.expr].description : "";
+    }
 }
 
 export class Engine {
@@ -471,6 +525,22 @@ export class Engine {
         this.root = new Group();
         this.root.engine = this;
         this.root.name = "ROOT";
+
+        let thisNode = this;
+
+        let tickFn = window.setInterval(function(){
+            /// call your function here
+            thisNode.tick();
+          }, 1000);
+          
+    }
+
+    tick(){
+        console.log("Tick")
+        // TEMPORARY
+        this.root.expr.forEach(cell => {
+            cell.evaluate();
+        });
     }
 
     //

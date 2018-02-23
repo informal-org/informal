@@ -1,7 +1,7 @@
 <template>
     <div v-bind:class="classObject" data-id="cell.id" @click="select">
         <label class="DataLabel">{{ cell.name }}</label>
-        <span class="">
+        <span class="DataValue">
             <!-- Auto-reflow to next line due to div -->
             
 
@@ -10,6 +10,9 @@
             </template>
             <template v-else-if="cell.type == 'table'">
                 <Cell-Table :key="cell.id" v-bind:table="cell"></Cell-Table>
+            </template>
+            <template v-else-if="cell.type == 'func'">
+                <Function-View :key="cell.id" v-bind:func="cell"></Function-View>
             </template>
             <template v-else>
                 <template v-if="$store.state.editCell === cell">

@@ -49,7 +49,7 @@ label.DataLabel {
 
 .DataValue {
     min-width: 43%;
-    margin-left: 25%;
+    /* margin-left: 25%; */
     display: inline-block;
 }
 
@@ -83,8 +83,6 @@ label.DataLabel {
     background-color: #D3E6F7;
 }
 
-
-
 .DataRow.CellType--cellgroup {
     margin-top: 100px !important;
 }
@@ -97,9 +95,13 @@ label.DataLabel {
     text-align: right;
 }
 
-.DataRow--large .DataLabel, .DataRow--large .DataValue  {
+.DataRow--large > .DataLabel, .DataRow--large > .DataValue  {
     width: 100%;
     margin: 0;
+}
+
+.DataRow--large > .DataLabel {
+    margin-left: 0px !important;
 }
 
 .DataRow--large .DataLabel, .DataGroup .DataLabel {
