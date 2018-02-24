@@ -1,29 +1,24 @@
 /* Expression evaluation module */
 import { Big } from 'big.js';
 import * as util from '../utils';
-import { castBoolean, isCell, formatValue } from '../utils';
+import { castBoolean, isCell, formatValue, unboxVal } from '../utils';
 import { Value, Group, Table } from './engine';
 
 // @ts-ignore
 var jsep = require("jsep");
 Big.RM = 2;     // ROUND_HALF_EVEN - banker's roll
 
-function unboxVal(value: any){
-    if(value !== undefined && value.evaluate !== undefined){
-        return value.evaluate();
-    }
-    return value;
-}
 
 function itemApply(ai: any, bi: any, funcName: string, doFudge: boolean, func?: Function) {
     // Figure out what function to call. 
     let aVal = unboxVal(ai);
     let bVal = unboxVal(bi);
-    
+    console.log("item apply");
     var result;
     if(func !== undefined){
         result = func(aVal, bVal);
     } else if(typeof aVal == "object" && funcName in aVal){
+        console.log("Convert to num for pow");
         // Hack: Convert from big -> Number
         if(funcName == "pow"){
             result = aVal[funcName](Number(bVal.valueOf()))
@@ -32,6 +27,7 @@ function itemApply(ai: any, bi: any, funcName: string, doFudge: boolean, func?: 
         }
         
     } else {
+        console.log("plus eq hack")
         // HACK: Try to map some common functions back.
         if(funcName == "eq"){
             result = aVal === bVal;
@@ -91,6 +87,7 @@ function boolAnd(a: string, b: string) {
 }
 
 function boolOr(a: string, b: string) {
+    // TODO: The way it's done in python or js to return first true element is useful.
     if(util.isTrue(a) || util.isTrue(b)){
         return true;
     } else if(util.isBoolean(a) && util.isBoolean(b)){
@@ -394,7 +391,7 @@ export function evaluateExpr(parsed, context: Value) {
 
 export function uppercaseKeywords(formula: string) {
     // Convert reserved keywords like "and" to uppercase AND so they can be matched by jsep regardless of case.
-    let reserved_words = ["where", "and", "or", "not", "mod"];
+    let reserved_words = ["where", "and", "or", "not", "mod"];  // TODO: TRUE, FALSE
     // This could potentially be done in a single regex rather than multiple passes over string
     // but this is good enough for normal sized expressions.
     reserved_words.forEach((keyword) => {

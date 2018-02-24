@@ -25,6 +25,7 @@
 
         </span>
 
+
         <Cell-Errors v-bind:cell="cell"></Cell-Errors>
     </div>
 </template>
@@ -53,7 +54,7 @@ export default Vue.component('CellView', {
                 return true;
             }
             // return false;
-            return this.cell.expr.toString().length > 50;
+            return this.cell.toString().length > 50;
         },
         classObject: function() : object {
             // var typeClass = "DataType--" + this.cell.type;

@@ -34,12 +34,29 @@ export class Value {
     _expr_type: string = "";   // One of FORMULA, BOOL, STR, NUM
     _result_type: string = "";  // Usually the same as _expr_type, except when it's a function.
 
+
+    // FOR GROUPS
+    // Name => Value
+    name_map: {
+        [index: string]: Value
+    } = {};
+
+    // ID => Value
+    id_map:{
+        [index: string]: Value
+    } = {};
+
+    stale_nodes: Value[];
+    
+
     constructor(value: any, parent?: Group, name?: string) {
         this.id = util.generate_random_id();
         if(parent !== undefined){
             this.engine = parent.engine;
             if(parent instanceof Group){
                 parent.addChild(this);
+            } else {
+                this.parent = parent;
             }
         }
 
@@ -81,7 +98,7 @@ export class Value {
         }
 
         if(isValidName(newName) && this._nameAvailable(newName)){
-            if(this.parent != null){
+            if(this.parent != null ){
                 this.parent.unbind(this);
                 this.parent.bind(newName, this);
             }
@@ -267,23 +284,45 @@ export class Value {
         return this._result_type == constants.TYPE_ARRAY;
     }
 
+    bind(name: string, value: Value){
+        let uname = name.toUpperCase();
+        if(!isValidName(uname)){
+            throw Error("Invalid name");
+        }
+        if(uname in this.name_map){
+            throw Error("Name is already being used");
+        }
+
+        this.name_map[uname] = value;
+    }
+
+    unbind(value: Value){
+        if(value == null || value.name == null || value.name == ""){
+            return;
+        }
+
+        let uname = value.name.toUpperCase();
+        if(this.name_map[uname] == value){
+            delete this.name_map[uname];
+        }
+    }
+
+    generateName(){
+        let length: number = this.expr.length;
+        for(let i = length + 1; i < (length * 2) + 2; i++){
+            let name = "Cell" + i;
+            if(!(name in this.name_map)){
+                return name;
+            }
+        }
+        return ""
+    }
     
 
 }
 
 // Essentially just a list of values
 export class Group extends Value {
-    // Name => Value
-    name_map: {
-        [index: string]: Value
-    } = {};
-
-    // ID => Value
-    id_map:{
-        [index: string]: Value
-    } = {};
-
-    stale_nodes: Value[];
 
     type: string = "group";
 
@@ -384,39 +423,7 @@ export class Group extends Value {
         return nameResolutions;
     }
 
-    bind(name: string, value: Value){
-        let uname = name.toUpperCase();
-        if(!isValidName(uname)){
-            throw Error("Invalid name");
-        }
-        if(uname in this.name_map){
-            throw Error("Name is already being used");
-        }
 
-        this.name_map[uname] = value;
-    }
-
-    unbind(value: Value){
-        if(value == null || value.name == null || value.name == ""){
-            return;
-        }
-
-        let uname = value.name.toUpperCase();
-        if(this.name_map[uname] == value){
-            delete this.name_map[uname];
-        }
-    }
-
-    generateName(){
-        let length: number = this.expr.length;
-        for(let i = length + 1; i < (length * 2) + 2; i++){
-            let name = "Cell" + i;
-            if(!(name in this.name_map)){
-                return name;
-            }
-        }
-        return ""
-    }
 }
 
 //
@@ -491,6 +498,7 @@ export class FunctionCall extends Value {
 
     _setExprHook(newValue: string){
         let thisCell = this;
+        
         this.args = this.getArgNames().map((name) => {
             let v = new Value("", thisCell, name);
             thisCell.addDependency(v);

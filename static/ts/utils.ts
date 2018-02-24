@@ -4,6 +4,14 @@ import { Value } from './engine/engine';
 import * as constants from "./constants";
 
 
+export function unboxVal(value: any){
+    if(value !== undefined && value.evaluate !== undefined){
+        return value.evaluate();
+    }
+    return value;
+}
+
+
 Array.prototype.remove = function(item) {
     if(this.indexOf(item) != -1){
         this.splice(this.indexOf(item), 1);
@@ -297,10 +305,11 @@ export function toJs(value: any, valueType?: string) {
             return value;
         case constants.TYPE_ARRAY:
             return value.map((v) => {
+                let valed = unboxVal(v);
                 return toJs(v);
             });
         default:
-            return value;
+            return unboxVal(value);
     }
     // case formula should not happen since this method is meant to be used with results.
 }

@@ -8,16 +8,19 @@ import {Engine, Value, Group, Table, FunctionCall} from './engine/engine'
 
 let eng = new Engine();
 new Value("Hello", eng.root);
-new Value(23, eng.root);
+new Value("=1 + 1", eng.root);
 
 // new Value("=cell2", eng.root);
 // // new Value("= 1 39 129 459", eng.root);
 
-// let g = new Group([], eng.root, "mylist")
-// new Value(1, g)
-// new Value(2, g)
-// new Value(3, g)
-// new Value(4, g)
+let g = new Group([], eng.root, "mylist")
+new Value(1, g)
+new Value(2, g)
+new Value(3, g)
+new Value(4, g)
+new Value(5, g)
+new Value(6, g)
+new Value(7, g)
 
 // let tbl = new Table([], eng.root, "Products");
 // let g1 = new Group([], tbl, "Item");
