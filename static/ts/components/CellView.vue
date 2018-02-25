@@ -65,6 +65,8 @@ export default Vue.component('CellView', {
                 "DataRow": true,
                 "DataRow--large": this.isLargeItem,
                 "list-group-item": true,
+                "DataRow--root": this.cell.isRoot(),
+                "DataRow--rootChild": this.cell.isRootChild()
             }
             classes[typeClass] = true;
             classes[cellClass] = true;

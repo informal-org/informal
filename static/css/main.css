@@ -1,6 +1,6 @@
 html, body {
-    font-size: 11pt;
-    font-family: "Open Sans", "Arial", sans-serif;
+    font-size: 16px;
+    font-family: "Source Sans Pro", "Helevetica", "Roboto", "Arial", sans-serif;
     min-height: 100vh;
 }
 
@@ -13,6 +13,10 @@ p {
     color: black;
 }
 
+.navbar-brand {
+    letter-spacing: 5px;
+    padding: 12px;
+}
 
 .DataRow {
     background-color: white;
@@ -113,17 +117,11 @@ label.DataLabel {
 }
 
 .DashForm .list-group-item {
-    padding: 0.5rem 1rem;
+    padding: 0.75rem 1.25rem;
 }
 
 .DataLabel {
     margin-bottom: 0;
-}
-
-.DataRow .close, .DataGroup .close {
-    position: absolute;
-    right: 20px;
-    z-index: 100;
 }
 
 .CellError {
@@ -131,27 +129,39 @@ label.DataLabel {
     margin-bottom: .5rem;
     border-radius: 3px;
     font-size: .9rem;
+
+    color: #FC642D;
+    background-color: #fff9ea;
+    border-color: #f5c6cb;    
 }
 
 .navbar {
     border-bottom: 1px solid #efefef;
 }
 
-.DataValue .DataRow {
-    background-color: rgba(255, 255, 255, 0.5);
+.DataRow {
+    background-color: rgba(255, 255, 255, 0.65);
 }
 
+
 .AddItem {
-    background-color: #2980b9;
-    color: white !important;
+    color: #FF5959;
+    background-color: white;
+    border-color: #FF5959;
+
     font-weight: bold;
-    border-top: 1px solid #E4F1FE;
-    border-bottom: 2px solid #2c3e50;
+
+    border-top: 1px solid #FF8C90;
+    border-bottom: 2px solid #FF4046;
+    text-align: center;
 }
 
 .AddItem:hover {
-    background-color: #3498db;
-    border-bottom: 2px solid #2980b9;
+    background-color: #FF5959;
+    border-top: 1px solid #FF4046;
+    border-bottom: 2px solid #FF4046;
+    color: white;
+
     cursor: pointer;
 }
 
@@ -183,4 +193,56 @@ label.DataLabel {
     min-width: 43%;
     margin-left: 25%;
     display: inline-block;
+}
+
+.LinkBtn {
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+
+.DeleteBtn {
+    font-size: 14px;
+}
+
+.btn.btn-primary {
+    color: white !important;
+    background-color: #FF5959;
+    border-color: #FF5959;
+    box-shadow: 0 2px 2px 0 rgba(0,0,0,0.14),0 1px 5px 0 rgba(0,0,0,0.12),0 3px 1px -2px rgba(0,0,0,0.2);
+}
+
+.btn.btn-secondary {
+    color: #FF5959 !important;
+    background-color: white;
+    border-color: #FF5959;
+}
+
+.card, .DataRow--rootChild {
+    background-color: white;
+    border: 1px solid rgba(0,0,0,0.1);
+    border-radius: 3px;
+    box-shadow: 0px 2px 4px 0px rgba(0,0,0,0.06);
+    margin-bottom: 1rem !important;
+}
+
+.btn-md {
+    padding: 0.5rem 1.5rem;
+}
+
+.pull-right {
+    float: right;
+}
+
+.DataRow .list-group {
+    margin: 1rem 0;
+}
+
+.DataRow--root {
+    background: transparent;
+    border: none;
+}
+
+.DataRow--root > .DataLabel {
+    display: none;
 }

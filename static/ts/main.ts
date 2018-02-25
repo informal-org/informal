@@ -22,23 +22,23 @@ new Value(5, g)
 new Value(6, g)
 new Value(7, g)
 
-// let tbl = new Table([], eng.root, "Products");
-// let g1 = new Group([], tbl, "Item");
-// new Value("Apple", g1)
-// new Value("Orange", g1)
-// new Value("Raspberry", g1)
+let tbl = new Table([], eng.root, "Products");
+let g1 = new Group([], tbl, "Item");
+new Value("Apple", g1)
+new Value("Orange", g1)
+new Value("Raspberry", g1)
 
-// let g2 = new Group([], tbl, "Price");
-// new Value(10, g2)
-// new Value(50, g2)
-// new Value(100, g2)
+let g2 = new Group([], tbl, "Price");
+new Value(10, g2)
+new Value(50, g2)
+new Value(100, g2)
 
-// new Value("=products.item = 'Apple' ", eng.root);
+new Value("=products.item = 'Apple' ", eng.root);
 
-// // new Value("=mylist where mylist > 3", eng.root);
-// // new Value("=not (mylist > 2)", eng.root);
-// new Value("=products where products.price > 10", eng.root);
-// new Value("=cell8.price", eng.root);
+new Value("=mylist where mylist > 3", eng.root);
+new Value("=not (mylist > 2)", eng.root);
+new Value("=products where products.price > 10", eng.root);
+new Value("=cell8.price", eng.root);
 
 new FunctionCall("", eng.root);
 
@@ -66,6 +66,7 @@ import CellErrors from './components/CellErrors.vue';
 import ResultView from './components/ResultView.vue';
 import CellTable from './components/CellTable.vue';
 import FunctionView from './components/FunctionView.vue';
+import AddCellBtn from './components/AddCellBtn.vue';
 
 let arevelapp = new Vue({
     el: "#app",
@@ -84,6 +85,7 @@ let arevelapp = new Vue({
         GroupView,
         ResultView,
         CellTable,
-        FunctionView
+        FunctionView,
+        AddCellBtn
     }
 });

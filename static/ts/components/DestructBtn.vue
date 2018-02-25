@@ -1,6 +1,8 @@
 <template>
-    <button title="Delete" type="button" class="close" aria-label="Delete" v-on:click="cell.destruct()">
-        <span aria-hidden="true">&times;</span>
+    <button title="Delete" type="button" class="DeleteBtn LinkBtn btn-md" aria-label="Delete" v-on:click="cell.destruct()">
+        <span>
+        <i class="fas fa-trash-alt"></i> Delete
+        </span>
     </button>
 </template>
 

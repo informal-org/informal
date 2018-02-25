@@ -11,14 +11,7 @@
             <label class="DataLabel">{{ group.name }}&nbsp;</label>
         </div> -->
 
-        <Cell-List v-bind:cells="group.expr"></Cell-List>
-
-        <template>
-            <a class="list-group-item list-group-item-action AddItem" @mousedown="addCell">
-                <i class="fas fa-plus"></i>
-                Add Cell
-                </a>
-        </template>
+        <Cell-List v-bind:cells="group.expr" v-bind:addTo="group"></Cell-List>
 
         <Cell-Errors v-bind:cell="group"></Cell-Errors>
 
@@ -35,11 +28,6 @@ export default Vue.component('GroupView', {
         'group': {type: Group},
     },
     methods: {
-        addCell: function(event: Event) {
-            let c = new Value("", this.group);
-            // Select it for editing.
-            this.$store.commit("setEdit", c);
-        },
         select: function(event: Event) {
             this.$store.commit("setEdit", this.group);
         }

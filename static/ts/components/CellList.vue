@@ -4,6 +4,7 @@
             <Cell-Edit v-if="$store.state.editCell === cell" v-bind:cell="cell" :key="cell.id"></Cell-Edit>
             <Cell-View v-else v-bind:cell="cell" :key="cell.id"/>
         </template>
+        <Add-Cell-Btn v-bind:group="this.addTo" v-if="this.addTo"></Add-Cell-Btn>
     </ul>
 </template>
 
@@ -15,6 +16,7 @@ export default Vue.component('CellList', {
     name: 'CellList',
     props: {
         'cells': {type: Array},
+        'addTo': {type: Group}
     }
 });
 </script>

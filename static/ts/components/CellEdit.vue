@@ -1,7 +1,5 @@
 <template>
     <div v-bind:class="classObject" data-id="cell.id" @click="blockClick">
-        <DestructBtn v-bind:cell="cell"></DestructBtn>
-
         <span class="DataLabel">
             <label>Name</label>
             <br>
@@ -28,6 +26,9 @@
             </template>
 
         </span>
+
+        <DestructBtn v-bind:cell="cell"></DestructBtn>
+        <Button class="btn btn-primary btn-md pull-right">Save</Button>
 
         <Cell-Errors v-bind:cell="cell"></Cell-Errors>
     </div>
@@ -65,6 +66,7 @@ export default Vue.component('CellEdit', {
                 "DataRow--large": this.isLargeItem,
                 "edit": true,
                 "list-group-item": true,
+                "DataRow--rootChild": this.cell.isRootChild()
             }
             classes[typeClass] = true;
             classes[cellClass] = true;

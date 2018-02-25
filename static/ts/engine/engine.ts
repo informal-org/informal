@@ -318,7 +318,13 @@ export class Value {
         return ""
     }
     
+    isRootChild() {
+        return this.parent && this.engine && this.parent == this.engine.root;
+    }
 
+    isRoot() {
+        return this.engine && this.engine.root === this;
+    }
 }
 
 // Essentially just a list of values

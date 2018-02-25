@@ -1,6 +1,6 @@
 <template>
     <div class="CellErrors">
-        <div class="alert alert-danger CellError" role="alert" v-for="error in cell.errors">
+        <div class="alert CellError" role="alert" v-for="error in cell.errors">
             <i class="fas fa-exclamation-triangle"></i> &nbsp; {{error}}
         </div>
     </div>
