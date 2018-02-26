@@ -2,6 +2,7 @@ html, body {
     font-size: 16px;
     font-family: "Source Sans Pro", "Helevetica", "Roboto", "Arial", sans-serif;
     min-height: 100vh;
+    color: #484848;
 }
 
 #app {
@@ -9,9 +10,9 @@ html, body {
     min-height: 100%;
 }
 
-p {
+/* p {
     color: black;
-}
+} */
 
 .navbar-brand {
     letter-spacing: 5px;
@@ -28,6 +29,10 @@ p {
     padding: 15px;
 }
 
+.DataLabel {
+    vertical-align: top;
+}
+
 /* View mode label */
 label.DataLabel {
     text-transform: uppercase;
@@ -42,6 +47,14 @@ label.DataLabel {
 
 .DataLabel input {
     text-transform: uppercase;
+    font-weight: normal;
+    color: inherit;
+    font-size: 0.85rem;    
+    /* border-color: rgba(255, 255, 255, 0.9); */
+    background: rgba(255, 255, 255, 0.75);
+    /* font-weight: bold; */
+    max-height: 30px;
+    
 }
 
 /* Todo align right on input */
@@ -63,16 +76,10 @@ label.DataLabel {
 
 .DashForm input {
     border: 1px solid #e2ecf4;
-    padding: 4px;
-    max-height: 30.5px;
+    padding: 5px;
+    max-height: 36px;
     max-width: 100%;
-    margin: 4px 0;
-}
-
-.DataLabel input {
-    border-color: rgba(255, 255, 255, 0.9);
-    background: rgba(255, 255, 255, 0.5);
-    font-weight: bold;
+    margin: 5px 0;
 }
 
 .DataLabel input:hover, .DataLabel input:active, .DataLabel input:focus {
@@ -91,17 +98,18 @@ label.DataLabel {
     margin-top: 100px !important;
 }
 
-.DataType--boolean .DataValue {
+.DataType--BOOL .DataValue {
     font-style: italic;
 }
 
-.DataType--bignum .DataValue {
+.DataType--NUM .DataValue {
     text-align: right;
 }
 
 .DataRow--large > .DataLabel, .DataRow--large > .DataValue  {
     width: 100%;
     margin: 0;
+    float: none;
 }
 
 .DataRow--large > .DataLabel {
@@ -169,7 +177,7 @@ label.DataLabel {
     cursor: pointer;
 }
 
-.input.box label, .DataLabel {
+/* .input.box label, .DataLabel {
     display: inline-block;
     font-weight: bold;
     color: #333;
@@ -181,7 +189,7 @@ label.DataLabel {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-}
+} */
 
 
 .DataInput {
@@ -190,9 +198,10 @@ label.DataLabel {
 }
 
 .DataValue {
-    min-width: 43%;
-    margin-left: 25%;
+    min-width: 60%;
+    margin-left: 15%;
     display: inline-block;
+    float: right;
 }
 
 .LinkBtn {
@@ -203,6 +212,11 @@ label.DataLabel {
 
 .DeleteBtn {
     font-size: 14px;
+    color: #ef7955;
+}
+
+.DeleteBtn i {
+    color: #ef7955;
 }
 
 .btn.btn-primary {
@@ -210,6 +224,12 @@ label.DataLabel {
     background-color: #FF5959;
     border-color: #FF5959;
     box-shadow: 0 2px 2px 0 rgba(0,0,0,0.14),0 1px 5px 0 rgba(0,0,0,0.12),0 3px 1px -2px rgba(0,0,0,0.2);
+}
+
+.btn.btn-primary:hover, .btn.btn-primary:active, .btn.btn-primary:focus {
+    background-color: #FF4046 !important;
+    border-color: #FF4046 !important;
+    box-shadow: 0 1px 1px 0 rgba(0,0,0,0.14),0 1px 3px 0 rgba(0,0,0,0.12),0 1px 0px -3px rgba(0,0,0,0.2);
 }
 
 .btn.btn-secondary {
@@ -246,3 +266,35 @@ label.DataLabel {
 .DataRow--root > .DataLabel {
     display: none;
 }
+
+.ResultPreview {
+    background-color: rgba(255, 255, 255, 0.75);
+    padding: 5px;
+    opacity: .75;
+    margin-bottom: 0.5rem;
+}
+
+.DataRow.edit label {
+    margin: 0;
+    font-weight: bold;
+}
+
+.DataRow .table .DataLabel {
+    display: none;
+}
+
+.DataRow .table .DataRow, .DataRow .table .DataValue {
+    padding: 0;
+    margin: 0;
+    border: 0;
+    float: none;
+}
+
+.DataType--ARR .DataLabel {
+    display: none;
+}
+
+.DataRow--rootChild > .DataLabel {
+    display: inline;
+}
+

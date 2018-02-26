@@ -20,15 +20,20 @@
                 </template>
                 <template v-else>
                     <input type="text" placeholder="Value" v-model="cell.expr" class="DataInput" autofocus/>
-                    
-                    <Result-View v-bind:cell="cell"/>
                 </template>
+
+                <label>Result</label>
+                <br>
+                <div class="ResultPreview">
+                    <Result-View v-bind:cell="cell"/>
+                </div>
+
             </template>
 
         </span>
 
         <DestructBtn v-bind:cell="cell"></DestructBtn>
-        <Button class="btn btn-primary btn-md pull-right">Save</Button>
+        <Button class="btn btn-primary btn-md pull-right">Save!</Button>
 
         <Cell-Errors v-bind:cell="cell"></Cell-Errors>
     </div>
