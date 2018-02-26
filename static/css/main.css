@@ -298,3 +298,16 @@ label.DataLabel {
     display: inline;
 }
 
+.DataRow--root {
+    padding: 0 !important;
+}
+
+/* Mobile */
+@media only screen and (max-width: 600px) {
+    .DataValue {
+        width: 100%;
+        margin-left: 0;
+        display: block;
+    }
+
+}
