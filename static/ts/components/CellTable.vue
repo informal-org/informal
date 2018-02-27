@@ -1,11 +1,13 @@
 <template>
 
 <div>
-    <span class="">
+    <span>
         <table class="table">
             <thead>
                 <tr>
-                    <th v-for="colname in table.getColumnNames()" v-bind:key="colname" scope="col">{{ colname }}</th>
+                    <th v-for="col in table.getColumns()" v-bind:key="col.id" scope="col">
+                        <Column-Head v-bind:cell="col"></Column-Head>
+                    </th>
                 </tr>
             </thead>
             <tbody>

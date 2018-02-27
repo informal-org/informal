@@ -33,7 +33,7 @@
         </span>
 
         <DestructBtn v-bind:cell="cell"></DestructBtn>
-        <Button class="btn btn-primary btn-md pull-right">Save!</Button>
+        <Button class="btn btn-primary btn-md pull-right" @click="save">Save!</Button>
 
         <Cell-Errors v-bind:cell="cell"></Cell-Errors>
     </div>
@@ -82,7 +82,12 @@ export default Vue.component('CellEdit', {
         blockClick: function(e: Event) {
             // Block click from propagating upwards and selecing something else while you're editing.
             e.stopPropagation();
+        },
+        save: function(e: Event) {
+            this.$store.commit("setEdit", null);
+            e.stopPropagation();
         }
+
     }
 });
 </script>

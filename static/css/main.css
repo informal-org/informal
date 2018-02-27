@@ -75,7 +75,8 @@ label.DataLabel {
 }
 
 .DashForm input {
-    border: 1px solid #e2ecf4;
+    /* border: 1px solid #e2ecf4; */
+    border: 1px solid #59ABE3;
     padding: 5px;
     max-height: 36px;
     max-width: 100%;
@@ -191,11 +192,6 @@ label.DataLabel {
     text-overflow: ellipsis;
 } */
 
-
-.DataInput {
-    padding: 3px 5px;
-    width: 100%;
-}
 
 .DataValue {
     min-width: 60%;

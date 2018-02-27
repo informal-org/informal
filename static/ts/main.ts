@@ -67,6 +67,8 @@ import ResultView from './components/ResultView.vue';
 import CellTable from './components/CellTable.vue';
 import FunctionView from './components/FunctionView.vue';
 import AddCellBtn from './components/AddCellBtn.vue';
+import InlineEdit from './components/InlineEdit.vue';
+import ColumnHead from './components/ColumnHead.vue';
 
 let arevelapp = new Vue({
     el: "#app",
@@ -86,6 +88,8 @@ let arevelapp = new Vue({
         ResultView,
         CellTable,
         FunctionView,
-        AddCellBtn
+        AddCellBtn,
+        InlineEdit,
+        ColumnHead
     }
 });

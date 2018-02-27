@@ -449,6 +449,10 @@ export class Table extends Group {
         return this.expr.map((grp: Group) => grp.name);
     }
 
+    getColumns() {
+        return this.expr;
+    }
+
     numRows() {
         return this.expr !== [] ? this.expr[0].expr.length : 0;
     }

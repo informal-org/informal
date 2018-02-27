@@ -16,7 +16,8 @@
             </template>
             <template v-else>
                 <template v-if="$store.state.editCell === cell">
-                    <Cell-Edit v-bind:cell="cell"></Cell-Edit>
+                    <Cell-Edit v-if="cell.isRootChild()" v-bind:cell="cell" :key="cell.id"></Cell-Edit>
+                    <Inline-Edit v-else v-bind:cell="cell" :key="cell.id"></Inline-Edit>
                 </template>
                 <template v-else>
                     <Result-View v-bind:cell="cell"/>

@@ -1,7 +1,10 @@
 <template>
     <ul class="list-group CellList">
         <template v-for="cell in cells">
-            <Cell-Edit v-if="$store.state.editCell === cell" v-bind:cell="cell" :key="cell.id"></Cell-Edit>
+            <template v-if="$store.state.editCell === cell" >
+                <Cell-Edit v-if="cell.isRootChild()" v-bind:cell="cell" :key="cell.id"></Cell-Edit>
+                <Inline-Edit v-else v-bind:cell="cell" :key="cell.id"></Inline-Edit>
+            </template>
             <Cell-View v-else v-bind:cell="cell" :key="cell.id"/>
         </template>
         <Add-Cell-Btn v-bind:group="this.addTo" v-if="this.addTo"></Add-Cell-Btn>
