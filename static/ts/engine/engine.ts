@@ -58,6 +58,10 @@ export class Value {
             } else {
                 this.parent = parent;
             }
+
+            if(this.engine){
+                this.engine.num_cells++;
+            }
         }
 
         // @ts-ignore: string | undefined
@@ -309,7 +313,8 @@ export class Value {
 
     generateName(){
         let length: number = this.expr.length;
-        for(let i = length + 1; i < (length * 2) + 2; i++){
+        length = length + (this.engine ? this.engine.num_cells : 0);
+        for(let i = length; i < (length * 2) + 2; i++){
             let name = "Cell" + i;
             if(!(name in this.name_map)){
                 return name;
@@ -519,14 +524,20 @@ export class FunctionCall extends Value {
 
     _doEvaluate(){
         if(this.isValidFn()){
-            let stdfn =  BUILTIN_FN[this.expr];
-            let parameters = this.args.map((arg) => {
-                arg.evaluate();
-                return arg.toJs();
-            });
-            return stdfn.fn.apply(null, parameters);
+            try{
+                let stdfn =  BUILTIN_FN[this.expr];
+                let parameters = this.args.map((arg) => {
+                    arg.evaluate();
+                    return arg.toJs();
+                });
+                return stdfn.fn.apply(null, parameters);
+            } catch(err) {
+                console.log("Evaluation error for fn");
+                console.log(err);
+            }
+
         }
-        return "Invalid";
+        return "";
     }
 
     getDescription() {
@@ -538,6 +549,7 @@ export class Engine {
     root: Group;
 
     stale_nodes: Value[] = [];
+    num_cells = 0;
 
     constructor() {
         this.root = new Group();

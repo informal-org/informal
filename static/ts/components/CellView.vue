@@ -54,8 +54,11 @@ export default Vue.component('CellView', {
             } else if(this.cell.type === "text" && this.cell.expr.length > 100){
                 return true;
             }
-            // return false;
-            return this.cell.toString().length > 50;
+            try{
+                return this.cell.toString().length > 50
+            } catch { }
+            return false;
+            // return this.cell.toString().length > 50;
         },
         classObject: function() : object {
             // var typeClass = "DataType--" + this.cell.type;

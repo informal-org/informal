@@ -290,12 +290,28 @@ label.DataLabel {
     display: none;
 }
 
+.CellType--func .CellList .DataLabel {
+    display: inline;
+}
+
+.CellType--func > .DataValue .DataValue {
+    float: none;
+}
+
+.CellType--func > .DataValue .DataValue .DataLabel {
+    display: none;
+}
+
 .DataRow--rootChild > .DataLabel {
     display: inline;
 }
 
 .DataRow--root {
     padding: 0 !important;
+}
+
+.DataRow--root > .DataValue {
+    float: none;
 }
 
 /* Mobile */

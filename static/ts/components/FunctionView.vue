@@ -9,7 +9,6 @@
 
         <Cell-List v-bind:cells="func.args"/>
 
-        
         <Result-View v-bind:cell="func"/>
         
     </div>

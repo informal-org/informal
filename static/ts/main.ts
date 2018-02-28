@@ -7,11 +7,29 @@ import { mapState } from 'vuex'
 import {Engine, Value, Group, Table, FunctionCall} from './engine/engine'
 
 let eng = new Engine();
-new Value("Hello", eng.root);
-new Value("=1 + 1", eng.root);
+window.eng = eng;
 
+
+new Value("World", eng.root, "Name");
+
+new Value("Hello {{ Name }}! This is Arevel, an environment where you can play around with programming concepts.", eng.root);
+
+new Value("Like excel, you can do math operations by starting a cell with =. Try modifying the equation in the cell below.", eng.root, "Basics");
+new Value("= (3000 * 3) + 1", eng.root, "power_level");
+
+new Value("You can refer to cell names to access them in other places.", eng.root, "Variable_names");
+new Value("=power_level > 9000", eng.root, "is_powerful");
+
+new Value("Arevel also supports the special boolean values 'True' and 'False' and boolean operators like 'and', 'or', 'not'.", eng.root, "boolean_intro");
+
+new Value("=(true or False) and not (true or False) ", eng.root, "boolean_test");
+
+// new Value("=true or false", eng.root);
 // new Value("=cell2", eng.root);
 // // new Value("= 1 39 129 459", eng.root);
+new Value("To use variables within text, wrap them in curly quotes {{ variable_name }}.", eng.root, "text_intro");
+
+new Value("You can also have a collection of values in a list.", eng.root, "lists_intro");
 
 let g = new Group([], eng.root, "mylist")
 new Value(1, g)
@@ -22,25 +40,24 @@ new Value(5, g)
 new Value(6, g)
 new Value(7, g)
 
-let tbl = new Table([], eng.root, "Products");
-let g1 = new Group([], tbl, "Item");
-new Value("Apple", g1)
-new Value("Orange", g1)
-new Value("Raspberry", g1)
+// let tbl = new Table([], eng.root, "Products");
+// let g1 = new Group([], tbl, "Item");
+// new Value("Apple", g1)
+// new Value("Orange", g1)
+// new Value("Raspberry", g1)
 
-let g2 = new Group([], tbl, "Price");
-new Value(10, g2)
-new Value(50, g2)
-new Value(100, g2)
+// let g2 = new Group([], tbl, "Price");
+// new Value(10, g2)
+// new Value(50, g2)
+// new Value(100, g2)
 
-new Value("=products.item = 'Apple' ", eng.root);
+// new Value("=products.item = 'Apple' ", eng.root);
 
-new Value("=mylist where mylist > 3", eng.root);
-new Value("=not (mylist > 2)", eng.root);
-new Value("=products where products.price > 10", eng.root);
-new Value("=cell8.price", eng.root);
+// new Value("=mylist where mylist > 3", eng.root);
+// new Value("=not (mylist > 2)", eng.root);
+// new Value("=products where products.price > 10", eng.root);
+// new Value("=cell8.price", eng.root);
 
-new FunctionCall("", eng.root);
 
 
 Vue.use(Vuex);
@@ -91,5 +108,28 @@ let arevelapp = new Vue({
         AddCellBtn,
         InlineEdit,
         ColumnHead
+    },
+    methods: {
+        addValue(){
+            let c = new Value("", eng.root);
+            this.$store.commit("setEdit", c);
+            window.setTimeout(function(){
+                window.location.hash = "edit";
+            }, 200);
+        },
+        addList() {
+            let c = new Group([], eng.root);
+            this.$store.commit("setEdit", c);
+            window.setTimeout(function(){
+                window.location.hash = "edit";
+            }, 200);
+        },
+        addFunction() {
+            let c = new FunctionCall("", eng.root);
+            this.$store.commit("setEdit", c);
+            window.setTimeout(function(){
+                window.location.hash = "edit";
+            }, 200);
+        }
     }
 });

@@ -1,7 +1,8 @@
 <template>
     <ul class="list-group CellList">
         <template v-for="cell in cells">
-            <template v-if="$store.state.editCell === cell" >
+            <template v-if="$store.state.editCell === cell">
+                <label class="DataLabel">{{ cell.name }}</label>
                 <Cell-Edit v-if="cell.isRootChild()" v-bind:cell="cell" :key="cell.id"></Cell-Edit>
                 <Inline-Edit v-else v-bind:cell="cell" :key="cell.id"></Inline-Edit>
             </template>

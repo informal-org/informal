@@ -1,5 +1,5 @@
 <template>
-    <div v-bind:class="classObject" data-id="cell.id" @click="blockClick">
+    <div v-bind:class="classObject" data-id="cell.id" id="edit" @click="blockClick">
         <span class="DataLabel">
             <label>Name</label>
             <br>
@@ -12,6 +12,9 @@
             <template v-else-if="cell.type == 'table'">
                 <Cell-Table :key="cell.id" v-bind:table="cell"></Cell-Table>
             </template>
+            <template v-else-if="cell.type == 'func'">
+                <Function-View :key="cell.id" v-bind:func="cell"></Function-View>
+            </template>            
             <template v-else>
                 <br>
                 <label>Value</label>
