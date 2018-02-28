@@ -4,6 +4,7 @@
 
 node_modules/
 static/js/arevel.js
+static/js/arevel.js.map
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
