@@ -7,4 +7,5 @@ urlpatterns = [
     url(r'^$', index),
     url(r'^private/config$', config),
     url(r'^admin/', include(admin.site.urls)),
+    url(r'^accounts/', include('allauth.urls')),
 ]

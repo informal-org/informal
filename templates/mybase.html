@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Arevel</title>
+    <meta lang="en_US">
+    <meta charset="utf-8">
+    <meta name="description" content="">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+    <link href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:400,700" rel="stylesheet">
+    <link href="https://use.fontawesome.com/releases/v5.0.6/css/all.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/main.css">
+
+</head>
+<body>
+
+
+    <div id="app" ref="app">
+
+        <div class="BodyWrapper HeaderOffset">
+            <div class="DataContainer DashForm">
+                
+            </div>
+
+        </div> <!-- Body wrapper-->
+
+    </div>
+    <!-- Analytics code -->
+    {% if not settings.DEBUG %}
+        {% include "_analytics.html" %}
+    {% endif %}
+
+</body>
+</html>
