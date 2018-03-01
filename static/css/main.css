@@ -321,5 +321,11 @@ label.DataLabel {
         margin-left: 0;
         display: block;
     }
+}
 
+.DeleteIcon {
+    display: inline;
+    position: absolute;
+    right: 30px;
+    padding-top: 10px;
 }

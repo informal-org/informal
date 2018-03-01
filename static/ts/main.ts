@@ -4,6 +4,17 @@ import Vue from "vue";
 import Vuex from 'vuex'
 import { mapState } from 'vuex'
 
+import Raven from 'raven-js';
+import RavenVue from 'raven-js/plugins/vue';
+
+// TODO: Some automatic way of disabling this in local dev.
+// Raven
+//     .config('https://cfe92cbbed2f428b99b73ccb9419dab0@sentry.io/296381')
+//     .addPlugin(RavenVue, Vue)
+//     .install();
+
+
+
 import {Engine, Value, Group, Table, FunctionCall} from './engine/engine'
 
 let eng = new Engine();

@@ -1,11 +1,15 @@
 <template>
-    <div @click="blockClick">
+    <div @click="blockClick" class="InlineEdit">
         <template v-if="isLargeItem">
             <textarea v-model="cell.expr" class="DataInput"></textarea>
         </template>
         <template v-else>
             <input type="text" placeholder="Value" v-model="cell.expr" class="DataInput" autofocus/>
         </template>
+        
+        <span class="DeleteIcon" aria-label="Delete" v-on:click="cell.destruct()">
+            <i class="fas fa-trash-alt" alt="delete" title="delete"></i>
+        </span>
 
         <Cell-Errors v-bind:cell="cell"></Cell-Errors>
     </div>
