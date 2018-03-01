@@ -8,7 +8,7 @@
         </template>
         
         <span class="DeleteIcon" aria-label="Delete" v-on:click="cell.destruct()">
-            <i class="fas fa-trash-alt" alt="delete" title="delete"></i>
+            <i class="fas fa-trash-alt" alt="Delete" title="Delete Cell"></i>
         </span>
 
         <Cell-Errors v-bind:cell="cell"></Cell-Errors>

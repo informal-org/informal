@@ -323,9 +323,14 @@ label.DataLabel {
     }
 }
 
+.InlineEdit {
+    position: relative;
+}
+
 .DeleteIcon {
     display: inline;
     position: absolute;
-    right: 30px;
+    right: 15px;
+    top: 0;
     padding-top: 10px;
 }
