@@ -334,3 +334,13 @@ label.DataLabel {
     top: 0;
     padding-top: 10px;
 }
+
+.SpotlightContainer {
+    max-width: 650px;
+    margin: 30px auto;
+    padding: 3rem 3rem;
+}
+
+.SpotlightContainer .btn-primary {
+    margin-top: 20px;
+}

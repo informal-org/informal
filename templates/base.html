@@ -15,22 +15,29 @@
 
 </head>
 <body>
+{% block body %}
+
+    {% include "_navbar.html" %}
 
 
-    <div id="app" ref="app">
+    {% block content %}
+    {% endblock %}
 
-        <div class="BodyWrapper HeaderOffset">
-            <div class="DataContainer DashForm">
-                
-            </div>
-
-        </div> <!-- Body wrapper-->
-
-    </div>
-    <!-- Analytics code -->
+        <!-- Analytics code -->
     {% if not settings.DEBUG %}
         {% include "_analytics.html" %}
     {% endif %}
+
+ {% endblock %}
+
+
+
+{% block extra_body %}
+{% endblock %}
+
+
+
+
 
 </body>
 </html>

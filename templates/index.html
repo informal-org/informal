@@ -1,56 +1,26 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Arevel</title>
-    <meta lang="en_US">
-    <meta charset="utf-8">
-    <meta name="description" content="">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+{% extends "base.html" %}
 
-
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
-    <link href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:400,700" rel="stylesheet">
-    <link href="https://use.fontawesome.com/releases/v5.0.6/css/all.css" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/main.css">
-
-</head>
-<body>
-
-    <nav class="navbar navbar-toggleable-md navbar-inverted bg-faded">
-        <a class="navbar-brand" href="#" title="Arevel">
-            <img alt="Arevel" src="/static/img/arevel_logo.png" height="24px"/>
-        </a>
-
-    </nav>
-
+{% block content %}
     <div id="app" ref="app">
 
-        <div>
+    <div>
             <button class="btn btn-primary" @click="addValue">Add Value</button>
             <button class="btn btn-primary" @click="addList" >Add List</button>
             <button class="btn btn-primary" @click="addFunction">Add Function</button>
         </div>
 
-    <!-- <header class="DashHeader">
-        <div class="Navbar--toolbar ui menu">
-            <button class="item" @click="addValue">+ Value</button>
-            <button class="item" @click="addRef">+ List</button>
-            <button class="item" @click="addGroup">+ Function</button>
-        </div>
-    </header> -->
+        <div class="BodyWrapper HeaderOffset">
+            <div class="DataContainer DashForm">
+                <Cell-View v-bind:cell="engine.root"></Cell-View>
+            </div>
 
-    <div class="selection"></div>
-
-    <div class="BodyWrapper HeaderOffset">
-        <div class="DataContainer DashForm">
-            <Cell-View v-bind:cell="engine.root"
-            ></Cell-View>
-        </div>
-
-    </div> <!-- Body wrapper-->
+        </div> <!-- Body wrapper-->
 
     </div>
+{% endblock %}
 
+
+{% block extra_body %}
     <!--
       <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
       <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
@@ -63,12 +33,4 @@
 
     <script src="/static/js/arevel.js"></script>
 
-    <!-- Analytics code -->
-
-    {% if not settings.DEBUG %}
-        {% include "_analytics.html" %}
-    {% endif %}
-    
-
-</body>
-</html>
+{% endblock %}
