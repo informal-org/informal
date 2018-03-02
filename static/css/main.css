@@ -344,3 +344,11 @@ label.DataLabel {
 .SpotlightContainer .btn-primary {
     margin-top: 20px;
 }
+
+.navbar-nav {
+    flex-direction: row;
+}
+
+.nav-item {
+    margin: 0 1rem;
+}

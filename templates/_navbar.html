@@ -3,12 +3,20 @@
         <img alt="Arevel" src="/static/img/arevel_logo.png" height="24px"/>
     </a>
 
-	{% if user.is_authenticated %}
-	<li><a href="{% url 'account_email' %}">Change E-mail</a></li>
-	<li><a href="{% url 'account_logout' %}">Sign Out</a></li>
+    <ul class="navbar-nav pull-right">
+
+        {% if user.is_authenticated %}
+	    <li class="nav-item">
+            <a class="nav-link" href="{% url 'account_logout' %}">Sign Out</a>
+        </li>
 	{% else %}
-        <li><a href="{% url 'account_login' %}">Sign In</a></li>
-        <li><a href="{% url 'account_signup' %}">Sign Up</a></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'account_login' %}">Sign In</a></li>
+         <li class="nav-item"><a class="btn btn-primary" href="{% url 'account_signup' %}">Sign Up</a></li>
     {% endif %}
+
+    </ul>
+
+
+
 
 </nav>
