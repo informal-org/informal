@@ -17,3 +17,7 @@ def config(request):
         "is_prod": settings.IS_PROD,
         "debug": settings.DEBUG
     })
+
+def ycdemo(request):
+    logging.info("YC Demo")
+    return render(request, 'yc.html')

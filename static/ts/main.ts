@@ -18,7 +18,7 @@ let eng = new Engine();
 window.eng = eng;
 
 
-new Value("World", eng.root, "Name");
+new Value("YC", eng.root, "Name");
 
 new Value("Hello {{ Name }}! This is Arevel, an environment where you can play around with programming concepts.", eng.root);
 
@@ -48,6 +48,9 @@ new Value(5, g);
 new Value(6, g);
 new Value(7, g);
 
+
+let fn = new FunctionCall([], eng.root, "example_func")
+
 // let tbl = new Table([], eng.root, "Products");
 // let g1 = new Group([], tbl, "Item");
 // new Value("Apple", g1)
@@ -65,8 +68,6 @@ new Value(7, g);
 // new Value("=not (mylist > 2)", eng.root);
 // new Value("=products where products.price > 10", eng.root);
 // new Value("=cell8.price", eng.root);
-
-
 
 Vue.use(Vuex);
 
