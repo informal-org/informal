@@ -1,11 +1,11 @@
 <nav class="navbar navbar-toggleable-md navbar-inverted bg-faded">
     <a class="navbar-brand" href="/" title="Arevel">
-        <img alt="Arevel" src="/static/img/arevel_logo.png" height="24px"/>
+        <img alt="Arevel" src="/static/img/arevel_logo.png" height="24px" id="LogoImg"/>
     </a>
 
     <ul class="navbar-nav pull-right">
 
-        {% if user.is_authenticated %}
+    {% if user.is_authenticated %}
 	    <li class="nav-item">
             <a class="nav-link" href="{% url 'account_logout' %}">Sign Out</a>
         </li>
@@ -15,8 +15,5 @@
     {% endif %}
 
     </ul>
-
-
-
 
 </nav>

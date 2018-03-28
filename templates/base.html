@@ -4,19 +4,46 @@
     <title>Arevel</title>
     <meta lang="en_US">
     <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <meta name="description" content="">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
+    {% block seo %}
+    <title>Arevel: A new visual programming language</title>
+    <meta name="description" content="Arevel is a visual programming language in the browser for faster, simpler software development. 
+    Create dynamic, flexible programs in a spreadsheet like UI.">
 
+    <meta name="twitter:card" content="Arevel is a new programming language with a spreadsheet-like interface.">
+    <meta name="twitter:site" content="@Arevelapp">
+    <meta name="twitter:title" content="Arevel is a new programming language with a spreadsheet-like interface">
+    <meta name="twitter:description" content="Arevel is a visual programming language in the browser for faster, simpler software development. 
+    Create dynamic, flexible programs in a spreadsheet like UI.">
+
+    <meta property="og:title" content=" Arevel is a new programming language with a spreadsheet-like interface" />
+    <meta property="og:url" content="https://www.arevel.com" />
+    <!-- <meta property="og:image" content="https://www.arevel.com/static/img/arevel_logo.png" /> -->   <!-- TODO -->
+    <meta property="og:description" content="Arevel is a visual programming language in the browser for faster, simpler software development. 
+    Create dynamic, flexible programs in a spreadsheet like UI." />
+    <meta property="og:site_name" content="Arevel" />
+
+    {% endblock %}
+    
+
+    {% block css %}
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
     <link href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:400,700" rel="stylesheet">
     <link href="https://use.fontawesome.com/releases/v5.0.6/css/all.css" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/main.css">
+    {% endblock %}
+
+    {% block extra_css %}
+    {% endblock %}
 
     <!-- Analytics code -->
     {% if not settings.DEBUG %}
         {% include "_analytics_head.html" %}
     {% endif %}    
+    
 
 </head>
 <body>

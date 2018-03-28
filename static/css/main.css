@@ -2,7 +2,7 @@ html, body {
     font-size: 16px;
     font-family: "Source Sans Pro", "Helevetica", "Roboto", "Arial", sans-serif;
     min-height: 100vh;
-    color: #484848;
+    color: #212529;
 }
 
 #app {
@@ -351,4 +351,48 @@ label.DataLabel {
 
 .nav-item {
     margin: 0 1rem;
+}
+
+.cover {
+    background: rgba(51,35,108,1);
+    background: -moz-linear-gradient(left, rgba(51,35,108,1) 0%, rgba(76,5,92,1) 100%);
+    background: -webkit-gradient(left top, right top, color-stop(0%, rgba(51,35,108,1)), color-stop(100%, rgba(76,5,92,1)));
+    background: -webkit-linear-gradient(left, rgba(51,35,108,1) 0%, rgba(76,5,92,1) 100%);
+    background: -o-linear-gradient(left, rgba(51,35,108,1) 0%, rgba(76,5,92,1) 100%);
+    background: -ms-linear-gradient(left, rgba(51,35,108,1) 0%, rgba(76,5,92,1) 100%);
+    background: linear-gradient(to right top, rgba(51,35,108,1) 0%, rgba(76,5,92,1) 100%);
+
+
+    width: 100%;
+    min-height: 500px;
+}
+
+.LandingHeader--content {
+    max-width: 700px;
+    margin: 0 auto;
+    color: white;
+    padding: 0 2rem;
+}
+
+.LandingHeader--content h1 {
+    font-weight: 700;
+    font-size: 48px;
+    font-family: 'PT Sans', serif;
+    font-size: 3rem;
+    padding: 4rem 0 .67em 0;
+}
+
+.LandingHeader--content h2 {
+    margin-bottom: 0;
+    max-width: 400px;
+    font-size: 1.4rem;
+    opacity: 0.8;
+}
+
+.LandingBtn--cta {
+    padding: 1rem 3rem;
+    font-weight: bold;
+    font-size: 1.5rem;
+    letter-spacing: 1px;
+    margin: 4rem 0;
 }

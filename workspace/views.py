@@ -5,8 +5,13 @@ from django.shortcuts import render
 import logging
 
 
-def index(request):
+def landing(request):
     logging.info("Homepage req")
+    # return HttpResponse("Hello, Arevel.")
+    # return render(request, "index.html")
+    return render(request, "landing.html")
+
+def demo(request):
     # return HttpResponse("Hello, Arevel.")
     return render(request, "index.html")
 

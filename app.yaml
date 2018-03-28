@@ -8,6 +8,10 @@ handlers:
   static_dir: dist/static
 - url: .*
   script: arevel.wsgi.application
+- url: /favicon\.ico
+  static_files: dist/static/img/favicon.ico
+  upload: dist/static/img/favicon\.ico
+
 
 # Only pure Python libraries can be vendored
 # Python libraries that use C extensions can
