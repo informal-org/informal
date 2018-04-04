@@ -2,7 +2,7 @@ import * as util from '../utils';
 import * as constants from "../constants"
 import {isValidName, castLiteral, detectType} from "../utils";
 
-import {parseFormula, evaluateExpr, evaluateStr} from "./expr"
+import {parseFormula, evaluateExpr, evaluateStr, getDependencies, getStrDependencies} from "./expr"
 
 // import * as getParams from 'get-parameter-names';
 
@@ -61,6 +61,7 @@ export class Value {
 
             if(this.engine){
                 this.engine.num_cells++;
+                this.engine.all_cells.push(this);
             }
         }
 
@@ -79,6 +80,13 @@ export class Value {
         this.depends_on.remove(other);
         // @ts-ignore: Remove is a custom method
         other.used_by.remove(this);
+    }
+
+    updateDependencies(deps: Value[]){
+        // Find what changed and then add or remove.
+        let dependency_changes = util.diff(this.depends_on, deps);
+        dependency_changes.removed.forEach((el) => this.removeDependency(el));
+        dependency_changes.added.forEach((el) => this.addDependency(el));
     }
 
     get name(): string {
@@ -136,13 +144,16 @@ export class Value {
     }
 
     set expr(newValue: string){
-        // TODO: parse and set dependencies.
         this._expr = newValue;
         this._expr_type = util.detectType(newValue);
         if(this._expr_type == constants.TYPE_FORMULA){
             this._parsed = parseFormula(this.expr);
+            this.updateDependencies(getDependencies(this._parsed, this));
         } else {
             this._parsed = null;
+            if (this._expr_type == constants.TYPE_STRING) {
+                this.updateDependencies(getStrDependencies(this.expr, this))
+            } 
         }
         this.markStale();
         this._setExprHook(newValue);
@@ -189,8 +200,9 @@ export class Value {
             } catch(err) {
                 // TODO: Propagate this error to other dependent cells -
                 // Else their value could be messed up as well...
-
+                
                 this.addError(EVAL_ERR_PREFIX + err.message.replace("[big.js]", ""))
+                console.log(err);
                 // TODO: Return value
                 return this.expr;
             }
@@ -207,15 +219,18 @@ export class Value {
 
     // @ts-ignore - return type any.
     evaluate() {
+        // Return cached.
+        return this._result;
+    }
+
+    // Does the actual evaluation asyncrhronously
+    tick() {
         if(this._is_stale){
             // Re-evaluate and set this._result;
             this._result = this._doEvaluate();
             this._result_type = detectType(this._result);
             this.markClean();
         }
-
-        // Return cached.
-        return this._result;
     }
 
     markStale(){
@@ -249,6 +264,9 @@ export class Value {
         while(this.used_by.length > 0){
             this.used_by[this.used_by.length - 1].removeDependency(this);
         }
+
+        this.engine.all_cells.remove(this);
+        // Don't subtract num_cells, we want it to always increase to avoid naming conflict.
     }
 
 
@@ -551,6 +569,8 @@ export class Engine {
     stale_nodes: Value[] = [];
     num_cells = 0;
 
+    all_cells = [];
+
     constructor() {
         this.root = new Group();
         this.root.engine = this;
@@ -561,15 +581,15 @@ export class Engine {
         let tickFn = window.setInterval(function(){
             /// call your function here
             thisNode.tick();
-          }, 1000);
+          }, 200);
           
     }
 
     tick(){
         console.log("Tick")
-        // TEMPORARY
-        this.root.expr.forEach(cell => {
-            cell.evaluate();
+        
+        this.all_cells.forEach(cell => {
+            cell.tick();
         });
     }
 

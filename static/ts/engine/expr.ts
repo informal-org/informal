@@ -39,7 +39,7 @@ function itemApply(ai: any, bi: any, funcName: string, doFudge: boolean, func?: 
     if(doFudge){
         result = util.fudge(result);
     }
-    return new Value(result);
+    return result;
 }
 
 // Create new cells as result, but don't bind or store in all cells list.
@@ -54,19 +54,19 @@ function itemwiseApply(aRaw: any, bRaw: any, funcName: string, doFudge=false, fu
     if(Array.isArray(a) && Array.isArray(b)){   // [a] * [b]
         // ASSERT BOTH ARE SAME LENGTH
         let resultList = a.map(function(ai, i) {
-            return itemApply(ai, b[i], funcName, doFudge, func);
+            return new Value(itemApply(ai, b[i], funcName, doFudge, func));
         });
         return resultList;
     }
     else if(Array.isArray(a)) { // [a] * 2
         let resultList = a.map((ai) => {
-            return itemApply(ai, b, funcName, doFudge, func);
+            return new Value(itemApply(ai, b, funcName, doFudge, func));
         })
         return resultList;
 
     } else if(Array.isArray(b)) {   // 2 * [a]
         let resultList = b.map((bi) => {
-            return itemApply(a, bi, funcName, doFudge, func);
+            return new Value(itemApply(a, bi, funcName, doFudge, func));
         })
         return resultList;
 
@@ -352,7 +352,7 @@ export function _do_eval(node, context: Value) {
 };
 
 // @ts-ignore
-function getDependencies(node, context: Value) : Value[] {
+export function getDependencies(node, context: Value) : Value[] {
     /* Parse through an expression tree and return list of dependencies */
     if(node.type === "BinaryExpression") {
         let left = getDependencies(node.left, context)
@@ -367,9 +367,37 @@ function getDependencies(node, context: Value) : Value[] {
         if(bool != undefined){
             return [];
         }
+        let uname = node.name.toUpperCase();
+        if(uname in BUILTIN_FUN){
+            return [];
+        }
+
         // todo LOOKUP NAME
         return [context.resolve(node.name)]
-    } else {
+    
+    } else if (node.type === "Compound") {
+        // a, b
+        let deps = [];
+        return node.body.map((subnode) => {
+            deps.concat(getDependencies(subnode, context))
+        })
+        return deps;
+    } else if (node.type == "ThisExpression") {
+        return [];
+    } else if(node.type == "MemberExpression") {
+        return [resolveMember(node, context)];
+    } else if (node.type == "CallExpression") {
+        // TODO: Also add function when user definable functions are possible.
+
+        let depArgs = [];
+        node.arguments.forEach(subnode => {
+            depArgs.concat(getDependencies(subnode, context));
+        })
+
+        return depArgs;
+    }
+    
+    else {
         console.log("UNHANDLED eval CASE")
         console.log(node);
 
@@ -432,4 +460,24 @@ export function evaluateStr(strExpr: string, context: Value) {
         match = pattern.exec(strExpr);
     }
     return strResult;
+}
+
+// TODO: Refactor duplicate code
+export function getStrDependencies(strExpr: string, context: Value) {
+    let pattern = /{{([^}]+)}}/g;   // Any string in {{ NAME }}
+    let match = pattern.exec(strExpr);
+    let strResult = strExpr;
+    let deps = [];
+    while (match != null) {
+        let name = match[1];
+        let ref = context.resolve(name);
+        if(ref !== null) {
+            deps.push(ref);
+            // Remove pattern by replacing with empty str
+            strResult = strResult.replace(new RegExp(match[0], "g"), "");
+        }
+        match = pattern.exec(strExpr);
+    }
+    return deps;
+    
 }

@@ -5,7 +5,7 @@ import * as constants from "./constants";
 
 
 export function unboxVal(value: any){
-    if(value !== undefined && value.evaluate !== undefined){
+    if(value !== undefined && value !== null && value.evaluate !== undefined){
         return value.evaluate();
     }
     return value;
@@ -312,4 +312,35 @@ export function toJs(value: any, valueType?: string) {
             return unboxVal(value);
     }
     // case formula should not happen since this method is meant to be used with results.
+}
+
+export function diff(original, updated){
+    // Return what was added, removed and stayed the same. 
+    let added = [];
+    let removed = [];
+    let same = [];
+
+    // Find missing elements and shared elements.
+    original.forEach((el) => {
+        if(updated.indexOf(el) != -1){
+            same.push(el);
+        } else {
+            removed.push(el);
+        }
+    });
+
+    // Elements present only in updated.
+    // Same elements are handled in previous loop
+    updated.forEach((el) => {
+        if(original.indexOf(el) == -1){
+            added.push(el);
+        }
+    })
+
+    return {
+        "added": added, 
+        "removed": removed, 
+        "same": same
+    }
+
 }
