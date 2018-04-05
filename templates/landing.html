@@ -7,7 +7,7 @@
     <link href="https://fonts.googleapis.com/css?family=PT+Sans:400,700" rel="stylesheet">
     <style>
         #LogoImg {
-            height: 32px;
+            height: 36px;
         }
 
         html, body {
@@ -21,10 +21,85 @@
 {% block content %}
     <div class="LandingHeader cover">
         <div class="LandingHeader--content">
-            <h1>A new way to code <br> from your browser</h1>
-            <h2>Arevel is a simple programming language you can use from your browser.</h2>
+            
+            <h1>A simple programming language in your browser</h1>
 
+            <h2>Arevel is a small, visual programming language that lives completely in your browser.
+                It's super easy to learn and a joy to use.
+            </h2>
+
+            <!-- TODO: Screenshot of the beautiful, visual goddi-ness of language -->
             <a class="btn btn-primary btn-lg LandingBtn--cta" href="/demo">Try it out!</a>
+            <!-- Please try it out... -->
         </div>
     </div>
+
+    <section class="LandingSection">
+        <!-- 99 Problems -->
+        <h2>Programming is hard. Let's make it better.</h2>
+
+        
+    </section>
+    
+
+    <div class="LandingSection--wrapper grey">
+    <section class="LandingSection">
+        <!-- Benefits/Aspiration -->
+        <h2>A new medium of thought</h2>
+        <i>
+            “A computer language is not just a way of getting a computer to perform operations but rather that it is a novel formal medium for expressing ideas about methodology. Thus, programs must be written for people to read, and only incidentally for machines to execute.”
+            <br>
+            - SICP
+        </i>
+
+        <!-- Focus on human usability. Code faster. Better. Simplify complexity. A tool for thinking. A tool for thought. -->
+        
+    </section>
+    </div>
+    
+
+    <section class="LandingSection">
+        <!-- Features -->
+        <ul class="unstyled">
+            <li>
+                <h3>Friendly and Easy to learn</h3>
+                <p>Easy to pick up for a first time programmer. We're here to help.</p>
+            </li>
+
+            <li>
+                <h3>Clear, visual expression of ideas</h3>
+                <p></p>
+            </li>
+
+            <li>
+                <h3>Direct, immediate connection</h3>
+                <p></p>
+                <!-- Hook into the runtime of your system. REPL evolved. Experimentation and play.
+                    No simulation in your head.
+                 -->
+            </li>
+
+            <li>
+                <h3>Code &#10084; Data</h3>
+                <p></p>
+            </li>
+
+
+            <!-- Technical details: 
+
+                Javascript based. Web hosted. Free. Client side only.
+            -->
+
+        </ul>
+        
+    </section>
+    
+    <div class="LandingSection--wrapper grey">
+
+    <div class="LandingSection">
+        <!-- Last chance in case you didn't see the big button above -->
+        <a class="btn btn-primary btn-lg LandingBtn--cta centered" href="/demo">Try it out!</a>
+    </div>
+    </div>
+
 {% endblock %}

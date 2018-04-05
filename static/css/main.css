@@ -355,14 +355,8 @@ label.DataLabel {
 
 .cover {
     background: rgba(51,35,108,1);
-    background: -moz-linear-gradient(left, rgba(51,35,108,1) 0%, rgba(76,5,92,1) 100%);
-    background: -webkit-gradient(left top, right top, color-stop(0%, rgba(51,35,108,1)), color-stop(100%, rgba(76,5,92,1)));
-    background: -webkit-linear-gradient(left, rgba(51,35,108,1) 0%, rgba(76,5,92,1) 100%);
-    background: -o-linear-gradient(left, rgba(51,35,108,1) 0%, rgba(76,5,92,1) 100%);
-    background: -ms-linear-gradient(left, rgba(51,35,108,1) 0%, rgba(76,5,92,1) 100%);
-    background: linear-gradient(to right top, rgba(51,35,108,1) 0%, rgba(76,5,92,1) 100%);
-
-
+    background: linear-gradient(to right bottom, #3A2C7D 12%, #EC5E67 90%);
+    
     width: 100%;
     min-height: 500px;
 }
@@ -386,7 +380,7 @@ label.DataLabel {
     margin-bottom: 0;
     max-width: 400px;
     font-size: 1.4rem;
-    opacity: 0.8;
+    opacity: 0.9;
 }
 
 .LandingBtn--cta {
@@ -395,4 +389,22 @@ label.DataLabel {
     font-size: 1.5rem;
     letter-spacing: 1px;
     margin: 4rem 0;
+}
+
+.LandingSection {
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 4rem 2rem;
+}
+
+.LandingSection--wrapper.grey {
+    background-color: rgb(252, 247, 247);
+}
+
+hr {
+    border-color: rgb(179, 179, 199);
+}
+
+ul.unstyled {
+    list-style-type: none;
 }
