@@ -10,6 +10,13 @@ html, body {
     min-height: 100%;
 }
 
+h1 {
+    font-size: 3.25rem;
+}
+h2 {
+    font-size: 2.5rem;
+}
+
 /* p {
     color: black;
 } */
@@ -234,7 +241,7 @@ label.DataLabel {
     border-color: #FF5959;
 }
 
-.card, .DataRow--rootChild {
+#app .card, .DataRow--rootChild {
     background-color: white;
     border: 1px solid rgba(0,0,0,0.1);
     border-radius: 3px;
@@ -362,10 +369,11 @@ label.DataLabel {
 }
 
 .LandingHeader--content {
-    max-width: 700px;
+    max-width: 760px;
     margin: 0 auto;
     color: white;
     padding: 0 2rem;
+    font-size: 21px;
 }
 
 .LandingHeader--content h1 {
@@ -392,9 +400,14 @@ label.DataLabel {
 }
 
 .LandingSection {
-    max-width: 700px;
+    max-width: 760px;
     margin: 0 auto;
     padding: 4rem 2rem;
+    font-size: 21px;
+}
+
+.LandingSection.LandingSection--full {
+    max-width: 100%;
 }
 
 .LandingSection--wrapper.grey {
@@ -408,3 +421,17 @@ hr {
 ul.unstyled {
     list-style-type: none;
 }
+
+.italics {
+    font-style: italic;
+}
+
+.centered {
+    text-align: center;
+}
+
+.blockquote {
+    font-style: italic;
+    padding: 1.25rem 0;
+}
+
