@@ -435,3 +435,12 @@ ul.unstyled {
     padding: 1.25rem 0;
 }
 
+#terms, #privacy {
+    font-family: 'PT Serif', serif;
+}
+
+footer {
+    margin-top: 20px;
+    margin-bottom: 5px;
+    text-align: center;
+}

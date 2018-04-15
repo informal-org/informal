@@ -41,8 +41,7 @@
     <!-- Analytics code -->
     {% if not settings.DEBUG %}
         {% include "_analytics_head.html" %}
-    {% endif %}    
-    
+    {% endif %}
 
 </head>
 <body>
@@ -61,14 +60,25 @@
         {% include "_analytics.html" %}
     {% endif %}
 
- {% endblock %}
+{% endblock %}
 
+
+{% block footer %}
+<footer>
+
+    <!-- TODO contact and terms -->
+    <a href="mailto:hello@arevel.com">Contact</a>
+    &nbsp;&#9679; &nbsp;
+    © 2018 Arevel.com
+
+    &nbsp;&#9679; &nbsp;
+    <a href="/terms">Terms</a>&nbsp;&#9679; &nbsp;<a href="/privacy">Privacy</a>
+</footer>
+{% endblock %}
 
 
 {% block extra_body %}
 {% endblock %}
-
-
 
 
 

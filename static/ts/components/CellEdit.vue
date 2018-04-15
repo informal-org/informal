@@ -75,7 +75,7 @@ export default Vue.component('CellEdit', {
                 "edit": true,
                 "list-group-item": true,
                 "DataRow--rootChild": this.cell.isRootChild()
-            }
+            };
             classes[typeClass] = true;
             classes[cellClass] = true;
             return classes;
@@ -87,6 +87,7 @@ export default Vue.component('CellEdit', {
             e.stopPropagation();
         },
         save: function(e: Event) {
+            this.cell.markStale();  // Just force a recomputation on save.
             this.$store.commit("setEdit", null);
             e.stopPropagation();
         }

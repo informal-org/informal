@@ -230,19 +230,21 @@ export function formatValue(value: any, valueType?: string) : any {
                 // Replace quotes for Big
                 return value.toString().replace('"', "");
             case constants.TYPE_BOOLEAN:
-                return value.toString().toUpperCase()
+                return value.toString().toUpperCase();
             case constants.TYPE_ARRAY:
                 return value.map((v) => {
                     return formatValue(v, undefined);
-                }).join(", ")
+                }).join(", ");
             case constants.TYPE_STRING:
-                return value
+                return value;
             case constants.TYPE_TABLE:
                 return value.map((v) => {
                     return formatValue(v, undefined);
-                }).join(", ")
+                }).join(", ");
+            case constants.TYPE_FORMULA:    // Was unable to evaluate
+                return value;
             default:
-                return "Default";
+                return "Unknown";
         }
     }
 
