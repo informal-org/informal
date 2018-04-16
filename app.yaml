@@ -1,31 +1,38 @@
 # [START django_app]
-runtime: python27
-api_version: 1
-threadsafe: yes
+runtime: python
+env: flex
+entrypoint: gunicorn -b :$PORT arevel.wsgi
 
-handlers:
-- url: /static
-  static_dir: dist/static
-- url: /favicon.ico
-  static_files: static/img/favicon.ico
-  upload: static/img/favicon.ico
-- url: .*
-  script: arevel.wsgi.application
+runtime_config:
+  python_version: 3
 
+
+#api_version: 1
+#threadsafe: yes
+#
+#handlers:
+#- url: /static
+#  static_dir: dist/static
+#- url: /favicon.ico
+#  static_files: static/img/favicon.ico
+#  upload: static/img/favicon.ico
+#- url: .*
+#  script: arevel.wsgi.application
+#
 
 # Only pure Python libraries can be vendored
 # Python libraries that use C extensions can
 # only be included if they are part of the App Engine SDK 
 # Using Third Party Libraries: https://cloud.google.com/appengine/docs/python/tools/using-libraries-python-27
-libraries:
-- name: MySQLdb
-  version: 1.2.5
-- name: ssl
-  version: latest
+#libraries:
+#- name: MySQLdb
+#  version: 1.2.5
+#- name: ssl
+#  version: latest
 
 
 beta_settings:
-    cloud_sql_instances: arevel-0:us-central1:arevel
+    cloud_sql_instances: arevel-0:us-central1:arevelpg
 
 env_variables:
   DJANGO_SETTINGS_MODULE: 'arevel.settings'
