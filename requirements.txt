@@ -1,4 +1,4 @@
-Django==2.0.3
+Django==1.11.12
 PyMySQL==0.8.0
 raven==6.5.0
 django-allauth==0.35.0
