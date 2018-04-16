@@ -8,3 +8,4 @@ django-sendgrid-v5==0.6.87
 django-plans==0.8.12
 stripe==1.79.1
 google-cloud-logging==1.6.0
+psycopg2==2.7.4
