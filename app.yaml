@@ -1,6 +1,7 @@
 # [START django_app]
 runtime: python
 env: flex
+# TODO: Look into switching to uwsgi instead of gunicorn.
 entrypoint: gunicorn -b :$PORT arevel.wsgi
 threadsafe: true
 
@@ -21,6 +22,11 @@ runtime_config:
 #  script: arevel.wsgi.application
 #
 
+handlers:
+- url: /static
+  static_dir: static
+
+
 # Only pure Python libraries can be vendored
 # Python libraries that use C extensions can
 # only be included if they are part of the App Engine SDK 
@@ -37,6 +43,8 @@ beta_settings:
 
 env_variables:
   DJANGO_SETTINGS_MODULE: 'arevel.settings'
+  DEBUG: 'false' # always False for deployment
+  STATIC_URL: 'https://storage.googleapis.com/arevel-0.appspot.com/static/'
 
 # [END django_app]
 
