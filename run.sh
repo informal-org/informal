@@ -1,2 +1,2 @@
 export DEBUG=true
-python manage.py runserver
+python manage.py $1
