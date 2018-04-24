@@ -8,14 +8,15 @@
 
     <ul class="navbar-nav pull-right">
 
-    {% if user.is_authenticated %}
-	    <li class="nav-item">
-            <a class="nav-link" href="{% url 'account_logout' %}">Sign Out</a>
-        </li>
-	{% else %}
-        <li class="nav-item"><a class="nav-link" href="{% url 'account_login' %}">Sign In</a></li>
-         <li class="nav-item"><a class="btn btn-primary" href="{% url 'account_signup' %}">Sign Up</a></li>
-    {% endif %}
+        {# TODO #}
+{#    {% if user.is_authenticated %}#}
+{#	    <li class="nav-item">#}
+{#            <a class="nav-link" href="{% url 'account_logout' %}">Sign Out</a>#}
+{#        </li>#}
+{#	{% else %}#}
+{#        <li class="nav-item"><a class="nav-link" href="{% url 'account_login' %}">Sign In</a></li>#}
+{#         <li class="nav-item"><a class="btn btn-primary" href="{% url 'account_signup' %}">Sign Up</a></li>#}
+{#    {% endif %}#}
 
     </ul>
 

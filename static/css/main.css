@@ -6,7 +6,6 @@ html, body {
 }
 
 #app {
-    background-color: #F8FAFF;
     min-height: 100%;
 }
 
@@ -270,6 +269,7 @@ label.DataLabel {
     display: none;
 }
 
+
 .ResultPreview {
     background-color: rgba(255, 255, 255, 0.75);
     padding: 5px;
@@ -319,6 +319,7 @@ label.DataLabel {
 
 .DataRow--root > .DataValue {
     float: none;
+    margin-left: 0;
 }
 
 /* Mobile */
@@ -440,7 +441,8 @@ ul.unstyled {
 }
 
 footer {
-    margin-top: 20px;
-    margin-bottom: 5px;
+    margin-top: 60px;
+    margin-bottom: 30px;
     text-align: center;
+    background-color: transparent;
 }

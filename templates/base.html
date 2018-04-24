@@ -7,7 +7,7 @@
     <meta charset="utf-8">
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel='shortcut icon' type='image/x-icon' href='/favicon.ico' />
+    <link rel='shortcut icon' type='image/x-icon' href='{% static "img/favicon.ico" %}' />
 
     {% block seo %}
     <title>Arevel: A new visual programming language</title>
@@ -68,13 +68,14 @@
 {% block footer %}
 <footer>
 
-    <!-- TODO contact and terms -->
-    <a href="mailto:hello@arevel.com">Contact</a>
-    &nbsp;&#9679; &nbsp;
+    <a href="mailto:hello@arevel.com">hello@arevel.com</a>
+    <br>
+
     © 2018 Arevel.com
 
-    &nbsp;&#9679; &nbsp;
-    <a href="/terms">Terms</a>&nbsp;&#9679; &nbsp;<a href="/privacy">Privacy</a>
+     &#x00B7;
+     &nbsp;
+    <a href="/terms">Terms</a>&nbsp; &#x00B7; &nbsp;<a href="/privacy">Privacy</a>
 </footer>
 {% endblock %}
 

@@ -18,7 +18,7 @@ let eng = new Engine();
 window.eng = eng;
 
 
-new Value("YC", eng.root, "Name");
+new Value("World", eng.root, "Name");
 
 new Value("Hello {{ Name }}! This is Arevel, an environment where you can play around with programming concepts.", eng.root);
 
