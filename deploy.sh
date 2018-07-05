@@ -11,6 +11,6 @@ python manage.py collectstatic
 export CLOUDSDK_PYTHON="/usr/bin/python"
 gcloud app deploy
 
-gsutil acl ch -u AllUsers:R gs://arevel-0.appspot.com
-gsutil rsync -R dist/static/ gs://arevel-0.appspot.com/static/
-gsutil -m acl ch -r -u AllUsers:R gs://arevel-0.appspot.com/static/
+# gsutil acl ch -u AllUsers:R gs://arevel-0.appspot.com
+# gsutil rsync -R dist/static/ gs://arevel-0.appspot.com/static/
+# gsutil -m acl ch -r -u AllUsers:R gs://arevel-0.appspot.com/static/
