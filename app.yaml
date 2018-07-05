@@ -37,7 +37,7 @@ libraries:
 env_variables:
   DJANGO_SETTINGS_MODULE: 'arevel.settings'
   DEBUG: 'false' # always False for deployment
-  STATIC_URL: 'https://storage.googleapis.com/arevel-0.appspot.com/static/'
+  STATIC_URL: 'https://storage.googleapis.com/arevel-209217.appspot.com/static/'
 
 # [END django_app]
 
