@@ -1,5 +1,4 @@
 Django==1.11.12
-PyMySQL==0.8.0
 raven==6.5.0
 django-allauth==0.35.0
 django-settings-export==1.2.1
@@ -9,7 +8,4 @@ django-plans==0.8.12
 stripe==1.79.1
 google-cloud-logging==1.6.0
 mysqlclient==1.3.12
-wheel==0.30.0
-gunicorn==19.7.1
-psycopg2==2.7.4
 django-plans==0.8.12
