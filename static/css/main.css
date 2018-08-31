@@ -364,10 +364,37 @@ label.DataLabel {
 .cover {
     background: rgba(51,35,108,1);
     background: linear-gradient(to right bottom, #3A2C7D 12%, #EC5E67 90%);
+    background: linear-gradient(135deg, #3A2C7D, #EC5E67);
     
     width: 100%;
     min-height: 500px;
+    position: relative;
 }
+
+
+/*
+.cover {
+    background: #EC5E67;
+    
+}
+
+.cover:before {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: block;
+    background: linear-gradient(135deg,rgba(0,40,60,.8),rgba(0,20,40,.7));
+    background: linear-gradient(135deg,rgba(60,0,40,.8),rgba(40,0,20,.7));
+    background: linear-gradient(135deg,rgba(40,0,60,.8),rgba(20,0,40,.7));
+    border-radius: 5px;
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+}
+/*
+*/
 
 .LandingHeader--content {
     max-width: 760px;
