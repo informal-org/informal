@@ -49,7 +49,9 @@
 <body>
 {% block body %}
 
-    {% include "_navbar.html" %}
+    {% block navbar %}
+        {% include "_navbar.html" %}
+    {% endblock %}
 
     {% include "_messages.html" %}
 

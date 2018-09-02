@@ -8,6 +8,3 @@ class Docs(models.Model):
     last_updated = models.DateTimeField(auto_now=True)
 
 
-class BetaSignup(models.Model):
-    email = models.EmailField()
-    uid = models.UUIDField(default=uuid.uuid4, editable=False, db_index=True)

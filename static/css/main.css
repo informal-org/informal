@@ -322,14 +322,6 @@ label.DataLabel {
     margin-left: 0;
 }
 
-/* Mobile */
-@media only screen and (max-width: 600px) {
-    .DataValue {
-        width: 100%;
-        margin-left: 0;
-        display: block;
-    }
-}
 
 .InlineEdit {
     position: relative;
@@ -345,7 +337,7 @@ label.DataLabel {
 
 .SpotlightContainer {
     max-width: 650px;
-    margin: 30px auto;
+    margin: 90px auto;
     padding: 3rem 3rem;
 }
 
@@ -472,4 +464,19 @@ footer {
     margin-bottom: 30px;
     text-align: center;
     background-color: transparent;
+}
+
+
+
+/* Mobile */
+@media only screen and (max-width: 600px) {
+    .DataValue {
+        width: 100%;
+        margin-left: 0;
+        display: block;
+    }
+
+    .SpotlightContainer {
+        margin: 0 auto 30px auto;
+    }
 }
