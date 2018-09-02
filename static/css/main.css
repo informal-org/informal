@@ -16,6 +16,11 @@ h2 {
     font-size: 2.5rem;
 }
 
+.link {
+    color: #1a0dab;
+}
+
+
 /* p {
     color: black;
 } */
@@ -337,7 +342,7 @@ label.DataLabel {
 
 .SpotlightContainer {
     max-width: 650px;
-    margin: 90px auto;
+    margin: 90px auto 30px auto;
     padding: 3rem 3rem;
 }
 
@@ -362,6 +367,7 @@ label.DataLabel {
     min-height: 500px;
     position: relative;
 }
+
 
 
 /*
@@ -464,6 +470,10 @@ footer {
     margin-bottom: 30px;
     text-align: center;
     background-color: transparent;
+}
+
+.btn-outline-primary:hover a {
+    color: white;
 }
 
 

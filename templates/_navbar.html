@@ -9,14 +9,14 @@
     <ul class="navbar-nav pull-right">
 
         {# TODO #}
-{#    {% if user.is_authenticated %}#}
-{#	    <li class="nav-item">#}
-{#            <a class="nav-link" href="{% url 'account_logout' %}">Sign Out</a>#}
-{#        </li>#}
-{#	{% else %}#}
-{#        <li class="nav-item"><a class="nav-link" href="{% url 'account_login' %}">Sign In</a></li>#}
-{#         <li class="nav-item"><a class="btn btn-primary" href="{% url 'account_signup' %}">Sign Up</a></li>#}
-{#    {% endif %}#}
+    {% if user.is_authenticated %}
+	    <li class="nav-item">
+            <a class="nav-link" href="{% url 'account_logout' %}">Sign Out</a>
+        </li>
+	{% else %}
+        <li class="nav-item"><a class="nav-link" href="{% url 'account_login' %}">Sign In</a></li>
+         <li class="nav-item"><a class="btn btn-outline-primary" href="{% url 'account_signup' %}">Get Started</a></li>
+    {% endif %}
 
     </ul>
 
