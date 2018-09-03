@@ -5,10 +5,6 @@ html, body {
     color: #212529;
 }
 
-#app {
-    min-height: 100%;
-}
-
 h1 {
     font-size: 3.25rem;
 }

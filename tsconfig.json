@@ -1,6 +1,6 @@
 {
     "compilerOptions": {
-        "outDir": "./built/",
+        "outDir": "./dist/js",
         "sourceMap": true,
         "strict": true,
         "noImplicitReturns": true,

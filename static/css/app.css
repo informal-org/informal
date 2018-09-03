@@ -1,0 +1,21 @@
+body{
+    /*background-color: #F8FAFF;*/
+    background-color: white;
+}
+
+
+.AppPage {
+    background: white;
+    min-height: 80vh;
+
+    padding: 3rem 2rem;
+
+}
+
+.navbar {
+    background-color: white;
+}
+
+.medium-editor-element:focus {
+    outline: none;
+}
