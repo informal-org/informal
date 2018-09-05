@@ -7,9 +7,62 @@
 {% endblock %}
 
 {% block content %}
-    <div id="app" ref="app" class="container AppPage">
+    <div id="app" ref="app" class="container">
 
-        <medium-editor :text='text' :options='options'  v-on:edit='applyTextEdit'>
+        <div class="ToolbarMenu">
+
+            <div class="btn btn-sm ToolbarMenu-item">
+                <i class="fas fa-plus"></i>
+                Expression
+            </div>
+            <div class="btn btn-sm ToolbarMenu-item">
+                <i class="fas fa-plus"></i>
+                Section
+            </div>
+        </div>
+
+        <div class="AppPage">
+            <medium-editor :text='text' :options='options'  v-on:edit="mediumEdit"></medium-editor>
+
+            <div class="ExpressionEditor">
+                <div class="Expr row">
+                    <div class="col-sm-3">
+                        <label>Function</label> <br>
+                        <select class="form-control" id="exampleFormControlSelect1">
+                          <option selected>Define</option>
+                          <option>Add</option>
+{#                          <option>Text</option>#}
+{#                          <option>Function</option>#}
+                        </select>
+                    </div>
+
+
+                    <div class="col-sm-2">
+                        <label>Type</label> <br>
+                        <select class="form-control" id="exampleFormControlSelect1">
+                          <option selected>Auto</option>
+                          <option>Number</option>
+                          <option>Text</option>
+                          <option>Function</option>
+                        </select>
+                    </div>
+
+
+                    <div class="col-sm-3">
+                        <label>Name</label> <br>
+                        <input class="form-control" maxlength="20" placeholder="Name...">
+                    </div>
+
+
+                    <div class="col-sm-12">
+                        <label>Value</label> <br>
+                        <input class="form-control" maxlength="20" placeholder="Value...">
+                    </div>
+
+
+                </div>
+            </div>
+        </div>
 
     </div>
 {% endblock %}

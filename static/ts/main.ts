@@ -5,6 +5,7 @@ import Vuex from 'vuex'
 import { mapState } from 'vuex'
 import editor from 'vue2-medium-editor';
 
+import {getCaretCharacterOffsetWithin} from "./utils";
 
 
 Vue.use(Vuex);
@@ -20,10 +21,11 @@ const store = new Vuex.Store({
     }
 });
 
-var editorOptions = {
-      toolbar: {buttons: ['bold', 'italic', 'anchor']}
-};
 
+var editorOptions = {
+    toolbar: {buttons: ['bold', 'italic', 'anchor']},
+    autoLink: true
+};
 
 
 let arevelapp = new Vue({
@@ -31,8 +33,17 @@ let arevelapp = new Vue({
     store,
     data: {
         text: "Hello world",
-        options: editorOptions
-      },
+        options: editorOptions,
+        isNewLine: false
+    },
+    mounted: function() {
+
+        this.$on('editorCreated', function(value){
+            console.log("Editor created")
+            console.log(value);
+                // editor.MediumEditor.subscribe("editableKeyup", this.editableKeyup);
+        });
+    },
     computed: {
         // ...mapState([
         //   'engine'
@@ -42,7 +53,7 @@ let arevelapp = new Vue({
         'medium-editor': editor
     },
     methods: {
-        applyTextEdit() {
+        mediumEdit() {
             console.log("Applying text edit");
         }
     }
