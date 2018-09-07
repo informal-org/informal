@@ -34,15 +34,54 @@ body{
 .Expr {
     background-color: #F8F8F8;
 
-     border: 1px solid rgba(0,0,0,0.1);
+    border: 1px solid rgba(0,0,0,0.1);
 
-     box-shadow: 0px 2px 4px 0px rgba(0,0,0,0.06);
+    box-shadow: 0px 2px 4px 0px rgba(0,0,0,0.06);
     margin-bottom: 1rem !important;
 
     padding: .75rem 1.25rem;
     border-radius: .25rem;
+    position: relative;
 }
 
 label {
     font-weight: bold;
+}
+
+.row.no-padding {
+    padding: 0;
+}
+
+.row.no-padding .no-padding {
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.square {
+    border-radius: 0;
+}
+
+.ExprValue-input {
+    max-width: 90%;
+    max-width: calc(100% - 42px);
+    display: inline-block;
+}
+
+.ExprSetting {
+    display: inline;
+}
+.ExprSetting i {
+    vertical-align: text-top;
+}
+
+.Expr-inline {
+    display: inline-block;
+    width: 150px;
+}
+
+.Expr-inline input {
+    border: 0;
+    border-bottom: 2px solid #ccc;
+    height: initial;
+    padding: 0 0.35rem;
 }

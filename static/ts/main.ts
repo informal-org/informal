@@ -10,6 +10,13 @@ import {getCaretCharacterOffsetWithin} from "./utils";
 
 Vue.use(Vuex);
 
+import { Modal, Dropdown } from 'bootstrap-vue/es/components';
+Vue.use(Modal);
+Vue.use(Dropdown);
+
+
+
+
 const store = new Vuex.Store({
     state: {
         myText: 'hello'
