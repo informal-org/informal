@@ -21,6 +21,7 @@
     "get-parameter-names": "^0.3.0",
     "jquery": "^3.3.1",
     "jsep": "^0.3.3",
+    "megadraft": "^0.5.2",
     "popper.js": "^1.14.4",
     "raven-js": "^3.22.4",
     "react": "^16.5.0",

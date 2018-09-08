@@ -3,122 +3,21 @@
 
 {% block extra_css %}
     <link rel="stylesheet" href="{% static 'css/app.css' %}">
-    <link rel="stylesheet" href="{% static 'css/Draft.css' %}">
-    <link rel="stylesheet" href="{% static 'css/medium-editor.min.css' %}">
+{#    <link rel="stylesheet" href="{% static 'css/Draft.css' %}">#}
+{#    <link rel="stylesheet" href="{% static 'css/medium-editor.min.css' %}">#}
+
+    <link rel="stylesheet" href="{% static 'css/megadraft/megadraft.css' %}">
 {% endblock %}
 
 {% block content %}
 
+    <h3>Begin</h3>
     <div id="root" ref="app" class="container">
     Root element
     </div>
+    <h3>End</h3>
 
 
-    <div id="app" ref="app" class="container">
-
-        <div class="ToolbarMenu">
-
-            <div class="btn btn-sm ToolbarMenu-item">
-                <i class="fas fa-plus"></i>
-                New Variable
-            </div>
-
-            <div class="btn btn-sm ToolbarMenu-item">
-                <i class="fas fa-plus"></i>
-                New Function
-            </div>
-
-            <div class="btn btn-sm ToolbarMenu-item">
-                Function Call
-            </div>
-
-            <div class="btn btn-sm ToolbarMenu-item">
-                Variable Reference
-            </div>
-
-            <div class="btn btn-sm ToolbarMenu-item">
-                <i class="fas fa-plus"></i>
-                Inline Expression
-            </div>
-
-            <div class="btn btn-sm ToolbarMenu-item">
-                <i class="fas fa-plus"></i>
-                Section
-            </div>
-        </div>
-
-        <div class="AppPage">
-{#            <medium-editor :text='text' :options='options'  v-on:edit="mediumEdit"></medium-editor>#}
-
-            <div class="Expr row no-padding">
-
-                <div class="col-sm-4 no-padding">
-                    <input class="form-control square" placeholder="name">
-                </div>
-
-                <div class="col-sm-8 no-padding">
-
-                    <input class="form-control square ExprValue-input" placeholder="value">
-
-                    <div class="btn btn-default ExprSetting">
-                        <i class="settings fas fa-cog"></i>
-                    </div>
-                </div>
-            </div>
-
-
-
-            First line that may overlap with the input box <br>
-            First line that may overlap with the input box <br>
-            First line that may overlap with the input box <br>
-            Hello
-            <div class="Expr-inline">
-                <input class="form-control square" placeholder="=expression">
-            </div>
-            World
-            <br>
-            Next line that would go right underneath this.
-
-            <div class="Expr row">
-                <div class="col-sm-3">
-                    <label>Function</label> <br>
-                    <select class="form-control" id="exampleFormControlSelect1">
-                      <option selected>Define</option>
-                      <option>Add</option>
-{#                          <option>Text</option>#}
-{#                          <option>Function</option>#}
-                    </select>
-                </div>
-
-                <div class="col-sm-2">
-                    <label>Type</label> <br>
-                    <select class="form-control" id="exampleFormControlSelect1">
-                      <option selected>Auto</option>
-                      <option>Number</option>
-                      <option>Text</option>
-                      <option>Function</option>
-                    </select>
-                </div>
-
-
-                <div class="col-sm-3">
-                    <label>Name</label> <br>
-                    <input class="form-control" maxlength="20" placeholder="Name...">
-                </div>
-
-
-                <div class="col-sm-12">
-                    <label>Value</label> <br>
-                    <input class="form-control" maxlength="20" placeholder="Value...">
-                </div>
-            </div>
-
-
-
-
-        </div>
-
-    </div>
 {% endblock %}
 
 
