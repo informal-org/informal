@@ -17,6 +17,7 @@
   "dependencies": {
     "babel-cli": "^6.26.0",
     "babel-preset-react-app": "^3.1.2",
+    "draft-js": "^0.10.5",
     "get-parameter-names": "^0.3.0",
     "jquery": "^3.3.1",
     "jsep": "^0.3.3",
