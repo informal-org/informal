@@ -7,6 +7,12 @@
 {% endblock %}
 
 {% block content %}
+
+    <div id="root" ref="app" class="container">
+    Root element
+    </div>
+
+
     <div id="app" ref="app" class="container">
 
         <div class="ToolbarMenu">
@@ -126,6 +132,6 @@
     <script src="https://cdn.ravenjs.com/3.22.4/vue/raven.min.js" crossorigin="anonymous"></script>
 {#    <script>Raven.config('https://cfe92cbbed2f428b99b73ccb9419dab0@sentry.io/296381').install();</script>#}
 
-    <script src="{% static "js/arevel.js" %}"></script>
+    <script src="{% static "js/app.js" %}"></script>
 
 {% endblock %}

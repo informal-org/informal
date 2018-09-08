@@ -2,57 +2,23 @@ var path = require('path')
 var webpack = require('webpack')
 
 module.exports = {
-  entry: './static/ts/main.ts',
+  entry: './static/app/app.js',
   output: {
     path: path.resolve(__dirname, './static/js'),
     publicPath: '/static/js',
-    filename: 'arevel.js'
+    filename: 'app.js'
   },
   module: {
     rules: [
-      {
-        test: /\.vue$/,
-        loader: 'vue-loader',
-        options: {
-          loaders: {
-            // Since sass-loader (weirdly) has SCSS as its default parse mode, we map
-            // the "scss" and "sass" values for the lang attribute to the right configs here.
-            // other preprocessors should work out of the box, no loader config like this necessary.
-            'scss': 'vue-style-loader!css-loader!sass-loader',
-            'sass': 'vue-style-loader!css-loader!sass-loader?indentedSyntax',
-          }
-          // other vue-loader options go here
+        {
+          test: /\.(js|jsx)$/,
+          exclude: /node_modules/,
+          use: ['babel-loader']
         }
-      },
-      {
-        test: /\.tsx?$/,
-        loader: 'ts-loader',
-        exclude: /node_modules/,
-        options: {
-          appendTsSuffixTo: [/\.vue$/],
-        }
-      },
-      {
-        test: /\.(png|jpg|gif|svg)$/,
-        loader: 'file-loader',
-        options: {
-          name: '[name].[ext]?[hash]'
-        }
-      },
-      {
-          test: /\.css$/,
-          use: [
-              'style-loader',
-              'css-loader'
-          ]
-      }
     ]
   },
   resolve: {
-    extensions: ['.ts', '.js', '.vue', '.json'],
-    alias: {
-      'vue$': 'vue/dist/vue.esm.js'
-    }
+      extensions: ['*', '.js', '.jsx']
   },
   devServer: {
     historyApiFallback: true,
