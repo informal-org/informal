@@ -4,12 +4,11 @@ body{
 }
 
 
-.AppPage {
+.ArevelRoot {
     background: white;
     min-height: 80vh;
 
-    padding: 3rem 2rem;
-
+    padding: 0 2rem 3rem 2rem;
 }
 
 .navbar {
@@ -23,6 +22,7 @@ body{
 .ToolbarMenu {
     border-bottom: 1px solid #efefef;
     background-color: #fafbfc;
+    margin-bottom: 3rem;
 }
 
 .ToolbarMenu-item {
@@ -84,4 +84,8 @@ label {
     border-bottom: 2px solid #ccc;
     height: initial;
     padding: 0 0.35rem;
+}
+
+.btn-rect {
+    padding: .5em 2.5em;
 }

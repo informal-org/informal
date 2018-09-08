@@ -6,88 +6,91 @@ import {MegadraftEditor, editorStateFromRaw, editorStateToJSON} from "megadraft"
 
 
 
-class AvEditor extends React.Component {
+class ArevelApp extends React.Component {
     constructor(props) {
         super(props);
-        this.state = {editorState: EditorState.createEmpty()};
-        this.onChange = (editorState) => this.setState({editorState});
-        this.handleKeyCommand = this.handleKeyCommand.bind(this);
+        // this.state = {editorState: editorStateFromRaw(null)};
+
+        // const content = {
+        //   "entityMap": {},
+        //   "blocks": [
+        //     {
+        //       "key": "ag6qs",
+        //       "text": "Hello world",
+        //       "type": "unstyled",
+        //       "depth": 0,
+        //       "inlineStyleRanges": [],
+        //       "entityRanges": [],
+        //       "data": {}
+        //     }
+        //   ]
+        // };
+        const content = null;
+
+        const editorState = editorStateFromRaw(content);
+        this.state = {editorState};
+
+
     }
 
-    handleKeyCommand(command, editorState) {
-        // Apply bold, italics, etc.
-        const newState = RichUtils.handleKeyCommand(editorState, command);
-        if (newState) {
-            this.onChange(newState);
-            return 'handled';
-        }
-        return 'not-handled';
-    }
+    onChange = (editorState) => {
+        this.setState({editorState});
+    };
+
+    onSaveClick = () => {
+        const {editorState} = this.state;
+        const content = editorStateToJSON(editorState);
+        // Your function to save the content
+        // save_my_content(content);
+        console.log(content);
+    };
 
     render() {
         return (
-            <Editor editorState={this.state.editorState}
-                    handleKeyCommand={this.handleKeyCommand}
-                    onChange={this.onChange} />
-        );
+            <div>
+                <nav className="navbar navbar-expand-lg navbar-light bg-light ToolbarMenu">
+
+                    <ul className="navbar-nav mr-auto">
+                        {/*<li className="nav-item active">*/}
+                            {/*<a className="nav-link" href="#">Home <span className="sr-only">(current)</span></a>*/}
+                        {/*</li>*/}
+                        {/*<li className="nav-item">*/}
+                            {/*<a className="nav-link" href="#">Link</a>*/}
+                        {/*</li>*/}
+                        {/*<li className="nav-item dropdown">*/}
+                            {/*<a className="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button"*/}
+                               {/*data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">*/}
+                                {/*Dropdown*/}
+                            {/*</a>*/}
+                            {/*<div className="dropdown-menu" aria-labelledby="navbarDropdown">*/}
+                                {/*<a className="dropdown-item" href="#">Action</a>*/}
+                                {/*<a className="dropdown-item" href="#">Another action</a>*/}
+                                {/*<div className="dropdown-divider"></div>*/}
+                                {/*<a className="dropdown-item" href="#">Something else here</a>*/}
+                            {/*</div>*/}
+                        {/*</li>*/}
+                    </ul>
+
+
+                    <form className="form-inline">
+                        <a className="btn btn-primary btn-rect pull-right" href="#" onClick={this.onSaveClick}>
+                            Save
+                        </a>
+                    </form>
+
+
+                </nav>
+
+
+                <MegadraftEditor
+                    editorState={this.state.editorState}
+                    onChange={this.onChange}
+                    placeholder={"Write here..."}
+                />
+
+            </div>
+        )
     }
-}
-
-
-class ArevelApp extends React.Component {
-  constructor(props) {
-    super(props);
-    // this.state = {editorState: editorStateFromRaw(null)};
-
-    const content = {
-      "entityMap": {},
-      "blocks": [
-        {
-          "key": "ag6qs",
-          "text": "Hello world",
-          "type": "unstyled",
-          "depth": 0,
-          "inlineStyleRanges": [],
-          "entityRanges": [],
-          "data": {}
-        }
-      ]
-    };
-
-    const editorState = editorStateFromRaw(content);
-    this.state = {editorState};
-
-
-  }
-
-  onChange = (editorState) => {
-    this.setState({editorState});
-  };
-
-  onSaveClick = () => {
-    const {editorState} = this.state;
-    const content = editorStateToJSON(editorState);
-    // Your function to save the content
-    // save_my_content(content);
-    console.log(content);
-  };
-
-
-  render() {
-    return (
-        <div>
-      <MegadraftEditor
-        editorState={this.state.editorState}
-        onChange={this.onChange}/>
-
-
-            <button onClick={this.onSaveClick}>
-                Save
-            </button>
-
-        </div>
-    )
-  }
 }
 
 
