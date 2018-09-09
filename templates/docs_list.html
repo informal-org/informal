@@ -10,7 +10,10 @@
     <div class="container ArevelRoot">
         <br><br>
 
-        <h2>Documents</h2>
+        <h2 class="d-inline-block">Documents</h2>
+
+        <a class="btn btn-primary pull-right" href="/docs/create">New Document</a>
+
         {% for doc in docs %}
             <a class="card" href="{{ doc.get_absolute_url }}">
                 <div class="card-body">
@@ -20,7 +23,7 @@
                         </div>
 
                         <div class="col-10 col-sm-11">
-                            <h3 class="Doc-title">{{ doc.name }}</h3>
+                            <h3 class="Doc-title">{{ doc.name|default:"Untitled..." }}</h3>
                             <div class="grey fg">Last updated {{ doc.date_updated|naturaltime }}</div>
                         </div>
                     </div>

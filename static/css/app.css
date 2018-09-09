@@ -111,3 +111,17 @@ label {
 .black.fg {
     color: #0b0b0b;
 }
+
+.Doc-nameInput {
+    background: transparent;
+    border: none;
+    outline: none;
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+
+.Doc-nameInput:focus {
+    background: transparent;
+    box-shadow: none;
+    outline: none;
+}

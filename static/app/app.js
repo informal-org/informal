@@ -17,8 +17,6 @@ function postData(url = ``, data = {}) {
       searchParams.set(prop, data[prop]);
     }
 
-
-
     return fetch(url, {
         method: "POST",
         headers: {
@@ -47,20 +45,28 @@ export function editorStateToJSON(editorState) {
 }
 
 
-
-
 class ArevelApp extends React.Component {
     constructor(props) {
         super(props);
         // this.state = {editorState: editorStateFromRaw(null)};
-        const content = window._initialData.doc.contents;
+        let content = window._initialData.doc.contents;
+        // Cannot do == {}
+        if(!content || Object.keys(content).length == 0){
+            content = null;
+        }
+        const name = window._initialData.doc.name;
         const editorState = editorStateFromRaw(content);
-        this.state = {editorState, isSaved: true};
+        this.state = {editorState, name, isSaved: true};
     }
 
     onChange = (editorState) => {
         this.setState({editorState, isSaved: false});
     };
+
+    rename = (event) => {
+        this.setState({name: event.target.value, isSaved: false});
+    };
+
 
     render() {
         let saveBtn;
@@ -97,6 +103,9 @@ class ArevelApp extends React.Component {
                                 {/*<a className="dropdown-item" href="#">Something else here</a>*/}
                             {/*</div>*/}
                         {/*</li>*/}
+                        <li className="nav-item">
+                             <input placeholder="Untitled..." className="form-control Doc-nameInput" type="text" value={this.state.name} onChange={this.rename} />
+                        </li>
                     </ul>
 
                     <form className="form-inline">
@@ -122,6 +131,7 @@ class ArevelApp extends React.Component {
 
         var saveUrl = "/docs/" + window._initialData.doc.uuid;
         var saveData = {
+            'name': this.state.name,
             'contents': content
         };
         console.log("Saving to " + saveUrl);

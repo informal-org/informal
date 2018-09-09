@@ -31,13 +31,19 @@ def docs_list(request):
 
 
 @login_required
+def docs_create(request):
+    doc = create_doc(request.user)
+    return redirect(doc.get_absolute_url())
+
+
+@login_required
 def latest_doc(request):
     # Automatically create or get the first doc and redirect there.
     # So users start in the detail view rather than the list view.
     doc = Docs.objects.filter(owner=request.user).order_by("date_updated").first()
     if not doc:
         doc = create_doc(request.user)
-    return redirect(reverse('doc_details', kwargs={'uuid': doc.uuid}))
+    return redirect(doc.get_absolute_url())
 
 
 @login_required
@@ -47,10 +53,8 @@ def doc_details(request, uuid):
     if request.method == 'POST':
         # Since this is json format, should be safe against script injection...
         raw_contents = request.POST.get('contents', '')
-        LOG.info("Contents is")
-        LOG.info(request.POST)
-        LOG.info(raw_contents)
         contents = json.loads(raw_contents)
+        doc.name = request.POST.get('name', '');
         doc.contents = contents
         doc.save()
         return HttpResponse("OK")
