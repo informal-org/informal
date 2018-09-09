@@ -14,9 +14,9 @@ urlpatterns = [
 
 
     # Core functionality
-    url(r'^/docs$', docs_list, name='docs_list'),
-    url(r'^/docs/first$', first_doc, name='first_doc'),
-    url(r'^/docs/(?P<uuid>\w{22})$', doc_details, name='doc_details'),
+    url(r'^docs$', docs_list, name='docs_list'),
+    url(r'^docs/latest', latest_doc, name='latest_doc'),
+    url(r'^docs/(?P<uuid>\w{22})$', doc_details, name='doc_details'),
 
 
     # General App URLS

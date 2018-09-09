@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/app.css' %}">
+    <link rel="stylesheet" href="{% static 'css/megadraft/megadraft.css' %}">
+{% endblock %}
+
+{% block content %}
+    <div id="root" ref="app" class="container ArevelRoot"></div>
+{% endblock %}
+
+
+{% block extra_body %}
+    <!--
+      <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+      <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+    -->
+
+
+
+    <!-- Note: Development version -->
+    <script src="https://cdn.ravenjs.com/3.22.4/vue/raven.min.js" crossorigin="anonymous"></script>
+{#    <script>Raven.config('https://cfe92cbbed2f428b99b73ccb9419dab0@sentry.io/296381').install();</script>#}
+    <script src="{% static "js/app.js" %}"></script>
+
+{% endblock %}

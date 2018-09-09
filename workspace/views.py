@@ -1,10 +1,13 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
 from django.http import HttpResponse, JsonResponse
 from django.conf import settings
-from django.shortcuts import render
+from django.shortcuts import render, redirect, get_object_or_404
 
 import logging
+
+from django.urls import reverse
 
 from workspace.services import *
 
@@ -16,26 +19,26 @@ def landing(request):
     return render(request, "landing.html")
 
 
+@login_required
 def docs_list(request):
     pass
 
 
-def has_document_permission(doc, request):
-    return request.user.is_authenticated() and doc.owner == request.user
-
-
 @login_required
-def first_doc(request):
+def latest_doc(request):
     # Automatically create or get the first doc and redirect there.
     # So users start in the detail view rather than the list view.
     doc = Docs.objects.filter(owner=request.user).order_by("date_updated").first()
     if not doc:
         doc = create_doc(request.user)
-    return doc
+    return redirect(reverse('doc_details', kwargs={'uuid': doc.uuid}))
 
 
-def doc_details(request, doc_id):
-    return render(request, "doc.html", context={})
+@login_required
+def doc_details(request, uuid):
+    doc = get_object_or_404(Docs, uuid=uuid)
+    has_document_permission(request, doc)
+    return render(request, "doc.html", context={'doc': doc})
 
 
 def config(request):
