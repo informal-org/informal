@@ -8,3 +8,5 @@ django-plans==0.8.12
 stripe==1.79.1
 google-cloud-logging==1.6.0
 MySQL-python==1.2.5
+django-mysql==2.4.1
+shortuuid==0.5.0

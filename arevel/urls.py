@@ -2,7 +2,7 @@ from django.conf.urls import include, url
 from django.contrib import admin
 from django.views.generic import TemplateView
 
-from workspace.views import landing, demo, config, ycdemo
+from workspace.views import *
 
 urlpatterns = [
     url(r'^$', landing),
@@ -12,10 +12,15 @@ urlpatterns = [
     # Library URLs
     url(r'^accounts/', include('allauth.urls')),
 
-    # App URLS
-    url(r'^ycdemo\/?', ycdemo),
-    url(r'^demo\/?', demo),
+
+    # Core functionality
+    url(r'^/docs$', docs_list, name='docs_list'),
+    url(r'^/docs/first$', first_doc, name='first_doc'),
+    url(r'^/docs/(?P<uuid>\w{22})$', doc_details, name='doc_details'),
+
+
+    # General App URLS
+    url(r'^ycdemo\/?$', ycdemo),
     url(r'^terms\/?$', TemplateView.as_view(template_name="legal/terms.html")),
     url(r'^privacy\/?$', TemplateView.as_view(template_name="legal/privacy.html")),
-
 ]
