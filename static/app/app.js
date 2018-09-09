@@ -1,8 +1,39 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import {Editor, EditorState, RichUtils} from 'draft-js';
-
 import {MegadraftEditor, editorStateFromRaw, editorStateToJSON} from "megadraft";
+
+
+
+
+function postData(url = ``, data = {}) {
+    // Default options are marked with *
+    var csrf_token = document.querySelector("[name='csrfmiddlewaretoken']").getAttribute("value");
+    data['csrfmiddlewaretoken'] = csrf_token;
+
+    const searchParams = new URLSearchParams();
+    for (const prop in data) {
+      searchParams.set(prop, data[prop]);
+    }
+
+
+
+    return fetch(url, {
+        method: "POST",
+        headers: {
+            // "Content-Type": "application/json; charset=utf-8",
+            "Content-Type": "application/x-www-form-urlencoded",
+            "X-CSRFToken": csrf_token
+        },
+        credentials: 'same-origin', // Include cookies
+        body: searchParams, // body data type must match "Content-Type" header
+    })
+    .then(response => {
+        console.log("Got response ")
+        console.log(response);
+        return "OK"
+    }); // parses response to JSON
+}
 
 
 
@@ -26,23 +57,12 @@ class ArevelApp extends React.Component {
         //   ]
         // };
         const content = null;
-
         const editorState = editorStateFromRaw(content);
         this.state = {editorState};
-
-
     }
 
     onChange = (editorState) => {
         this.setState({editorState});
-    };
-
-    onSaveClick = () => {
-        const {editorState} = this.state;
-        const content = editorStateToJSON(editorState);
-        // Your function to save the content
-        // save_my_content(content);
-        console.log(content);
     };
 
     render() {
@@ -91,6 +111,21 @@ class ArevelApp extends React.Component {
             </div>
         )
     }
+
+    onSaveClick = () => {
+        const {editorState} = this.state;
+        const content = editorStateToJSON(editorState);
+
+        var saveUrl = "/docs/" + window._initialData.doc.uuid;
+        var saveData = {
+            'contents': JSON.stringify(content)
+        };
+        console.log("Saving to " + saveUrl);
+
+        // Eventually - send just the diff
+        postData(saveUrl, saveData);
+        console.log(content);
+    };
 }
 
 

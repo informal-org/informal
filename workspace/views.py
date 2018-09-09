@@ -6,10 +6,13 @@ from django.conf import settings
 from django.shortcuts import render, redirect, get_object_or_404
 
 import logging
+import json
 
 from django.urls import reverse
 
 from workspace.services import *
+
+LOG = logging.getLogger(__name__)
 
 
 def landing(request):
@@ -38,6 +41,17 @@ def latest_doc(request):
 def doc_details(request, uuid):
     doc = get_object_or_404(Docs, uuid=uuid)
     has_document_permission(request, doc)
+    if request.method == 'POST':
+        # Since this is json format, should be safe against script injection...
+        raw_contents = request.POST.get('contents', '')
+        LOG.info("Contents is")
+        LOG.info(request.POST)
+        LOG.info(raw_contents)
+        contents = json.loads(raw_contents)
+        doc.contents = contents
+        doc.save()
+        return HttpResponse("OK")
+
     return render(request, "doc.html", context={'doc': doc})
 
 
