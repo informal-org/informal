@@ -3,7 +3,6 @@ body{
     background-color: white;
 }
 
-
 .ArevelRoot {
     background: white;
     min-height: 80vh;
@@ -88,4 +87,27 @@ label {
 
 .btn-rect {
     padding: .5em 2.5em;
+}
+
+.Doc-icon {
+    font-size: 2rem;
+    color: #5286EC;
+    display: block;
+    margin-top: 13px;
+    text-align: center;
+}
+
+.Doc-title {
+    font-size: 1.5rem;
+    font-weight: bold;
+    display: inline-block;
+    color: #0b0b0b;
+}
+
+.grey.fg {
+    color: #777;
+}
+
+.black.fg {
+    color: #0b0b0b;
 }

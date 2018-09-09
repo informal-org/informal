@@ -19,12 +19,15 @@ def landing(request):
     logging.info("Homepage req")
     # return HttpResponse("Hello, Arevel.")
     # return render(request, "index.html")
+    if request.user.is_authenticated():
+        return redirect(reverse('docs_list'))
     return render(request, "landing.html")
 
 
 @login_required
 def docs_list(request):
-    pass
+    docs = Docs.objects.filter(owner=request.user)
+    return render(request, 'docs_list.html', context={'docs': docs})
 
 
 @login_required
