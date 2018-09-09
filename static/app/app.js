@@ -55,14 +55,25 @@ class ArevelApp extends React.Component {
         // this.state = {editorState: editorStateFromRaw(null)};
         const content = window._initialData.doc.contents;
         const editorState = editorStateFromRaw(content);
-        this.state = {editorState};
+        this.state = {editorState, isSaved: true};
     }
 
     onChange = (editorState) => {
-        this.setState({editorState});
+        this.setState({editorState, isSaved: false});
     };
 
     render() {
+        let saveBtn;
+        if(this.state.isSaved){
+            saveBtn = <a className="btn btn-outline-primary btn-rect pull-right" href="#" onClick={this.onSaveClick}>
+                Saved
+            </a>
+        } else {
+            saveBtn = <a className="btn btn-primary btn-rect pull-right" href="#" onClick={this.onSaveClick}>
+                Save
+            </a>
+        }
+
         return (
             <div>
                 <nav className="navbar navbar-expand-lg navbar-light bg-light ToolbarMenu">
@@ -88,13 +99,9 @@ class ArevelApp extends React.Component {
                         {/*</li>*/}
                     </ul>
 
-
                     <form className="form-inline">
-                        <a className="btn btn-primary btn-rect pull-right" href="#" onClick={this.onSaveClick}>
-                            Save
-                        </a>
+                        {saveBtn}
                     </form>
-
 
                 </nav>
 
@@ -121,6 +128,8 @@ class ArevelApp extends React.Component {
 
         // Eventually - send just the diff
         postData(saveUrl, saveData);
+
+        this.setState({isSaved: true});
         console.log(content);
     };
 }
