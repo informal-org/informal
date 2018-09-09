@@ -21,7 +21,7 @@
     window._initialData = {
         "doc": {
             "uuid": "{{ doc.uuid }}",
-            "contents": {{ doc.contents|safe }}
+            "contents": {{ doc.contents_str|safe }}
         }
     }
     </script>

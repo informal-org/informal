@@ -1,7 +1,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import {Editor, EditorState, RichUtils} from 'draft-js';
-import {MegadraftEditor, editorStateFromRaw, editorStateToJSON} from "megadraft";
+import {MegadraftEditor, editorStateFromRaw} from "megadraft";
+import { convertToRaw } from "draft-js";
 
 
 
@@ -36,27 +37,23 @@ function postData(url = ``, data = {}) {
 }
 
 
+export function editorStateToJSON(editorState) {
+    // Modified from megadraft but removing spaces.
+  // https://github.com/globocom/megadraft/blob/f8051429712580f230b8c2f98326aa2171d661b3/src/utils.js#L17
+  if (editorState) {
+    const content = editorState.getCurrentContent();
+    return JSON.stringify(convertToRaw(content), null, 0);
+  }
+}
+
+
+
 
 class ArevelApp extends React.Component {
     constructor(props) {
         super(props);
         // this.state = {editorState: editorStateFromRaw(null)};
-
-        // const content = {
-        //   "entityMap": {},
-        //   "blocks": [
-        //     {
-        //       "key": "ag6qs",
-        //       "text": "Hello world",
-        //       "type": "unstyled",
-        //       "depth": 0,
-        //       "inlineStyleRanges": [],
-        //       "entityRanges": [],
-        //       "data": {}
-        //     }
-        //   ]
-        // };
-        const content = null;
+        const content = window._initialData.doc.contents;
         const editorState = editorStateFromRaw(content);
         this.state = {editorState};
     }
@@ -118,7 +115,7 @@ class ArevelApp extends React.Component {
 
         var saveUrl = "/docs/" + window._initialData.doc.uuid;
         var saveData = {
-            'contents': JSON.stringify(content)
+            'contents': content
         };
         console.log("Saving to " + saveUrl);
 

@@ -1,8 +1,9 @@
 from django.db import models
-import shortuuid
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 from django_mysql.models import JSONField
+import shortuuid
+import json
 
 
 class Docs(models.Model):
@@ -16,3 +17,6 @@ class Docs(models.Model):
 
     def get_absolute_url(self):
         return reverse('doc_details', kwargs={'uuid': self.uuid})
+
+    def contents_str(self):
+        return json.dumps(self.contents)
