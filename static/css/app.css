@@ -125,3 +125,13 @@ label {
     box-shadow: none;
     outline: none;
 }
+
+.megadraft-editor .paragraph + .paragraph {
+    margin-top: 1em;
+}
+
+.megadraft-editor h2 {
+    font-size: 2.5rem;
+    margin-top: 1em;
+    margin-bottom: .5em;
+}
