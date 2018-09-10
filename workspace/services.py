@@ -38,7 +38,7 @@ def get_user_properties(request):
         "location_lat": city_lat,
         "location_lng": city_long,
     }
-    if request.user.is_authenticated():
+    if hasattr(request, 'user') and request.user.is_authenticated():
         context["email"] = request.user.email
         context["is_staff"] = request.user.is_staff
 

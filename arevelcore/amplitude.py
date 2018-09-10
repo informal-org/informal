@@ -40,7 +40,7 @@ class AmplitudeLogger:
         """
         event = {}
         # Anonymous users SHOULD NOT be assigned a user id
-        if request.user.is_authenticated():
+        if hasattr(request, 'user') and request.user.is_authenticated():
             # Convert from long to int to avoid "L"
             event["user_id"] = int(request.user.id)
 

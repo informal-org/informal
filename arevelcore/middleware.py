@@ -10,7 +10,9 @@ amp = AmplitudeLogger()
 
 
 class LoggingMiddleware(object):
+
     def process_response(self, request, response):
+
         context = {
             "path": request.path, 
             "method": request.method,
