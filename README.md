@@ -8,7 +8,9 @@ pip install mysqlclient
 
 mysql.server start
 
-./cloud_sql_proxy -instances=arevel-0:us-central1:arevel=tcp:3306
+./cloud_sql_proxy -instances=arevel-209217:us-central1:arevelsql=tcp:3306
+
+SETTINGS_MODE='proxyprod' python manage.py migrate
 
 
 # Locally

@@ -1,4 +1,6 @@
 #!/bin/bash
+
+# gcloud config configurations activate default
 echo "Compiling npm packages for production."
 export NODE_ENV=production
 npm run build

@@ -8,6 +8,7 @@ LOG = logging.getLogger(__name__)
 
 amp = AmplitudeLogger()
 
+
 class LoggingMiddleware(object):
     def process_response(self, request, response):
         context = {
