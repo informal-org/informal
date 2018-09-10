@@ -24,7 +24,7 @@ def get_user_ip(request):
         return request.META.get('REMOTE_ADDR')
 
 
-def get_user_properties(request):
+def get_user_properties(request, user=None):
     city_lat, city_long = request.META.get('X-AppEngine-City', ",").split(",")
     # TODO: User agent parsing.
     # Any other info from social auth
@@ -38,8 +38,12 @@ def get_user_properties(request):
         "location_lat": city_lat,
         "location_lng": city_long,
     }
-    if hasattr(request, 'user') and request.user.is_authenticated():
-        context["email"] = request.user.email
-        context["is_staff"] = request.user.is_staff
+
+    if not user and hasattr(request, 'user') and request.user.is_authenticated():
+        user = request.user
+
+    if user:
+        context["email"] = user.email
+        context["is_staff"] = user.is_staff
 
     return context

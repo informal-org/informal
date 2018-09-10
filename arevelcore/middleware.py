@@ -1,5 +1,6 @@
 import logging
 import shortuuid
+from django.urls import resolve
 
 from arevelcore.amplitude import AmplitudeLogger
 
@@ -12,12 +13,11 @@ amp = AmplitudeLogger()
 class LoggingMiddleware(object):
 
     def process_response(self, request, response):
-
         context = {
-            "path": request.path, 
+            "path": request.path,
+            "page_name": resolve(request.path_info).url_name or "",
             "method": request.method,
             "referer": request.META.get("HTTP_REFERER", ""),
-            "ua": request.META.get("HTTP_USER_AGENT", ""),
             "query_string": request.META.get("QUERY_STRING", "")
         }
         # print metrics

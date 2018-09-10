@@ -26,8 +26,9 @@ class AmplitudeLogger:
     def __init__(self):
         self.api_key = settings.AMPLITUDE_KEY
         self.api_uri = "https://api.amplitude.com/httpapi"
+        self.session = requests.Session()
 
-    def create_event(self, request, event_type, event_properties):
+    def create_event(self, request, event_type, event_properties, user=None):
         """
         :param request: Django request
         :param event_type: Required string - (Subject) Verb Object. Obmit subject when = User (implied). All lowercase.
@@ -39,8 +40,11 @@ class AmplitudeLogger:
         Ex. (User) created account
         """
         event = {}
+        if not user and hasattr(request, 'user') and request.user.is_authenticated():
+            user = request.user
+
         # Anonymous users SHOULD NOT be assigned a user id
-        if hasattr(request, 'user') and request.user.is_authenticated():
+        if user:
             # Convert from long to int to avoid "L"
             event["user_id"] = int(request.user.id)
 
@@ -51,7 +55,7 @@ class AmplitudeLogger:
         # integer epoch time in milliseconds
         event["time"] = int(time.time() * 1000)
 
-        event["user_properties"] = get_user_properties(request)
+        event["user_properties"] = get_user_properties(request, user)
         event["event_properties"] = event_properties
 
         event["ip"] = get_user_ip(request)
@@ -76,7 +80,7 @@ class AmplitudeLogger:
         if type(event) != list:
             event = [event]
 
-        response = requests.post(self.api_uri, data=event)
+        response = self.session.post(self.api_uri, data=event)
         LOG.info("Logging request response: " + str(response.status_code))
         LOG.info(response.content)
         return response

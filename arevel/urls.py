@@ -3,7 +3,6 @@ from django.contrib import admin
 from django.views.generic import TemplateView
 
 from workspace.views import *
-
 urlpatterns = [
     url(r'^$', landing),
     url(r'^private/config$', config),
@@ -25,3 +24,4 @@ urlpatterns = [
     url(r'^terms\/?$', TemplateView.as_view(template_name="legal/terms.html")),
     url(r'^privacy\/?$', TemplateView.as_view(template_name="legal/privacy.html")),
 ]
+
