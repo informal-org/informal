@@ -135,3 +135,7 @@ label {
     margin-top: 1em;
     margin-bottom: .5em;
 }
+
+.Doc-card {
+    margin: 1rem 0;
+}
