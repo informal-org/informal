@@ -72,7 +72,7 @@ class AmplitudeLogger:
     #  ('api_key', 'SOMETHINGSOMETHING'),
     #  ('event', '[{"device_id":"foo@bar", "event_type":"testing_tutorial", "user_properties":{"Cohort":"Test A"}, "country":"United States", "ip":"127.0.0.1", "time":1396381378123}]'),
     # ]
-    
+
     def log_event(self, event):
         if not event:
             return
