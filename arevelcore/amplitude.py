@@ -26,7 +26,7 @@ class AmplitudeLogger:
     def __init__(self):
         self.api_key = settings.AMPLITUDE_KEY
         self.api_uri = "https://api.amplitude.com/httpapi"
-        # TODO: Use a singleton session everywhere... 
+        # TODO: Use a singleton session everywhere...
         self.session = requests.Session()
 
     def create_event(self, request, event_type, event_properties, user=None):

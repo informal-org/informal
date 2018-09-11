@@ -1,8 +1,23 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
-import {Editor, EditorState, RichUtils} from 'draft-js';
-import {MegadraftEditor, editorStateFromRaw} from "megadraft";
-import { convertToRaw } from "draft-js";
+import {
+    Editor,
+    EditorState,
+    RichUtils,
+    convertToRaw,
+    CompositeDecorator
+} from 'draft-js';
+import {MegadraftEditor, editorStateFromRaw, createTypeStrategy} from "megadraft";
+
+import Link from "megadraft/lib/components/Link";
+import LinkInput from "megadraft/lib/entity_inputs/LinkInput";
+
+
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import actions from "megadraft/lib/actions/default"
+import icons from "megadraft/lib/icons"
+
+import { faEquals } from '@fortawesome/free-solid-svg-icons'
 
 
 
@@ -54,8 +69,21 @@ class ArevelApp extends React.Component {
         if(!content || Object.keys(content).length == 0){
             content = null;
         }
+
+        const decorator = new CompositeDecorator([
+            {
+              strategy: createTypeStrategy("LINK"),
+              component: Link
+            },
+            {
+              strategy: createTypeStrategy("REFERENCE"),
+              component: ArReference,
+            },
+        ]);
+
+
         const name = window._initialData.doc.name;
-        const editorState = editorStateFromRaw(content);
+        const editorState = editorStateFromRaw(content, decorator);
         this.state = {editorState, name, isSaved: true};
     }
 
@@ -67,6 +95,10 @@ class ArevelApp extends React.Component {
         this.setState({name: event.target.value, isSaved: false});
     };
 
+    getSidebar() {
+        // Disable sidebar for now...
+        return <span></span>
+    }
 
     render() {
         let saveBtn;
@@ -79,6 +111,17 @@ class ArevelApp extends React.Component {
                 Save
             </a>
         }
+
+        const customActions = actions.concat([
+            {type: "separator"},
+            {type: "entity", label: "R", style: "REFERENCE", icon: ReferenceIcon, entity: "REFERENCE"}
+        ]);
+
+        const entityInputs = {
+          LINK: LinkInput,
+          REFERENCE: ArRefInput
+        };
+
 
         return (
             <div>
@@ -119,6 +162,9 @@ class ArevelApp extends React.Component {
                     editorState={this.state.editorState}
                     onChange={this.onChange}
                     placeholder={"Write here..."}
+                    actions={customActions}
+                    sidebarRendererFn={this.getSidebar}
+                    entityInputs={entityInputs}
                 />
 
             </div>
@@ -143,6 +189,111 @@ class ArevelApp extends React.Component {
         console.log(content);
     };
 }
+
+
+// todo: high level abstraction for this.
+// function findRefEntities(contentBlock, callback, contentState) {
+//     console.log("Find ref entities called");
+//     contentBlock.findEntityRanges(
+//       (character) => {
+//         const entityKey = character.getEntity();
+//         return (
+//           entityKey !== null &&
+//           contentState.getEntity(entityKey).getType() === 'REFERENCE'
+//         );
+//       },
+//       callback
+//     );
+// }
+
+
+
+class ArReference extends React.Component {
+    render() {
+        const contentState = this.props.contentState;
+        const { code } = contentState.getEntity(this.props.entityKey).getData();
+        return <a className="DocContent-reference">
+            <b>{this.props.children} {code}</b>
+        </a>
+    }
+}
+
+class ArRefInput extends React.Component {
+    constructor(props) {
+        super(props);
+
+        console.log("Reference input constructor")
+        this.state = {
+            code: (props && props.code) || ""
+        }
+
+        // this.onInputChange = this.onInputChange;
+        // this.onInputKeyDown = this.onInputKeyDown;
+        this.onInputChange = this.onInputChange.bind(this);
+        this.onInputKeyDown = this.onInputKeyDown.bind(this);
+    }
+
+
+    onInputChange = (event) => {
+        const code = event.target.value;
+        this.setState({code})
+        // this.props.setEntity({code});
+    };
+
+    onInputKeyDown(event) {
+        if (event.key == "Enter") {
+          event.preventDefault();
+          this.props.setEntity({code});
+        } else if (event.key == "Escape") {
+          event.preventDefault();
+          this.props.cancelEntity();
+        }
+    }
+
+    componentDidMount() {
+        this.textInput.focus();
+    }
+
+    render() {
+        console.log("Reference input render")
+        const { t } = this.props;
+        return (
+          <div style={{ whiteSpace: "nowrap" }}>
+            <input
+              ref={el => {
+                this.textInput = el;
+              }}
+              type="text"
+              className="toolbar__input"
+              onChange={this.onInputChange}
+              value={this.state.code}
+              onKeyDown={this.onInputKeyDown}
+              placeholder={"Type the code and press enter"}
+            />
+            <span className="toolbar__item" style={{ verticalAlign: "bottom" }}>
+              <button
+                onClick={this.props.removeEntity}
+                type="button"
+                className="toolbar__button toolbar__input-button"
+              >
+                {this.props.entity ? <FontAwesomeIcon icon={faEquals} /> : <icons.CloseIcon />}
+              </button>
+            </span>
+          </div>
+        );
+
+    }
+}
+
+class ReferenceIcon extends React.Component {
+  render() {
+    return (
+        <FontAwesomeIcon icon={faEquals} />
+    );
+  }
+}
+
+
 
 
 

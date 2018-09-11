@@ -139,3 +139,13 @@ label {
 .Doc-card {
     margin: 1rem 0;
 }
+
+.EditorToolbar-icon {
+    width: 24px;
+    height: 24px;
+    color: red;
+}
+
+.DocContent-reference {
+
+}
