@@ -5,5 +5,6 @@ from django.apps import AppConfig
 
 from .signals import *
 
+
 class ArevelcoreConfig(AppConfig):
     name = 'arevelcore'

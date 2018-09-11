@@ -72,7 +72,7 @@ class AmplitudeLogger:
     #  ('api_key', 'SOMETHINGSOMETHING'),
     #  ('event', '[{"device_id":"foo@bar", "event_type":"testing_tutorial", "user_properties":{"Cohort":"Test A"}, "country":"United States", "ip":"127.0.0.1", "time":1396381378123}]'),
     # ]
-
+    
     def log_event(self, event):
         if not event:
             return
@@ -80,8 +80,14 @@ class AmplitudeLogger:
         if type(event) != list:
             event = [event]
 
-        response = self.session.post(self.api_uri, data=event)
-        LOG.info("Logging request response: " + str(response.status_code))
-        LOG.info(response.content)
-        return response
+        try:
+            response = self.session.post(self.api_uri, data=event, timeout=3)
+            LOG.info("Logging request response: " + str(response.status_code))
+            LOG.info(response.content)
+            return response
+        except Exception as e:
+            LOG.exception("Could not log to amplitude");
+
+
+
 
