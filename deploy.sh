@@ -7,7 +7,7 @@ npm run build
 echo "Building python packages."
 workon arevel
 # --force --upgrade
-pip install -t dist/lib -r requirements.txt
+pip install --use-mirrors -t dist/lib -r requirements.txt
 echo "Collecting static files to ship to CDN"
 python manage.py collectstatic
 export CLOUDSDK_PYTHON="/usr/bin/python"

@@ -10,9 +10,11 @@ import json
 
 from django.urls import reverse
 
+from arevelcore.amplitude import AmplitudeLogger
 from workspace.services import *
 
 LOG = logging.getLogger(__name__)
+amp = AmplitudeLogger()
 
 
 def landing(request):
@@ -33,6 +35,10 @@ def docs_list(request):
 @login_required
 def docs_create(request):
     doc = create_doc(request.user)
+    amp.log_event(amp.create_event(request, "create doc", {
+        'doc': doc.uuid,
+        'trigger': 'manual'
+    }, user=request.user))
     return redirect(doc.get_absolute_url())
 
 
@@ -43,6 +49,10 @@ def latest_doc(request):
     doc = Docs.objects.filter(owner=request.user).order_by("date_updated").first()
     if not doc:
         doc = create_doc(request.user)
+        amp.log_event(amp.create_event(request, "create doc", {
+            'doc': doc.uuid,
+            'trigger': 'auto'
+        }, user=request.user))
     return redirect(doc.get_absolute_url())
 
 
@@ -57,6 +67,9 @@ def doc_details(request, uuid):
         doc.name = request.POST.get('name', '');
         doc.contents = contents
         doc.save()
+        amp.log_event(amp.create_event(request, "update doc", {
+            'doc': doc.uuid
+        }, user=request.user))
         return HttpResponse("OK")
 
     return render(request, "doc.html", context={'doc': doc})

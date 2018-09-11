@@ -5,7 +5,6 @@ from arevelcore.amplitude import AmplitudeLogger
 
 amp = AmplitudeLogger()
 
-
 @receiver(user_signed_up)
 def log_signup(request, user):
     amp.log_event(amp.create_event(request, "signup account", {}, user=user))
