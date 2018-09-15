@@ -13,9 +13,15 @@ amp = AmplitudeLogger()
 class LoggingMiddleware(object):
 
     def process_response(self, request, response):
+        page_name = ""
+        try:
+            page_name = resolve(request.path_info).url_name or ""
+        except Exception as e:
+            LOG.exception("Could not resolve path")
+
         context = {
             "path": request.path,
-            "page_name": resolve(request.path_info).url_name or "",
+            "page_name": page_name,
             "method": request.method,
             "referer": request.META.get("HTTP_REFERER", ""),
             "query_string": request.META.get("QUERY_STRING", "")
