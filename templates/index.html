@@ -2,11 +2,10 @@
 {% load static %}
 
 {% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/main.css' %}">
     <link rel="stylesheet" href="{% static 'css/app.css' %}">
 {#    <link rel="stylesheet" href="{% static 'css/Draft.css' %}">#}
 {#    <link rel="stylesheet" href="{% static 'css/medium-editor.min.css' %}">#}
-
-    <link rel="stylesheet" href="{% static 'css/megadraft/megadraft.css' %}">
 {% endblock %}
 
 {% block content %}
@@ -22,9 +21,8 @@
 
     <!-- Note: Development version -->
 
-    <script src="https://cdn.ravenjs.com/3.22.4/vue/raven.min.js" crossorigin="anonymous"></script>
 {#    <script>Raven.config('https://cfe92cbbed2f428b99b73ccb9419dab0@sentry.io/296381').install();</script>#}
 
-    <script src="{% static "js/app.js" %}"></script>
+    <script src="{% static "js/arevel.js" %}"></script>
 
 {% endblock %}

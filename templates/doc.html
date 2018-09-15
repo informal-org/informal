@@ -7,7 +7,46 @@
 {% endblock %}
 
 {% block content %}
-    <div id="root" ref="app" class="container ArevelRoot"></div>
+    <div id="root" ref="app">
+        <div>
+            <button class="btn btn-primary" @click="addValue">Add Cell</button>
+            <button class="btn btn-primary" @click="addList">Add List</button>
+            <button class="btn btn-primary" @click="addFunction">Add Function</button>
+        </div>
+
+        <div class="row">
+
+        <div class="col-md-3">
+            <!-- <ul class="nav flex-column">
+                <li class="nav-item">
+                <a class="nav-link active" href="#">Active</a>
+                </li>
+                <li class="nav-item">
+                <a class="nav-link" href="#">Link</a>
+                </li>
+                <li class="nav-item">
+                <a class="nav-link" href="#">Link</a>
+                </li>
+                <li class="nav-item">
+                <a class="nav-link disabled" href="#">Disabled</a>
+                </li>
+            </ul> -->
+        </div>
+
+
+        <div class="col-md-6">
+
+            <div class="BodyWrapper HeaderOffset">
+                <div class="DataContainer DashForm">
+                    <Cell-View v-bind:cell="engine.root"></Cell-View>
+                </div>
+            </div> <!-- Body wrapper-->
+        </div>
+
+
+    </div>
+
+    </div>
 {% endblock %}
 
 
@@ -31,6 +70,6 @@
     <!-- Note: Development version -->
     <script src="https://cdn.ravenjs.com/3.22.4/vue/raven.min.js" crossorigin="anonymous"></script>
 {#    <script>Raven.config('https://cfe92cbbed2f428b99b73ccb9419dab0@sentry.io/296381').install();</script>#}
-    <script src="{% static "js/app.js" %}"></script>
+    <script src="{% static "js/arevel.js" %}"></script>
 
 {% endblock %}
