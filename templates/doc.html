@@ -8,68 +8,100 @@
 
 {% block content %}
     <div id="root" ref="app">
-        <div>
-            <button class="btn btn-primary" @click="addValue">Add Cell</button>
-            <button class="btn btn-primary" @click="addList">Add List</button>
-            <button class="btn btn-primary" @click="addFunction">Add Function</button>
-        </div>
+        <nav class="navbar navbar-expand-lg ActionToolbar">
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav"
+                    aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <i class="fas fa-bars"></i>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav flex-column flex-sm-row">
+                    <li class="nav-item clickable">
+                        <a class="nav-link" @click="addValue">New Variable</a>
+                    </li>
+
+                    <li class="nav-item clickable">
+                        <a class="nav-link">New Function</a>
+                    </li>
+
+                    <li class="nav-item clickable">
+                        <a class="nav-link">New Table</a>
+                    </li>
+
+                    <li class="nav-item clickable">
+                        <a class="nav-link">Reference</a>
+                    </li>
+
+                    <li class="nav-item clickable">
+                        <a class="nav-link" @click="addFunction">Function call</a>
+                    </li>
+
+                    <li class="nav-item clickable">
+                        <a class="nav-link">Query</a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
 
         <div class="row">
 
-        <div class="col-md-3">
-            <!-- <ul class="nav flex-column">
-                <li class="nav-item">
-                <a class="nav-link active" href="#">Active</a>
-                </li>
-                <li class="nav-item">
-                <a class="nav-link" href="#">Link</a>
-                </li>
-                <li class="nav-item">
-                <a class="nav-link" href="#">Link</a>
-                </li>
-                <li class="nav-item">
-                <a class="nav-link disabled" href="#">Disabled</a>
-                </li>
-            </ul> -->
+            <div class="col-md-3">
+                <!-- <ul class="nav flex-column">
+                    <li class="nav-item">
+                    <a class="nav-link active" href="#">Active</a>
+                    </li>
+                    <li class="nav-item">
+                    <a class="nav-link" href="#">Link</a>
+                    </li>
+                    <li class="nav-item">
+                    <a class="nav-link" href="#">Link</a>
+                    </li>
+                    <li class="nav-item">
+                    <a class="nav-link disabled" href="#">Disabled</a>
+                    </li>
+                </ul> -->
+            </div>
+
+
+            <div class="col-md-6">
+
+                <div class="BodyWrapper HeaderOffset">
+                    <div class="DataContainer DashForm">
+                        <Cell-View v-bind:cell="engine.root"></Cell-View>
+                    </div>
+                </div> <!-- Body wrapper-->
+            </div>
+
+
         </div>
-
-
-        <div class="col-md-6">
-
-            <div class="BodyWrapper HeaderOffset">
-                <div class="DataContainer DashForm">
-                    <Cell-View v-bind:cell="engine.root"></Cell-View>
-                </div>
-            </div> <!-- Body wrapper-->
-        </div>
-
-
-    </div>
 
     </div>
 {% endblock %}
 
 
 {% block extra_body %}
-    <!--
-      <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
-    -->
-{#    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>#}
+    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js"
+            integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN"
+            crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"
+            integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl"
+            crossorigin="anonymous"></script>
     {% csrf_token %}
     <script>
-    window._initialData = {
-        "doc": {
-            "uuid": "{{ doc.uuid }}",
-            "name": "{{ doc.name }}",
-            "contents": {{ doc.contents_str|safe }}
+
+        window._initialData = {
+            "doc": {
+                "uuid": "{{ doc.uuid }}",
+                "name": "{{ doc.name }}",
+                "contents": {{ doc.contents_str|safe }}
+            }
         }
-    }
     </script>
 
 
     <!-- Note: Development version -->
     <script src="https://cdn.ravenjs.com/3.22.4/vue/raven.min.js" crossorigin="anonymous"></script>
-{#    <script>Raven.config('https://cfe92cbbed2f428b99b73ccb9419dab0@sentry.io/296381').install();</script>#}
+    {#    <script>Raven.config('https://cfe92cbbed2f428b99b73ccb9419dab0@sentry.io/296381').install();</script>#}
     <script src="{% static "js/arevel.js" %}"></script>
 
 {% endblock %}

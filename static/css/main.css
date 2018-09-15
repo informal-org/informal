@@ -35,7 +35,7 @@ h2 {
 }
 
 
-.selectable {
+.selectable, .clickable {
     cursor: pointer;
 }
 

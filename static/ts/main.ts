@@ -39,7 +39,7 @@ new Value("To use variables within text, wrap them in curly quotes {{ variable_n
 
 new Value("You can also have a collection of values in a list.", eng.root, "lists_intro");
 
-let g = new Group([], eng.root, "mylist")
+let g = new Group([], eng.root, "mylist");
 new Value(1, g);
 new Value(2, g);
 new Value(3, g);
@@ -49,7 +49,7 @@ new Value(6, g);
 new Value(7, g);
 
 
-let fn = new FunctionCall([], eng.root, "example_func")
+let fn = new FunctionCall([], eng.root, "example_func");
 
 // let tbl = new Table([], eng.root, "Products");
 // let g1 = new Group([], tbl, "Item");

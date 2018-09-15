@@ -308,7 +308,11 @@ export function _do_eval(node, context: Value) {
         }
         // TODO: Return as string literal in this case?
         // Probably not - should be lookup error
-        return node.name
+        // return node.name
+        // TODO: Injection check?
+        // TOOD: Give nearest match.
+        throw node.name + " variable not found";
+
     } else if (node.type === "Compound") { // a, b
         return node.body.map((subnode) => {
             return _do_eval(subnode, context);

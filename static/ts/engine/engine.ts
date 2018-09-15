@@ -71,11 +71,17 @@ export class Value {
     }
 
     addDependency(other: Value) {
+        if(other === null || other === undefined){
+            return
+        }
         this.depends_on.push(other);
         other.used_by.push(this);
     }
 
     removeDependency(other: Value) {
+        if(other === null || other === undefined){
+            return
+        }
         // @ts-ignore: Remove is a custom method
         this.depends_on.remove(other);
         // @ts-ignore: Remove is a custom method
@@ -83,6 +89,9 @@ export class Value {
     }
 
     updateDependencies(deps: Value[]){
+        if(deps === null || deps === undefined){
+            return;
+        }
         // Find what changed and then add or remove.
         let dependency_changes = util.diff(this.depends_on, deps);
         dependency_changes.removed.forEach((el) => this.removeDependency(el));
@@ -200,8 +209,9 @@ export class Value {
             } catch(err) {
                 // TODO: Propagate this error to other dependent cells -
                 // Else their value could be messed up as well...
-                
-                this.addError(EVAL_ERR_PREFIX + err.message.replace("[big.js]", ""))
+                let errMessage = err.message ? err.message : err.toString();
+                errMessage = EVAL_ERR_PREFIX + errMessage.replace("[big.js]", "");
+                this.addError(errMessage);
                 console.log(err);
                 // TODO: Return value
                 return this.expr;
@@ -586,8 +596,6 @@ export class Engine {
     }
 
     tick(){
-        console.log("Tick")
-        
         this.all_cells.forEach(cell => {
             cell.tick();
         });
