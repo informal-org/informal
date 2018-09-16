@@ -25,6 +25,7 @@ instance_class: F2
 automatic_scaling:
   max_concurrent_requests: 20   # Tweak. Default = 10.
   max_instances: 4
+  min_idle_instances: 1
 
 # Only pure Python libraries can be vendored
 # Python libraries that use C extensions can
