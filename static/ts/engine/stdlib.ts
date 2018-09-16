@@ -108,6 +108,7 @@ export const BUILTIN_FN = {
         "description": "Get the length of a string or list.",
         "args": ["collection"],
         "fn": function(collection: any){
+            console.log(collection);
             return collection.length;
         }
     }, 

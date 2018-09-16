@@ -21,7 +21,7 @@ export default Vue.component('CellList', {
     props: {
         'cells': {type: Array},
         'addTo': {type: Group},
-        'readonly': {type: Boolean, default: true}
+        'readonly': {type: Boolean, default: false}
     }
 });
 </script>

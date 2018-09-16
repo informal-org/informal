@@ -1,6 +1,6 @@
 import * as util from '../utils';
 import * as constants from "../constants"
-import {isValidName, castLiteral, detectType} from "../utils";
+import {isValidName, castLiteral, detectType, getUnixTimestamp} from "../utils";
 
 import {parseFormula, evaluateExpr, evaluateStr, getDependencies, getStrDependencies} from "./expr"
 
@@ -31,6 +31,7 @@ export class Value {
     _parsed = null;
     _result = null;
     _is_stale = true;
+    _last_eval = -1;
     _expr_type: string = "";   // One of FORMULA, BOOL, STR, NUM
     _result_type: string = "";  // Usually the same as _expr_type, except when it's a function.
 
@@ -153,6 +154,7 @@ export class Value {
     }
 
     set expr(newValue: string){
+        console.log("set expr " + newValue);
         this._expr = newValue;
         this._expr_type = util.detectType(newValue);
         if(this._expr_type == constants.TYPE_FORMULA){
@@ -164,6 +166,7 @@ export class Value {
                 this.updateDependencies(getStrDependencies(this.expr, this))
             } 
         }
+
         this.markStale();
         this._setExprHook(newValue);
 
@@ -172,6 +175,10 @@ export class Value {
 
     _setExprHook(newValue: string){
         // Pass - hook for child classes to do followup actions
+        // TODO: Doing it inline - issues?
+        this._result = this._doEvaluate();
+        this._result_type = detectType(this._result);
+        this.markClean();
     }
 
     exprString() {
@@ -199,6 +206,7 @@ export class Value {
             return null;
         }
         this._expr_type = detectType(this.expr);
+        this._last_eval = new Date().getTime();
 
         if(this._expr_type == constants.TYPE_FORMULA){
             // Is formula
@@ -209,6 +217,7 @@ export class Value {
             } catch(err) {
                 // TODO: Propagate this error to other dependent cells -
                 // Else their value could be messed up as well...
+                this.removeError(EVAL_ERR_PREFIX);
                 let errMessage = err.message ? err.message : err.toString();
                 errMessage = EVAL_ERR_PREFIX + errMessage.replace("[big.js]", "");
                 this.addError(errMessage);
@@ -235,6 +244,10 @@ export class Value {
 
     // Does the actual evaluation asyncrhronously
     tick() {
+        // let beenAWhile = (this._last_eval != -1 && new Date().getTime() - this._last_eval > 3000);
+        // console.log("Been a while: " + beenAWhile);
+
+        // if(this._is_stale || beenAWhile){
         if(this._is_stale){
             // Re-evaluate and set this._result;
             this._result = this._doEvaluate();
@@ -244,26 +257,30 @@ export class Value {
     }
 
     markStale(){
-        if(!this._is_stale){
-            this._is_stale = true;
-            if(this.engine !== undefined){
-                this.engine.stale_nodes.push(this);
-            }
-            
-            // Touch all of the cells that depend on this as well.
-            this.used_by.forEach((val) => val.markStale());
+        if(this._is_stale) {
+            return;
         }
+        this._is_stale = true;
+        if(this.engine !== undefined){
+            this.engine.stale_nodes.push(this);
+        }
+
+        // Touch all of the cells that depend on this as well.
+        this.used_by.forEach((val) => val.markStale());
+
     }
 
     markClean(){
-        if(this._is_stale){
-            this._is_stale = false;
-            // @ts-ignore: Remove is a custom method.
-            if(this.engine !== undefined){
-                this.engine.stale_nodes.remove(this);
-            }
-                
+        if(!this._is_stale) {
+            return;
         }
+        this._is_stale = false;
+
+        if(this.engine !== undefined){
+            // @ts-ignore: Remove is a custom method.
+            this.engine.stale_nodes.remove(this);
+        }
+
     }
 
     destruct(){

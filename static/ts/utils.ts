@@ -394,3 +394,6 @@ export function getCaretPosition() {
   return -1;
 }
 
+export function getUnixTimestamp() {
+    return Math.round((new Date()).getTime() / 1000);
+}
