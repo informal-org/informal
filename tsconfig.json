@@ -9,7 +9,8 @@
         "target": "es5"
     },
     "include": [
-        "./static/ts/**/*"
+        "./static/ts/**/*",
+        "node_modules/typescript/lib/lib.es2015.collection.d.ts"
     ],
     "exclude": [
 		"./static/ts/__tests__/*",

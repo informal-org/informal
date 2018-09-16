@@ -154,7 +154,6 @@ export class Value {
     }
 
     set expr(newValue: string){
-        console.log("set expr " + newValue);
         this._expr = newValue;
         this._expr_type = util.detectType(newValue);
         if(this._expr_type == constants.TYPE_FORMULA){
@@ -227,7 +226,6 @@ export class Value {
             }
         }
         else if(this._expr_type == constants.TYPE_STRING) {
-            console.log("Eval str")
             return evaluateStr(this.expr, this);
         } else {
             // Numbers and booleans
@@ -322,7 +320,7 @@ export class Value {
         // Find the options we depend on.
         if(options.length > 0){
             let deps = this.depends_on;
-            let found = options.filter((opt) => deps.indexOf(opt) != -1);
+            let found = options.filter((opt : Value) => deps.indexOf(opt) != -1);
             // Return first dependency or just first matched name. IDC.
             return found.length > 0 ? found[0] : options[0];
         }

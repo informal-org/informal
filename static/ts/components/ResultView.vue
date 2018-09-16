@@ -1,7 +1,7 @@
 <template>
     <div>
-        <Cell-View v-if="cell._result_type === 'OBJ'" v-bind:cell="cell.evaluate()"/>
-        <Cell-List v-else-if="cell._result_type === 'ARR'" v-bind:cells="cell.evaluate()"/>
+        <Cell-View v-if="cell._result_type === 'OBJ'" v-bind:readonly="true" v-bind:cell="cell.evaluate()"/>
+        <Cell-List v-else-if="cell._result_type === 'ARR'" v-bind:readonly="true" v-bind:cells="cell.evaluate()"/>
         <span v-else>{{ cell.toString() }}</span>
     </div>
 </template>

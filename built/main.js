@@ -16,6 +16,7 @@ import RavenVue from 'raven-js/plugins/vue';
 Raven.config('https://cfe92cbbed2f428b99b73ccb9419dab0@sentry.io/296381').addPlugin(RavenVue, Vue).install();
 import { Engine, Value, Group, FunctionCall } from './engine/engine';
 var eng = new Engine();
+// @ts-ignore
 window.eng = eng;
 new Value("World", eng.root, "Name");
 new Value("Hello {{ Name }}! This is Arevel, an environment where you can play around with programming concepts.", eng.root);

@@ -15,6 +15,7 @@ Raven.config('https://cfe92cbbed2f428b99b73ccb9419dab0@sentry.io/296381').addPlu
 import {Engine, Value, Group, Table, FunctionCall} from './engine/engine'
 
 let eng = new Engine();
+// @ts-ignore
 window.eng = eng;
 
 

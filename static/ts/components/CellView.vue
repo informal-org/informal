@@ -6,10 +6,10 @@
             
 
             <template v-if="cell.type == 'group'">
-                <Group-View :key="cell.id" v-bind:group="cell"></Group-View>
+                <Group-View :key="cell.id" v-bind:group="cell" v-bind:readonly="readonly"></Group-View>
             </template>
             <template v-else-if="cell.type == 'table'">
-                <Cell-Table :key="cell.id" v-bind:table="cell"></Cell-Table>
+                <Cell-Table :key="cell.id" v-bind:table="cell" v-bind:readonly="readonly"></Cell-Table>
             </template>
             <template v-else-if="cell.type == 'func'">
                 <Function-View :key="cell.id" v-bind:func="cell"></Function-View>
@@ -40,6 +40,7 @@ export default Vue.component('CellView', {
     name: 'CellView',
     props: {
         'cell': {type: Value},
+        'readonly': {type: Boolean, default: false}
     },
     data: () => {
         return {

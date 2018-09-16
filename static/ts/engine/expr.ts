@@ -13,12 +13,10 @@ function itemApply(ai: any, bi: any, funcName: string, doFudge: boolean, func?: 
     // Figure out what function to call. 
     let aVal = unboxVal(ai);
     let bVal = unboxVal(bi);
-    console.log("item apply");
-    var result;
+    let result;
     if(func !== undefined){
         result = func(aVal, bVal);
     } else if(typeof aVal == "object" && funcName in aVal){
-        console.log("Convert to num for pow");
         // Hack: Convert from big -> Number
         if(funcName == "pow"){
             result = aVal[funcName](Number(bVal.valueOf()))
@@ -27,7 +25,6 @@ function itemApply(ai: any, bi: any, funcName: string, doFudge: boolean, func?: 
         }
         
     } else {
-        console.log("plus eq hack")
         // HACK: Try to map some common functions back.
         if(funcName == "eq"){
             result = aVal === bVal;
@@ -44,12 +41,9 @@ function itemApply(ai: any, bi: any, funcName: string, doFudge: boolean, func?: 
 
 // Create new cells as result, but don't bind or store in all cells list.
 // TODO: What about names bound to this later?
-function itemwiseApply(aRaw: any, bRaw: any, funcName: string, doFudge=false, func=undefined) {
-    console.log("itemwise apply func name " + funcName);
+function itemwiseApply(aRaw: any, bRaw: any, funcName: string, doFudge=false, func?: Function) {
     let a = unboxVal(aRaw);
     let b = unboxVal(bRaw);
-    console.log(a);
-    console.log(b);
 
     if(Array.isArray(a) && Array.isArray(b)){   // [a] * [b]
         // ASSERT BOTH ARE SAME LENGTH
@@ -61,13 +55,13 @@ function itemwiseApply(aRaw: any, bRaw: any, funcName: string, doFudge=false, fu
     else if(Array.isArray(a)) { // [a] * 2
         let resultList = a.map((ai) => {
             return new Value(itemApply(ai, b, funcName, doFudge, func));
-        })
+        });
         return resultList;
 
     } else if(Array.isArray(b)) {   // 2 * [a]
         let resultList = b.map((bi) => {
             return new Value(itemApply(a, bi, funcName, doFudge, func));
-        })
+        });
         return resultList;
 
     } else {    // 1 + 2 : both are scalar values
@@ -129,20 +123,20 @@ var BINARY_OPS = {
     "OR" : (a: string, b: string) => {
         return itemwiseApply(a, b, "", false, boolOr);
     },
-    "WHERE": (a: Array<any>, b: Array<any>) => {
-        
+    "WHERE": (a: Array<any>, b: Array<any>) : Table => {
+
         let aVal = unboxVal(a);
         if(Array.isArray(aVal) && aVal.length > 0 && aVal[0].type === "group" ){
             // Is array - filter by row for each column.
             return new Table(aVal.map((column, colIndex) => {
-                let g = new Group(unboxVal(column).filter((row, rowIndex) => {
+                let g = new Group(unboxVal(column).filter((row : Array<any>, rowIndex : number) => {
                     return unboxVal(b[rowIndex]) == true;
                 }));
                 g.name = column.name;
                 return g;
             }));
         }
-        return unboxVal(a).filter((aItem, aIndex) => {
+        return unboxVal(a).filter((aItem : any, aIndex: number) => {
             return unboxVal(b[aIndex]) == true
         })
     }
@@ -225,7 +219,7 @@ export var BUILTIN_FUN = {
 };
 
 
-export function resolveMember(node, context: Value){
+export function resolveMember(node: any, context: Value) : Value|null {
     // cell4.name.blah
     // { "type": "MemberExpression", "computed": false, 
     // "object": { "type": "MemberExpression", "computed": false, 
@@ -243,7 +237,7 @@ export function resolveMember(node, context: Value){
     // if(object !== null){
     //     return object.resolve(node.property.name)
     // }
-    console.log(node);
+    // console.log(node);
     let object = null;
     if(node.object.type === "MemberExpression"){
         object = resolveMember(node.object, context);
@@ -252,8 +246,8 @@ export function resolveMember(node, context: Value){
         object = context.resolve(node.object.name);
     }
 
-    console.log("object is");
-    console.log(object.name);
+    // console.log("object is");
+    // console.log(object.name);
 
     if(object !== null){
         return object.resolve(node.property.name);
@@ -291,6 +285,7 @@ export function _do_eval(node, context: Value) {
 
         let uname = node.name.toUpperCase();
         if(uname in BUILTIN_FUN) {
+            // @ts-ignore
             return BUILTIN_FUN[uname];
         }
 
@@ -384,7 +379,7 @@ export function getDependencies(node, context: Value) : Value[] {
         let deps = [];
         return node.body.map((subnode) => {
             deps.concat(getDependencies(subnode, context))
-        })
+        });
         return deps;
     } else if (node.type == "ThisExpression") {
         return [];

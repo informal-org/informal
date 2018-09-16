@@ -1,3 +1,4 @@
+import {isNumber} from "../utils";
 
 export const BUILTIN_FN = {
     "TRIM": {
@@ -39,16 +40,16 @@ export const BUILTIN_FN = {
         "args": ["collection", "start", "end", "step"],
         "defaults": ["", 0, "", 1],
         "fn": function(collection: any, start: number, end: number, step: any){
-            if(start == undefined || start == ""){
+            if(!isNumber(start)){
                 start = 0;
             }
-            if(end == undefined || end == ""){
+            if(!isNumber(end)){
                 end = collection.length;
             }
             // https://codereview.stackexchange.com/questions/57268
-            var slice = collection.slice || Array.prototype.slice;
-            var sliced = slice.call(collection, start, end);
-            var result, length, i;
+            let slice = collection.slice || Array.prototype.slice;
+            let sliced = slice.call(collection, start, end);
+            let result, length, i;
             if (!step) {
                 return sliced;
             }
@@ -81,8 +82,10 @@ export const BUILTIN_FN = {
         "args": ["collection", "separator"],
         "fn": function(collection: any, separator: string){
             if(Array.isArray(collection)){
-                let result = [];
-                let subResult = []
+                let result: any[];
+                result = [];
+                let subResult: any[];
+                subResult = [];
                 collection.forEach((elem) => {
                     if(elem === separator){
                         // Then split. Don't add it to result.
@@ -142,7 +145,7 @@ export const BUILTIN_FN = {
     "SUM": {
         "description": "Sum values in a list.",
         "args": ["list"],
-        "fn": function(list: Array){
+        "fn": function(list: Array<number>){
             let sum = 0;
             if(list){
                 list.forEach((el) => {
@@ -155,7 +158,7 @@ export const BUILTIN_FN = {
     "PRODUCT": {
         "description": "Get the product of all value in a list.",
         "args": ["list"],
-        "fn": function(list: number){
+        "fn": function(list: Array<number>){
             let prod = 0;
             if(list) {
                 list.forEach((el) => {
@@ -183,12 +186,12 @@ export const BUILTIN_FN = {
     "AVERAGE": {
         "description": "Retrieve the average of the list.",
         "args": ["list"],
-        "fn": function(list: Array){
+        "fn": function(list: Array<number>){
             let sum = 0;
             if(list){
                 list.forEach((el) => {
                     sum += el;
-                })
+                });
                 if(list.length > 0){
                     return sum / list.length;
                 }    
@@ -207,48 +210,49 @@ export const BUILTIN_FN = {
     "COUNT": {
         "description": "Count the number of times an element appears in a list.",
         "args": ["list", "element"],
-        "fn": function(list: Array, element: any){
+        "fn": function(list: Array<any>, element: any){
             let count = 0;
             list.forEach((el) => {
                 if(el == element){
                     count++;
                 }
-            })
+            });
             return count;
         }
     },
     "DISTINCT": {
         "description": "Retrieve the distinct elements in a list.",
         "args": ["list"],
-        "fn": function(list: Array){
+        "fn": function(list: Array<any>){
+            // @ts-ignore
             return new Array(new Set(list));
         }
     },
     "MAX": {
         "description": "Find the maximum value in a list.",
         "args": ["list"],
-        "fn": function(list: Array){
+        "fn": function(list: Array<number>){
             return Math.max(...list);
         }
     },
     "MIN": {
         "description": "Find the minimum value in a list.",
         "args": ["list"],
-        "fn": function(list: Array){
+        "fn": function(list: Array<number>){
             return Math.min(...list);
         }
     },        
     "REVERSE": {
         "description": "Reverse a list.",
         "args": ["list"],
-        "fn": function(list: Array){
+        "fn": function(list: Array<any>){
             return list.reverse();
         }
     },   
     "SORT": {  // TODO: Table sort key
         "description": "Sort a list.",
         "args": ["list"],
-        "fn": function(list: Array){
+        "fn": function(list: Array<any>){
             return list.sort();
         }
     },
@@ -256,19 +260,20 @@ export const BUILTIN_FN = {
         "description": "Generate a list of numbers in a given range.",
         "args": ["start", "stop", "step"],
         "fn": function(start: number, stop: number, step: number){
-            if(start == undefined || start == ""){
+            if(!isNumber(start)){
                 start = 0;
             }
             // Prevent infinite loop
-            if(stop == undefined || stop == ""){
+            if(!isNumber(stop)){
                 stop = start;
             }
-            if(step == undefined || step == "" || step <= 0){
+            // TODO: Support step < 0
+            if(!isNumber(step) || step <= 0){
                 step = 1;
             }
             // TODO: Defaults for start, stop, step.
             let result = [];
-            for(var i = start; i < stop; i += step){
+            for(let i = start; i < stop; i += step){
                 result.push(i);
             }
             return result;

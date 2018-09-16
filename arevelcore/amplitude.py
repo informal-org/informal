@@ -77,6 +77,10 @@ class AmplitudeLogger:
         if not event:
             return
 
+        # Don't use up quota locally.
+        if settings.DEBUG:
+            return
+
         if type(event) != list:
             event = [event]
 

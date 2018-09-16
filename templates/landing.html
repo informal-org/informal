@@ -2,141 +2,36 @@
 {% load static %}
 
 {% block extra_css %}
-    <link href="https://fonts.googleapis.com/css?family=PT+Sans:400,700" rel="stylesheet">
-    <style>
-        #LogoImg {
-            height: 36px;
-        }
 
-        html, body {
-            font-size: 16px;
-            font-family: "PT Sans", "Helevetica", "Roboto", "Arial", sans-serif;
-        }
-    </style>
+    <link rel="stylesheet" href="{% static 'css/main.css' %}">
+    <link rel="stylesheet" href="{% static 'css/landing.css' %}">
 {% endblock %}
 
 
 {% block content %}
     <div class="LandingHeader cover">
-        <div class="LandingHeader--content">
-            <h1>A simple programming language in your browser</h1>
+        <div class="container">
+            <div class="LandingHeader--content">
+            <h1 class="landingTitle">Create<br> Extraordinary Apps</h1>
 
-            <h2>Arevel is a small, visual programming language that lives completely in your browser.
-                It's super easy to learn and a joy to use.
-            </h2>
+            <p class="landingSubTitle">
+                Arevel is a minimal, visual framework to rapidly build flexible apps and tools.
+            </p>
 
             <!-- TODO: Screenshot of the beautiful, visual goddi-ness of language -->
-            <a class="btn btn-primary btn-lg LandingBtn--cta" href="/demo">Start coding</a>
+            <a class="btn btn-primary btn-lg LandingBtn--cta" href="/demo">Get Started</a>
             <!-- Please try it out... -->
+                </div>
         </div>
     </div>
 
-
-    <section class="LandingSection">
-        <!-- Benefits/Aspiration -->
-        <h2>A new medium of thought</h2>
-
-        <blockquote class="blockquote">
-            <p class="mb-0 italics">
-                “A computer language is not just a way of getting a computer to perform operations but rather that it is a novel formal medium for expressing ideas about methodology. 
-                Thus, programs must be written for people to read, and only incidentally for machines to execute.”
-            </p>
-            <span class="blockquote-footer"><cite title="SICP">Structure and Interpretation of Computer Programs</cite></span>
-        </blockquote>
-
-        <p>
-            Like spoken languages, a programming language is a medium of thought and expression. 
-            Your programming language shapes the way you approach problems. 
-            Traditional languages focus on parsing, compiling and executing code efficiently on a computer. 
-            <b>Arevel focuses on your freedom to express ideas, solve problems and think creatively.</b>
-        </p>
-        
-    </section>
-    
-
-    <div class="LandingSection--wrapper grey">
-    <section class="LandingSection LandingSection--full">
-        <div class="container">
-        <h2 class="centered">Coding evolved</h2>
-
-        <div class="card-deck">
-            <div class="card">
-                <!-- <img class="card-img-top" src="..." alt="Card image cap"> -->
-                <div class="card-body">
-                    <h3 class="card-title">Friendly and easy to use</h3>
-                    <p class="card-text">
-                        The Arevel language is built on a few simple ideas that are easy to learn for both new programmers and expert developers alike. 
-                        Arevel editor is fully browser based, so you can get started quickly and access your coding environment seamlessly from all of your devices.
-                    </p>
-
-                    <!-- <p class="card-text"><small class="text-muted">Learn more</small></p> -->
-                </div>
-            </div>
-            <div class="card">
-                <!-- <img class="card-img-top" src="..." alt="Card image cap"> -->
-                <div class="card-body">
-                <h3 class="card-title">Immediate connection to runtime</h3>
-                <p class="card-text">
-                    Arevel gives you a direct connection to the system you're building, allowing you to see and interact with every part of your program. 
-                    This direct, observable state makes programs easier to understand and change than abstract constructs. 
-                </p>
-                <!-- <p class="card-text"><small class="text-muted">Last updated 3 mins ago</small></p> -->
-                </div>
-            </div>
-            <div class="card">
-                <!-- <img class="card-img-top" src="..." alt="Card image cap"> -->
-                <div class="card-body">
-                <h3 class="card-title">Code + Data</h3>
-                <p class="card-text">
-                    Arevel melds code and data together into one, integrated system. 
-                    You can work with your data with a combination of code and manual interactions. 
-                </p>
-                <!-- <p class="card-text"><small class="text-muted">Last updated 3 mins ago</small></p> -->
-                </div>
-            </div>
-        </div>
-    </div>
-
-
-        <!-- Features -->
-        <!-- <ul class="row unstyled">
-            <li class="col-md-3 card">
-                <h3>Friendly and easy to learn</h3>
-                <p>
-                    Easy to pick up for a first time programmer. We're here to help.
-                </p>
-            </li>
-
-            <li class="col-md-3 card">
-                <h3>Clear, visual expression of ideas</h3>
-                <p></p>
-            </li>
-
-            <li class="col-md-3 card">
-                <h3>Direct, immediate connection</h3>
-                <p></p>
-                <!-- Hook into the runtime of your system. REPL evolved. Experimentation and play.
-                    No simulation in your head.
-                 -->
-                 <!--
-            </li>
-
-            <li class="col-md-3 card">
-                <h3>Code &#10084; Data</h3>
-                <p></p>
-            </li>
-
-        </ul>
-         -->
-    </section>
-    </div>
-    
-    <div class="LandingSection--wrapper ">
-
-    <div class="LandingSection">
-        <!-- Last chance in case you didn't see the big button above -->
-        <a class="btn btn-primary btn-lg LandingBtn--cta centered" href="/demo">Try it out</a>
-    </div>
-    </div>
+{#    #}
+{#    <div class="LandingSection--wrapper ">#}
+{##}
+{#    <div class="LandingSection">#}
+{#        <!-- Last chance in case you didn't see the big button above -->#}
+{#        <a class="btn btn-primary btn-lg LandingBtn--cta centered" href="/demo">Try it out</a>#}
+{#    </div>#}
+{#    </div>#}
 
 {% endblock %}
