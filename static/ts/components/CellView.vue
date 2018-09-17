@@ -3,25 +3,29 @@
         <label class="DataLabel">{{ cell.name }}</label>
         <span class="DataValue">
             <!-- Auto-reflow to next line due to div -->
-            
 
-            <template v-if="cell.type == 'group'">
-                <Group-View :key="cell.id" v-bind:group="cell" v-bind:readonly="readonly"></Group-View>
-            </template>
-            <template v-else-if="cell.type == 'table'">
-                <Cell-Table :key="cell.id" v-bind:table="cell" v-bind:readonly="readonly"></Cell-Table>
-            </template>
-            <template v-else-if="cell.type == 'func'">
-                <Function-View :key="cell.id" v-bind:func="cell"></Function-View>
-            </template>
-            <template v-else>
-                <template v-if="$store.state.editCell === cell">
-                    <Cell-Edit v-if="cell.isRootChild()" v-bind:cell="cell" :key="cell.id"></Cell-Edit>
-                    <Inline-Edit v-else v-bind:cell="cell" :key="cell.id"></Inline-Edit>
+            <template v-if="!embedded">
+                <template v-if="cell.type == 'group'">
+                    <Group-View :key="cell.id" v-bind:group="cell" v-bind:readonly="readonly"></Group-View>
+                </template>
+                <template v-else-if="cell.type == 'table'">
+                    <Cell-Table :key="cell.id" v-bind:table="cell" v-bind:readonly="readonly"></Cell-Table>
+                </template>
+                <template v-else-if="cell.type == 'func'">
+                    <Function-View :key="cell.id" v-bind:func="cell"></Function-View>
                 </template>
                 <template v-else>
-                    <Result-View v-bind:cell="cell"/>
+                    <template v-if="$store.state.editCell === cell">
+                        <Cell-Edit v-if="cell.isRootChild()" v-bind:cell="cell" :key="cell.id"></Cell-Edit>
+                        <Inline-Edit v-else v-bind:cell="cell" :key="cell.id"></Inline-Edit>
+                    </template>
+                    <template v-else>
+                        <Result-View v-bind:cell="cell"/>
+                    </template>
                 </template>
+            </template>
+            <template v-else>
+                <span>{{ cell.toString() }}</span>
             </template>
 
         </span>
@@ -40,7 +44,8 @@ export default Vue.component('CellView', {
     name: 'CellView',
     props: {
         'cell': {type: Value},
-        'readonly': {type: Boolean, default: false}
+        'readonly': {type: Boolean, default: false},
+        'embedded': {type: Boolean, default: false}
     },
     data: () => {
         return {

@@ -303,7 +303,6 @@ export class Value {
             return [];
         }
         if(this._result !== null && this._result.type === "table"){
-            console.log("Resolve is defined")
             let resolution = this._result.lookup(name, this);
             if(resolution.length > 0) {
                 return resolution;
@@ -373,6 +372,27 @@ export class Value {
     isRoot() {
         return this.engine && this.engine.root === this;
     }
+
+    // toString() {
+    //     let out = "";
+    //     if(this._result_type == constants.TYPE_ARRAY){
+    //         // Sub one here so we don't have to repeat it when doing conditional check inside.
+    //         let max_display = 10;
+    //         let end =  Math.min(max_display, this._result.length) - 1;
+    //
+    //         for(let i = 0; i <= end; i++){
+    //             out += this._result[i].toString();
+    //             if(i != end){
+    //                 out += ","
+    //             }
+    //         }
+    //         if(this._result.length > max_display){
+    //             out += "..."
+    //         }
+    //         return out
+    //     }
+    //     return this._expr;
+    // }
 }
 
 // Essentially just a list of values
@@ -476,7 +496,6 @@ export class Group extends Value {
         //nameResolutions = nameResolutions.concat(this._resultLookup(uname, exclude));
         return nameResolutions;
     }
-
 
 }
 

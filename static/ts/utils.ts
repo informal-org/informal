@@ -219,6 +219,7 @@ export function isValidName(name?: string){
 // }
 
 
+
 export function formatValue(value: any, valueType?: string) : any {
     if(value !== undefined) {
         if (valueType == undefined) {
@@ -243,8 +244,11 @@ export function formatValue(value: any, valueType?: string) : any {
                 }).join(", ");
             case constants.TYPE_FORMULA:    // Was unable to evaluate
                 return value;
+            case constants.TYPE_OBJECT:
+                return "Object";
+                // return value.expr;
             default:
-                return "Unknown";
+                return "Unknown " + valueType;
         }
     }
 

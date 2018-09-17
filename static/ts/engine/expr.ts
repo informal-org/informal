@@ -293,13 +293,16 @@ export function _do_eval(node, context: Value) {
         // Found the name in an environment
 
         if(match !== null){
+            console.log("lookup of " + uname);
+            console.log("match type is " + match.type);
             // return match.evaluate();
-            if(match.type == "value"){
-                // Values store raw values. 
-                // Other types store aggregate types, which should remain those types.
-                return match.evaluate();
-            }
-            return match;
+            // if(match.type == "value"){
+            //     // Values store raw values.
+            //     // Other types store aggregate types, which should remain those types.
+            //     return match.evaluate();
+            // }
+            // return match;
+            return match.evaluate();
         }
         // TODO: Return as string literal in this case?
         // Probably not - should be lookup error

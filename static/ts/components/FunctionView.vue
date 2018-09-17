@@ -7,7 +7,7 @@
         </select>
         <p>{{ func.getDescription() }}</p>
 
-        <Cell-List v-bind:cells="func.args" v-bind:readonly="true"/>
+        <Cell-List v-bind:cells="func.args" v-bind:readonly="true" v-bind:embedded="true"/>
 
         <Result-View v-bind:cell="func"/>
         

@@ -6,7 +6,7 @@
                 <Cell-Edit v-if="cell.isRootChild()" v-bind:cell="cell" :key="cell.id"></Cell-Edit>
                 <Inline-Edit v-else v-bind:cell="cell" :key="cell.id"></Inline-Edit>
             </template>
-            <Cell-View v-else v-bind:cell="cell" :key="cell.id"/>
+            <Cell-View v-else v-bind:cell="cell" v-bind:embedded="embedded" :key="cell.id" />
         </template>
         <Add-Cell-Btn v-bind:group="this.addTo" v-if="!readonly && this.addTo"></Add-Cell-Btn>
     </ul>
@@ -21,7 +21,8 @@ export default Vue.component('CellList', {
     props: {
         'cells': {type: Array},
         'addTo': {type: Group},
-        'readonly': {type: Boolean, default: false}
+        'readonly': {type: Boolean, default: false},
+        'embedded': {type: Boolean, default: false}
     }
 });
 </script>

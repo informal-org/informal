@@ -12,7 +12,6 @@
         </div> -->
 
         <Cell-List v-bind:cells="group.expr" v-bind:addTo="group" v-bind:readonly="readonly"></Cell-List>
-
         <Cell-Errors v-bind:cell="group"></Cell-Errors>
 
     </span>
