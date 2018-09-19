@@ -397,9 +397,7 @@ export function getDependencies(node, context: Value) : Value[] {
         })
 
         return depArgs;
-    }
-    
-    else {
+    } else {
         console.log("UNHANDLED eval CASE")
         console.log(node);
 
