@@ -15,3 +15,9 @@ SETTINGS_MODE='proxyprod' python manage.py migrate
 
 # Locally
 CREATE DATABASE mydatabase CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+
+
+Cron deploy
+gcloud app deploy cron.yaml
+
