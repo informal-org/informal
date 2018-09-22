@@ -13,6 +13,8 @@ amp = AmplitudeLogger()
 class LoggingMiddleware(object):
 
     def process_response(self, request, response):
+        if request.path_info.startswith("/_system/"):
+            return response
         page_name = ""
         try:
             page_name = resolve(request.path_info).url_name or ""
@@ -35,8 +37,10 @@ class LoggingMiddleware(object):
 
 
 class IdentifierMiddleware(object):
-
     def process_request(self, request):
+        if request.path_info.startswith("/_system/"):
+            return
+
         uid = request.session.get("tk", "")
         if not uid:
             request.session['tk'] = shortuuid.uuid()

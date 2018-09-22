@@ -3,7 +3,11 @@ from django.contrib import admin
 from django.views.generic import TemplateView
 
 from workspace.views import *
+
 urlpatterns = [
+    url(r'^_system/healthcheck$', healthcheck),
+    url(r'^_system/keepalive$', keepalive),
+
     url(r'^$', landing),
     url(r'^private/config$', config),
     url(r'^private/admin/', include(admin.site.urls)),

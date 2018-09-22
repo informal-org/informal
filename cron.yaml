@@ -1,0 +1,6 @@
+cron:
+- description: "keep alive"
+  url: /_system/keepalive
+  schedule: every 1 minutes
+  retry_parameters:
+    job_retry_limit: 1

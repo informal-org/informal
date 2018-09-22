@@ -86,3 +86,11 @@ def config(request):
 def ycdemo(request):
     logging.info("YC Demo")
     return render(request, 'yc.html')
+
+
+def healthcheck(request):
+    return HttpResponse("OK")
+
+
+def keepalive(request):
+    return HttpResponse("OK")
