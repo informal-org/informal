@@ -9,3 +9,6 @@ lib/ - Actual application source code
 rel/ - distillery release configurations
 priv/ - generated static files
 lib/
+
+
+gcloud app deploy
