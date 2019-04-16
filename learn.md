@@ -75,7 +75,9 @@ gsutil cp _build/prod/rel/arevel/bin/arevel.run \
 gcloud compute instances create arevel-instance \
     --image-family debian-9 \
     --image-project debian-cloud \
-    --machine-type g1-small \
+    --machine-type n1-standard-4 \
+    --boot-disk-type local-ssd \
+    --boot-disk-size 10 \
     --scopes "userinfo-email,cloud-platform" \
     --metadata-from-file startup-script=bin/instance-startup.sh \
     --metadata release-url=gs://arevel-209217-releases/arevel-release \
