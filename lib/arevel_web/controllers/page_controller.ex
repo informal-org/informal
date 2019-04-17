@@ -8,3 +8,13 @@ defmodule ArevelWeb.PageController do
     json(conn, %{hello: "world"})
   end
 end
+
+
+
+defmodule ArevelWeb.HealthCheckController do
+  use ArevelWeb, :controller
+
+  def healthcheck(conn, _params) do
+    json(conn, %{status: "OK"})
+  end
+end

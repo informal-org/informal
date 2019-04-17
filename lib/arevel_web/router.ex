@@ -23,4 +23,10 @@ defmodule ArevelWeb.Router do
   # scope "/api", ArevelWeb do
   #   pipe_through :api
   # end
+
+  scope "/_health", ArevelWeb do
+    pipe_through :api
+
+    get "/", HealthCheckController, :healthcheck
+  end
 end
