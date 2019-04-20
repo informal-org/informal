@@ -4,25 +4,21 @@
         {
             "id": "1",
             "name": "intro",
-            "type": "str",
             "value": "hello"
         },
         {
             "id": "2",
             "name": "yolo",
-            "type": "int",
             "value": 5
         },
         {
             "id": "3",
             "name": "something",
-            "type": "null",
             "value": null
         },
         {
             "id": "4",
             "name": "",
-            "type": "expression",
             "value": "5 + param1"
         }
     ],

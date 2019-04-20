@@ -21,3 +21,11 @@ Is all of this type annotation in the schema useful?
 Why not just put 1 or 1.5 or "hello" in it directly?
 It's kind of represented in json already without this additional field. 
 
+Let's say the type field is optional unless its explicitly defined. 
+For most unambiguous things, leave it as is. 
+Only define it if say the value is "1.1" and the type is str. 
+Why not just make it str automatically then? 
+
+There's the representation of data necessary for the execution of the code and then there's additional information which is formatting and UI only needed by the frontend. i.e. expanded, collapsed, etc.
+
+Let's start without it and only add it if I need to. 
