@@ -1,0 +1,23 @@
+* Current
+
+* Next
+
+* Backlog
+** Product
+*** Setup homepage
+*** Setup user signup
+*** Security access control
+** Language
+*** Basic runtime that can return a response
+** Operational
+*** Setup stackdriver logging
+*** Setup amplitude analytics
+*** Setup mongodb
+*** Setup proper https certificates
+*** Buy media server domain and setup media server bucket
+*** Try out argo
+
+
+
+* Done
+** DONE Finish setting up load balancer and webapp
