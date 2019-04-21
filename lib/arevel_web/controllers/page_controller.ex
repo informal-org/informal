@@ -1,11 +1,24 @@
 defmodule ArevelWeb.PageController do
   use ArevelWeb, :controller
+  import VM
 
-  plug :push, "/js/app.js"
-  plug :push, "/css/app.css"
+  # plug :push, "/js/app.js"
+  # plug :push, "/css/app.css"
 
   def index(conn, _params) do
-    json(conn, %{hello: "world"})
+    # json(conn, %{hello: "world"})
+    code = %{
+      body: [
+        %{
+          id: 1,
+          value: "=1 + 1"
+        }
+      ]
+    }
+
+    result = VM.eval(code)
+    json(conn, %{code: code, result: result})
+
   end
 end
 
