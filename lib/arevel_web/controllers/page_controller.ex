@@ -11,13 +11,15 @@ defmodule ArevelWeb.PageController do
       body: [
         %{
           id: 1,
-          value: "=1 + 1"
+          value: "=2 + 3 + 2"
         }
       ]
     }
 
-    result = VM.eval(code)
-    json(conn, %{code: code, result: result})
+    [result | _] = VM.eval(code)
+
+    # json(conn, %{code: code, result: result})
+    render(conn, "index.html", code: Jason.encode!(code), result: result)
 
   end
 end

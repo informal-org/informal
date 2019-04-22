@@ -1,31 +1,42 @@
-
-defmodule VM.Parser do
+defmodule VM.Parser.Helpers do
   import NimbleParsec
 
-  whitespace = repeat(string(" "))
+  def whitespace do
+    repeat(string(" "))
+  end
 
-  number =
+  def number do
     integer(min: 1)
     |> unwrap_and_tag(:integer)
+  end
 
-  numerical_operators =
+  def numerical_operators do
     choice([
       string("+"),
       string("-"),
       string("/"),
       string("*"),
     ]) |> unwrap_and_tag(:operator)
+  end
 
-  bi_calc =
+  def bi_calc do
     ignore(string("="))
-    |> ignore(whitespace)
-    |> concat(number)
-    |> ignore(whitespace)
-    |> concat(numerical_operators)
-    |> ignore(whitespace)
-    |> concat(number)
+    |> ignore(whitespace())
+    |> concat(number())
+    |> ignore(whitespace())
+    |> concat(numerical_operators())
+    |> ignore(whitespace())
+    |> concat(number())
+  end
 
-  defparsec :expression, bi_calc
+end
+
+
+defmodule VM.Parser do
+  import NimbleParsec
+  import VM.Parser.Helpers
+
+  defparsec :expression, VM.Parser.Helpers.bi_calc()
 
   # defparsec :datetime, whitespace |> ignore(string("T")) |> concat(time)
 
@@ -39,7 +50,11 @@ defmodule VM do
   def eval(code) do
     %{body: body} = code
 
-    Enum.map(body, fn cell -> eval_expr(cell) end)
+    result = Enum.map(body, fn cell -> eval_expr(cell) end)
+    # TODO - :ok check
+    # elem(result, 1)
+    IO.puts result
+    result
   end
 
   def eval_expr(cell) do
