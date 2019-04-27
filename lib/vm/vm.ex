@@ -169,10 +169,11 @@ defmodule VM do
     result
   end
 
-  def eval_expr(cell) do
-    %{id: id, value: value} = cell
+  def eval_expr(expr) do
+    # %{id: id, value: value} = cell
     # TODO: case value starts with =
-    {:ok, parsed, _, _, _, _} = VM.Parser.parse(value)
+    {:ok, parsed, "", _, _, _} = VM.Parser.parse(expr)
+    recurse_expr(parsed)
   end
 
   # [integer: 11, operator: "/", integer: 13]

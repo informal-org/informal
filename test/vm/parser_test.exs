@@ -30,4 +30,11 @@ defmodule ParserTest do
     assert parsed == [[[[[[integer: 1], {:binopt, "+"}, [integer: 2]]], {:binopt, "*"}, {:integer, 3}]]]
   end
 
+  test "eval arithmetic" do
+    assert VM.eval_expr("= 1 + 1") == 2
+    assert VM.eval_expr("= 23 + 19") == 42
+    assert VM.eval_expr("= 3 + 4 * 5") == 23
+    assert VM.eval_expr("= (3 + 4) * 5") == 35
+  end
+
 end
