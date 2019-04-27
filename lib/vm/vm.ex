@@ -36,9 +36,12 @@ defmodule VM.Parser.Helpers do
 
   def additive_expression do
     wrap(
-      parsec(:multiplicative_expression)
+      ignore(whitespace())
+      |> parsec(:multiplicative_expression)
       |> repeat(
-        unwrap_and_tag(choice([string("+"), string("-")]), :binopt)
+        ignore(whitespace())
+        |> unwrap_and_tag(choice([string("+"), string("-")]), :binopt)
+        |> ignore(whitespace())
         |> parsec(:multiplicative_expression)
       )
     )
@@ -115,11 +118,14 @@ defmodule VM.Parser do
 
   defcombinatorp :multiplicative_expression,
     wrap(
-      parsec(:primary_expression)
-        |> repeat(
-          unwrap_and_tag(choice([string("*"), string("/")]), :binopt)
-          |> parsec(:primary_expression)
-        )
+      ignore(whitespace())
+      |> parsec(:primary_expression)
+      |> repeat(
+        ignore(whitespace())
+        |> unwrap_and_tag(choice([string("*"), string("/")]), :binopt)
+        |> ignore(whitespace())
+        |> parsec(:primary_expression)
+      )
     )
 
   # TODO: Variables, test unary negative, floating point, whitespace support
@@ -128,7 +134,9 @@ defmodule VM.Parser do
     choice([
       wrap(
         ignore(open_parens())
+        |> ignore(whitespace())
         |> parsec(:expression)
+        |> ignore(whitespace())
         |> ignore(close_parens())
       ),
       natural_number(),
@@ -165,7 +173,6 @@ defmodule VM do
     %{id: id, value: value} = cell
     # TODO: case value starts with =
     {:ok, parsed, _, _, _, _} = VM.Parser.parse(value)
-    binary_operator(parsed)
   end
 
   # [integer: 11, operator: "/", integer: 13]
@@ -175,6 +182,40 @@ defmodule VM do
 
   def binary_operator([integer: a, operator: "+", integer: b]) do
     a + b
+  end
+
+  def binary_operator(left, op, right) do
+    case op do
+      "+" ->
+        left + right
+      "-" ->
+        left - right
+      "*" ->
+        left * right
+      "/" ->
+        left / right
+    end
+  end
+
+  # [integer: 1], {:binopt, "+"}, [integer: 2, binopt: "*", integer: 3]
+  def recurse_expr(expr) do
+    case expr do
+      # Unwrap empty wrapper
+      [ single_elem ] ->
+        recurse_expr(single_elem)
+      [left, {:binopt, op}, right] ->
+        binary_operator(recurse_expr(left), op, recurse_expr(right))
+      {:integer, i} ->
+        i
+      # [_ | _] ->
+      #   # Enumerate over items. Left first.
+      #   Enum.map(expr, fn sub -> recurse_expr(sub) end)
+      # {_, _} ->
+      #   acc
+      # _ ->
+      #   acc
+    end
+
   end
 
   def get_dependencies() do

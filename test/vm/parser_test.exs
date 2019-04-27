@@ -3,8 +3,10 @@ defmodule ParserTest do
   doctest VM.Parser
 
   test "sub basic addition" do
-    {:ok, parsed, _, _, _, _} = VM.Parser.parse("=140+2")
+    {:ok, parsed, _, _, _, _} = VM.Parser.parse("= 140 + 2")
     assert parsed == [[[integer: 140], {:binopt, "+"}, [integer: 2]]]
+
+    assert VM.recurse_expr(parsed) == 142
 
     # TODO: Test for negative numbers.
   end
@@ -21,7 +23,6 @@ defmodule ParserTest do
     {:ok, parsed, "", _, _, _} = VM.Parser.parse("=1+2*3")
     assert parsed == [[[integer: 1], {:binopt, "+"}, [integer: 2, binopt: "*", integer: 3]]]
   end
-
 
   test "paren expressions" do
     {:ok, parsed, "", _, _, _} = VM.Parser.parse("=(1+2)*3")
