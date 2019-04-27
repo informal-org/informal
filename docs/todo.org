@@ -1,7 +1,7 @@
 * Current
 ** Parser
 *** Variables
-*** Floating point numbers
+*** DONE Floating point numbers
 *** Boolean expressions
 *** List operators
 *** String operators

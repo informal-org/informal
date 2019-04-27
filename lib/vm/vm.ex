@@ -16,12 +16,25 @@ defmodule VM.Parser.Utils do
     {float_num, ""} = Float.parse(Enum.join(fixed_parts))
     {:float, float_num}
   end
+
+
+  def reduce_int(parts) do
+    fixed_int = case parts do
+      ["-" | [num]] ->
+        -1 * num
+      [num] ->
+        num
+    end
+    {:integer, fixed_int}
+  end
+
 end
 
 defmodule VM.Parser.Helpers do
   import NimbleParsec
   import VM.Parser.Utils, only: [
-    reduce_float: 1
+    reduce_float: 1,
+    reduce_int: 1
   ]
 
   @doc """
@@ -46,14 +59,6 @@ defmodule VM.Parser.Helpers do
   def close_parens do
     ascii_char([ ?) ])
     |> unwrap_and_tag(:closep)
-  end
-
-  @doc """
-  natural_number := 0 | 1 | 2 | ...
-  """
-  def natural_number do
-    integer(min: 1)
-    |> unwrap_and_tag(:integer)
   end
 
 
@@ -101,6 +106,16 @@ defmodule VM.Parser.Helpers do
     end
   end
 
+  @doc """
+  natural_number := 0 | 1 | 2 | ...
+  """
+  def natural_number do
+    optional(string("-"))
+    |> integer(min: 1)
+    |> reduce({VM.Parser.Utils, :reduce_int, []})
+    # |> unwrap_and_tag(:integer)
+  end
+
   def float_number do
     # -1.2213312e+308
     optional(string("-"))
@@ -112,11 +127,19 @@ defmodule VM.Parser.Helpers do
       |> integer(min: 1)
     )
     |> reduce({VM.Parser.Utils, :reduce_float, []})
-    #|> reduce({Enum, :join, [""]})
-    #|> map({Float, :parse, []})
   end
 
-
+  def reference do
+    ascii_char([?a..?z])
+    |> repeat(choice([
+      ascii_char([?a..?z]),
+      ascii_char([?A..?Z]),
+      ascii_char([?0..?9]),
+      ascii_char([?_])
+      ]
+    ))
+    |> unwrap_and_tag(:reference)
+  end
 
 end
 
@@ -130,6 +153,7 @@ defmodule VM.Parser do
     open_parens: 0,
     close_parens: 0,
     additive_expression: 0,
+    reference: 0,
     unwrap: 1
   ]
 
@@ -182,6 +206,7 @@ defmodule VM.Parser do
       ),
       float_number(),
       natural_number(),
+      reference(),
       string("-") |> parsec(:primary_expression)
     ])
 

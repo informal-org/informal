@@ -11,6 +11,15 @@ defmodule ParserTest do
     # TODO: Test for negative numbers.
   end
 
+  test "negative number addition" do
+    {:ok, parsed, _, _, _, _} = VM.Parser.parse("= 140 + -2")
+    assert parsed == [[[integer: 140], {:binopt, "+"}, [integer: -2]]]
+
+    # assert VM.recurse_expr(parsed) == 138
+
+    # TODO: Test for negative numbers.
+  end
+
   test "conversion to prefix tree" do
     assert VM.Parser.Helpers.to_prefix_tree(["1", "+", "2"]) == ["+", ["1", "2"]]
     assert VM.Parser.Helpers.to_prefix_tree(["1", "+", "2", "+", "3"]) == ["+", [["+", ["1", "2"]], "3"]]
