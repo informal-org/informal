@@ -1,5 +1,28 @@
+defmodule VM.Parser.Utils do
+  @doc """
+  Converts a tokenized list of symbols forming a float into a tagged
+  floating point number.
+  """
+  def reduce_float(parts) do
+    # Float.parse requires a leading zero. Convert -.3 to -0.3
+    fixed_parts = case parts do
+      ["-", "." | rest] ->
+        ["-", "0", "." | rest]
+      ["." | _] ->
+        ["0" | parts]
+      _ ->
+        parts
+    end
+    {float_num, ""} = Float.parse(Enum.join(fixed_parts))
+    {:float, float_num}
+  end
+end
+
 defmodule VM.Parser.Helpers do
   import NimbleParsec
+  import VM.Parser.Utils, only: [
+    reduce_float: 1
+  ]
 
   @doc """
   Matches any whitespace sparacters.
@@ -78,6 +101,23 @@ defmodule VM.Parser.Helpers do
     end
   end
 
+  def float_number do
+    # -1.2213312e+308
+    optional(string("-"))
+    |> optional(integer(min: 1))
+    |> string(".")
+    |> integer(min: 1)
+    |> optional(
+      string("e+")
+      |> integer(min: 1)
+    )
+    |> reduce({VM.Parser.Utils, :reduce_float, []})
+    #|> reduce({Enum, :join, [""]})
+    #|> map({Float, :parse, []})
+  end
+
+
+
 end
 
 
@@ -86,10 +126,11 @@ defmodule VM.Parser do
   import VM.Parser.Helpers, only: [
     whitespace: 0,
     natural_number: 0,
+    float_number: 0,
     open_parens: 0,
     close_parens: 0,
     additive_expression: 0,
-    unwrap: 1,
+    unwrap: 1
   ]
 
   # factor =
@@ -139,6 +180,7 @@ defmodule VM.Parser do
         |> ignore(whitespace())
         |> ignore(close_parens())
       ),
+      float_number(),
       natural_number(),
       string("-") |> parsec(:primary_expression)
     ])

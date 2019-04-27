@@ -11,12 +11,12 @@ defmodule ParserTest do
     # TODO: Test for negative numbers.
   end
 
-    test "conversion to prefix tree" do
-      assert VM.Parser.Helpers.to_prefix_tree(["1", "+", "2"]) == ["+", ["1", "2"]]
-      assert VM.Parser.Helpers.to_prefix_tree(["1", "+", "2", "+", "3"]) == ["+", [["+", ["1", "2"]], "3"]]
+  test "conversion to prefix tree" do
+    assert VM.Parser.Helpers.to_prefix_tree(["1", "+", "2"]) == ["+", ["1", "2"]]
+    assert VM.Parser.Helpers.to_prefix_tree(["1", "+", "2", "+", "3"]) == ["+", [["+", ["1", "2"]], "3"]]
 
-      # TO operator precedence with pemdas
-    end
+    # TO operator precedence with pemdas
+  end
 
 
   test "recurses extra operations" do
@@ -30,11 +30,24 @@ defmodule ParserTest do
     assert parsed == [[[[[[integer: 1], {:binopt, "+"}, [integer: 2]]], {:binopt, "*"}, {:integer, 3}]]]
   end
 
+  test "float parse" do
+    {:ok, parsed, "", _, _, _} = VM.Parser.parse("= .5 + 1.328")
+    assert parsed == [[[{:float, 0.5}], {:binopt, "+"}, [float: 1.328]]]
+    assert parsed == [[[float: 0.5], {:binopt, "+"}, [float: 1.328]]]
+  end
+
+  test "float negative parse" do
+    {:ok, parsed, "", _, _, _} = VM.Parser.parse("= -.5 + -1.328")
+    assert parsed == [[[float: -0.5], {:binopt, "+"}, [float: -1.328]]]
+  end
+
+
   test "eval arithmetic" do
     assert VM.eval_expr("= 1 + 1") == 2
     assert VM.eval_expr("= 23 + 19") == 42
     assert VM.eval_expr("= 3 + 4 * 5") == 23
     assert VM.eval_expr("= (3 + 4) * 5") == 35
+
   end
 
 end

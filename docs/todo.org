@@ -1,4 +1,11 @@
 * Current
+** Parser
+*** Variables
+*** Floating point numbers
+*** Boolean expressions
+*** List operators
+*** String operators
+*** Dependency graph
 
 * Next
 
