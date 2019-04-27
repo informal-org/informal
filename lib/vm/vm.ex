@@ -1,42 +1,111 @@
 defmodule VM.Parser.Helpers do
   import NimbleParsec
 
+  # Larger numbers come first.
+  operator_precedence = %{
+    "+": 1, "-": 1,
+    "*": 2, "/": 2, "%": 2
+  }
+
+  @doc """
+  Matches any whitespace sparacters.
+  """
+  @spec whitespace() :: NimbleParsec.t()
   def whitespace do
-    repeat(string(" "))
+    repeat(
+      choice( [
+        string(" "),
+        string("\t"),
+        string("\n"),
+        string("\r")
+      ]))
   end
 
-  def number do
+  def open_parens do
+    ascii_char([ ?( ])
+    |> unwrap_and_tag(:openp)
+  end
+
+  def close_parens do
+    ascii_char([ ?) ])
+    |> unwrap_and_tag(:closep)
+  end
+
+  @doc """
+  natural_number := 0 | 1 | 2 | ...
+  """
+  def natural_number do
     integer(min: 1)
     |> unwrap_and_tag(:integer)
   end
 
-  def numerical_operators do
+  @doc """
+  factor := ( expr ) | natural_number
+  """
+
+  def binary_operators do
     choice([
       string("+"),
       string("-"),
       string("/"),
       string("*"),
-    ]) |> unwrap_and_tag(:operator)
+    ]) |> unwrap_and_tag(:binopt)
   end
 
-  def bi_calc do
-    ignore(string("="))
-    |> ignore(whitespace())
-    |> concat(number())
-    |> ignore(whitespace())
-    |> concat(numerical_operators())
-    |> ignore(whitespace())
-    |> concat(number())
+  @doc """
+  Converts an infix expression to a prefix tree.
+  Not sure if this is possible to do within the parsec itself.
+  """
+  def to_prefix_tree(acc) do
+    acc
+    |> Enum.reverse()
+    |> Enum.chunk_every(2)
+    |> List.foldr([], fn
+      [solo], [] -> solo
+      [right, operator], left -> {operator, [left, right]}
+      # Fail otherwise if left  operator
+    end)
   end
+
 
 end
 
 
 defmodule VM.Parser do
   import NimbleParsec
-  import VM.Parser.Helpers
+  import VM.Parser.Helpers, only: [
+    whitespace: 0,
+    binary_operators: 0,
+    natural_number: 0
+  ]
 
-  defparsec :expression, VM.Parser.Helpers.bi_calc()
+
+  # factor =
+  #   choice([
+  #     ignore(open_parens())
+  #     |> ignore(close_parens()),
+  #     natural_number()
+  #   ])
+
+#   defcombinatorp :expr, choice([
+#         # TODO - ignore(ascii_char([?*])) this doesn't make sense from the simplemath example, so not including it.
+#     factor
+#     |> concat(binary_operators())
+# #    |> concat(factor)
+#   ])
+
+
+  defcombinatorp :binary_calc,
+    ignore(whitespace())
+    |> concat(natural_number())
+    |> ignore(whitespace())
+    |> concat(binary_operators())
+    |> ignore(whitespace())
+    |> concat(natural_number())
+
+
+
+  defparsec :parse, ignore(string("=")) |> parsec(:binary_calc)
 
   # defparsec :datetime, whitespace |> ignore(string("T")) |> concat(time)
 
@@ -60,7 +129,7 @@ defmodule VM do
   def eval_expr(cell) do
     %{id: id, value: value} = cell
     # TODO: case value starts with =
-    {:ok, parsed, _, _, _, _} = VM.Parser.expression(value)
+    {:ok, parsed, _, _, _, _} = VM.Parser.parse(value)
     binary_operator(parsed)
   end
 
