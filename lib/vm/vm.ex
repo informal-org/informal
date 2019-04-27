@@ -1,4 +1,5 @@
 defmodule VM.Parser.Utils do
+
   @doc ~S"""
   Converts a tokenized list of symbols forming a float into a tagged
   floating point number.
@@ -59,11 +60,85 @@ defmodule VM.Parser.Utils do
 
 end
 
+defmodule VM.Parser.Boolean do
+  import NimbleParsec
+
+  def bool_true do
+    choice([
+      string("true"),
+      string("TRUE"),
+      string("True"),
+    ])
+    |> replace(true) |> label("true")
+  end
+
+  def bool_false do
+    choice([
+      string("false"),
+      string("FALSE"),
+      string("False"),
+    ])
+    |> replace(false) |> label("false")
+  end
+
+
+  def boolean_literal do
+    choice([
+        bool_true(),
+        bool_false()
+    ]) |> label("boolean")
+  end
+
+  def operator_not do
+    choice([
+      string("not"),
+      string("NOT"),
+      string("Not")
+    ])
+    |> replace(:op_not)
+  end
+
+  def operator_and do
+    choice([
+      string("and"),
+      string("AND"),
+      string("And")
+    ])
+    |> replace(:op_and)
+  end
+
+  def operator_or do
+    choice([
+      string("or"),
+      string("OR"),
+      string("Or")
+    ])
+    |> replace(:op_or)
+  end
+
+  def operator_is do
+    choice([
+      string("is"),
+      string("IS"),
+      string("Is"),
+    ])
+    |> replace(:op_is)
+  end
+
+end
+
 defmodule VM.Parser.Helpers do
   import NimbleParsec
   import VM.Parser.Utils, only: [
     reduce_float: 1,
     reduce_int: 1
+  ]
+
+  import VM.Parser.Boolean, only: [
+    operator_or: 0,
+    operator_and: 0,
+    operator_not: 0,
+    operator_is: 0,
   ]
 
   @doc """
@@ -90,6 +165,18 @@ defmodule VM.Parser.Helpers do
     |> unwrap_and_tag(:closep)
   end
 
+  def bool_and_expr do
+    wrap(
+      ignore(whitespace())
+      #|> parsec(VM.Parser.bool_comparison_expr)
+      |> repeat(
+        concat(ignore(whitespace()),
+          VM.Parser.Boolean.operator_and())
+        |> ignore(whitespace())
+        # |> parsec(:bool_comparison_expr)
+      )
+    )
+  end
 
   def additive_expression do
     wrap(
@@ -134,6 +221,22 @@ defmodule VM.Parser.Helpers do
         acc
     end
   end
+
+
+  def bool_or_expr do
+    wrap(
+      ignore(whitespace())
+      # |> parsec(VM.Parser.Helpers.bool_and_expr)
+      |> repeat(
+        concat(ignore(whitespace()),
+          VM.Parser.Boolean.operator_or())
+        |> ignore(whitespace())
+        # |> parsec(VM.Parser.Helpers.bool_and_expr)
+      )
+    )
+  end
+
+
 
   @doc """
   natural_number := 0 | 1 | 2 | ...
@@ -192,7 +295,8 @@ defmodule VM.Parser do
     close_parens: 0,
     additive_expression: 0,
     parse_reference: 0,
-    unwrap: 1
+    unwrap: 1,
+    bool_or_expr: 0
   ]
 
   # factor =
@@ -231,6 +335,19 @@ defmodule VM.Parser do
       )
     )
 
+  defcombinatorp :bool_comparison_expr,
+      wrap(
+        ignore(whitespace())
+        |> parsec(:primary_expression)
+        |> repeat(
+          concat(ignore(whitespace()),
+            VM.Parser.Boolean.operator_is())   # TODO - Choice >=, <=, etc.
+          |> ignore(whitespace())
+          |> parsec(:primary_expression)
+        )
+      )
+
+
   # TODO: Variables, test unary negative, floating point, whitespace support
   # primary ::= '(' expression ')' | NUMBER | VARIABLE | '-' primary
   defcombinatorp :primary_expression,
@@ -250,7 +367,10 @@ defmodule VM.Parser do
 
   # This whole thing could probably be implemented more efficiently with lookahead, but keeping it "simple" for now
   defcombinatorp :expression,
-    additive_expression()
+    choice([
+      additive_expression(),
+      bool_or_expr()
+    ])
 
   # defparsec :parse, ignore(string("=")) |> parsec(:binary_calc)
   defparsec :parse, ignore(string("=")) |> parsec(:expression)

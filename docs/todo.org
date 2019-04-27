@@ -1,7 +1,7 @@
 * Current
 ** Parser
 *** DONE Floating point numbers
-*** TODO Variables
+*** DONE Variables
 *** TODO Boolean expressions
 *** TODO Comparison operators
 *** TODO List operators
