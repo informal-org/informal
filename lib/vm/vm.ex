@@ -44,6 +44,36 @@ defmodule VM.Parser.Helpers do
     )
   end
 
+  @doc """
+  Converts an infix expression to a prefix tree.
+  Not sure if this is possible to do within the parsec itself.
+  """
+  def to_prefix_tree(acc) do
+    acc
+    |> Enum.reverse()
+    |> Enum.chunk_every(2)
+    |> List.foldr([], fn
+      [solo], [] -> solo
+      [right, operator], left -> [operator, [left, right]]
+      # Fail otherwise if left  operator
+    end)
+  end
+
+  @doc """
+  Flatten and remove unnecessary nested lists
+  """
+  def unwrap(acc) do
+    case acc do
+      [ single_elem ] ->
+        unwrap(single_elem)
+      [_ | _] ->
+        Enum.map(acc, fn sub -> unwrap(sub) end)
+      {_, _} ->
+        acc
+      _ ->
+        acc
+    end
+  end
 
 end
 
@@ -56,6 +86,7 @@ defmodule VM.Parser do
     open_parens: 0,
     close_parens: 0,
     additive_expression: 0,
+    unwrap: 1,
   ]
 
   # factor =
@@ -85,10 +116,10 @@ defmodule VM.Parser do
   defcombinatorp :multiplicative_expression,
     wrap(
       parsec(:primary_expression)
-      |> repeat(
-        unwrap_and_tag(choice([string("*"), string("/")]), :binopt)
-        |> parsec(:primary_expression)
-      )
+        |> repeat(
+          unwrap_and_tag(choice([string("*"), string("/")]), :binopt)
+          |> parsec(:primary_expression)
+        )
     )
 
   # TODO: Variables, test unary negative, floating point, whitespace support
