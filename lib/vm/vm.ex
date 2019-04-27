@@ -98,8 +98,9 @@ defmodule VM.Parser.Boolean do
     |> replace(:op_not)
   end
 
-  def operator_and do
-    choice([
+  def operator_and(acc) do
+    acc
+    |> choice([
       string("and"),
       string("AND"),
       string("And")
@@ -107,8 +108,8 @@ defmodule VM.Parser.Boolean do
     |> replace(:op_and)
   end
 
-  def operator_or do
-    choice([
+  def operator_or(acc) do
+    acc |> choice([
       string("or"),
       string("OR"),
       string("Or")
@@ -135,8 +136,8 @@ defmodule VM.Parser.Helpers do
   ]
 
   import VM.Parser.Boolean, only: [
-    operator_or: 0,
-    operator_and: 0,
+    operator_or: 1,
+    operator_and: 1,
     operator_not: 0,
     operator_is: 0,
   ]
@@ -163,32 +164,6 @@ defmodule VM.Parser.Helpers do
   def close_parens do
     ascii_char([ ?) ])
     |> unwrap_and_tag(:closep)
-  end
-
-  def bool_and_expr do
-    wrap(
-      ignore(whitespace())
-      #|> parsec(VM.Parser.bool_comparison_expr)
-      |> repeat(
-        concat(ignore(whitespace()),
-          VM.Parser.Boolean.operator_and())
-        |> ignore(whitespace())
-        # |> parsec(:bool_comparison_expr)
-      )
-    )
-  end
-
-  def additive_expression do
-    wrap(
-      ignore(whitespace())
-      |> parsec(:multiplicative_expression)
-      |> repeat(
-        ignore(whitespace())
-        |> unwrap_and_tag(choice([string("+"), string("-")]), :binopt)
-        |> ignore(whitespace())
-        |> parsec(:multiplicative_expression)
-      )
-    )
   end
 
   @doc """
@@ -221,21 +196,6 @@ defmodule VM.Parser.Helpers do
         acc
     end
   end
-
-
-  def bool_or_expr do
-    wrap(
-      ignore(whitespace())
-      # |> parsec(VM.Parser.Helpers.bool_and_expr)
-      |> repeat(
-        concat(ignore(whitespace()),
-          VM.Parser.Boolean.operator_or())
-        |> ignore(whitespace())
-        # |> parsec(VM.Parser.Helpers.bool_and_expr)
-      )
-    )
-  end
-
 
 
   @doc """
@@ -271,7 +231,7 @@ defmodule VM.Parser.Helpers do
   Currently no max length but should probably have one.
   """
   def parse_reference do
-    choice([ascii_char([?a..?z]), ascii_char([?A..?Z])])
+    ascii_char([?:])
     |> repeat(choice([
         ascii_char([?a..?z]),
         ascii_char([?A..?Z]),
@@ -293,10 +253,13 @@ defmodule VM.Parser do
     float_number: 0,
     open_parens: 0,
     close_parens: 0,
-    additive_expression: 0,
     parse_reference: 0,
-    unwrap: 1,
-    bool_or_expr: 0
+    unwrap: 1
+  ]
+
+  import VM.Parser.Boolean, only: [
+    boolean_literal: 0,
+    operator_not: 0
   ]
 
   # factor =
@@ -323,6 +286,18 @@ defmodule VM.Parser do
   # additive-expression ::= multiplicative-expression ( ( '+' | '-' ) multiplicative-expression ) *
   # multiplicative-expression ::= primary ( ( '*' | '/' ) primary ) *
 
+  defcombinatorp :additive_expression,
+    wrap(
+      ignore(whitespace())
+      |> parsec(:multiplicative_expression)
+      |> repeat(
+        ignore(whitespace())
+        |> unwrap_and_tag(choice([string("+"), string("-")]), :binopt)
+        |> ignore(whitespace())
+        |> parsec(:multiplicative_expression)
+      )
+    )
+
   defcombinatorp :multiplicative_expression,
     wrap(
       ignore(whitespace())
@@ -335,18 +310,42 @@ defmodule VM.Parser do
       )
     )
 
+  defcombinatorp :bool_or_expr,
+    wrap(
+      ignore(whitespace())
+      |> parsec(:bool_and_expr)
+      |> repeat(
+        ignore(whitespace())
+        |> VM.Parser.Boolean.operator_or()
+        |> ignore(whitespace())
+        |> parsec(:bool_and_expr)
+      )
+    )
+
+
+  defcombinatorp :bool_and_expr,
+    wrap(
+      ignore(whitespace())
+      |> parsec(:bool_comparison_expr)
+      |> repeat(
+        ignore(whitespace())
+        |> VM.Parser.Boolean.operator_and()
+        |> ignore(whitespace())
+        |> parsec(:bool_comparison_expr)
+      )
+    )
+
   defcombinatorp :bool_comparison_expr,
       wrap(
         ignore(whitespace())
-        |> parsec(:primary_expression)
+        |> parsec(:bool_primary_expr)
         |> repeat(
           concat(ignore(whitespace()),
             VM.Parser.Boolean.operator_is())   # TODO - Choice >=, <=, etc.
           |> ignore(whitespace())
-          |> parsec(:primary_expression)
+          |> parsec(:bool_primary_expr)
         )
       )
-
 
   # TODO: Variables, test unary negative, floating point, whitespace support
   # primary ::= '(' expression ')' | NUMBER | VARIABLE | '-' primary
@@ -365,11 +364,24 @@ defmodule VM.Parser do
       parse_reference()             # Should be at the end usually.
     ])
 
+  defcombinatorp :bool_primary_expr,
+      choice([
+        wrap(
+          ignore(open_parens())
+          |> ignore(whitespace())
+          |> parsec(:expression)
+          |> ignore(whitespace())
+          |> ignore(close_parens())
+        ),
+        boolean_literal(),
+        parse_reference()             # Should be at the end usually.
+      ])
+
   # This whole thing could probably be implemented more efficiently with lookahead, but keeping it "simple" for now
   defcombinatorp :expression,
     choice([
-      additive_expression(),
-      bool_or_expr()
+      parsec(:additive_expression),
+      parsec(:bool_or_expr)
     ])
 
   # defparsec :parse, ignore(string("=")) |> parsec(:binary_calc)
