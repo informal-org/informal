@@ -51,5 +51,15 @@ defmodule ParserTest do
     assert parsed == [[[float: -0.5], {:binopt, "+"}, [float: -1.328]]]
   end
 
+  test "whitespace placement" do
+    {:ok, parsed, "", _, _, _} = VM.Parser.parse("= 9")
+    assert parsed == [[[integer: 9]]]
+  end
+
+  test "variable reference parse" do
+    {:ok, parsed, "", _, _, _} = VM.Parser.parse("= -.5 + Var32")
+    assert parsed == [[[float: -0.5], {:binopt, "+"}, [reference: 'Var32']]]
+  end
+
 
 end

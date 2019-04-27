@@ -36,6 +36,17 @@ defmodule VM.Parser.Utils do
   end
 
 
+  @doc ~S"""
+  Unwraps, tags and applies unary negative to tokenized integers.
+      iex> VM.Parser.Utils.reduce_int([9])
+      {:integer, 9}
+
+      iex> VM.Parser.Utils.reduce_int(["-", 27])
+      {:integer, -27}
+
+      iex> VM.Parser.Utils.reduce_int(["-", 0])
+      {:integer, 0}
+  """
   def reduce_int(parts) do
     fixed_int = case parts do
       ["-" | [num]] ->
@@ -148,16 +159,24 @@ defmodule VM.Parser.Helpers do
     |> reduce({VM.Parser.Utils, :reduce_float, []})
   end
 
-  def reference do
-    ascii_char([?a..?z])
+
+  @doc ~S"""
+  A variable reference. Must start with a letter.
+  Valid characters: uppercase, lowercase, numbers, underscore.
+  These are going to be the IDs used internally, not user defined names (which will support UTF)
+  Note that the return value is a charlist, not a string (no particular reason other than the ascii_char supports range).
+  Currently no max length but should probably have one.
+  """
+  def parse_reference do
+    choice([ascii_char([?a..?z]), ascii_char([?A..?Z])])
     |> repeat(choice([
-      ascii_char([?a..?z]),
-      ascii_char([?A..?Z]),
-      ascii_char([?0..?9]),
-      ascii_char([?_])
+        ascii_char([?a..?z]),
+        ascii_char([?A..?Z]),
+        ascii_char([?0..?9]),
+        ascii_char([?_])
       ]
     ))
-    |> unwrap_and_tag(:reference)
+    |> tag(:reference)
   end
 
 end
@@ -172,7 +191,7 @@ defmodule VM.Parser do
     open_parens: 0,
     close_parens: 0,
     additive_expression: 0,
-    reference: 0,
+    parse_reference: 0,
     unwrap: 1
   ]
 
@@ -225,8 +244,8 @@ defmodule VM.Parser do
       ),
       float_number(),
       natural_number(),
-      reference(),
-      string("-") |> parsec(:primary_expression)
+      string("-") |> parsec(:primary_expression),
+      parse_reference()             # Should be at the end usually.
     ])
 
   # This whole thing could probably be implemented more efficiently with lookahead, but keeping it "simple" for now

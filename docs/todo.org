@@ -1,11 +1,12 @@
 * Current
 ** Parser
-*** Variables
 *** DONE Floating point numbers
-*** Boolean expressions
-*** List operators
-*** String operators
-*** Dependency graph
+*** TODO Variables
+*** TODO Boolean expressions
+*** TODO Comparison operators
+*** TODO List operators
+*** TODO String operators
+*** TODO Dependency graph
 
 * Next
 
