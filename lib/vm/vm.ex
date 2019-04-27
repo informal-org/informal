@@ -379,10 +379,10 @@ defmodule VM.Parser do
 
   # This whole thing could probably be implemented more efficiently with lookahead, but keeping it "simple" for now
   defcombinatorp :expression,
-    choice([
+    repeat(choice([
       parsec(:additive_expression),
       parsec(:bool_or_expr)
-    ])
+    ]))
 
   # defparsec :parse, ignore(string("=")) |> parsec(:binary_calc)
   defparsec :parse, ignore(string("=")) |> parsec(:expression)

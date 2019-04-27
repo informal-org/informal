@@ -76,8 +76,18 @@ defmodule ParserTest.BooleanTest do
   test "basic boolean parse" do
     {:ok, parsed, "", _, _, _} = VM.Parser.parse("= true or false")
     assert parsed == [[[[true]], :op_or, [[false]]]]
+  end
 
-    # TODO: Test for negative numbers.
+  test "and or precedence" do
+    {:ok, parsed, "", _, _, _} = VM.Parser.parse("= true or false and true")
+    # And has precedence over or
+    assert parsed == [[[[true]], :op_or, [[false], :op_and, [true]]]]
+  end
+
+  test "bool parens precedence" do
+    {:ok, parsed, "", _, _, _} = VM.Parser.parse("= (true or false) and true")
+    # And has precedence over or
+    assert parsed == [[[[[true]], :op_or, [false]], :op_and, [true]]]
   end
 
 
