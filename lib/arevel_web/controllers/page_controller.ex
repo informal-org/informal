@@ -16,10 +16,10 @@ defmodule ArevelWeb.PageController do
       ]
     }
 
-    [result | _] = VM.eval(code)
+    # [result | _] = VM.eval(code)
 
     # json(conn, %{code: code, result: result})
-    render(conn, "index.html", code: Jason.encode!(code), result: result)
+    render(conn, "index.html", code: Jason.encode!(code), result: "UNDEF")
 
   end
 end

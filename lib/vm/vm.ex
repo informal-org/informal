@@ -1,12 +1,6 @@
 defmodule VM.Parser.Helpers do
   import NimbleParsec
 
-  # Larger numbers come first.
-  operator_precedence = %{
-    "+": 1, "-": 1,
-    "*": 2, "/": 2, "%": 2
-  }
-
   @doc """
   Matches any whitespace sparacters.
   """
@@ -39,32 +33,15 @@ defmodule VM.Parser.Helpers do
     |> unwrap_and_tag(:integer)
   end
 
-  @doc """
-  factor := ( expr ) | natural_number
-  """
 
-  def binary_operators do
-    choice([
-      string("+"),
-      string("-"),
-      string("/"),
-      string("*"),
-    ]) |> unwrap_and_tag(:binopt)
-  end
-
-  @doc """
-  Converts an infix expression to a prefix tree.
-  Not sure if this is possible to do within the parsec itself.
-  """
-  def to_prefix_tree(acc) do
-    acc
-    |> Enum.reverse()
-    |> Enum.chunk_every(2)
-    |> List.foldr([], fn
-      [solo], [] -> solo
-      [right, operator], left -> {operator, [left, right]}
-      # Fail otherwise if left  operator
-    end)
+  def additive_expression do
+    wrap(
+      parsec(:multiplicative_expression)
+      |> repeat(
+        unwrap_and_tag(choice([string("+"), string("-")]), :binopt)
+        |> parsec(:multiplicative_expression)
+      )
+    )
   end
 
 
@@ -75,10 +52,11 @@ defmodule VM.Parser do
   import NimbleParsec
   import VM.Parser.Helpers, only: [
     whitespace: 0,
-    binary_operators: 0,
-    natural_number: 0
+    natural_number: 0,
+    open_parens: 0,
+    close_parens: 0,
+    additive_expression: 0,
   ]
-
 
   # factor =
   #   choice([
@@ -94,18 +72,44 @@ defmodule VM.Parser do
 # #    |> concat(factor)
 #   ])
 
+  # defcombinatorp :expression,
+  #   :equalityexpr
 
-  defcombinatorp :binary_calc,
-    ignore(whitespace())
-    |> concat(natural_number())
-    |> ignore(whitespace())
-    |> concat(binary_operators())
-    |> ignore(whitespace())
-    |> concat(natural_number())
+  # https://en.wikipedia.org/wiki/Operator-precedence_parser#section=2
+  # Precedence climbing method (* repeat)
+  # expression ::= equality-expression
+  # equality-expression ::= additive-expression ( ( '==' | '!=' ) additive-expression ) *
+  # additive-expression ::= multiplicative-expression ( ( '+' | '-' ) multiplicative-expression ) *
+  # multiplicative-expression ::= primary ( ( '*' | '/' ) primary ) *
 
+  defcombinatorp :multiplicative_expression,
+    wrap(
+      parsec(:primary_expression)
+      |> repeat(
+        unwrap_and_tag(choice([string("*"), string("/")]), :binopt)
+        |> parsec(:primary_expression)
+      )
+    )
 
+  # TODO: Variables, test unary negative, floating point, whitespace support
+  # primary ::= '(' expression ')' | NUMBER | VARIABLE | '-' primary
+  defcombinatorp :primary_expression,
+    choice([
+      wrap(
+        ignore(open_parens())
+        |> parsec(:expression)
+        |> ignore(close_parens())
+      ),
+      natural_number(),
+      string("-") |> parsec(:primary_expression)
+    ])
 
-  defparsec :parse, ignore(string("=")) |> parsec(:binary_calc)
+  # This whole thing could probably be implemented more efficiently with lookahead, but keeping it "simple" for now
+  defcombinatorp :expression,
+    additive_expression()
+
+  # defparsec :parse, ignore(string("=")) |> parsec(:binary_calc)
+  defparsec :parse, ignore(string("=")) |> parsec(:expression)
 
   # defparsec :datetime, whitespace |> ignore(string("T")) |> concat(time)
 
