@@ -1,7 +1,25 @@
 defmodule VM.Parser.Utils do
-  @doc """
+  @doc ~S"""
   Converts a tokenized list of symbols forming a float into a tagged
   floating point number.
+
+      iex> VM.Parser.Utils.reduce_float(["3", ".", "14159265359"])
+      {:float, 3.14159265359}
+
+      iex> VM.Parser.Utils.reduce_float(["-", "2", ".", "71828"])
+      {:float, -2.71828}
+
+      iex> VM.Parser.Utils.reduce_float([".", "27"])
+      {:float, 0.27}
+
+      iex> VM.Parser.Utils.reduce_float([".", "9", "e+", "3"])
+      {:float, 900.0}
+
+      iex> VM.Parser.Utils.reduce_float(["1", ".", "0", "e", "+", "10"])
+      {:float, 1.0e10}
+
+      iex> VM.Parser.Utils.reduce_float(["1", ".", "0", "e", "-", "10"])
+      {:float, 1.0e-10}
   """
   def reduce_float(parts) do
     # Float.parse requires a leading zero. Convert -.3 to -0.3
@@ -123,7 +141,8 @@ defmodule VM.Parser.Helpers do
     |> string(".")
     |> integer(min: 1)
     |> optional(
-      string("e+")
+      string("e")
+      |> optional(choice([string("+"), string("-")]))
       |> integer(min: 1)
     )
     |> reduce({VM.Parser.Utils, :reduce_float, []})
@@ -274,6 +293,8 @@ defmodule VM do
       [left, {:binopt, op}, right] ->
         binary_operator(recurse_expr(left), op, recurse_expr(right))
       {:integer, i} ->
+        i
+      {:float, i} ->
         i
       # [_ | _] ->
       #   # Enumerate over items. Left first.

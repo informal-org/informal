@@ -1,5 +1,6 @@
 defmodule ParserTest do
   use ExUnit.Case
+  doctest VM.Parser.Utils
   doctest VM.Parser
 
   test "sub basic addition" do
@@ -50,13 +51,5 @@ defmodule ParserTest do
     assert parsed == [[[float: -0.5], {:binopt, "+"}, [float: -1.328]]]
   end
 
-
-  test "eval arithmetic" do
-    assert VM.eval_expr("= 1 + 1") == 2
-    assert VM.eval_expr("= 23 + 19") == 42
-    assert VM.eval_expr("= 3 + 4 * 5") == 23
-    assert VM.eval_expr("= (3 + 4) * 5") == 35
-
-  end
 
 end
