@@ -1,6 +1,10 @@
 /* This file is for your main application css. */
 
-@import "./tailout.css";
+@tailwind base;
+
+@tailwind components;
+
+@tailwind utilities;
 
 @import "./phoenix.css";
 
