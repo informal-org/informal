@@ -30,12 +30,16 @@ module.exports = (env, options) => ({
       },
       {
         test: /\.css$/,
-        use: [MiniCssExtractPlugin.loader, 'css-loader']
+        use: [
+          MiniCssExtractPlugin.loader, 
+          'css-loader',
+          'postcss-loader'
+        ],
+        
       }
     ]
   },
   plugins: [
-    require('tailwindcss'),
     new MiniCssExtractPlugin({ filename: '../css/app.css' }),
     new CopyWebpackPlugin([{ from: 'static/', to: '../' }])
   ]
