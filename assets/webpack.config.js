@@ -35,6 +35,7 @@ module.exports = (env, options) => ({
     ]
   },
   plugins: [
+    require('tailwindcss'),
     new MiniCssExtractPlugin({ filename: '../css/app.css' }),
     new CopyWebpackPlugin([{ from: 'static/', to: '../' }])
   ]
