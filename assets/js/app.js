@@ -93,3 +93,13 @@ function parse_expr(event) {
 console.log("my code")
 var expr_form = document.getElementById("expr-form");
 expr_form.addEventListener("submit", parse_expr, true);
+
+
+import React from 'react';
+import ReactDOM from 'react-dom';
+
+ReactDOM.render(
+    <h1>Hello, world!!</h1>,
+    document.getElementById('root')
+  );
+  
