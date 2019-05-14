@@ -7,19 +7,23 @@ defmodule ArevelWeb.PageController do
 
   def index(conn, _params) do
     # json(conn, %{hello: "world"})
-    code = %{
-      body: [
-        %{
-          id: 1,
-          value: "=2 + 3 + 2"
-        }
-      ]
-    }
+    # code = %{
+    #   body: [
+    #     %{
+    #       id: 1,
+    #       value: "=2 + 3 + 2"
+    #     }
+    #   ]
+    # }
+
+    IO.inspect(conn.body_params)
+
+    expression = Map.get(conn.body_params, "expression", "= 1 + 1")
 
     # [result | _] = VM.eval(code)
 
     # json(conn, %{code: code, result: result})
-    render(conn, "index.html", code: Jason.encode!(code), result: "UNDEF")
+    render(conn, "index.html", expression: expression, result: "UNDEF")
 
   end
 end

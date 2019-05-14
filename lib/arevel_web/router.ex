@@ -7,6 +7,7 @@ defmodule ArevelWeb.Router do
     plug :fetch_flash
     plug :protect_from_forgery
     plug :put_secure_browser_headers
+    plug Plug.CSRFProtection
   end
 
   pipeline :api do
@@ -17,6 +18,7 @@ defmodule ArevelWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :index
+    post "/", PageController, :index
   end
 
   # Other scopes may use custom stacks.
