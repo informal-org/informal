@@ -1,4 +1,66 @@
+defmodule VM.Math do
+  def add(a, b) do
+    a + b
+  end
+
+  def subtract(a, b) do
+    a - b
+  end
+
+  def multiply(a, b) do
+    a * b
+  end
+
+  def divide(a, b) do
+    a / b
+  end
+
+  def modulo(a, b) do
+    rem(a, b)
+  end
+
+  def negative(a) do
+    a * -1
+  end
+
+end
+
+defmodule VM.Bool do
+  def bool_and(a, b) do
+    a && b
+  end
+
+  def bool_or(a, b) do
+    a || b
+  end
+
+  def bool_not(a) do
+    !a
+  end
+end
+
+
 defmodule VM do
+  import VM.Math
+
+  def binary_operators, do: %{
+    "+" => &VM.Math.add/2,
+    "-" => &VM.Math.subtract/2,
+    "*" => &VM.Math.multiply/2,
+    "/" => &VM.Math.divide/2,
+    "MOD" => &VM.Math.modulo/2,
+
+    # Boolean operators
+    "AND" => &VM.Bool.bool_and/2,
+    "OR" => &VM.Bool.bool_or/2,
+    # XOR? Keep it minimal for now.
+  }
+
+  def unary_operators, do: %{
+    "-" => &VM.Math.negative/1,
+    "NOT" => &VM.Bool.bool_not/1,
+  }
+
   @doc """
   Evaluate an expression json tree.
   """
@@ -8,7 +70,6 @@ defmodule VM do
     result = Enum.map(body, fn cell -> eval_expr(cell) end)
     # TODO - :ok check
     # elem(result, 1)
-    IO.puts result
     result
   end
 
@@ -18,26 +79,14 @@ defmodule VM do
     recurse_expr(expr)
   end
 
-  # [integer: 11, operator: "/", integer: 13]
-  def binary_operator([integer: a, operator: "/", integer: b]) do
-    a / b
+  def eval_binary(op, left, right) do
+    # op = String.upcase(op)
+    Map.get(VM.binary_operators, op).(left, right)
   end
 
-  def binary_operator([integer: a, operator: "+", integer: b]) do
-    a + b
-  end
-
-  def binary_operator(op, left, right) do
-    case op do
-      "+" ->
-        left + right
-      "-" ->
-        left - right
-      "*" ->
-        left * right
-      "/" ->
-        left / right
-    end
+  def eval_unary(op, arg) do
+    op = String.upcase(op)
+    Map.get(VM.unary_operators, op).(arg)
   end
 
   # [integer: 1], {:binopt, "+"}, [integer: 2, binopt: "*", integer: 3]
@@ -45,10 +94,14 @@ defmodule VM do
     case Map.get(expr, "type") do
       # Unwrap empty wrapper
       "BinaryExpression" ->
+        op = Map.get(expr, "operator")
         left = recurse_expr(Map.get(expr, "left"))
         right = recurse_expr(Map.get(expr, "right"))
+        eval_binary(op, left, right)
+      "UnaryExpression" ->
         op = Map.get(expr, "operator")
-        binary_operator(op, left, right)
+        arg = recurse_expr(Map.get(expr, "argument"))
+        eval_unary(op, arg)
       "Literal" ->
         Map.get(expr, "value")
     end
@@ -59,3 +112,5 @@ defmodule VM do
       # TODO
   end
 end
+
+
