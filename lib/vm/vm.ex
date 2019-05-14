@@ -37,6 +37,9 @@ defmodule VM.Bool do
   def bool_not(a) do
     !a
   end
+  def bool_is(a, b) do
+    a == b
+  end
 end
 
 
@@ -53,6 +56,7 @@ defmodule VM do
     # Boolean operators
     "AND" => &VM.Bool.bool_and/2,
     "OR" => &VM.Bool.bool_or/2,
+    "IS" => &VM.Bool.bool_is/2,
     # XOR? Keep it minimal for now.
   }
 
@@ -80,7 +84,7 @@ defmodule VM do
   end
 
   def eval_binary(op, left, right) do
-    # op = String.upcase(op)
+    op = String.upcase(op)
     Map.get(VM.binary_operators, op).(left, right)
   end
 

@@ -19,4 +19,45 @@ defmodule EvalTest do
     assert VM.eval_expr(expr) == 2
   end
 
+
+  test "unary negative" do
+    # 1 + 5 * -3
+    expr = %{
+      "left" => %{"raw" => "1", "type" => "Literal", "value" => 1},
+      "operator" => "+",
+      "right" => %{
+        "left" => %{"raw" => "5", "type" => "Literal", "value" => 5},
+        "operator" => "*",
+        "right" => %{
+          "argument" => %{"raw" => "3", "type" => "Literal", "value" => 3},
+          "operator" => "-",
+          "prefix" => true,
+          "type" => "UnaryExpression"
+        },
+        "type" => "BinaryExpression"
+      },
+      "type" => "BinaryExpression"
+    }
+
+    assert VM.eval_expr(expr) == -14
+
+  end
+
+  test "bool equality check" do
+    # 1 + 1 is 2
+    expr = %{
+      "left" => %{
+        "left" => %{"raw" => "1", "type" => "Literal", "value" => 1},
+        "operator" => "+",
+        "right" => %{"raw" => "1", "type" => "Literal", "value" => 1},
+        "type" => "BinaryExpression"
+      },
+      "operator" => "is",
+      "right" => %{"raw" => "2", "type" => "Literal", "value" => 2},
+      "type" => "BinaryExpression"
+    }
+
+    assert VM.eval_expr(expr) == true
+  end
+
 end
