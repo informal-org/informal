@@ -8,6 +8,7 @@
     "purge": "purgecss --css scss/*.css --content ../lib/arevel_web/templates/page/**/*.eex -o css"
   },
   "dependencies": {
+    "jsep": "^0.3.4",
     "npm": "^6.9.0",
     "phoenix": "file:../deps/phoenix",
     "phoenix_html": "file:../deps/phoenix_html"

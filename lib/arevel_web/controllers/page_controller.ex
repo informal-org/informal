@@ -18,7 +18,7 @@ defmodule ArevelWeb.PageController do
 
     IO.inspect(conn.body_params)
 
-    expression = Map.get(conn.body_params, "expression", "= 1 + 1")
+    expression = Map.get(conn.body_params, "expression", "1 + 1")
 
     # [result | _] = VM.eval(code)
 

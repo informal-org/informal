@@ -15,3 +15,21 @@ import "phoenix_html"
 //
 // Local files can be imported directly using relative paths, for example:
 // import socket from "./socket"
+
+import * as jsep from "jsep"
+
+var parse_tree = jsep("1 + 1");
+console.log(parse_tree)
+
+function parse_expr(event) {
+    event.preventDefault();
+    var expr = document.getElementById("expr-input").value;
+    console.log(jsep(expr));
+
+
+    return false;
+}
+
+console.log("my code")
+var expr_form = document.getElementById("expr-form");
+expr_form.addEventListener("submit", parse_expr, true);
