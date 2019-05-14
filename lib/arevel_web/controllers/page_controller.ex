@@ -40,3 +40,15 @@ defmodule ArevelWeb.HealthCheckController do
     json(conn, %{status: "OK"})
   end
 end
+
+
+
+defmodule ArevelWeb.EvalController do
+  use ArevelWeb, :controller
+  def evaluate(conn, _params) do
+    IO.inspect(conn.body_params)
+    result = VM.recurse_expr(conn.body_params)
+
+    json(conn, %{status: "OK", result: result})
+  end
+end

@@ -18,14 +18,31 @@ import "phoenix_html"
 
 import * as jsep from "jsep"
 
-var parse_tree = jsep("1 + 1");
-console.log(parse_tree)
+
+function postData(url = '', data = {}) {
+      return fetch(url, {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data), // body data type must match "Content-Type" header
+      })
+      .then(response => response.json()); 
+  }
+  
+
 
 function parse_expr(event) {
     event.preventDefault();
     var expr = document.getElementById("expr-input").value;
-    console.log(jsep(expr));
-
+    var parsed = jsep(expr);
+    console.log(parsed);
+    
+    postData("/api/evaluate", parsed).then(
+        (json) => {
+            console.log(json);
+        }
+    )
 
     return false;
 }

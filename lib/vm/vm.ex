@@ -27,7 +27,7 @@ defmodule VM do
     a + b
   end
 
-  def binary_operator(left, op, right) do
+  def binary_operator(op, left, right) do
     case op do
       "+" ->
         left + right
@@ -42,23 +42,15 @@ defmodule VM do
 
   # [integer: 1], {:binopt, "+"}, [integer: 2, binopt: "*", integer: 3]
   def recurse_expr(expr) do
-    case expr do
+    case Map.get(expr, "type") do
       # Unwrap empty wrapper
-      [ single_elem ] ->
-        recurse_expr(single_elem)
-      [left, {:binopt, op}, right] ->
-        binary_operator(recurse_expr(left), op, recurse_expr(right))
-      {:integer, i} ->
-        i
-      {:float, i} ->
-        i
-      # [_ | _] ->
-      #   # Enumerate over items. Left first.
-      #   Enum.map(expr, fn sub -> recurse_expr(sub) end)
-      # {_, _} ->
-      #   acc
-      # _ ->
-      #   acc
+      "BinaryExpression" ->
+        left = recurse_expr(Map.get(expr, "left"))
+        right = recurse_expr(Map.get(expr, "right"))
+        op = Map.get(expr, "operator")
+        binary_operator(op, left, right)
+      "Literal" ->
+        Map.get(expr, "value")
     end
 
   end
