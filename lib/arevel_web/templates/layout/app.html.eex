@@ -7,21 +7,19 @@
     <meta name="description" content="Arevel - Next gen programming">
     <title>Arevel</title>
     
-
-    <link rel="stylesheet" href="<%= Routes.static_path(@conn, "/css/app.css") %>"/>
+    <link href="<%= Routes.static_path(@conn, "/css/app.css") %>" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,700" rel="stylesheet">
   </head>
-  <body>
+  <body class="font-sans leading-tight">
     <header>
-      <nav role="navigation" class="flex bg-white border-b border-gray-200 items-center flex-wrap p-6 justify-between">
+      <nav role="navigation" class="flex bg-white border-b border-gray-200 items-center flex-wrap p-4 justify-between">
 
 
       <div class="w-full max-w-screen-xl relative mx-auto px-6">
         <div class="logo lg:w-1/4 xl:w-1/5 pl-6 pr-6 lg:pr-8">
-          <img class="fill-current" src="<%= Routes.static_path(@conn, "/images/arevel_beta_logo.png") %>" alt="Arevel logo"/>
+          <img class="block h-12" src="<%= Routes.static_path(@conn, "/images/arevel_beta_logo.png") %>" alt="Arevel logo"/>
         </div>
       </div>
-
-
 
       </nav>
     </header>

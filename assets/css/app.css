@@ -6,5 +6,37 @@
 
 @tailwind utilities;
 
-@import "./phoenix.css";
+html, body {
+    color: #212529;
+}
 
+h1 {
+  @apply text-4xl;
+}
+h2 {
+  @apply text-2xl;
+}
+h3 {
+  @apply text-lg;
+}
+a {
+  @apply text-blue-600 underline;
+}
+
+
+
+@import "./base.css";
+
+
+
+/* Tailwind utility syntax - Small (sm) */
+@screen sm { /* ... */ }
+
+/* Medium (md) */
+@screen md { /* ... */ }
+
+/* Large (lg) */
+@screen lg { /* ... */ }
+
+/* Extra Large (xl) */
+@screen xl { /* ... */ }
