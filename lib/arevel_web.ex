@@ -24,6 +24,9 @@ defmodule ArevelWeb do
       import Plug.Conn
       import ArevelWeb.Gettext
       alias ArevelWeb.Router.Helpers, as: Routes
+
+      # Phoenix live view
+      import Phoenix.LiveView.Controller, only: [live_render: 3]
     end
   end
 
@@ -42,6 +45,10 @@ defmodule ArevelWeb do
       import ArevelWeb.ErrorHelpers
       import ArevelWeb.Gettext
       alias ArevelWeb.Router.Helpers, as: Routes
+
+      # Phonenix live view
+      import Phoenix.LiveView, only: [live_render: 2, live_render: 3]
+
     end
   end
 
@@ -50,6 +57,10 @@ defmodule ArevelWeb do
       use Phoenix.Router
       import Plug.Conn
       import Phoenix.Controller
+
+      # Phoenix live view
+      import Phoenix.LiveView.Router
+
     end
   end
 

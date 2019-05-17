@@ -98,10 +98,20 @@ function parse_expr(event) {
     return false;
 }
 
-console.log("my code")
-var expr_form = document.getElementById("expr-form");
-expr_form.addEventListener("submit", parse_expr, true);
+console.log("my code 3")
+// var expr_form = document.getElementById("expr-form");
+// if(expr_form){
+//     expr_form.addEventListener("submit", parse_expr, true);
+// }
 
+
+import LiveSocket from "phoenix_live_view"
+
+let liveSocket = new LiveSocket("/live")
+liveSocket.connect()
+
+
+/*
 
 import React from 'react';
 import ReactDOM from 'react-dom';
@@ -111,3 +121,16 @@ ReactDOM.render(
     document.getElementById('root')
   );
   
+
+class Cell extends React.Component {
+    render() {
+        return (
+            <div class="Cell">
+                <input id="expr-input" name="expression" value="<%= @expression %>"
+                class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text"></input>                
+            </div>
+        )
+    }
+}
+
+*/

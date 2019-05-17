@@ -26,6 +26,23 @@ defmodule ArevelWeb.PageController do
     render(conn, "index.html", expression: expression, result: "UNDEF")
 
   end
+
+
+  # def show(conn, %{"id" => id}) do
+  #   live_render(conn, AppWeb.ThermostatLive, session: %{
+  #     id: id,
+  #     current_user_id: get_session(conn, :user_id),
+  #   })
+  # end
+
+  def snake(conn, _) do
+    conn
+    |> put_layout(:game)
+    |> live_render(DemoWeb.SnakeLive, session: %{})
+  end
+
+
+
 end
 
 

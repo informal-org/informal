@@ -6,6 +6,8 @@
 
 @tailwind utilities;
 
+@import "../../deps/phoenix_live_view/assets/css/live_view.css";
+
 html, body {
     color: #212529;
 }
