@@ -72,7 +72,12 @@ function postData(url = '', data = {}) {
         },
         body: JSON.stringify(data), // body data type must match "Content-Type" header
     })
-    .then(response => response.json()); 
+    .then((response) =>{
+        if(response.ok) {
+            return response.json();
+        }
+        throw new Error('Network response was not ok.');
+    })
 }
 
 function parse_expr(event) {
@@ -81,11 +86,14 @@ function parse_expr(event) {
     var parsed = jsep(expr);
     console.log(parsed);
     
-    postData("/api/evaluate", parsed).then(
-        (json) => {
-            console.log(json);
+    postData("/api/evaluate", parsed)
+    .then(json => {
+            document.getElementById("result").textContent = json.status + " : " + json.result;
         }
     )
+    .catch(error => {
+        document.getElementById("result").textContent = "Error : " + error
+    });
 
     return false;
 }
