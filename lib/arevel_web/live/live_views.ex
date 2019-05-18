@@ -1,5 +1,7 @@
 defmodule ArevelWeb.CounterLive do
   use Phoenix.LiveView
+  alias ArevelWeb.CounterView
+
   # def render(assigns) do
   #   ArevelWeb.PageView.render("index.html", assigns)
   # end
@@ -15,14 +17,7 @@ defmodule ArevelWeb.CounterLive do
   # end
 
   def render(assigns) do
-    ~L"""
-    <div>
-      <h1 phx-click="boom">The count is: <%= @val %></h1>
-      <button phx-click="boom" class="alert-danger">BOOM</button>
-      <button phx-click="dec">-</button>
-      <button phx-click="inc">+</button>
-    </div>
-    """
+    CounterView.render("index.html", assigns)
   end
 
   def mount(_session, socket) do
@@ -34,7 +29,7 @@ defmodule ArevelWeb.CounterLive do
   end
 
   def handle_event("dec", _, socket) do
-    {:noreply, update(socket, :val, &(&1 - 1))}
+    {:noreply, assign(socket, :val, 5 )}
   end
 
 
