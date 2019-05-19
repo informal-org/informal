@@ -21,7 +21,9 @@ defmodule ArevelWeb.EditorLive do
   end
 
   def mount(_session, socket) do
-    {:ok, assign(socket, :expression, "1 + 1")}
+    socket = assign(socket, :expression, "1 + 1")
+    socket = assign(socket, :result, nil)
+    {:ok, socket}
   end
 
   def handle_event("inc", _, socket) do
@@ -40,10 +42,15 @@ defmodule ArevelWeb.EditorLive do
 
   def handle_event("evaluate", input, socket) do
     IO.puts("Evaluating")
-    %{"expression" => expr} = input
-    IO.puts(expr)
+    %{"expression" => expr, "parsed" => parsed} = input
+    {:ok, parsed_json} = Jason.decode(parsed)
+    IO.puts(parsed)
+    result = VM.recurse_expr(parsed_json)
 
-    {:noreply, assign(socket, :expression, expr)}
+    socket = assign(socket, :expression, expr)
+    socket = assign(socket, :result, result)
+
+    {:noreply, socket}
   end
 
 

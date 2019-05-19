@@ -125,9 +125,7 @@ class Cell extends React.Component {
 function urlencode(dict) {
     let params = new URLSearchParams();
     return params.toString()
-  
 }
-
 
 function parse_expr(event) {
     event.preventDefault();
@@ -139,12 +137,17 @@ function parse_expr(event) {
         console.log("Got response back")
         console.log(e);
     }
+
+    var encoded = JSON.stringify(parsed);
+    console.log("Encoded")
+    console.log(encoded);
     
     getLiveView().pushWithReply("event", {
         type: "form",
         event: "evaluate",
         value: new URLSearchParams({
-            "expression": "1+2"
+            "expression": expr,
+            "parsed": encoded
         }).toString()
       }, onReply)
   
