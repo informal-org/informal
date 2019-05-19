@@ -80,36 +80,23 @@ function postData(url = '', data = {}) {
     })
 }
 
-function parse_expr(event) {
-    event.preventDefault();
-    var expr = document.getElementById("expr-input").value;
-    var parsed = jsep(expr);
-    console.log(parsed);
-    
-    postData("/api/evaluate", parsed)
-    .then(json => {
-            document.getElementById("result").textContent = json.status + " : " + json.result;
-        }
-    )
-    .catch(error => {
-        document.getElementById("result").textContent = "Error : " + error
-    });
-
-    return false;
-}
-
-console.log("my code 3")
-// var expr_form = document.getElementById("expr-form");
-// if(expr_form){
-//     expr_form.addEventListener("submit", parse_expr, true);
-// }
-
-
 import LiveSocket from "phoenix_live_view"
+import View from "phoenix_live_view"
 
 let liveSocket = new LiveSocket("/live")
 liveSocket.connect()
 
+window.phxSocket = liveSocket;
+
+
+
+function getLiveView() {
+    // Get the first live view. This isn't available till after all the loading.
+    if(window.phxView === undefined){
+        window.phxView = window.phxSocket.getViewById(Object.keys(liveSocket.views)[0])
+    }
+    return window.phxView;
+}
 
 /*
 
@@ -134,3 +121,56 @@ class Cell extends React.Component {
 }
 
 */
+
+function urlencode(dict) {
+    let params = new URLSearchParams();
+    return params.toString()
+  
+}
+
+
+function parse_expr(event) {
+    event.preventDefault();
+    var expr = document.getElementById("expr-input").value;
+    var parsed = jsep(expr);
+    console.log(parsed);
+
+    var onReply = function(e){
+        console.log("Got response back")
+        console.log(e);
+    }
+    
+    getLiveView().pushWithReply("event", {
+        type: "form",
+        event: "evaluate",
+        value: new URLSearchParams({
+            "expression": "1+2"
+        }).toString()
+      }, onReply)
+  
+    /*
+    postData("/api/evaluate", parsed)
+    .then(json => {
+            document.getElementById("result").textContent = json.status + " : " + json.result;
+        }
+    )
+    .catch(error => {
+        document.getElementById("result").textContent = "Error : " + error
+    });
+    */
+
+    return false;
+}
+
+
+
+
+
+(function(){    
+    console.log("my code 3")
+    var expr_form = document.getElementById("expr-form");
+    if(expr_form){
+        expr_form.addEventListener("submit", parse_expr, true);
+    }
+    
+})();

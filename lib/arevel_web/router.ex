@@ -23,6 +23,8 @@ defmodule ArevelWeb.Router do
 
     live "/counter", CounterLive
 
+    live "/editor", EditorLive
+
   end
 
   # Other scopes may use custom stacks.
