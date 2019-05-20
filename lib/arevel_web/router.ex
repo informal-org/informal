@@ -21,8 +21,6 @@ defmodule ArevelWeb.Router do
     get "/", PageController, :index
     post "/", PageController, :index
 
-    live "/counter", CounterLive
-
     live "/editor", EditorLive
 
   end

@@ -27,28 +27,14 @@ defmodule ArevelWeb.PageController do
 
   end
 
-
-  # def show(conn, %{"id" => id}) do
-  #   live_render(conn, AppWeb.ThermostatLive, session: %{
-  #     id: id,
-  #     current_user_id: get_session(conn, :user_id),
-  #   })
-  # end
-
-  def snake(conn, _) do
-    conn
-    |> put_layout(:game)
-    |> live_render(DemoWeb.SnakeLive, session: %{})
-  end
-
-
-
 end
 
 
 
 defmodule ArevelWeb.HealthCheckController do
   use ArevelWeb, :controller
+
+  # This is used by the Google Cloud load balancer.
 
   # Currently configured to just look for any response.
   # TODO: Status based and giving more output.
