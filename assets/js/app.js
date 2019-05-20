@@ -128,10 +128,15 @@ function urlencode(dict) {
 }
 
 function parse_expr(event) {
+    console.log(event);
     event.preventDefault();
-    var expr = document.getElementById("expr-input").value;
+    var expr = event.target.getElementsByClassName("expr-input")[0].value;
+    console.log(expr);
     var parsed = jsep(expr);
     console.log(parsed);
+
+    var cellId = event.target.dataset.cellId;
+    console.log(cellId);
 
     var onReply = function(e){
         console.log("Got response back")
@@ -146,7 +151,8 @@ function parse_expr(event) {
         type: "form",
         event: "evaluate",
         value: new URLSearchParams({
-            "expression": expr,
+            "id": cellId,
+            "input": expr,
             "parsed": encoded
         }).toString()
       }, onReply)
@@ -170,10 +176,8 @@ function parse_expr(event) {
 
 
 (function(){    
-    console.log("my code 3")
-    var expr_form = document.getElementById("expr-form");
-    if(expr_form){
-        expr_form.addEventListener("submit", parse_expr, true);
-    }
+    console.log("my code 4")
+    // Should listen to the high level wrapper of this seciton.
+    document.addEventListener("submit", parse_expr, true);
     
 })();
