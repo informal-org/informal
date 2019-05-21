@@ -80,13 +80,13 @@ function postData(url = '', data = {}) {
     })
 }
 
-import LiveSocket from "phoenix_live_view"
-import View from "phoenix_live_view"
+// import LiveSocket from "phoenix_live_view"
+// import View from "phoenix_live_view"
 
-let liveSocket = new LiveSocket("/live")
-liveSocket.connect()
+// let liveSocket = new LiveSocket("/live")
+// liveSocket.connect()
 
-window.phxSocket = liveSocket;
+// window.phxSocket = liveSocket;
 
 
 
@@ -172,12 +172,19 @@ function parse_expr(event) {
 }
 
 
-
+import React from "React";
+import ReactDOM from "react-dom";
 
 
 (function(){    
     console.log("my code 4")
     // Should listen to the high level wrapper of this seciton.
     document.addEventListener("submit", parse_expr, true);
-    
 })();
+
+console.log("latest version")
+
+ReactDOM.render(
+    <h1>Hello React, world!</h1>,
+    document.getElementById('root')
+);
