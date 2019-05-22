@@ -56,13 +56,11 @@ defmodule ArevelWeb.EditorLive do
     {:ok, socket}
   end
 
-
   def handle_event("validate", _, socket) do
     IO.puts("Validating")
 
     {:noreply, socket}
   end
-
 
   def handle_event("evaluate", input, socket) do
     IO.puts("Evaluating")

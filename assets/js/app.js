@@ -184,7 +184,50 @@ import ReactDOM from "react-dom";
 
 console.log("latest version")
 
+
+class Cell extends React.Component {
+    constructor(props) {
+        super(props);
+        // Required props
+        // ID
+        // Name (optional)
+        // Expression
+        // Result (Optional)
+        this.state = {
+            "input": props.input
+        }
+
+        // Use arrow function instead to do binding
+        // this.changeInput = this.changeInput.bind(this);
+        // this.saveCell = this.saveCell.bind(this);    
+    }
+
+    changeInput = (event) => {
+        this.setState({input: event.target.value});
+    }
+
+    saveCell = (event) => {
+        
+    }
+
+    render() {
+      return <div>
+            <form onSubmit={this.saveCell}>
+          <input type="text" onChange={this.changeInput} value={this.state.input}></input>
+          <span>{this.state.input}</span>
+          <br></br>
+          <div><b>{this.props.output}</b></div>
+          </form>
+      </div>
+    }
+}
+
+class Module extends React.Component {
+    render() {
+    }    
+}
+
 ReactDOM.render(
-    <h1>Hello React, world!</h1>,
+    <Cell input="1 + 1"></Cell>,
     document.getElementById('root')
 );
