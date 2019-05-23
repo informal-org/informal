@@ -52,6 +52,6 @@ defmodule ArevelWeb.EvalController do
     IO.inspect(conn.body_params)
     result = VM.recurse_expr(conn.body_params)
 
-    json(conn, %{status: "OK", result: result})
+    json(conn, %{status: "OK", output: result})
   end
 end

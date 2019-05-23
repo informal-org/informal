@@ -127,16 +127,12 @@ function urlencode(dict) {
     return params.toString()
 }
 
-function parse_expr(event) {
-    console.log(event);
-    event.preventDefault();
-    var expr = event.target.getElementsByClassName("expr-input")[0].value;
+function parse_expr(expr) {
+    // console.log(event);
+    
+    // var expr = event.target.getElementsByClassName("expr-input")[0].value;
     console.log(expr);
-    var parsed = jsep(expr);
     console.log(parsed);
-
-    var cellId = event.target.dataset.cellId;
-    console.log(cellId);
 
     var onReply = function(e){
         console.log("Got response back")
@@ -158,14 +154,6 @@ function parse_expr(event) {
       }, onReply)
   
     /*
-    postData("/api/evaluate", parsed)
-    .then(json => {
-            document.getElementById("result").textContent = json.status + " : " + json.result;
-        }
-    )
-    .catch(error => {
-        document.getElementById("result").textContent = "Error : " + error
-    });
     */
 
     return false;
@@ -179,7 +167,7 @@ import ReactDOM from "react-dom";
 (function(){    
     console.log("my code 4")
     // Should listen to the high level wrapper of this seciton.
-    document.addEventListener("submit", parse_expr, true);
+    // document.addEventListener("submit", parse_expr, true);
 })();
 
 console.log("latest version")
@@ -190,7 +178,6 @@ const initialState = {
             "id": 1,
             "input": "1 + 1"
         },
-
         {
             "id": 2,
             "input": "2 + 3"
@@ -220,8 +207,34 @@ class Cell extends React.Component {
         this.setState({input: event.target.value});
     }
 
+    saveResult = (response) => {
+        console.log(response);
+        this.setState({
+            output: response.output
+        })
+    }
+
+    showError = (error) => {
+        console.log("Error: " + error);
+    }
+
     saveCell = (event) => {
-        
+        console.log("Saving cell");
+        event.preventDefault();
+
+        const parsed = jsep(this.state.input);
+
+        postData("/api/evaluate", parsed)
+        .then(json => {
+                // document.getElementById("result").textContent = json.status + " : " + json.result;
+                this.saveResult(json)
+            }
+        )
+        .catch(error => {
+            // document.getElementById("result").textContent = "Error : " + error
+            this.showError(error);
+        });        
+
     }
 
     render() {
@@ -230,7 +243,7 @@ class Cell extends React.Component {
           <input type="text" onChange={this.changeInput} value={this.state.input}></input>
           <span>{this.state.input}</span>
           <br></br>
-          <div><b>{this.props.output}</b></div>
+          <div><b>{this.state.output}</b></div>
           </form>
       </div>
     }
