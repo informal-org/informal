@@ -184,6 +184,20 @@ import ReactDOM from "react-dom";
 
 console.log("latest version")
 
+const initialState = {
+    "cells": [
+        {
+            "id": 1,
+            "input": "1 + 1"
+        },
+
+        {
+            "id": 2,
+            "input": "2 + 3"
+        }
+    ]
+}
+
 
 class Cell extends React.Component {
     constructor(props) {
@@ -223,11 +237,24 @@ class Cell extends React.Component {
 }
 
 class Module extends React.Component {
+    constructor(props) {
+        super(props);
+        this.state = initialState;
+    }
     render() {
+        const cells = this.state.cells.map((cell) => 
+            <Cell input={cell.input} key={cell.id}/>
+        );
+
+        return (
+            <div className="Module">
+                {cells}
+            </div>
+        )
     }    
 }
 
 ReactDOM.render(
-    <Cell input="1 + 1"></Cell>,
+    <Module/>,
     document.getElementById('root')
 );
