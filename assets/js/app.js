@@ -185,6 +185,8 @@ const initialState = {
     ]
 }
 
+var NEXT_ID = initialState["cells"].length + 1;
+
 
 class Cell extends React.Component {
     constructor(props) {
@@ -195,7 +197,8 @@ class Cell extends React.Component {
         // Expression
         // Result (Optional)
         this.state = {
-            "input": props.input
+            "input": props.input,
+            "cell": props.cell
         }
 
         // Use arrow function instead to do binding
@@ -234,17 +237,22 @@ class Cell extends React.Component {
             // document.getElementById("result").textContent = "Error : " + error
             this.showError(error);
         });        
+    }
 
+    removeCell = (event) => {
+        console.log("Removing cell");
+        this.props.removeCell(this.props.cell);
     }
 
     render() {
-      return <div>
-            <form onSubmit={this.saveCell}>
-          <input className="form-control" type="text" onChange={this.changeInput} value={this.state.input}></input>
-          <span>{this.state.input}</span>
-          <br></br>
-          <div><b>{this.state.output}</b></div>
-          </form>
+      return <div className="shadow border rounded py-2 px-3" >
+        <form onSubmit={this.saveCell}>
+          <input className="form-control bg-gray-200" type="text" onChange={this.changeInput} value={this.state.input}></input>
+
+          <b>{this.state.output}</b>
+            <br></br>&nbsp;
+          <a className="float-right" onClick={this.removeCell}>Delete</a>
+        </form>
       </div>
     }
 }
@@ -256,7 +264,7 @@ class Module extends React.Component {
     }
 
     nextCellId = (state) => {
-        return state.cells.length + 1;
+        return NEXT_ID++;
     }
 
     addCell = (event) => {
@@ -269,9 +277,17 @@ class Module extends React.Component {
         }));
     }
 
+    removeCell = (deleteCell) => {
+        this.setState( (state, props) => ({
+            cells: this.state.cells.filter(cell => cell.id !== deleteCell.id)
+        }))
+    }
+
     render() {
         const cells = this.state.cells.map((cell) => 
-            <Cell input={cell.input} key={cell.id}/>
+            <Cell input={cell.input}
+                cell={cell}
+            key={cell.id} removeCell={this.removeCell} />
         );
 
         return (
