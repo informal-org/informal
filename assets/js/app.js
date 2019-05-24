@@ -240,7 +240,7 @@ class Cell extends React.Component {
     render() {
       return <div>
             <form onSubmit={this.saveCell}>
-          <input type="text" onChange={this.changeInput} value={this.state.input}></input>
+          <input className="form-control" type="text" onChange={this.changeInput} value={this.state.input}></input>
           <span>{this.state.input}</span>
           <br></br>
           <div><b>{this.state.output}</b></div>
@@ -254,6 +254,21 @@ class Module extends React.Component {
         super(props);
         this.state = initialState;
     }
+
+    nextCellId = (state) => {
+        return state.cells.length + 1;
+    }
+
+    addCell = (event) => {
+        this.setState((state, props) => ({
+            "cells": [...state.cells,
+                {
+                    "id": this.nextCellId(state),
+                    "input": ""
+                }]
+        }));
+    }
+
     render() {
         const cells = this.state.cells.map((cell) => 
             <Cell input={cell.input} key={cell.id}/>
@@ -262,6 +277,8 @@ class Module extends React.Component {
         return (
             <div className="Module">
                 {cells}
+
+                <button className="btn btn-primary" onClick={this.addCell}>Add Cell</button>
             </div>
         )
     }    
