@@ -51,34 +51,6 @@ function urlencode(dict) {
     return params.toString()
 }
 
-function parse_expr(expr) {
-    // console.log(event);
-    
-    // var expr = event.target.getElementsByClassName("expr-input")[0].value;
-    console.log(expr);
-    console.log(parsed);
-
-    var onReply = function(e){
-        console.log("Got response back")
-        console.log(e);
-    }
-
-    var encoded = JSON.stringify(parsed);
-    console.log("Encoded")
-    console.log(encoded);
-    
-    getLiveView().pushWithReply("event", {
-        type: "form",
-        event: "evaluate",
-        value: new URLSearchParams({
-            "id": cellId,
-            "input": expr,
-            "parsed": encoded
-        }).toString()
-      }, onReply)
-  
-    /*
-    */
-
-    return false;
+export default function parseExpr(expr) {
+    return jsep(expr);
 }
