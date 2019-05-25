@@ -87,6 +87,10 @@ a {
   font-weight: bold;
 }
 
+.Cell--focused {
+  @apply border-blue-500 border-2;
+}
+
 .span-2 {
   grid-column-end: span 2;
   grid-row-end: span 2;

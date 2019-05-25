@@ -22,24 +22,38 @@ function postData(url = '', data = {}) {
 }
 
 const initialState = {
-    "cells": [
+    cells: [
         {
-            "id": 1,
-            "name": "Count",
-            "input": "1 + 1"
+            id: 1,
+            name: "Count",
+            input: "1 + 1",
+            display: {
+                width: 1,
+                height: 1
+            }
         },
         {
-            "id": 2,
-            "name": "Name",
-            "input": "2 + 3"
+            id: 2,
+            name: "Name",
+            input: "2 + 3",
+            display: {
+                width: 1,
+                height: 1
+            }            
         }
-    ]
+    ],
+    focus: {},
+    selected: []
 }
 
 for(var i = 3; i < 80; i++){
     initialState.cells.push({
-        "id": i,
-        "input": ""
+        id: i,
+        input: "",
+        display: {
+            width: 1,
+            height: 1
+        }
     })
 }
 
@@ -160,25 +174,27 @@ class Module extends React.Component {
 class GridCell extends React.Component {
     constructor(props){
         super(props)
-        this.state = {
-            name: props.cell.name,
-            input: props.cell.input,
-            display: {
-                width: 1,
-                height: 1
-            }
-        }
+        this.state = props.cell;
+    }
+    setFocus = (event) => {
+        console.log("grid cell focus");
+        this.props.setFocus(this.props.cell);
     }
     render() {
         let cellStyle = {};
         if(this.state.width > 1){
-            cellStyle["grid-column-end"] = "span " + this.state.width;
+            cellStyle["grid-column-end"] = "span " + this.state.display.width;
         }
         if(this.state.height > 1){
-            cellStyle["grid-row-end"] = "span " + this.state.height;
+            cellStyle["grid-row-end"] = "span " + this.state.display.height;
+        }
+        let className = "Cell";
+        if(this.props.isFocused){
+            console.log("is focused");
+            className += " Cell--focused"
         }
 
-        return <div className="Cell" style={cellStyle}>
+        return <div className={className} style={cellStyle} onClick={this.setFocus}>
             <div className="Cell-cellName">{this.state.name}</div>
 
             <div className="Cell-cellValue">{this.state.input}</div>
@@ -191,11 +207,20 @@ class Grid extends React.Component {
         super(props);
         this.state = initialState;
     }
+    setFocus = (cell) => {
+        this.setState((state, props) => ({
+            focus: cell
+        }) );
+        console.log("Grid focus ");
+        console.log(cell);
+    }
     render() {
         const cells = this.state.cells.map((cell) => 
             <GridCell 
                 cell={cell}
+                isFocused={this.state.focus.id == cell.id}
                 key={cell.id}
+                setFocus={this.setFocus}
                 />
         )
         return <div className="Grid">
