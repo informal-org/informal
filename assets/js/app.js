@@ -156,9 +156,11 @@ class Module extends React.Component {
 
     render() {
         const cells = this.state.cells.map((cell) => 
-            <Cell input={cell.input}
+            <Cell 
+                input={cell.input}
                 cell={cell}
-            key={cell.id} removeCell={this.removeCell} />
+                key={cell.id} 
+                removeCell={this.removeCell} />
         );
 
         return (
@@ -177,7 +179,6 @@ class GridCell extends React.Component {
         this.state = props.cell;
     }
     setFocus = (event) => {
-        console.log("grid cell focus");
         this.props.setFocus(this.props.cell);
     }
     render() {
@@ -190,14 +191,41 @@ class GridCell extends React.Component {
         }
         let className = "Cell";
         if(this.props.isFocused){
-            console.log("is focused");
-            className += " Cell--focused"
+            className += " Cell--focused";
         }
 
         return <div className={className} style={cellStyle} onClick={this.setFocus}>
             <div className="Cell-cellName">{this.state.name}</div>
 
             <div className="Cell-cellValue">{this.state.input}</div>
+        </div>
+    }
+}
+
+class ActionBar extends React.Component {
+    constructor(props) {
+        super(props);
+    }
+    incWidth = () => {
+        this.props.incWidth();
+    }
+    decWidth = () => {
+
+    }
+    render() {
+        return <div className="ActionBar">
+            <div className="inline-block">
+                <div className="ActionBar-action" onClick={this.decWidth} >
+                    -
+                </div>
+                <div className="px-3 py-2 inline-block">
+                Width
+                </div>
+                <div className="ActionBar-action" onClick={this.incWidth} >
+                    +
+                </div>
+            </div>
+            
         </div>
     }
 }
@@ -210,9 +238,7 @@ class Grid extends React.Component {
     setFocus = (cell) => {
         this.setState((state, props) => ({
             focus: cell
-        }) );
-        console.log("Grid focus ");
-        console.log(cell);
+        }));
     }
     render() {
         const cells = this.state.cells.map((cell) => 
@@ -223,13 +249,18 @@ class Grid extends React.Component {
                 setFocus={this.setFocus}
                 />
         )
-        return <div className="Grid">
-            {cells}
+        
+        return <div>
+            <ActionBar></ActionBar>
+        
+            <div className="Grid">
+                {cells}
+            </div>
+
         </div>
     }
 }
 
-console.log("Latest");
 ReactDOM.render(
     <Grid/>,
     document.getElementById('root')

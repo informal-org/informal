@@ -101,6 +101,13 @@ a {
   grid-row-end: span 4;
 }
 
+.ActionBar {
+  @apply border;
+}
+
+.ActionBar-action {
+  @apply border-l border-r px-3 py-2 inline-block;
+}
 
 @import "./base.css";
 
