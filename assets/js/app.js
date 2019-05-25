@@ -249,8 +249,7 @@ class Cell extends React.Component {
         <form onSubmit={this.saveCell}>
           <input className="form-control bg-gray-200" type="text" onChange={this.changeInput} value={this.state.input}></input>
 
-          <b>{this.state.output}</b>
-            <br></br>&nbsp;
+          <b>{this.state.output} &nbsp; </b>
           <a className="float-right" onClick={this.removeCell}>Delete</a>
         </form>
       </div>
