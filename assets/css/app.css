@@ -45,6 +45,21 @@ a {
   @apply outline-none shadow-outline;
 }
 
+.Grid {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+	flex-direction: column;
+  height: 500px;
+}
+
+.Cell {
+  @apply bg-blue-500 border px-20 py-10;
+  font-size: 30;
+  width: 180px;
+  height: 100px;
+}
+
 @import "./base.css";
 
 

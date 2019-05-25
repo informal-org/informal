@@ -147,7 +147,19 @@ class Module extends React.Component {
     }    
 }
 
-ReactDOM.render(
-    <Module/>,
-    document.getElementById('root')
-);
+class GridCell extends React.Component {
+    render() {
+
+    }
+}
+
+class Grid extends React.Component {
+    render() {
+
+    }
+}
+
+// ReactDOM.render(
+//     <Module/>,
+//     document.getElementById('root')
+// );
