@@ -64,15 +64,15 @@ a {
   font-size: 15px;
   font-family: Arial;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   grid-gap: 6px;
-  grid-auto-rows: minmax(60px, auto);
+  grid-auto-rows: minmax(50px, auto);
   grid-auto-flow: dense;
   padding: 10px;
 }
 
 .Cell {
-  @apply border rounded border-gray-500 px-20 py-10 ;
+  @apply border rounded border-gray-500 px-20 py-8 ;
   /* width: 180px;
   height: 100px; */
   padding: 0.5rem;
@@ -83,10 +83,9 @@ a {
   text-overflow: ellipsis;
 }
 
-.CellTitle {
+.Cell-cellName {
   font-weight: bold;
 }
-
 
 .span-2 {
   grid-column-end: span 2;

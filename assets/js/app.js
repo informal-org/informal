@@ -25,14 +25,24 @@ const initialState = {
     "cells": [
         {
             "id": 1,
+            "name": "Count",
             "input": "1 + 1"
         },
         {
             "id": 2,
+            "name": "Name",
             "input": "2 + 3"
         }
     ]
 }
+
+for(var i = 3; i < 80; i++){
+    initialState.cells.push({
+        "id": i,
+        "input": ""
+    })
+}
+
 
 var NEXT_ID = initialState["cells"].length + 1;
 
@@ -148,18 +158,54 @@ class Module extends React.Component {
 }
 
 class GridCell extends React.Component {
+    constructor(props){
+        super(props)
+        this.state = {
+            name: props.cell.name,
+            input: props.cell.input,
+            display: {
+                width: 1,
+                height: 1
+            }
+        }
+    }
     render() {
+        let cellStyle = {};
+        if(this.state.width > 1){
+            cellStyle["grid-column-end"] = "span " + this.state.width;
+        }
+        if(this.state.height > 1){
+            cellStyle["grid-row-end"] = "span " + this.state.height;
+        }
 
+        return <div className="Cell" style={cellStyle}>
+            <div className="Cell-cellName">{this.state.name}</div>
+
+            <div className="Cell-cellValue">{this.state.input}</div>
+        </div>
     }
 }
 
 class Grid extends React.Component {
+    constructor(props) {
+        super(props);
+        this.state = initialState;
+    }
     render() {
-
+        const cells = this.state.cells.map((cell) => 
+            <GridCell 
+                cell={cell}
+                key={cell.id}
+                />
+        )
+        return <div className="Grid">
+            {cells}
+        </div>
     }
 }
 
-// ReactDOM.render(
-//     <Module/>,
-//     document.getElementById('root')
-// );
+console.log("Latest");
+ReactDOM.render(
+    <Grid/>,
+    document.getElementById('root')
+);
