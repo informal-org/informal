@@ -114,7 +114,6 @@ class Cell extends React.Component {
     }
 
     removeCell = (event) => {
-        console.log("Removing cell");
         this.props.removeCell(this.props.cell);
     }
 
@@ -183,6 +182,15 @@ class GridCell extends React.Component {
     setFocus = (event) => {
         this.props.setFocus(this.props.cell);
     }
+    saveCell = (event) => {
+
+    }
+    changeInput = (event) => {
+        this.setState({input: event.target.value});
+    }
+    changeName = (event) => {
+        this.setState({name: event.target.value});
+    }
     render() {
         let cellStyle = {};
         if(this.state.display.width > 1){
@@ -196,10 +204,24 @@ class GridCell extends React.Component {
             className += " Cell--focused";
         }
 
-        return <div className={className} style={cellStyle} onClick={this.setFocus}>
-            <div className="Cell-cellName">{this.state.name}</div>
+        let cellBody = null;
+        if(this.props.isFocused){
+            cellBody = <form onSubmit={this.saveCell}>
 
+            <input className="Cell-cellName block Cell-cellName--edit" placeholder="Name" type="text" onChange={this.changeName} value={this.state.name}></input> 
+            <input className="Cell-cellValue bg-blue-100 block Cell-cellValue--edit" type="text" onChange={this.changeInput} value={this.state.input}></input>
+            <b>{this.state.output}5</b>
+          </form>
+        } else {
+            cellBody = <span>
+            <div className="Cell-cellName">{this.state.name}</div>
             <div className="Cell-cellValue">{this.state.input}</div>
+
+            </span>
+        }
+
+        return <div className={className} style={cellStyle} onClick={this.setFocus}>
+            {cellBody}
         </div>
     }
 }
@@ -259,6 +281,11 @@ class Grid extends React.Component {
         this.setState((state, props) => ({
             focus: cell
         }));
+    }
+    clearFocus = () => {
+        this.setState((state, props) => ({
+            focus: {}
+        }));        
     }
     incWidth = () => {
         this.setState((state, props) => {

@@ -66,13 +66,13 @@ a {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   grid-gap: 6px;
-  grid-auto-rows: minmax(50px, auto);
+  grid-auto-rows: minmax(60px, auto);
   grid-auto-flow: dense;
   padding: 10px;
 }
 
 .Cell {
-  @apply border rounded border-gray-500 px-20 py-8 ;
+  @apply border rounded border-gray-500 px-20 py-8;
   /* width: 180px;
   height: 100px; */
   padding: 0.5rem;
@@ -87,8 +87,15 @@ a {
   font-weight: bold;
 }
 
-.Cell--focused {
-  @apply border-blue-500 border-2;
+.Cell.Cell--focused {
+  @apply border-blue-500 border-2 py-1;
+  margin: -5px;
+  
+}
+
+.Cell-cellValue--edit {
+  margin-left: -7px;
+  padding-left: 7px;
 }
 
 .span-2 {
