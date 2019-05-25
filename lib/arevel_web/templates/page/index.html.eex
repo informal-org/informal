@@ -1,14 +1,25 @@
 <section class="container mx-auto">
   <div id="root"></div>
 
+<!--
+  <div>
+    <div class="border px-5 py-3 inline-block">Grow right</div>
+    <div class="border px-5 py-3 inline-block">Grow bottom</div>
+    <div class="border px-5 py-3 inline-block">Shrink right</div>
+    <div class="border px-5 py-3 inline-block">Shrink bottom</div>
+  </div>
+  -->
+
   <div class="Grid">
     
     <div class="Cell">
-      1
+      <div class="CellTitle">Count</div>
+      <div class="CellValue">1</div>
     </div>
 
     <div class="Cell">
-    2
+      <div class="CellTitle">Name</div>
+      <div class="CellValue">Feni V</div>
     </div>
 
     <div class="Cell span-2">

@@ -52,28 +52,39 @@ a {
 	flex-direction: column;
   height: 500px; */
 
+  /* 
+  Standard spreadsheet cells are 200x40 
+  Font size: 10pt; = 14px. 
+  12pt is more readable at 16px;
+  Arial is the standard font used there. 
+  Let's stick with it here for now unless needed.
+  WxH - 2.4142 silver ratio
+  */
+
+  font-size: 15px;
+  font-family: Arial;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  grid-gap: 10px;
-  grid-auto-rows: minmax(180px, auto);
+  grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
+  grid-gap: 6px;
+  grid-auto-rows: minmax(60px, auto);
   grid-auto-flow: dense;
   padding: 10px;
-
 }
 
 .Cell {
-  @apply bg-blue-500 border px-20 py-10;
-  font-size: 30;
+  @apply border rounded border-gray-500 px-20 py-10 ;
   /* width: 180px;
   height: 100px; */
-
-  padding: 1rem;
+  padding: 0.5rem;
   font-size: 14px;
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.CellTitle {
   font-weight: bold;
-  text-transform: uppercase;
-  color: #929796;
-  background-color: #333;
-  border-radius: 5px;
 }
 
 
