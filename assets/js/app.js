@@ -59,6 +59,8 @@ for(var i = 3; i < 80; i++){
 
 
 var NEXT_ID = initialState["cells"].length + 1;
+const CELL_MAX_WIDTH = 8;
+const CELL_MAX_HEIGHT = 8;
 
 class Cell extends React.Component {
     constructor(props) {
@@ -183,11 +185,11 @@ class GridCell extends React.Component {
     }
     render() {
         let cellStyle = {};
-        if(this.state.width > 1){
-            cellStyle["grid-column-end"] = "span " + this.state.display.width;
+        if(this.state.display.width > 1){
+            cellStyle["gridColumnEnd"] = "span " + this.state.display.width;
         }
-        if(this.state.height > 1){
-            cellStyle["grid-row-end"] = "span " + this.state.display.height;
+        if(this.state.display.height > 1){
+            cellStyle["gridRowEnd"] = "span " + this.state.display.height;
         }
         let className = "Cell";
         if(this.props.isFocused){
@@ -210,8 +212,14 @@ class ActionBar extends React.Component {
         this.props.incWidth();
     }
     decWidth = () => {
-
+        this.props.decWidth();
     }
+    incHeight = () => {
+        this.props.incHeight();
+    }
+    decHeight = () => {
+        this.props.decHeight();
+    }    
     render() {
         return <div className="ActionBar">
             <div className="inline-block">
@@ -222,6 +230,18 @@ class ActionBar extends React.Component {
                 Width
                 </div>
                 <div className="ActionBar-action" onClick={this.incWidth} >
+                    +
+                </div>
+            </div>
+
+            <div className="inline-block">
+                <div className="ActionBar-action" onClick={this.decHeight} >
+                    -
+                </div>
+                <div className="px-3 py-2 inline-block">
+                Height
+                </div>
+                <div className="ActionBar-action" onClick={this.incHeight} >
                     +
                 </div>
             </div>
@@ -240,6 +260,51 @@ class Grid extends React.Component {
             focus: cell
         }));
     }
+    incWidth = () => {
+        this.setState((state, props) => {
+            let newFocus = state.focus;
+            if(newFocus && newFocus.display.width < CELL_MAX_WIDTH){
+                newFocus.display.width += 1;
+            }
+            return {
+                focus: newFocus
+            }
+        });
+    }
+    decWidth = () => {
+        this.setState((state, props) => {
+            let newFocus = state.focus;
+            if(newFocus && newFocus.display.width > 1){
+                newFocus.display.width -= 1;
+            }
+            return {
+                focus: newFocus
+            }
+        });
+    }
+    incHeight = () => {
+        this.setState((state, props) => {
+            let newFocus = state.focus;
+            if(newFocus && newFocus.display.height < CELL_MAX_HEIGHT){
+                newFocus.display.height += 1;
+            }
+            return {
+                focus: newFocus
+            }
+        });
+    }
+    decHeight = () => {
+        this.setState((state, props) => {
+            let newFocus = state.focus;
+            if(newFocus && newFocus.display.height > 1){
+                newFocus.display.height -= 1;
+            }
+            return {
+                focus: newFocus
+            }
+        });
+    }
+
     render() {
         const cells = this.state.cells.map((cell) => 
             <GridCell 
@@ -251,7 +316,12 @@ class Grid extends React.Component {
         )
         
         return <div>
-            <ActionBar></ActionBar>
+            <ActionBar 
+            incWidth={this.incWidth}
+            decWidth={this.decWidth}
+            incHeight={this.incHeight}
+            decHeight={this.decHeight}
+            ></ActionBar>
         
             <div className="Grid">
                 {cells}
