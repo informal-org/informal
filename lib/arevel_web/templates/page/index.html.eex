@@ -11,7 +11,7 @@
     2
     </div>
 
-    <div class="Cell" style="width: 360px; height: 200px;">
+    <div class="Cell span-2">
     3
     </div>
     
@@ -19,7 +19,7 @@
     4
     </div>
 
-    <div class="Cell" style="width: 360px;">
+    <div class="Cell">
     5
     </div>
 
