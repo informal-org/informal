@@ -74,7 +74,14 @@ const CELL_MAX_HEIGHT = 8;
 function getGridDisplay(cells){
     // A declarative computation of where cells would appear in a grid according to the subset of the 
     // css grid flow rules that we use.
-    var gridRows = new Array();
+    // Index: [x][y]
+    var grid = new Array(CELL_MAX_WIDTH);
+    // Pre-fill array. Might be possible to do this along with the bottom steps, but makes it complex.
+
+    for(var x = 0; x < CELL_MAX_WIDTH; x++){
+        // Over-provision. I assume this is enough?
+        gridRows.push(new Array(cells.length))
+    }
 
     var nextFreeX = 0;
     var nextFreeY = 0;
@@ -86,9 +93,15 @@ function getGridDisplay(cells){
         // Find the next open spot where this would fit.
         // Assume: grid-auto-flow: row. If dense, this is more complex and 
         // the UI can also shift around a lot.
-        while(nextFreeX < 0){
-            
+        let found = false;
+        var searchY = nextFreeY;
+        var searchX = nextFreeX;
+        while(!found){
+            // Check if width up to this length is free.
+            grid[searchX][searchY]
+
         }
+        
     }
 }
 
