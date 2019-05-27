@@ -11,9 +11,20 @@ defmodule ArevelWeb.Router do
     plug Plug.CSRFProtection
   end
 
+  pipeline :livebrowse do
+    plug :accepts, ["html"]
+    plug :fetch_session
+    plug :fetch_flash
+    plug Phoenix.LiveView.Flash
+    plug :protect_from_forgery
+    plug :put_secure_browser_headers
+    plug Plug.CSRFProtection
+  end
+
   pipeline :api do
     plug :accepts, ["json"]
   end
+
 
   scope "/", ArevelWeb do
     pipe_through :browser
@@ -22,21 +33,13 @@ defmodule ArevelWeb.Router do
     post "/", PageController, :index
 
     live "/editor", EditorLive
-
   end
-
-  # Other scopes may use custom stacks.
-  # scope "/api", ArevelWeb do
-  #   pipe_through :api
-  # end
 
   scope "/_health", ArevelWeb do
     pipe_through :api
 
     get "/", HealthCheckController, :healthcheck
   end
-
-
 
   scope "/api", ArevelWeb do
     pipe_through :api
