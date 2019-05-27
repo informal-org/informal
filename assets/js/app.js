@@ -25,6 +25,7 @@ const initialState = {
     cells: [
         {
             id: 1,
+            type: "cell",
             name: "Count",
             input: "1 + 1",
             display: {
@@ -34,33 +35,118 @@ const initialState = {
         },
         {
             id: 2,
+            type: "cell",
             name: "Name",
             input: "2 + 3",
             display: {
                 width: 1,
                 height: 1
             }            
-        }
+        },
     ],
-    focus: {},
+    focus: null,
     selected: []
 }
 
 for(var i = 3; i < 80; i++){
     initialState.cells.push({
         id: i,
-        input: "",
+        type: "cell",
+        name: "",
+        input: i,
         display: {
             width: 1,
             height: 1
         }
-    })
+    },
+)
 }
 
+
+// Sentinels will provide us a fast data structure without needing an element per item.
 
 var NEXT_ID = initialState["cells"].length + 1;
 const CELL_MAX_WIDTH = 8;
 const CELL_MAX_HEIGHT = 8;
+
+// A computed structure to keep track of where things appear.
+
+function getGridDisplay(cells){
+    // A declarative computation of where cells would appear in a grid according to the subset of the 
+    // css grid flow rules that we use.
+    var gridRows = new Array();
+
+    var nextFreeX = 0;
+    var nextFreeY = 0;
+    var currentRow = [];
+    for(var i = 0; i < cells.length; i++){
+        const width = cells[i].display.width;
+        const height = cells[i].display.height;
+
+        // Find the next open spot where this would fit.
+        // Assume: grid-auto-flow: row. If dense, this is more complex and 
+        // the UI can also shift around a lot.
+        while(nextFreeX < 0){
+            
+        }
+    }
+}
+
+
+
+class ActionBar extends React.Component {
+    constructor(props) {
+        super(props);
+    }
+    nextCellId = (state) => {
+        return NEXT_ID++;
+    }
+
+    addCell = (event) => {
+        // this.setState((state, props) => ({
+        //     "cells": [...state.cells,
+        //         {
+        //             "id": this.nextCellId(state),
+        //             "input": ""
+        //         }]
+        // }));
+    }
+
+    removeCell = (deleteCell) => {
+        // this.setState( (state, props) => ({
+        //     cells: this.state.cells.filter(cell => cell.id !== deleteCell.id)
+        // }))
+    }
+
+    render() {
+        return <div className="ActionBar">
+            <div className="inline-block">
+                <div className="ActionBar-action" onClick={this.props.decWidth} >
+                    -
+                </div>
+                <div className="px-3 py-2 inline-block">
+                Width
+                </div>
+                <div className="ActionBar-action" onClick={this.props.incWidth} >
+                    +
+                </div>
+            </div>
+
+            <div className="inline-block">
+                <div className="ActionBar-action" onClick={this.props.decHeight} >
+                    -
+                </div>
+                <div className="px-3 py-2 inline-block">
+                Height
+                </div>
+                <div className="ActionBar-action" onClick={this.props.incHeight} >
+                    +
+                </div>
+            </div>
+        </div>
+    }
+}
+
 
 
 class GridCell extends React.Component {
@@ -108,7 +194,7 @@ class GridCell extends React.Component {
         this.setState({name: event.target.value});
     }
     render() {
-        let className = "Cell";
+        let className = "Cell draggable";
         className += " Cell--width" + this.state.display.width;
         className += " Cell--height" + this.state.display.height;
         if(this.props.isFocused){
@@ -123,18 +209,8 @@ class GridCell extends React.Component {
             cellBody = <form onSubmit={this.saveCell}>
             <input className="Cell-cellName block Cell-cellName--edit" placeholder="Name" type="text" onChange={this.changeName} value={this.state.name}></input> 
             <input className="Cell-cellValue bg-blue-100 block Cell-cellValue--edit" type="text" onChange={this.changeInput} value={this.state.input}></input>
-            <span className="Cell-cellResult inline-block">{this.state.output ? this.state.output : " "}
-            
-            
-            m Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.
-
-Why do we use it?
-It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout. The point of using Lorem Ipsum is that it has a more-or-less normal distribution of letters, as opposed to using 'Content here, content here', making it look like readable English. Many desktop publishing packages and web page editors now use Lorem Ipsum as their default model text, and a search for 'lorem ipsum' will uncover many web sites still in their infancy. Various versions have evolved over the years, sometimes by accident, sometimes on purpose (injected humour and the like).
-
-
-Where does it come from?
-Contrary to popular belief, Lorem Ipsum is not simply random text. It has roots in a piece of classical Latin literature from 45 BC, making it over 2000 years old. Richard McClintock, a Latin professor at Hampden-Sydney College in Virginia, looked up one of the more obscure Latin words, consectetur, from a Lorem Ipsum passage, and going through the cites of the word in classical literature, discovered the undoubtable source. Lorem Ipsum comes from sections 1.10.32 and 1.10.33 of "de Finibus Bonorum et Malorum" (The Extremes of Good and Evil) by Cicero, writ
-            
+            <span className="Cell-cellResult inline-block">
+                {this.state.output ? this.state.output : " "}        
             </span>
             <input type="submit" className="hidden"/>
           </form>
@@ -145,77 +221,17 @@ Contrary to popular belief, Lorem Ipsum is not simply random text. It has roots 
             </span>
         }
 
-        return <div className={className} onClick={this.setFocus}>
+        return <div className={className} 
+        onClick={this.setFocus}
+        onDragStart={this.props.onDragStart}
+        onDragOver={this.props.onDragOver}
+        onDrop={this.props.onDrop}
+        draggable={true}>
             {cellBody}
         </div>
     }
 }
 
-class ActionBar extends React.Component {
-    constructor(props) {
-        super(props);
-    }
-    incWidth = () => {
-        this.props.incWidth();
-    }
-    decWidth = () => {
-        this.props.decWidth();
-    }
-    incHeight = () => {
-        this.props.incHeight();
-    }
-    decHeight = () => {
-        this.props.decHeight();
-    }
-    nextCellId = (state) => {
-        return NEXT_ID++;
-    }
-
-    addCell = (event) => {
-        // this.setState((state, props) => ({
-        //     "cells": [...state.cells,
-        //         {
-        //             "id": this.nextCellId(state),
-        //             "input": ""
-        //         }]
-        // }));
-    }
-
-    removeCell = (deleteCell) => {
-        // this.setState( (state, props) => ({
-        //     cells: this.state.cells.filter(cell => cell.id !== deleteCell.id)
-        // }))
-    }
-
-    render() {
-        return <div className="ActionBar">
-            <div className="inline-block">
-                <div className="ActionBar-action" onClick={this.decWidth} >
-                    -
-                </div>
-                <div className="px-3 py-2 inline-block">
-                Width
-                </div>
-                <div className="ActionBar-action" onClick={this.incWidth} >
-                    +
-                </div>
-            </div>
-
-            <div className="inline-block">
-                <div className="ActionBar-action" onClick={this.decHeight} >
-                    -
-                </div>
-                <div className="px-3 py-2 inline-block">
-                Height
-                </div>
-                <div className="ActionBar-action" onClick={this.incHeight} >
-                    +
-                </div>
-            </div>
-            
-        </div>
-    }
-}
 
 class Grid extends React.Component {
     constructor(props) {
@@ -229,7 +245,7 @@ class Grid extends React.Component {
     }
     clearFocus = () => {
         this.setState((state, props) => ({
-            focus: {}
+            focus: null
         }));        
     }
     incWidth = () => {
@@ -277,16 +293,64 @@ class Grid extends React.Component {
         });
     }
 
+	onDragStart = (event, cell) => {
+        let cellPos = this.state.cells.indexOf(cell);
+    	event.dataTransfer.setData("cellIdx", cellPos);
+	}
+	onDragOver = (event) => {
+        // console.log("Drag over")
+        event.preventDefault();
+	}
+
+	onDrop = (event, targetCell) => {
+        let fromIndex = event.dataTransfer.getData("cellIdx");
+        if(fromIndex){
+            this.setState((state, props) => {
+                let toIndex = state.cells.indexOf(targetCell);
+                console.log(targetCell);
+                console.log(fromIndex);
+                console.log(toIndex);
+                if(fromIndex !== -1 && toIndex !== -1){
+                    let fromCell = state.cells[fromIndex];
+                    state.cells.splice(fromIndex, 1);   // Remove cell
+                    state.cells.splice(toIndex, 0, fromCell);    // Insert into new pos    
+                }
+    
+                return {
+                    cells: state.cells
+                }
+            })    
+        }
+
+
+	    // let taskName = event.dataTransfer.getData("taskName");
+	    // let tasks = this.state.tasks.filter((task) => {
+	    //     if (task.taskName == taskName) {
+	    //         task.type = cat;
+	    //     }
+	    //     return task;
+	    // });
+
+	    // this.setState({
+	    //     ...this.state,
+	    //     tasks
+	    // });
+	}
+
     render() {
-        const cells = this.state.cells.map((cell) => 
-            <GridCell 
+        const cells = this.state.cells.map((cell) => {
+            return <GridCell 
                 cell={cell}
-                isFocused={this.state.focus.id == cell.id}
+                isFocused={this.state.focus === cell}
                 isError={false}
                 key={cell.id}
                 setFocus={this.setFocus}
+                onDragStart = {(event) => this.onDragStart(event, cell)}
+                
+                onDragOver={(event)=>this.onDragOver(event, cell)}
+                onDrop={(event)=>{this.onDrop(event, cell)}}
                 />
-        )
+        })
         
         return <div>
             <ActionBar 
@@ -303,7 +367,7 @@ class Grid extends React.Component {
         </div>
     }
 }
-
+ 
 ReactDOM.render(
     <Grid/>,
     document.getElementById('root')
