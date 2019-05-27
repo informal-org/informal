@@ -34,7 +34,7 @@ npm-debug.log
 /priv/static/
 
 .elixir_ls/
-priv/
+# priv/ - Priv is kept so we can preserve for migrations
 
 .DS_Store
 # Files matching config/*.secret.exs pattern contain sensitive
