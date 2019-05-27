@@ -2,6 +2,7 @@
 import css from "../css/app.css"
 import "phoenix_html"
 import parseExpr from "./expr.js"
+import computeGridPositions from "./grid.js"
 import React from "React";
 import ReactDOM from "react-dom";
 
@@ -24,7 +25,7 @@ function postData(url = '', data = {}) {
 const initialState = {
     cells: [
         {
-            id: 1,
+            id: "01",
             type: "cell",
             name: "Count",
             input: "1 + 1",
@@ -34,7 +35,7 @@ const initialState = {
             }
         },
         {
-            id: 2,
+            id: "02",
             type: "cell",
             name: "Name",
             input: "2 + 3",
@@ -48,9 +49,13 @@ const initialState = {
     selected: []
 }
 
-for(var i = 3; i < 80; i++){
+for(var i = 3; i < 10; i++){
+    let id = "";
+    if(i < 10) {
+        id += "0";
+    }
     initialState.cells.push({
-        id: i,
+        id: id + i,
         type: "cell",
         name: "",
         input: i,
@@ -66,45 +71,8 @@ for(var i = 3; i < 80; i++){
 // Sentinels will provide us a fast data structure without needing an element per item.
 
 var NEXT_ID = initialState["cells"].length + 1;
-const CELL_MAX_WIDTH = 8;
+const CELL_MAX_WIDTH = 7;
 const CELL_MAX_HEIGHT = 8;
-
-// A computed structure to keep track of where things appear.
-
-function getGridDisplay(cells){
-    // A declarative computation of where cells would appear in a grid according to the subset of the 
-    // css grid flow rules that we use.
-    // Index: [x][y]
-    var grid = new Array(CELL_MAX_WIDTH);
-    // Pre-fill array. Might be possible to do this along with the bottom steps, but makes it complex.
-
-    for(var x = 0; x < CELL_MAX_WIDTH; x++){
-        // Over-provision. I assume this is enough?
-        gridRows.push(new Array(cells.length))
-    }
-
-    var nextFreeX = 0;
-    var nextFreeY = 0;
-    var currentRow = [];
-    for(var i = 0; i < cells.length; i++){
-        const width = cells[i].display.width;
-        const height = cells[i].display.height;
-
-        // Find the next open spot where this would fit.
-        // Assume: grid-auto-flow: row. If dense, this is more complex and 
-        // the UI can also shift around a lot.
-        let found = false;
-        var searchY = nextFreeY;
-        var searchX = nextFreeX;
-        while(!found){
-            // Check if width up to this length is free.
-            grid[searchX][searchY]
-
-        }
-        
-    }
-}
-
 
 
 class ActionBar extends React.Component {
@@ -267,6 +235,7 @@ class Grid extends React.Component {
             if(newFocus && newFocus.display.width < CELL_MAX_WIDTH){
                 newFocus.display.width += 1;
             }
+            computeGridPositions(state.cells, CELL_MAX_WIDTH);
             return {
                 focus: newFocus
             }
@@ -278,6 +247,7 @@ class Grid extends React.Component {
             if(newFocus && newFocus.display.width > 1){
                 newFocus.display.width -= 1;
             }
+            computeGridPositions(state.cells, CELL_MAX_WIDTH);
             return {
                 focus: newFocus
             }
@@ -289,6 +259,7 @@ class Grid extends React.Component {
             if(newFocus && newFocus.display.height < CELL_MAX_HEIGHT){
                 newFocus.display.height += 1;
             }
+            computeGridPositions(state.cells, CELL_MAX_WIDTH);
             return {
                 focus: newFocus
             }
@@ -300,6 +271,7 @@ class Grid extends React.Component {
             if(newFocus && newFocus.display.height > 1){
                 newFocus.display.height -= 1;
             }
+            computeGridPositions(state.cells, CELL_MAX_WIDTH);
             return {
                 focus: newFocus
             }
@@ -351,6 +323,8 @@ class Grid extends React.Component {
 	}
 
     render() {
+        // getGridDisplay(this.state.cells);
+
         const cells = this.state.cells.map((cell) => {
             return <GridCell 
                 cell={cell}
