@@ -1,3 +1,12 @@
+Install dependencies
+mix deps get
+
+Start server
+mix phx.server
+
+Debugger:
+iex -S mix
+
 Schema
     Cell
     - (user)
@@ -19,6 +28,7 @@ Schema
 Create ecto migrations
 mix phx.gen.schema Cell cells name:string uuid:uuid input:string parsed:map output:map dependencies:array:uuid pre_offset:integer previous:uuid next:uuid
 
-
 Apply migration
 mix ecto.migrate
+
+

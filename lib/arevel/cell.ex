@@ -20,6 +20,7 @@ defmodule Arevel.Cell do
   def changeset(cell, attrs) do
     cell
     |> cast(attrs, [:name, :uuid, :input, :parsed, :output, :dependencies, :pre_offset, :previous, :next])
-    |> validate_required([:name, :uuid, :input, :parsed, :output, :dependencies, :pre_offset, :previous, :next])
+    |> validate_required([:name, :uuid, :input, :parsed])
+    # |> validate_required([:name, :uuid, :input, :parsed, :output, :dependencies, :pre_offset, :previous, :next])
   end
 end

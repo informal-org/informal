@@ -83,6 +83,7 @@ a {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  position: relative;
 }
 
 .Cell-cellName {
@@ -148,6 +149,13 @@ a {
 .Cell--height7 .Cell-cellResult { height: 410px; }
 .Cell--height8 .Cell-cellResult { height: 490px; }
 
+.maximize {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  cursor: pointer;
+  cursor: nesw-resize;
+}
 
 .ActionBar {
   @apply border;

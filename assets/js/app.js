@@ -49,7 +49,7 @@ const initialState = {
     selected: []
 }
 
-for(var i = 3; i < 10; i++){
+for(var i = 3; i < 80; i++){
     let id = "";
     if(i < 10) {
         id += "0";
@@ -58,7 +58,7 @@ for(var i = 3; i < 10; i++){
         id: id + i,
         type: "cell",
         name: "",
-        input: i,
+        input: "",
         display: {
             width: 1,
             height: 1
@@ -188,6 +188,7 @@ class GridCell extends React.Component {
         let cellBody = null;
         if(this.props.isFocused){
             cellBody = <form onSubmit={this.saveCell}>
+                <i className="fas fa-expand float-right text-gray-700 maximize"></i>
             <input className="Cell-cellName block Cell-cellName--edit" placeholder="Name" type="text" onChange={this.changeName} value={this.state.name}></input> 
             <input className="Cell-cellValue bg-blue-100 block Cell-cellValue--edit" type="text" onChange={this.changeInput} value={this.state.input}></input>
             <span className="Cell-cellResult inline-block">
