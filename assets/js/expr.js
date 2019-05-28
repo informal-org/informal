@@ -45,7 +45,6 @@ jsep.addLiteral("TRUE", true)
 jsep.addLiteral("False", false)
 jsep.addLiteral("FALSE", false)
 
-
 function urlencode(dict) {
     let params = new URLSearchParams();
     return params.toString()

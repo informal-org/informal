@@ -5,6 +5,7 @@ import parseExpr from "./expr.js"
 import computeGridPositions from "./grid.js"
 import React from "React";
 import ReactDOM from "react-dom";
+import { connect } from 'react-redux'
 
 function postData(url = '', data = {}) {
     return fetch(url, {
@@ -45,8 +46,7 @@ const initialState = {
             }            
         },
     ],
-    focus: null,
-    selected: []
+    focus: null
 }
 
 for(var i = 3; i < 80; i++){
@@ -65,6 +65,59 @@ for(var i = 3; i < 80; i++){
         }
     })
 }
+
+import { configureStore, createReducer, createAction, createSlice } from 'redux-starter-kit'
+import { Provider } from 'react-redux'
+
+// const setFocus = createAction("SET_FOCUS");
+const saveCell = createAction("SAVE_CELL");
+const changeCellInput = createAction("CHANGE_CELL_INPUT");
+const changeCellName = createAction("CHANGE_CELL_NAME");
+const incWidth = createAction("INC_WIDTH");
+const decWidth = createAction("DEC_WIDTH");
+const incHeight = createAction("INC_HEIGHT");
+const decHeight = createAction("DEC_HEIGHT");
+const dropCell = createAction("DROP_CELL");
+
+const cellsSlice = createSlice({
+    slice: 'cells',
+    initialState: initialState.cells,
+    reducers: {
+      saveCell(state, action) {
+          console.log("Save cell")
+      }
+    }
+})
+
+const focusSlice = createSlice({
+    slice: 'focus',
+    initialState: {},
+    reducers: {
+        setFocus(state, action) {
+            console.log("Setting focus");
+        }
+    }
+})
+
+const cellsReducer = cellsSlice.reducer;
+const focusReducer = focusSlice.reducer;
+const store = configureStore({
+  reducer: {
+    cellsReducer,
+    focusReducer
+  }
+})
+
+const mapStateToProps = (state /*, ownProps*/) => {
+    return {
+      cells: state.cells
+    }
+  }
+
+const setFocus = focusSlice.actions.setFocus;
+// const mapDispatchToProps = dispatch => ({ setFocus: () => dispatch(setFocus()) })
+const mapDispatchToProps = {setFocus}
+  
 
 function parseEverything(cells) {
     let data = {}
@@ -151,6 +204,7 @@ class GridCell extends React.Component {
         super(props)
         this.state = props.cell;
     }
+
     setFocus = (event) => {
         this.props.setFocus(this.props.cell);
     }
@@ -168,23 +222,26 @@ class GridCell extends React.Component {
     saveCell = (event) => {
         console.log("Saving cell");
         event.preventDefault();
+        console.log(this.state.input);
         if(this.state.input.trim() === ""){
             this.setState({output: ""})
             return
         }
 
-        const parsed = parseExpr(this.state.input);
+        // const parsed = parseExpr(this.state.input);
 
-        postData("/api/evaluate", parsed)
-        .then(json => {
-                // document.getElementById("result").textContent = json.status + " : " + json.result;
-                this.saveResult(json)
-            }
-        )
-        .catch(error => {
-            // document.getElementById("result").textContent = "Error : " + error
-            this.showError(error);
-        });
+        // postData("/api/evaluate", parsed)
+        // .then(json => {
+        //         // document.getElementById("result").textContent = json.status + " : " + json.result;
+        //         this.saveResult(json)
+        //     }
+        // )
+        // .catch(error => {
+        //     // document.getElementById("result").textContent = "Error : " + error
+        //     this.showError(error);
+        // });
+
+        this.props.recomputeCell(this.state.cell)
     }
     changeInput = (event) => {
         this.setState({input: event.target.value});
@@ -270,12 +327,14 @@ class Grid extends React.Component {
     constructor(props) {
         super(props);
         this.state = initialState;
-        this.recomputeCells()
+        // this.recomputeCells()
     }
     setFocus = (cell) => {
-        this.setState((state, props) => ({
-            focus: cell
-        }));
+        // this.setState((state, props) => ({
+        //     focus: cell
+        // }));
+        // console.log("Grid set focus");
+        this.props.setFocus()
     }
     clearFocus = () => {
         this.setState((state, props) => ({
@@ -284,11 +343,13 @@ class Grid extends React.Component {
     }
     recomputeCells = () => {
         var allParsed = parseEverything(this.state.cells)
+        this.state.cells.forEach((cell) => {
+            console.log(cell.input);
+        })
+
         postData("/api/evaluate", allParsed)
         .then(json => {
             // Find the cells and save the value.
-            console.log("Result");
-            console.log(json)
             let results = json["body"];
             this.setState((state, props) => {
                 let cells = state.cells
@@ -303,16 +364,17 @@ class Grid extends React.Component {
                 }
             })
             
-            // let results = json.map((cell) )
-
-                // this.setState(cells, json)
+            // let results = json.map((cell))
+            // this.setState(cells, json)
         })
         .catch(error => {
             // document.getElementById("result").textContent = "Error : " + error
             console.log("Error")
             console.log(error);
         });
-
+    }
+    recomputeCell = (cell) => {
+        this.recomputeCells()
     }
     incWidth = () => {
         this.setState((state, props) => {
@@ -378,8 +440,8 @@ class Grid extends React.Component {
                 isError={false}
                 key={cell.id}
                 setFocus={this.setFocus}
+                recomputeCell = {this.recomputeCell}
                 onDragStart = {(event) => this.onDragStart(event, cell)}
-                
                 onDragOver={(event)=>this.onDragOver(event, cell)}
                 onDrop={(event)=>{this.onDrop(event, cell)}}
                 />
@@ -400,8 +462,17 @@ class Grid extends React.Component {
         </div>
     }
 }
+
+const ConnectedGrid = connect(
+    mapStateToProps,
+    mapDispatchToProps
+  )(Grid)
  
 ReactDOM.render(
-    <Grid/>,
+    <Provider store={store}>
+        <ConnectedGrid/>
+    </Provider>,
     document.getElementById('root')
 );
+
+window.store = store;
