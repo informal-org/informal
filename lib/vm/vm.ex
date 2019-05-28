@@ -94,11 +94,12 @@ defmodule VM do
   """
   def eval(code) do
     %{"body" => body} = code
-
-    result = Enum.map(body, fn cell -> eval_cell(cell) end)
-    # TODO - :ok check
-    # elem(result, 1)
-    result
+    result = Enum.map(
+      body,
+      fn ({id, cell}) -> {id, eval_cell(cell)} end
+    )
+    # Convert tuple back into map
+    Enum.into(result, %{})
   end
 
   def eval_cell(cell) do

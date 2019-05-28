@@ -52,6 +52,6 @@ defmodule ArevelWeb.EvalController do
     IO.inspect(conn.body_params)
     result = VM.eval(conn.body_params)
 
-    json(conn, %{status: "OK", output: result})
+    json(conn, %{status: "OK", body: result})
   end
 end

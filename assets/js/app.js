@@ -66,36 +66,25 @@ for(var i = 3; i < 80; i++){
     })
 }
 
-function evalEverything(cells) {
+function parseEverything(cells) {
     let data = {}
     let activeCells = cells.filter((cell) => {
         // TODO: Also need to check for if any dependent cells. 
         // So that it's valid to have cells with space
         return cell.input.trim() !== ""
-    })
-    
-    data.body = activeCells.map((cell) => {
+    }).map((cell) => {
         return {
             id: cell.id,
             input: cell.input,
             parsed: parseExpr(cell.input)
         }
     })
+    data.body = {}
+    activeCells.forEach((cell) => {
+        data.body[cell.id] = cell
+    })
     return data
 }
-
-var allParsed = evalEverything(initialState.cells)
-postData("/api/evaluate", allParsed)
-        .then(json => {
-                // document.getElementById("result").textContent = json.status + " : " + json.result;
-                console.log(json)
-            }
-        )
-        .catch(error => {
-            // document.getElementById("result").textContent = "Error : " + error
-            console.log("Error")
-            console.log(error);
-        });
 
 // Sentinels will provide us a fast data structure without needing an element per item.
 var NEXT_ID = initialState["cells"].length + 1;
@@ -167,7 +156,6 @@ class GridCell extends React.Component {
     }
 
     saveResult = (response) => {
-        console.log(response);
         this.setState({
             output: response.output
         })
@@ -257,11 +245,30 @@ class GridCell extends React.Component {
     }
 }
 
+function modifySize(cell, dimension, min, max, fn) {
+    if(cell){
+        let size = cell.display[dimension];
+        if(size > min && size < max){
+            cell.display[dimension] = fn(size);
+        }
+    }
+    return cell
+}
+
+function inc(x) {
+    return x + 1
+}
+
+function dec(x) {
+    return x - 1
+}
+
 
 class Grid extends React.Component {
     constructor(props) {
         super(props);
         this.state = initialState;
+        this.recomputeCells()
     }
     setFocus = (cell) => {
         this.setState((state, props) => ({
@@ -273,72 +280,81 @@ class Grid extends React.Component {
             focus: null
         }));        
     }
+    recomputeCells = () => {
+        var allParsed = parseEverything(this.state.cells)
+        postData("/api/evaluate", allParsed)
+        .then(json => {
+            // Find the cells and save the value.
+            console.log("Result");
+            console.log(json)
+            let results = json["body"];
+            this.setState((state, props) => {
+                let cells = state.cells
+                for(var i = 0; i < cells.length; i++){
+                    let cell = cells[i];
+                    if(cell.id in results){
+                        cell.output = results[cell.id].output
+                    }
+                }
+                return {
+                    cells: cells
+                }
+            })
+            
+            // let results = json.map((cell) )
+
+                // this.setState(cells, json)
+        })
+        .catch(error => {
+            // document.getElementById("result").textContent = "Error : " + error
+            console.log("Error")
+            console.log(error);
+        });
+
+    }
     incWidth = () => {
         this.setState((state, props) => {
-            let newFocus = state.focus;
-            if(newFocus && newFocus.display.width < CELL_MAX_WIDTH){
-                newFocus.display.width += 1;
-            }
-            computeGridPositions(state.cells, CELL_MAX_WIDTH);
             return {
-                focus: newFocus
+                focus: modifySize(state.focus, "width", 1, CELL_MAX_WIDTH, inc)
             }
         });
     }
     decWidth = () => {
         this.setState((state, props) => {
-            let newFocus = state.focus;
-            if(newFocus && newFocus.display.width > 1){
-                newFocus.display.width -= 1;
-            }
-            computeGridPositions(state.cells, CELL_MAX_WIDTH);
             return {
-                focus: newFocus
+                focus: modifySize(state.focus, "width", 1, CELL_MAX_WIDTH, dec)
             }
         });
     }
     incHeight = () => {
         this.setState((state, props) => {
-            let newFocus = state.focus;
-            if(newFocus && newFocus.display.height < CELL_MAX_HEIGHT){
-                newFocus.display.height += 1;
-            }
-            computeGridPositions(state.cells, CELL_MAX_WIDTH);
             return {
-                focus: newFocus
+                focus: modifySize(state.focus, "height", 1, CELL_MAX_HEIGHT, inc)
             }
         });
     }
     decHeight = () => {
         this.setState((state, props) => {
-            let newFocus = state.focus;
-            if(newFocus && newFocus.display.height > 1){
-                newFocus.display.height -= 1;
-            }
-            computeGridPositions(state.cells, CELL_MAX_WIDTH);
             return {
-                focus: newFocus
+                focus: modifySize(state.focus, "height", 1, CELL_MAX_HEIGHT, dec)
             }
         });
     }
-
 	onDragStart = (event, cell) => {
         let cellPos = this.state.cells.indexOf(cell);
     	event.dataTransfer.setData("cellIdx", cellPos);
 	}
 	onDragOver = (event) => {
-        // console.log("Drag over")
         event.preventDefault();
 	}
-
 	onDrop = (event, targetCell) => {
+        // Right now we only support drag and drop on top of other cells
+        // not over empty space.
         let fromIndex = event.dataTransfer.getData("cellIdx");
         if(fromIndex){
             this.setState((state, props) => {
                 let toIndex = state.cells.indexOf(targetCell);
-                console.log(targetCell);
-                console.log(fromIndex);
-                console.log(toIndex);
+
                 if(fromIndex !== -1 && toIndex !== -1){
                     let fromCell = state.cells[fromIndex];
                     state.cells.splice(fromIndex, 1);   // Remove cell
@@ -350,25 +366,9 @@ class Grid extends React.Component {
                 }
             })    
         }
-
-
-	    // let taskName = event.dataTransfer.getData("taskName");
-	    // let tasks = this.state.tasks.filter((task) => {
-	    //     if (task.taskName == taskName) {
-	    //         task.type = cat;
-	    //     }
-	    //     return task;
-	    // });
-
-	    // this.setState({
-	    //     ...this.state,
-	    //     tasks
-	    // });
 	}
 
     render() {
-        // getGridDisplay(this.state.cells);
-
         const cells = this.state.cells.map((cell) => {
             return <GridCell 
                 cell={cell}

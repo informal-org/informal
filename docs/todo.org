@@ -4,11 +4,17 @@
 *** DONE Variables
 *** DONE Boolean expressions
 *** DONE Comparison operators
-*** TODO Send and execute a whole program beyond individual cells
+*** DONE Send and execute a whole program beyond individual cells
+*** TODO Revaluate on change
+*** TODO Feed output back to cells
+*** TODO Single cell failure doesn't block whole thing
 *** TODO Dependency graph
+*** TODO Use IDs rather than names transparently.
+*** TODO Intinite virtualized grid
 *** TODO List operators
 *** TODO String operators
-*** TODO: Add db indexes.
+*** TODO Figure out separate process for code execution, with timeouts.
+*** TODO Add db indexes.
 
 * Next
 
