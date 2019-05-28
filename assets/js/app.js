@@ -153,6 +153,10 @@ class GridCell extends React.Component {
     saveCell = (event) => {
         console.log("Saving cell");
         event.preventDefault();
+        if(this.state.input.trim() === ""){
+            this.setState({output: ""})
+            return
+        }
 
         const parsed = parseExpr(this.state.input);
 
@@ -165,8 +169,7 @@ class GridCell extends React.Component {
         .catch(error => {
             // document.getElementById("result").textContent = "Error : " + error
             this.showError(error);
-        }); 
-
+        });
     }
     changeInput = (event) => {
         this.setState({input: event.target.value});
