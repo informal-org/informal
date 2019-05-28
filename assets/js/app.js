@@ -246,16 +246,18 @@ class GridCell extends React.Component {
 }
 
 function modifySize(cell, dimension, min, max, fn) {
+    console.log("modify " + cell);
     if(cell){
-        let size = cell.display[dimension];
-        if(size > min && size < max){
-            cell.display[dimension] = fn(size);
+        let newSize = fn(cell.display[dimension])
+        if(newSize >= min && newSize <= max){
+            cell.display[dimension] = newSize;
         }
     }
     return cell
 }
 
 function inc(x) {
+    console.log("inc " + x)
     return x + 1
 }
 
