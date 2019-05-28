@@ -4,9 +4,10 @@
 *** DONE Variables
 *** TODO Boolean expressions
 *** TODO Comparison operators
+*** TODO Send and execute a whole program beyond individual cells
+*** TODO Dependency graph
 *** TODO List operators
 *** TODO String operators
-*** TODO Dependency graph
 *** TODO: Add db indexes.
 
 * Next

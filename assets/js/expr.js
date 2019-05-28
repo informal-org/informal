@@ -52,5 +52,7 @@ function urlencode(dict) {
 }
 
 export default function parseExpr(expr) {
-    return jsep(expr);
+    let parsed = jsep(expr)
+    console.log(parsed);
+    return parsed;
 }

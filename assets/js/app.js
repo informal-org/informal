@@ -174,6 +174,19 @@ class GridCell extends React.Component {
     changeName = (event) => {
         this.setState({name: event.target.value});
     }
+    formatOutput = () => {
+        if(this.state.output === undefined){
+            return " "
+        }
+        else if(this.state.output === true) {
+            return "True"
+        } 
+        else if(this.state.output === false) {
+            return "False"
+        } else {
+            return "" + this.state.output
+        }
+    }
     render() {
         let className = "Cell draggable";
         className += " Cell--width" + this.state.display.width;
@@ -192,7 +205,7 @@ class GridCell extends React.Component {
             <input className="Cell-cellName block Cell-cellName--edit" placeholder="Name" type="text" onChange={this.changeName} value={this.state.name}></input> 
             <input className="Cell-cellValue bg-blue-100 block Cell-cellValue--edit" type="text" onChange={this.changeInput} value={this.state.input}></input>
             <span className="Cell-cellResult inline-block">
-                {this.state.output ? this.state.output : " "}        
+                {this.formatOutput()}
             </span>
             <input type="submit" className="hidden"/>
           </form>
