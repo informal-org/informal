@@ -63,17 +63,44 @@ for(var i = 3; i < 80; i++){
             width: 1,
             height: 1
         }
-    },
-)
+    })
 }
 
+function evalEverything(cells) {
+    let data = {}
+    let activeCells = cells.filter((cell) => {
+        // TODO: Also need to check for if any dependent cells. 
+        // So that it's valid to have cells with space
+        return cell.input.trim() !== ""
+    })
+    
+    data.body = activeCells.map((cell) => {
+        return {
+            id: cell.id,
+            input: cell.input,
+            parsed: parseExpr(cell.input)
+        }
+    })
+    return data
+}
+
+var allParsed = evalEverything(initialState.cells)
+postData("/api/evaluate", allParsed)
+        .then(json => {
+                // document.getElementById("result").textContent = json.status + " : " + json.result;
+                console.log(json)
+            }
+        )
+        .catch(error => {
+            // document.getElementById("result").textContent = "Error : " + error
+            console.log("Error")
+            console.log(error);
+        });
 
 // Sentinels will provide us a fast data structure without needing an element per item.
-
 var NEXT_ID = initialState["cells"].length + 1;
 const CELL_MAX_WIDTH = 7;
 const CELL_MAX_HEIGHT = 8;
-
 
 class ActionBar extends React.Component {
     constructor(props) {

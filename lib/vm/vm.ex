@@ -93,12 +93,17 @@ defmodule VM do
   Evaluate an expression json tree.
   """
   def eval(code) do
-    %{body: body} = code
+    %{"body" => body} = code
 
-    result = Enum.map(body, fn cell -> eval_expr(cell) end)
+    result = Enum.map(body, fn cell -> eval_cell(cell) end)
     # TODO - :ok check
     # elem(result, 1)
     result
+  end
+
+  def eval_cell(cell) do
+    %{"id" => _, "parsed" => parsed} = cell
+    Map.put(cell, "output", eval_expr(parsed))
   end
 
   def eval_expr(expr) do
