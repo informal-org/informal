@@ -2,8 +2,8 @@
 ** Parser
 *** DONE Floating point numbers
 *** DONE Variables
-*** TODO Boolean expressions
-*** TODO Comparison operators
+*** DONE Boolean expressions
+*** DONE Comparison operators
 *** TODO Send and execute a whole program beyond individual cells
 *** TODO Dependency graph
 *** TODO List operators

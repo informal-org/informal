@@ -40,6 +40,24 @@ defmodule VM.Bool do
   def bool_is(a, b) do
     a == b
   end
+
+  # Not sure if these should be classified as boolean or math operators.
+  def bool_gt(a, b) do
+    a > b
+  end
+
+  def bool_lt(a, b) do
+    a < b
+  end
+
+  def bool_gte(a, b) do
+    a >= b
+  end
+
+  def bool_lte(a, b) do
+    a <= b
+  end
+
 end
 
 
@@ -58,6 +76,12 @@ defmodule VM do
     "OR" => &VM.Bool.bool_or/2,
     "IS" => &VM.Bool.bool_is/2,
     # XOR? Keep it minimal for now.
+
+    # Comparison operators
+    "<" => &VM.Bool.bool_lt/2,
+    "<=" => &VM.Bool.bool_lte/2,
+    ">" => &VM.Bool.bool_gt/2,
+    ">=" => &VM.Bool.bool_gte/2,
   }
 
   def unary_operators, do: %{
