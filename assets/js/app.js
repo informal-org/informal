@@ -70,14 +70,14 @@ import { configureStore, createReducer, createAction, createSlice } from 'redux-
 import { Provider } from 'react-redux'
 
 // const setFocus = createAction("SET_FOCUS");
-const saveCell = createAction("SAVE_CELL");
-const changeCellInput = createAction("CHANGE_CELL_INPUT");
-const changeCellName = createAction("CHANGE_CELL_NAME");
-const incWidth = createAction("INC_WIDTH");
-const decWidth = createAction("DEC_WIDTH");
-const incHeight = createAction("INC_HEIGHT");
-const decHeight = createAction("DEC_HEIGHT");
-const dropCell = createAction("DROP_CELL");
+// const saveCell = createAction("SAVE_CELL");
+// const changeCellInput = createAction("CHANGE_CELL_INPUT");
+// const changeCellName = createAction("CHANGE_CELL_NAME");
+// const incWidth = createAction("INC_WIDTH");
+// const decWidth = createAction("DEC_WIDTH");
+// const incHeight = createAction("INC_HEIGHT");
+// const decHeight = createAction("DEC_HEIGHT");
+// const dropCell = createAction("DROP_CELL");
 
 const cellsSlice = createSlice({
     slice: 'cells',
@@ -85,7 +85,23 @@ const cellsSlice = createSlice({
     reducers: {
       saveCell(state, action) {
           console.log("Save cell")
+      },
+      incWidth(state, action) {
+        console.log("inc width reducer");
+      }, 
+      decWidth(state, action) {
+        console.log("dec width reducer");
+      }, 
+      incHeight(state, action) {
+        console.log("inc height reducer");
+      },
+      decHeight(state, action) {
+        console.log("dec width reducer");
+      },
+      dragCell(state, action){
+        console.log("drag reducer");
       }
+
     }
 })
 
@@ -93,8 +109,13 @@ const focusSlice = createSlice({
     slice: 'focus',
     initialState: {},
     reducers: {
-        setFocus(state, action) {
-            console.log("Setting focus");
+        setFocus: (state, action) => {
+            console.log("Setting focus")
+            console.log(action.payload);
+            console.log("state");
+            console.log(state)
+            console.log("payload")
+            return action.payload
         }
     }
 })
@@ -110,14 +131,13 @@ const store = configureStore({
 
 const mapStateToProps = (state /*, ownProps*/) => {
     return {
-      cells: state.cells
+        cells: state.cellsReducer,
+        focus: state.focusReducer
     }
-  }
+}
 
 const setFocus = focusSlice.actions.setFocus;
-// const mapDispatchToProps = dispatch => ({ setFocus: () => dispatch(setFocus()) })
 const mapDispatchToProps = {setFocus}
-  
 
 function parseEverything(cells) {
     let data = {}
@@ -326,7 +346,10 @@ function dec(x) {
 class Grid extends React.Component {
     constructor(props) {
         super(props);
-        this.state = initialState;
+        console.log(this.props);
+        console.log("store");
+        console.log(store)
+        // this.state = initialState;
         // this.recomputeCells()
     }
     setFocus = (cell) => {
@@ -334,7 +357,7 @@ class Grid extends React.Component {
         //     focus: cell
         // }));
         // console.log("Grid set focus");
-        this.props.setFocus()
+        this.props.setFocus(cell)
     }
     clearFocus = () => {
         this.setState((state, props) => ({
@@ -433,10 +456,10 @@ class Grid extends React.Component {
 	}
 
     render() {
-        const cells = this.state.cells.map((cell) => {
+        const cells = this.props.cells.map((cell) => {
             return <GridCell 
                 cell={cell}
-                isFocused={this.state.focus === cell}
+                isFocused={this.props.focus === cell}
                 isError={false}
                 key={cell.id}
                 setFocus={this.setFocus}
