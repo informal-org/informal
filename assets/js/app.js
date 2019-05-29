@@ -6,104 +6,78 @@ import computeGridPositions from "./grid.js"
 import React from "React";
 import ReactDOM from "react-dom";
 import { connect } from 'react-redux'
-
-function postData(url = '', data = {}) {
-    return fetch(url, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data), // body data type must match "Content-Type" header
-    })
-    .then((response) =>{
-        if(response.ok) {
-            return response.json();
-        }
-        throw new Error('Network response was not ok.');
-    })
-}
-
-const initialState = {
-    cells: [
-        {
-            id: "01",
-            type: "cell",
-            name: "Count",
-            input: "1 + 1",
-            display: {
-                width: 1,
-                height: 1
-            }
-        },
-        {
-            id: "02",
-            type: "cell",
-            name: "Name",
-            input: "2 + 3",
-            display: {
-                width: 1,
-                height: 1
-            }            
-        },
-    ],
-    focus: null
-}
-
-for(var i = 3; i < 80; i++){
-    let id = "";
-    if(i < 10) {
-        id += "0";
-    }
-    initialState.cells.push({
-        id: id + i,
-        type: "cell",
-        name: "",
-        input: "",
-        display: {
-            width: 1,
-            height: 1
-        }
-    })
-}
-
+import {inc, dec, listToMap, apiPost} from './utils.js'
 import { configureStore, createReducer, createAction, createSlice } from 'redux-starter-kit'
 import { Provider } from 'react-redux'
 
-// const setFocus = createAction("SET_FOCUS");
-// const saveCell = createAction("SAVE_CELL");
-// const changeCellInput = createAction("CHANGE_CELL_INPUT");
-// const changeCellName = createAction("CHANGE_CELL_NAME");
-// const incWidth = createAction("INC_WIDTH");
-// const decWidth = createAction("DEC_WIDTH");
-// const incHeight = createAction("INC_HEIGHT");
-// const decHeight = createAction("DEC_HEIGHT");
-// const dropCell = createAction("DROP_CELL");
+
+const initialState = {
+    cells: {
+        byId: {
+            "01": {
+                id: "01",
+                type: "cell",
+                name: "Count",
+                input: "1 + 1",
+                width: 1,
+                height: 1
+            },
+            "02": {
+                id: "02",
+                type: "cell",
+                name: "Name",
+                input: "2 + 3",
+                width: 1,
+                height: 1            
+            }
+        },
+        allIds: ["01", "02"],
+    },
+    focus: null
+}
+
+// for(var i = 3; i < 80; i++){
+//     let id = "";
+//     if(i < 10) {
+//         id += "0";
+//     }
+//     initialState.cells.push({
+//         id: id + i,
+//         type: "cell",
+//         name: "",
+//         input: "",
+//         width: 1,
+//         height: 1
+//     })
+// }
 
 const cellsSlice = createSlice({
     slice: 'cells',
     initialState: initialState.cells,
     reducers: {
-      saveCell(state, action) {
+      saveCell: (state, action) => {
           console.log("Save cell")
       },
-      incWidth(state, action) {
+      incWidth: (state, action) => {
         console.log("inc width reducer");
+        state.focus = modifySize(state.focus, "width", 1, CELL_MAX_WIDTH, inc)
       }, 
-      decWidth(state, action) {
+      decWidth: (state, action) => {
         console.log("dec width reducer");
       }, 
-      incHeight(state, action) {
+      incHeight: (state, action) => {
         console.log("inc height reducer");
       },
-      decHeight(state, action) {
+      decHeight: (state, action) => {
         console.log("dec width reducer");
       },
-      dragCell(state, action){
+      dragCell: (state, action) => {
         console.log("drag reducer");
       }
 
     }
 })
+
 
 const focusSlice = createSlice({
     slice: 'focus',
@@ -120,6 +94,14 @@ const focusSlice = createSlice({
     }
 })
 
+const saveCell = cellsSlice.actions.saveCell;
+const incWidth = cellsSlice.actions.incWidth;
+const decWidth = cellsSlice.actions.decWidth;
+const incHeight = cellsSlice.actions.incHeight;
+const decHeight = cellsSlice.actions.decHeight;
+const dragCell = cellsSlice.actions.dragCell;
+const setFocus = focusSlice.actions.setFocus;
+
 const cellsReducer = cellsSlice.reducer;
 const focusReducer = focusSlice.reducer;
 const store = configureStore({
@@ -130,14 +112,16 @@ const store = configureStore({
 })
 
 const mapStateToProps = (state /*, ownProps*/) => {
-    return {
-        cells: state.cellsReducer,
+    var ret = {
+        cells: state.cellsReducer.allIds.map((id) => state.cellsReducer.byId[id]),
         focus: state.focusReducer
     }
+    console.log(ret);
+    console.log("done")
+    return ret
 }
 
-const setFocus = focusSlice.actions.setFocus;
-const mapDispatchToProps = {setFocus}
+const mapDispatchToProps = {setFocus, saveCell, incWidth, decWidth, incHeight, decHeight, dragCell}
 
 function parseEverything(cells) {
     let data = {}
@@ -152,10 +136,7 @@ function parseEverything(cells) {
             parsed: parseExpr(cell.input)
         }
     })
-    data.body = {}
-    activeCells.forEach((cell) => {
-        data.body[cell.id] = cell
-    })
+    data.body = listToMap(activeCells)
     return data
 }
 
@@ -284,8 +265,8 @@ class GridCell extends React.Component {
     }
     render() {
         let className = "Cell draggable";
-        className += " Cell--width" + this.state.display.width;
-        className += " Cell--height" + this.state.display.height;
+        className += " Cell--width" + this.state.width;
+        className += " Cell--height" + this.state.height;
         if(this.props.isFocused){
             className += " Cell--focused";
         }
@@ -325,22 +306,14 @@ class GridCell extends React.Component {
 function modifySize(cell, dimension, min, max, fn) {
     console.log("modify " + cell);
     if(cell){
-        let newSize = fn(cell.display[dimension])
+        let newSize = fn(cell[dimension])
         if(newSize >= min && newSize <= max){
-            cell.display[dimension] = newSize;
+            cell[dimension] = newSize;
         }
     }
     return cell
 }
 
-function inc(x) {
-    console.log("inc " + x)
-    return x + 1
-}
-
-function dec(x) {
-    return x - 1
-}
 
 
 class Grid extends React.Component {
@@ -370,7 +343,7 @@ class Grid extends React.Component {
             console.log(cell.input);
         })
 
-        postData("/api/evaluate", allParsed)
+        apiPost("/api/evaluate", allParsed)
         .then(json => {
             // Find the cells and save the value.
             let results = json["body"];
@@ -400,11 +373,7 @@ class Grid extends React.Component {
         this.recomputeCells()
     }
     incWidth = () => {
-        this.setState((state, props) => {
-            return {
-                focus: modifySize(state.focus, "width", 1, CELL_MAX_WIDTH, inc)
-            }
-        });
+        this.props.incWidth()
     }
     decWidth = () => {
         this.setState((state, props) => {
