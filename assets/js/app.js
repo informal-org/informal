@@ -59,8 +59,13 @@ const cellsSlice = createSlice({
           console.log("Save cell")
       },
       incWidth: (state, action) => {
-        console.log("inc width reducer");
-        state.focus = modifySize(state.focus, "width", 1, CELL_MAX_WIDTH, inc)
+          // TODO: Convert this to just take a param of amount, +1 -1
+        // console.log("updating width ")
+        // window.mystate = state;
+        // state.byId[action.payload.id] = modifySize(state.byId[action.payload.id], "width", 1, CELL_MAX_WIDTH, inc)
+        const cell = state.byId[action.payload.id];
+        cell.width = 3
+        // return state
       }, 
       decWidth: (state, action) => {
         console.log("dec width reducer");
@@ -84,11 +89,6 @@ const focusSlice = createSlice({
     initialState: {},
     reducers: {
         setFocus: (state, action) => {
-            console.log("Setting focus")
-            console.log(action.payload);
-            console.log("state");
-            console.log(state)
-            console.log("payload")
             return action.payload
         }
     }
@@ -112,13 +112,10 @@ const store = configureStore({
 })
 
 const mapStateToProps = (state /*, ownProps*/) => {
-    var ret = {
+    return {
         cells: state.cellsReducer.allIds.map((id) => state.cellsReducer.byId[id]),
         focus: state.focusReducer
     }
-    console.log(ret);
-    console.log("done")
-    return ret
 }
 
 const mapDispatchToProps = {setFocus, saveCell, incWidth, decWidth, incHeight, decHeight, dragCell}
@@ -203,7 +200,10 @@ class ActionBar extends React.Component {
 class GridCell extends React.Component {
     constructor(props){
         super(props)
-        this.state = props.cell;
+        this.state = {
+            input: props.cell.input,
+            name: props.cell.name
+        }
     }
 
     setFocus = (event) => {
@@ -251,22 +251,22 @@ class GridCell extends React.Component {
         this.setState({name: event.target.value});
     }
     formatOutput = () => {
-        if(this.state.output === undefined){
+        if(this.props.output === undefined){
             return " "
         }
-        else if(this.state.output === true) {
+        else if(this.props.output === true) {
             return "True"
         } 
-        else if(this.state.output === false) {
+        else if(this.props.output === false) {
             return "False"
         } else {
-            return "" + this.state.output
+            return "" + this.props.output
         }
     }
     render() {
         let className = "Cell draggable";
-        className += " Cell--width" + this.state.width;
-        className += " Cell--height" + this.state.height;
+        className += " Cell--width" + this.props.cell.width;
+        className += " Cell--height" + this.props.cell.height;
         if(this.props.isFocused){
             className += " Cell--focused";
         }
@@ -304,9 +304,11 @@ class GridCell extends React.Component {
 }
 
 function modifySize(cell, dimension, min, max, fn) {
-    console.log("modify " + cell);
+    console.log("modify ");
+    console.log(cell)
     if(cell){
         let newSize = fn(cell[dimension])
+        console.log("new size " + newSize);
         if(newSize >= min && newSize <= max){
             cell[dimension] = newSize;
         }
@@ -373,7 +375,9 @@ class Grid extends React.Component {
         this.recomputeCells()
     }
     incWidth = () => {
-        this.props.incWidth()
+        if(this.props.focus){
+            this.props.incWidth({id: this.props.focus.id})
+        }
     }
     decWidth = () => {
         this.setState((state, props) => {
