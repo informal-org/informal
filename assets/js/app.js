@@ -6,10 +6,11 @@ import computeGridPositions from "./grid.js"
 import React from "React";
 import ReactDOM from "react-dom";
 import { connect } from 'react-redux'
-import {inc, dec, listToMap, apiPost} from './utils.js'
+import {listToMap, apiPost} from './utils.js'
+import {modifySize} from './controller.js'
 import { configureStore, createReducer, createAction, createSlice } from 'redux-starter-kit'
 import { Provider } from 'react-redux'
-
+import {original} from "immer"
 
 const initialState = {
     cells: {
@@ -36,20 +37,22 @@ const initialState = {
     focus: null
 }
 
-// for(var i = 3; i < 80; i++){
-//     let id = "";
-//     if(i < 10) {
-//         id += "0";
-//     }
-//     initialState.cells.push({
-//         id: id + i,
-//         type: "cell",
-//         name: "",
-//         input: "",
-//         width: 1,
-//         height: 1
-//     })
-// }
+for(var i = 3; i < 80; i++){
+    let id = "";
+    if(i < 10) {
+        id += "0";
+    }
+    id = id + i
+    initialState.cells.byId[id] = {
+        id: id,
+        type: "cell",
+        name: "",
+        input: "",
+        width: 1,
+        height: 1
+    }
+    initialState.cells.allIds.push(id);
+}
 
 const cellsSlice = createSlice({
     slice: 'cells',
@@ -59,25 +62,27 @@ const cellsSlice = createSlice({
           console.log("Save cell")
       },
       incWidth: (state, action) => {
-          // TODO: Convert this to just take a param of amount, +1 -1
-        // console.log("updating width ")
-        // window.mystate = state;
-        // state.byId[action.payload.id] = modifySize(state.byId[action.payload.id], "width", 1, CELL_MAX_WIDTH, inc)
-        const cell = state.byId[action.payload.id];
-        cell.width = 3
-        // return state
-      }, 
-      decWidth: (state, action) => {
-        console.log("dec width reducer");
+        modifySize(state.byId[action.payload.id], "width", 1, CELL_MAX_WIDTH, action.payload.amt);
       }, 
       incHeight: (state, action) => {
-        console.log("inc height reducer");
-      },
-      decHeight: (state, action) => {
-        console.log("dec width reducer");
+        modifySize(state.byId[action.payload.id], "height", 1, CELL_MAX_HEIGHT, action.payload.amt);
       },
       dragCell: (state, action) => {
-        console.log("drag reducer");
+        // Right now we only support drag and drop on top of other cells
+        // not over empty space.
+        console.log(action.payload);
+        window.hey = state;
+        console.log(state.allIds);
+        let orig = original(state.allIds);
+        console.log(orig)
+        let fromIndex = state.allIds.indexOf(action.payload.from);
+        console.log("from " + fromIndex);
+        let toIndex = state.allIds.indexOf(action.payload.to);
+        console.log("to " + toIndex);
+        if(fromIndex !== undefined && toIndex !== undefined && fromIndex !== -1 && toIndex !== -1){
+            state.allIds.splice(fromIndex, 1);   // Remove cell
+            state.allIds.splice(toIndex, 0, action.payload.from); // Insert into new pos
+        }
       }
 
     }
@@ -96,9 +101,7 @@ const focusSlice = createSlice({
 
 const saveCell = cellsSlice.actions.saveCell;
 const incWidth = cellsSlice.actions.incWidth;
-const decWidth = cellsSlice.actions.decWidth;
 const incHeight = cellsSlice.actions.incHeight;
-const decHeight = cellsSlice.actions.decHeight;
 const dragCell = cellsSlice.actions.dragCell;
 const setFocus = focusSlice.actions.setFocus;
 
@@ -118,7 +121,7 @@ const mapStateToProps = (state /*, ownProps*/) => {
     }
 }
 
-const mapDispatchToProps = {setFocus, saveCell, incWidth, decWidth, incHeight, decHeight, dragCell}
+const mapDispatchToProps = {setFocus, saveCell, incWidth, incHeight, dragCell}
 
 function parseEverything(cells) {
     let data = {}
@@ -303,20 +306,6 @@ class GridCell extends React.Component {
     }
 }
 
-function modifySize(cell, dimension, min, max, fn) {
-    console.log("modify ");
-    console.log(cell)
-    if(cell){
-        let newSize = fn(cell[dimension])
-        console.log("new size " + newSize);
-        if(newSize >= min && newSize <= max){
-            cell[dimension] = newSize;
-        }
-    }
-    return cell
-}
-
-
 
 class Grid extends React.Component {
     constructor(props) {
@@ -326,18 +315,6 @@ class Grid extends React.Component {
         console.log(store)
         // this.state = initialState;
         // this.recomputeCells()
-    }
-    setFocus = (cell) => {
-        // this.setState((state, props) => ({
-        //     focus: cell
-        // }));
-        // console.log("Grid set focus");
-        this.props.setFocus(cell)
-    }
-    clearFocus = () => {
-        this.setState((state, props) => ({
-            focus: null
-        }));        
     }
     recomputeCells = () => {
         var allParsed = parseEverything(this.state.cells)
@@ -376,56 +353,35 @@ class Grid extends React.Component {
     }
     incWidth = () => {
         if(this.props.focus){
-            this.props.incWidth({id: this.props.focus.id})
+            this.props.incWidth({id: this.props.focus.id, amt: 1})
         }
     }
     decWidth = () => {
-        this.setState((state, props) => {
-            return {
-                focus: modifySize(state.focus, "width", 1, CELL_MAX_WIDTH, dec)
-            }
-        });
+        if(this.props.focus){
+            this.props.incWidth({id: this.props.focus.id, amt: -1})
+        }
     }
     incHeight = () => {
-        this.setState((state, props) => {
-            return {
-                focus: modifySize(state.focus, "height", 1, CELL_MAX_HEIGHT, inc)
-            }
-        });
+        if(this.props.focus){
+            this.props.incHeight({id: this.props.focus.id, amt: 1})
+        }
     }
     decHeight = () => {
-        this.setState((state, props) => {
-            return {
-                focus: modifySize(state.focus, "height", 1, CELL_MAX_HEIGHT, dec)
-            }
-        });
+        if(this.props.focus){
+            this.props.incHeight({id: this.props.focus.id, amt: -1})
+        }
     }
 	onDragStart = (event, cell) => {
-        let cellPos = this.state.cells.indexOf(cell);
-    	event.dataTransfer.setData("cellIdx", cellPos);
+    	event.dataTransfer.setData("fromCell", cell.id);
 	}
 	onDragOver = (event) => {
         event.preventDefault();
 	}
 	onDrop = (event, targetCell) => {
-        // Right now we only support drag and drop on top of other cells
-        // not over empty space.
-        let fromIndex = event.dataTransfer.getData("cellIdx");
-        if(fromIndex){
-            this.setState((state, props) => {
-                let toIndex = state.cells.indexOf(targetCell);
-
-                if(fromIndex !== -1 && toIndex !== -1){
-                    let fromCell = state.cells[fromIndex];
-                    state.cells.splice(fromIndex, 1);   // Remove cell
-                    state.cells.splice(toIndex, 0, fromCell);    // Insert into new pos    
-                }
-    
-                return {
-                    cells: state.cells
-                }
-            })    
-        }
+        this.props.dragCell({
+            from: event.dataTransfer.getData("fromCell"),
+            to: targetCell.id
+        })
 	}
 
     render() {
@@ -435,7 +391,7 @@ class Grid extends React.Component {
                 isFocused={this.props.focus === cell}
                 isError={false}
                 key={cell.id}
-                setFocus={this.setFocus}
+                setFocus={this.props.setFocus}
                 recomputeCell = {this.recomputeCell}
                 onDragStart = {(event) => this.onDragStart(event, cell)}
                 onDragOver={(event)=>this.onDragOver(event, cell)}

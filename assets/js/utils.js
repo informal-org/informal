@@ -30,3 +30,7 @@ export function apiPost(url = '', data = {}) {
         throw new Error('Network response was not ok.');
     })
 }
+
+export function getIndex(arr, item) {
+    // Equivalent to indexOf, but using value equality rather than pointer equality
+}
