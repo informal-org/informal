@@ -7,3 +7,22 @@ export function modifySize(cell, dimension, min, max, amt) {
     }
     return cell
 }
+
+
+export function parseEverything(cells) {
+    let data = {}
+    data.body = {}
+    for(cell in cells){
+        if(cell.input.trim() == ""){
+            // TODO: Also need to check for if any dependent cells. 
+            // So that it's valid to have cells with space            
+            continue
+        }
+        data.body[cell.id] = {
+            id: cell.id,
+            input: cell.input,
+            parsed: parseExpr(cell.input)
+        }
+    }
+    return data
+}

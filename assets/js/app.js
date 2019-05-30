@@ -7,7 +7,7 @@ import React from "React";
 import ReactDOM from "react-dom";
 import { connect } from 'react-redux'
 import {listToMap, apiPost} from './utils.js'
-import {modifySize} from './controller.js'
+import {modifySize, parseEverything} from './controller.js'
 import { configureStore, createReducer, createAction, createSlice } from 'redux-starter-kit'
 import { Provider } from 'react-redux'
 import {original} from "immer"
@@ -58,32 +58,65 @@ const cellsSlice = createSlice({
     slice: 'cells',
     initialState: initialState.cells,
     reducers: {
-      saveCell: (state, action) => {
-          console.log("Save cell")
-      },
-      incWidth: (state, action) => {
-        modifySize(state.byId[action.payload.id], "width", 1, CELL_MAX_WIDTH, action.payload.amt);
-      }, 
-      incHeight: (state, action) => {
-        modifySize(state.byId[action.payload.id], "height", 1, CELL_MAX_HEIGHT, action.payload.amt);
-      },
-      dragCell: (state, action) => {
-        // Right now we only support drag and drop on top of other cells
-        // not over empty space.
-        console.log(action.payload);
-        window.hey = state;
-        console.log(state.allIds);
-        let orig = original(state.allIds);
-        console.log(orig)
-        let fromIndex = state.allIds.indexOf(action.payload.from);
-        console.log("from " + fromIndex);
-        let toIndex = state.allIds.indexOf(action.payload.to);
-        console.log("to " + toIndex);
-        if(fromIndex !== undefined && toIndex !== undefined && fromIndex !== -1 && toIndex !== -1){
-            state.allIds.splice(fromIndex, 1);   // Remove cell
-            state.allIds.splice(toIndex, 0, action.payload.from); // Insert into new pos
+        setInput: (state, action) => {
+            state.byId[action.payload.id].input = action.payload.input;
+        },
+        reEvaluate: (state, action) => {
+            return (dispatch) => {
+                let parsed = parseEverything(state.byId)
+                console.log("Parsed")
+                apiPost("/api/evaluate", parsed)
+                .then(json => {
+                    console.log("Fetching")
+                    // Find the cells and save the value.
+                    let results = json["body"];
+                    dispatch(saveOutput({
+                        'status': success,
+                        'response': results
+                    }))
+                    // this.setState((state, props) => {
+                    //     let cells = state.cells
+                    //     for(var i = 0; i < cells.length; i++){
+                    //         let cell = cells[i];
+                    //         if(cell.id in results){
+                    //             cell.output = results[cell.id].output
+                    //         }
+                    //     }
+                    //     return {
+                    //         cells: cells
+                    //     }
+                    // })
+                    
+                    // let results = json.map((cell))
+                    // this.setState(cells, json)
+                })
+                .catch(error => {
+                    // document.getElementById("result").textContent = "Error : " + error
+                    console.log("Error")
+                    console.log(error);
+                });                
+            }
+        },
+        saveOutput: (state, action) => {
+            console.log("Save output");
+            console.log(action);
+        },
+        incWidth: (state, action) => {
+            modifySize(state.byId[action.payload.id], "width", 1, CELL_MAX_WIDTH, action.payload.amt);
+        }, 
+        incHeight: (state, action) => {
+            modifySize(state.byId[action.payload.id], "height", 1, CELL_MAX_HEIGHT, action.payload.amt);
+        },
+        dragCell: (state, action) => {
+            // Right now we only support drag and drop on top of other cells
+            // not over empty space.
+            let fromIndex = state.allIds.indexOf(action.payload.from);
+            let toIndex = state.allIds.indexOf(action.payload.to);
+            if(fromIndex !== undefined && toIndex !== undefined && fromIndex !== -1 && toIndex !== -1){
+                state.allIds.splice(fromIndex, 1);   // Remove cell
+                state.allIds.splice(toIndex, 0, action.payload.from); // Insert into new pos
+            }
         }
-      }
 
     }
 })
@@ -99,7 +132,8 @@ const focusSlice = createSlice({
     }
 })
 
-const saveCell = cellsSlice.actions.saveCell;
+const setInput = cellsSlice.actions.setInput;
+const reEvaluate = cellsSlice.actions.reEvaluate;
 const incWidth = cellsSlice.actions.incWidth;
 const incHeight = cellsSlice.actions.incHeight;
 const dragCell = cellsSlice.actions.dragCell;
@@ -121,24 +155,7 @@ const mapStateToProps = (state /*, ownProps*/) => {
     }
 }
 
-const mapDispatchToProps = {setFocus, saveCell, incWidth, incHeight, dragCell}
-
-function parseEverything(cells) {
-    let data = {}
-    let activeCells = cells.filter((cell) => {
-        // TODO: Also need to check for if any dependent cells. 
-        // So that it's valid to have cells with space
-        return cell.input.trim() !== ""
-    }).map((cell) => {
-        return {
-            id: cell.id,
-            input: cell.input,
-            parsed: parseExpr(cell.input)
-        }
-    })
-    data.body = listToMap(activeCells)
-    return data
-}
+const mapDispatchToProps = {setFocus, setInput, reEvaluate, incWidth, incHeight, dragCell}
 
 // Sentinels will provide us a fast data structure without needing an element per item.
 var NEXT_ID = initialState["cells"].length + 1;
@@ -146,29 +163,6 @@ const CELL_MAX_WIDTH = 7;
 const CELL_MAX_HEIGHT = 8;
 
 class ActionBar extends React.Component {
-    constructor(props) {
-        super(props);
-    }
-    nextCellId = (state) => {
-        return NEXT_ID++;
-    }
-
-    addCell = (event) => {
-        // this.setState((state, props) => ({
-        //     "cells": [...state.cells,
-        //         {
-        //             "id": this.nextCellId(state),
-        //             "input": ""
-        //         }]
-        // }));
-    }
-
-    removeCell = (deleteCell) => {
-        // this.setState( (state, props) => ({
-        //     cells: this.state.cells.filter(cell => cell.id !== deleteCell.id)
-        // }))
-    }
-
     render() {
         return <div className="ActionBar">
             <div className="inline-block">
@@ -227,10 +221,13 @@ class GridCell extends React.Component {
         console.log("Saving cell");
         event.preventDefault();
         console.log(this.state.input);
-        if(this.state.input.trim() === ""){
-            this.setState({output: ""})
-            return
-        }
+        // TODO: Port over
+        // if(this.state.input.trim() === ""){
+        //     this.setState({output: ""})
+        //     return
+        // }
+        this.props.setInput({id: this.props.cell.id, input: this.state.input})
+        this.props.reEvaluate()
 
         // const parsed = parseExpr(this.state.input);
 
@@ -245,7 +242,7 @@ class GridCell extends React.Component {
         //     this.showError(error);
         // });
 
-        this.props.recomputeCell(this.state.cell)
+        // this.props.recomputeCell(this.state.cell)
     }
     changeInput = (event) => {
         this.setState({input: event.target.value});
@@ -392,6 +389,8 @@ class Grid extends React.Component {
                 isError={false}
                 key={cell.id}
                 setFocus={this.props.setFocus}
+                setInput={this.props.setInput}
+                reEvaluate={this.props.reEvaluate}
                 recomputeCell = {this.recomputeCell}
                 onDragStart = {(event) => this.onDragStart(event, cell)}
                 onDragOver={(event)=>this.onDragOver(event, cell)}
