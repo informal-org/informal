@@ -1,7 +1,6 @@
 // Import CSS so webpack loads it. MiniCssExtractPlugin will split it.
 import css from "../css/app.css"
 import "phoenix_html"
-import parseExpr from "./expr.js"
 import computeGridPositions from "./grid.js"
 import React from "React";
 import ReactDOM from "react-dom";
@@ -55,45 +54,6 @@ for(var i = 3; i < 80; i++){
 }
 
 
-const reEvaluate = (param) => {
-    console.log("Re-evaluating");
-    return (dispatch) => {
-        console.log("inner function");
-        // let parsed = parseEverything(state.byId)
-        // console.log("Parsed")
-        // apiPost("/api/evaluate", parsed)
-        // .then(json => {
-        //     console.log("Fetching")
-        //     // Find the cells and save the value.
-        //     let results = json["body"];
-        //     dispatch(saveOutput({
-        //         'status': success,
-        //         'response': results
-        //     }))
-        //     // this.setState((state, props) => {
-        //     //     let cells = state.cells
-        //     //     for(var i = 0; i < cells.length; i++){
-        //     //         let cell = cells[i];
-        //     //         if(cell.id in results){
-        //     //             cell.output = results[cell.id].output
-        //     //         }
-        //     //     }
-        //     //     return {
-        //     //         cells: cells
-        //     //     }
-        //     // })
-            
-        //     // let results = json.map((cell))
-        //     // this.setState(cells, json)
-        // })
-        // .catch(error => {
-        //     // document.getElementById("result").textContent = "Error : " + error
-        //     console.log("Error")
-        //     console.log(error);
-        // });                
-    }
-}
-
 
 const cellsSlice = createSlice({
     slice: 'cells',
@@ -138,11 +98,58 @@ const focusSlice = createSlice({
 })
 
 const setInput = cellsSlice.actions.setInput;
+const saveOutput = cellsSlice.actions.saveOutput;
 // const reEvaluate = cellsSlice.actions.reEvaluate;
 const incWidth = cellsSlice.actions.incWidth;
 const incHeight = cellsSlice.actions.incHeight;
 const dragCell = cellsSlice.actions.dragCell;
 const setFocus = focusSlice.actions.setFocus;
+
+
+
+const reEvaluate = () => {
+    return (dispatch, getState) => {
+        const state = getState();
+        console.log("State s");
+        console.log(state);
+        let parsed = parseEverything(state.cellsReducer.byId)
+        console.log("Parsed")
+        apiPost("/api/evaluate", parsed)
+        .then(json => {
+            console.log("Fetching")
+            // Find the cells and save the value.
+            let results = json["body"];
+            dispatch(saveOutput({
+                'status': true,
+                'response': results
+            }))
+            // this.setState((state, props) => {
+            //     let cells = state.cells
+            //     for(var i = 0; i < cells.length; i++){
+            //         let cell = cells[i];
+            //         if(cell.id in results){
+            //             cell.output = results[cell.id].output
+            //         }
+            //     }
+            //     return {
+            //         cells: cells
+            //     }
+            // })
+            
+            // let results = json.map((cell))
+            // this.setState(cells, json)
+        })
+        .catch(error => {
+            // document.getElementById("result").textContent = "Error : " + error
+            console.log("Error")
+            console.log(error);
+        });                
+    }
+}
+
+
+
+
 
 const cellsReducer = cellsSlice.reducer;
 const focusReducer = focusSlice.reducer;
