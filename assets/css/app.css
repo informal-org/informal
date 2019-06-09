@@ -54,27 +54,30 @@ a {
 
   /* 
   Standard spreadsheet cells are 200x40 
-  Font size: 10pt; = 14px. 
+  Font size: 10pt; = 13px for Arial.
   12pt is more readable at 16px;
   Arial is the standard font used there. 
   Let's stick with it here for now unless needed.
   WxH - 2.4142 silver ratio
 
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+
+  160x60 previous
+  163x72
   */
 
-  font-size: 15px;
+  font-size: 13px;
   font-family: Arial;
   display: grid;
-  grid-template-columns: repeat(auto-fill, 160px);
-  grid-gap: 6px;
-  grid-auto-rows: 60px;
+  grid-template-columns: repeat(auto-fill, 133px);
+  grid-gap: 1px;
+  grid-auto-rows: 55px;
   grid-auto-flow: row;
-  padding: 10px;
+  padding: 10px 1px;
 }
 
 .Cell {
-  @apply border rounded border-gray-500 px-20 py-8;
+  @apply px-20 py-8;
   /* width: 180px;
   height: 100px; */
   padding: 0.5rem;
@@ -84,6 +87,7 @@ a {
   overflow: hidden;
   text-overflow: ellipsis;
   position: relative;
+  outline: 1px solid #a0aec0;
 }
 
 .Cell-cellName {
@@ -91,8 +95,8 @@ a {
 }
 
 .Cell.Cell--focused {
-  @apply border-blue-500 border-2 py-0 px-0;
-  margin: -6px; 
+  @apply py-0 px-0;
+  border: 1px solid #4299e1;
 }
 
 .Cell-cellValue--edit {
