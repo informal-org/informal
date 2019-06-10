@@ -306,9 +306,9 @@ class GridCell extends React.Component {
 
         return <div className={className} 
         onClick={this.setFocus}
-        onDragStart={this.props.onDragStart}
-        onDragOver={this.props.onDragOver}
-        onDrop={this.props.onDrop}
+        // onDragStart={this.props.onDragStart}
+        // onDragOver={this.props.onDragOver}
+        // onDrop={this.props.onDrop}
         draggable={true}>
             {cellBody}
         </div>

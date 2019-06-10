@@ -15,7 +15,11 @@
 *** TODO String operators
 *** TODO Figure out separate process for code execution, with timeouts.
 *** TODO Add db indexes.
-
+** UI
+*** TODO Arrow key navigation
+*** TODO Drag handler
+*** TODO handlebars for resize
+*** TODO Expand collapse
 * Next
 
 * Backlog
