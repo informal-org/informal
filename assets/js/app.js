@@ -78,7 +78,6 @@ const cellsSlice = createSlice({
                 
                 stateCell.output = responseCell.output;
             });
-
         },
         incWidth: (state, action) => {
             modifySize(state.byId[action.payload.id], "width", 1, CELL_MAX_WIDTH, action.payload.amt);
@@ -378,11 +377,14 @@ class Grid extends React.Component {
             this.props.incHeight({id: this.props.focus.id, amt: -1})
         }
     }
+    isFocused = (cell) => {
+        return this.props.focus.id === cell.id;
+    }
     render() {
         const cells = this.props.cells.map((cell) => {
             return <GridCell 
                 cell={cell}
-                isFocused={this.props.focus === cell}
+                isFocused={this.isFocused(cell)}
                 isError={false}
                 key={cell.id}
                 setFocus={this.props.setFocus}
