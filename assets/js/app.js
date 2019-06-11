@@ -65,6 +65,20 @@ const cellsSlice = createSlice({
         saveOutput: (state, action) => {
             console.log("Save output");
             console.log(action);
+
+            console.log("state")
+            console.log(state);
+            let status = action.payload.status;
+            let response = action.payload.response;
+            const ids = Object.keys(response);
+            ids.forEach((id) => {
+                console.log(id);
+                let responseCell = response[id];
+                let stateCell = state.byId[id];
+                
+                stateCell.output = responseCell.output;
+            });
+
         },
         incWidth: (state, action) => {
             modifySize(state.byId[action.payload.id], "width", 1, CELL_MAX_WIDTH, action.payload.amt);
@@ -131,7 +145,7 @@ const reEvaluate = () => {
             // document.getElementById("result").textContent = "Error : " + error
             console.log("Error")
             console.log(error);
-        });                
+        });
     }
 }
 
@@ -288,7 +302,7 @@ class GridCell extends React.Component {
         } else {
             cellBody = <span>
             <div className="Cell-cellName">{this.state.name}</div>
-            <div className="Cell-cellValue">{this.state.input}</div>
+            <div className="Cell-cellValue">{this.props.cell.output}</div>
             </span>
         }
 
