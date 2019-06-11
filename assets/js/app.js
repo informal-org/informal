@@ -253,18 +253,18 @@ class GridCell extends React.Component {
         }
     }
     onKeyDown = (event) => {
-        console.log("key down");
-        console.log(event);
-        // Deferred - up = 38, down=40. Requires more complex calculation to get grid pos.
-        if (event.keyCode == '37') {
-           // left arrow
-           this.props.moveFocus(-1);
-        }
-        else if (event.keyCode == '39') {
-           // right arrow
-           this.props.moveFocus(1);
-        }
-    
+        // Only process events that happen directly on the outer div, not in inner inputs, etc.
+        if(event.target.dataset["cell"] === this.props.cell.id){
+            // Deferred - up = 38, down=40. Requires more complex calculation to get grid pos.
+            if (event.keyCode == '37') {
+                // left arrow
+                this.props.moveFocus(-1);
+            }
+            else if (event.keyCode == '39') {
+                // right arrow
+                this.props.moveFocus(1);
+            } 
+        }    
     
     }
     render() {
@@ -299,7 +299,7 @@ class GridCell extends React.Component {
         return <div className={className} 
         onClick={this.setFocus} 
         onKeyDown={this.onKeyDown}
-        tabIndex="0">
+        tabIndex="0" data-cell={this.props.cell.id}>
             {cellBody}
         </div>
     }
@@ -352,22 +352,22 @@ class Grid extends React.Component {
     }
     incWidth = () => {
         if(this.props.focus){
-            this.props.incWidth({id: this.props.focus.id, amt: 1})
+            this.props.incWidth({id: this.props.focus, amt: 1})
         }
     }
     decWidth = () => {
         if(this.props.focus){
-            this.props.incWidth({id: this.props.focus.id, amt: -1})
+            this.props.incWidth({id: this.props.focus, amt: -1})
         }
     }
     incHeight = () => {
         if(this.props.focus){
-            this.props.incHeight({id: this.props.focus.id, amt: 1})
+            this.props.incHeight({id: this.props.focus, amt: 1})
         }
     }
     decHeight = () => {
         if(this.props.focus){
-            this.props.incHeight({id: this.props.focus.id, amt: -1})
+            this.props.incHeight({id: this.props.focus, amt: -1})
         }
     }
     isFocused = (cell) => {
