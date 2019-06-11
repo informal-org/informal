@@ -5,6 +5,7 @@
 *** DONE Boolean expressions
 *** DONE Comparison operators
 *** DONE Send and execute a whole program beyond individual cells
+*** TODO Error state on evaluation failure
 *** TODO Revaluate on change
 *** TODO Feed output back to cells
 *** TODO Single cell failure doesn't block whole thing
@@ -17,7 +18,6 @@
 *** TODO Add db indexes.
 ** UI
 *** TODO Arrow key navigation
-*** TODO Drag handler
 *** TODO handlebars for resize
 *** TODO Expand collapse
 * Next
@@ -37,6 +37,10 @@
 *** Buy media server domain and setup media server bucket
 *** Try out argo
 
+* Deferred
+** UI
+*** Drag handler
+*** UP and Down movement with grid calculation.
 
 
 * Done

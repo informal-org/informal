@@ -5,11 +5,10 @@ import computeGridPositions from "./grid.js"
 import React from "React";
 import ReactDOM from "react-dom";
 import { connect } from 'react-redux'
-import {listToMap, apiPost} from './utils.js'
-import {modifySize, parseEverything} from './controller.js'
-import { configureStore, createReducer, createAction, createSlice } from 'redux-starter-kit'
+import { apiPost } from './utils.js'
+import { modifySize, parseEverything } from './controller.js'
+import { configureStore, createSlice } from 'redux-starter-kit'
 import { Provider } from 'react-redux'
-import {original} from "immer"
 
 const initialState = {
     cells: {
@@ -32,8 +31,8 @@ const initialState = {
             }
         },
         allIds: ["01", "02"],
-    },
-    focus: null
+        focus: null  // ID of the element selected
+    }
 }
 
 for(var i = 3; i < 80; i++){
@@ -63,19 +62,12 @@ const cellsSlice = createSlice({
             state.byId[action.payload.id].input = action.payload.input;
         },
         saveOutput: (state, action) => {
-            console.log("Save output");
-            console.log(action);
-
-            console.log("state")
-            console.log(state);
             let status = action.payload.status;
             let response = action.payload.response;
             const ids = Object.keys(response);
             ids.forEach((id) => {
-                console.log(id);
                 let responseCell = response[id];
                 let stateCell = state.byId[id];
-                
                 stateCell.output = responseCell.output;
             });
         },
@@ -84,27 +76,30 @@ const cellsSlice = createSlice({
         }, 
         incHeight: (state, action) => {
             modifySize(state.byId[action.payload.id], "height", 1, CELL_MAX_HEIGHT, action.payload.amt);
-        }
-    }
-})
-
-
-const focusSlice = createSlice({
-    slice: 'focus',
-    initialState: {},
-    reducers: {
+        },
         setFocus: (state, action) => {
-            return action.payload
+            state.focus = action.payload
+        },
+        moveFocus: (state, action) => {
+            let currentIndex = state.allIds.indexOf(state.focus);
+            if(currentIndex !== -1){
+                let newIndex = currentIndex + action.payload;
+                if(newIndex >= 0 && newIndex <= state.allIds.length){
+                    state.focus = state.allIds[newIndex];
+                }
+            }
         }
     }
 })
+
 
 const setInput = cellsSlice.actions.setInput;
 const saveOutput = cellsSlice.actions.saveOutput;
 // const reEvaluate = cellsSlice.actions.reEvaluate;
 const incWidth = cellsSlice.actions.incWidth;
 const incHeight = cellsSlice.actions.incHeight;
-const setFocus = focusSlice.actions.setFocus;
+const setFocus = cellsSlice.actions.setFocus;
+const moveFocus = cellsSlice.actions.moveFocus;
 
 
 
@@ -124,51 +119,31 @@ const reEvaluate = () => {
                 'status': true,
                 'response': results
             }))
-            // this.setState((state, props) => {
-            //     let cells = state.cells
-            //     for(var i = 0; i < cells.length; i++){
-            //         let cell = cells[i];
-            //         if(cell.id in results){
-            //             cell.output = results[cell.id].output
-            //         }
-            //     }
-            //     return {
-            //         cells: cells
-            //     }
-            // })
-            
-            // let results = json.map((cell))
-            // this.setState(cells, json)
         })
         .catch(error => {
             // document.getElementById("result").textContent = "Error : " + error
             console.log("Error")
             console.log(error);
+            // TODO error state
         });
     }
 }
 
-
-
-
-
 const cellsReducer = cellsSlice.reducer;
-const focusReducer = focusSlice.reducer;
 const store = configureStore({
   reducer: {
-    cellsReducer,
-    focusReducer
+    cellsReducer
   }
 })
 
 const mapStateToProps = (state /*, ownProps*/) => {
     return {
         cells: state.cellsReducer.allIds.map((id) => state.cellsReducer.byId[id]),
-        focus: state.focusReducer
+        focus: state.cellsReducer.focus
     }
 }
 
-const mapDispatchToProps = {setFocus, setInput, reEvaluate, incWidth, incHeight}
+const mapDispatchToProps = {setFocus, setInput, reEvaluate, incWidth, incHeight, moveFocus}
 
 // Sentinels will provide us a fast data structure without needing an element per item.
 var NEXT_ID = initialState["cells"].length + 1;
@@ -217,7 +192,7 @@ class GridCell extends React.Component {
     }
 
     setFocus = (event) => {
-        this.props.setFocus(this.props.cell);
+        this.props.setFocus(this.props.cell.id);
     }
 
     saveResult = (response) => {
@@ -264,17 +239,33 @@ class GridCell extends React.Component {
         this.setState({name: event.target.value});
     }
     formatOutput = () => {
-        if(this.props.output === undefined){
+        let output = this.props.cell.output;
+        if(output === undefined){
             return " "
         }
-        else if(this.props.output === true) {
+        else if(output === true) {
             return "True"
         } 
-        else if(this.props.output === false) {
+        else if(output === false) {
             return "False"
         } else {
-            return "" + this.props.output
+            return "" + output
         }
+    }
+    onKeyDown = (event) => {
+        console.log("key down");
+        console.log(event);
+        // Deferred - up = 38, down=40. Requires more complex calculation to get grid pos.
+        if (event.keyCode == '37') {
+           // left arrow
+           this.props.moveFocus(-1);
+        }
+        else if (event.keyCode == '39') {
+           // right arrow
+           this.props.moveFocus(1);
+        }
+    
+    
     }
     render() {
         let className = "Cell";
@@ -301,12 +292,14 @@ class GridCell extends React.Component {
         } else {
             cellBody = <span>
             <div className="Cell-cellName">{this.state.name}</div>
-            <div className="Cell-cellValue">{this.props.cell.output}</div>
+            <div className="Cell-cellValue">{this.formatOutput()}</div>
             </span>
         }
 
         return <div className={className} 
-        onClick={this.setFocus}>
+        onClick={this.setFocus} 
+        onKeyDown={this.onKeyDown}
+        tabIndex="0">
             {cellBody}
         </div>
     }
@@ -378,7 +371,7 @@ class Grid extends React.Component {
         }
     }
     isFocused = (cell) => {
-        return this.props.focus.id === cell.id;
+        return this.props.focus === cell.id;
     }
     render() {
         const cells = this.props.cells.map((cell) => {
@@ -388,6 +381,7 @@ class Grid extends React.Component {
                 isError={false}
                 key={cell.id}
                 setFocus={this.props.setFocus}
+                moveFocus={this.props.moveFocus}
                 setInput={this.props.setInput}
                 reEvaluate={this.props.reEvaluate}
                 recomputeCell = {this.recomputeCell}
