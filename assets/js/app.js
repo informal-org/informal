@@ -71,18 +71,7 @@ const cellsSlice = createSlice({
         }, 
         incHeight: (state, action) => {
             modifySize(state.byId[action.payload.id], "height", 1, CELL_MAX_HEIGHT, action.payload.amt);
-        },
-        dragCell: (state, action) => {
-            // Right now we only support drag and drop on top of other cells
-            // not over empty space.
-            let fromIndex = state.allIds.indexOf(action.payload.from);
-            let toIndex = state.allIds.indexOf(action.payload.to);
-            if(fromIndex !== undefined && toIndex !== undefined && fromIndex !== -1 && toIndex !== -1){
-                state.allIds.splice(fromIndex, 1);   // Remove cell
-                state.allIds.splice(toIndex, 0, action.payload.from); // Insert into new pos
-            }
         }
-
     }
 })
 
@@ -102,7 +91,6 @@ const saveOutput = cellsSlice.actions.saveOutput;
 // const reEvaluate = cellsSlice.actions.reEvaluate;
 const incWidth = cellsSlice.actions.incWidth;
 const incHeight = cellsSlice.actions.incHeight;
-const dragCell = cellsSlice.actions.dragCell;
 const setFocus = focusSlice.actions.setFocus;
 
 
@@ -167,7 +155,7 @@ const mapStateToProps = (state /*, ownProps*/) => {
     }
 }
 
-const mapDispatchToProps = {setFocus, setInput, reEvaluate, incWidth, incHeight, dragCell}
+const mapDispatchToProps = {setFocus, setInput, reEvaluate, incWidth, incHeight}
 
 // Sentinels will provide us a fast data structure without needing an element per item.
 var NEXT_ID = initialState["cells"].length + 1;
@@ -276,7 +264,7 @@ class GridCell extends React.Component {
         }
     }
     render() {
-        let className = "Cell draggable";
+        let className = "Cell";
         className += " Cell--width" + this.props.cell.width;
         className += " Cell--height" + this.props.cell.height;
         if(this.props.isFocused){
@@ -305,11 +293,7 @@ class GridCell extends React.Component {
         }
 
         return <div className={className} 
-        onClick={this.setFocus}
-        // onDragStart={this.props.onDragStart}
-        // onDragOver={this.props.onDragOver}
-        // onDrop={this.props.onDrop}
-        draggable={true}>
+        onClick={this.setFocus}>
             {cellBody}
         </div>
     }
@@ -380,19 +364,6 @@ class Grid extends React.Component {
             this.props.incHeight({id: this.props.focus.id, amt: -1})
         }
     }
-	onDragStart = (event, cell) => {
-    	event.dataTransfer.setData("fromCell", cell.id);
-	}
-	onDragOver = (event) => {
-        event.preventDefault();
-	}
-	onDrop = (event, targetCell) => {
-        this.props.dragCell({
-            from: event.dataTransfer.getData("fromCell"),
-            to: targetCell.id
-        })
-	}
-
     render() {
         const cells = this.props.cells.map((cell) => {
             return <GridCell 
@@ -404,9 +375,6 @@ class Grid extends React.Component {
                 setInput={this.props.setInput}
                 reEvaluate={this.props.reEvaluate}
                 recomputeCell = {this.recomputeCell}
-                onDragStart = {(event) => this.onDragStart(event, cell)}
-                onDragOver={(event)=>this.onDragOver(event, cell)}
-                onDrop={(event)=>{this.onDrop(event, cell)}}
                 />
         })
         
