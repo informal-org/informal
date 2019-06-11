@@ -5,7 +5,7 @@ import computeGridPositions from "./grid.js"
 import React from "React";
 import ReactDOM from "react-dom";
 import { connect } from 'react-redux'
-import { apiPost } from './utils.js'
+import { apiPost, cellGet } from './utils.js'
 import { modifySize, parseEverything } from './controller.js'
 import { configureStore, createSlice } from 'redux-starter-kit'
 import { Provider } from 'react-redux'
@@ -17,17 +17,13 @@ const initialState = {
                 id: "01",
                 type: "cell",
                 name: "Count",
-                input: "1 + 1",
-                width: 1,
-                height: 1
+                input: "1 + 1"
             },
             "02": {
                 id: "02",
                 type: "cell",
                 name: "Name",
-                input: "2 + 3",
-                width: 1,
-                height: 1            
+                input: "2 + 3"
             }
         },
         allIds: ["01", "02"],
@@ -42,12 +38,7 @@ for(var i = 3; i < 80; i++){
     }
     id = id + i
     initialState.cells.byId[id] = {
-        id: id,
-        type: "cell",
-        name: "",
-        input: "",
-        width: 1,
-        height: 1
+        id: id
     }
     initialState.cells.allIds.push(id);
 }
@@ -106,13 +97,9 @@ const moveFocus = cellsSlice.actions.moveFocus;
 const reEvaluate = () => {
     return (dispatch, getState) => {
         const state = getState();
-        console.log("State s");
-        console.log(state);
         let parsed = parseEverything(state.cellsReducer.byId)
-        console.log("Parsed")
         apiPost("/api/evaluate", parsed)
         .then(json => {
-            console.log("Fetching")
             // Find the cells and save the value.
             let results = json["body"];
             dispatch(saveOutput({
@@ -124,7 +111,8 @@ const reEvaluate = () => {
             // document.getElementById("result").textContent = "Error : " + error
             console.log("Error")
             console.log(error);
-            // TODO error state
+            // TODO error state 
+            // This happens separate from an individual cell failing.
         });
     }
 }
@@ -186,8 +174,8 @@ class GridCell extends React.Component {
     constructor(props){
         super(props)
         this.state = {
-            input: props.cell.input,
-            name: props.cell.name
+            input: cellGet(props.cell, "input"),
+            name: cellGet(props.cell, "name")
         }
     }
 
@@ -239,7 +227,7 @@ class GridCell extends React.Component {
         this.setState({name: event.target.value});
     }
     formatOutput = () => {
-        let output = this.props.cell.output;
+        let output = cellGet(this.props.cell, "output");
         if(output === undefined){
             return " "
         }
@@ -274,17 +262,22 @@ class GridCell extends React.Component {
             event.target.blur();
             event.target.closest(".Cell").focus();
         }
-    
     }
     render() {
         let className = "Cell";
-        className += " Cell--width" + this.props.cell.width;
-        className += " Cell--height" + this.props.cell.height;
+        className += " Cell--width" + cellGet(this.props.cell, "width", 1);
+        className += " Cell--height" + cellGet(this.props.cell, "height", 1);
         if(this.props.isFocused){
             className += " Cell--focused";
         }
-        if(this.props.isError) {
+        let cellResults = null;
+        let error = cellGet(this.props.cell, "error")
+        if(error) {
             className += " Cell--error";
+            cellResults = <div className="Cell-cellError">{error}</div>
+        } else {
+            cellResults = <div className="Cell-cellValue">{this.formatOutput()}</div>
+
         }
 
         let cellBody = null;
@@ -293,15 +286,12 @@ class GridCell extends React.Component {
                 <i className="fas fa-expand float-right text-gray-700 maximize"></i>
             <input className="Cell-cellName block Cell-cellName--edit" placeholder="Name" type="text" onChange={this.changeName} value={this.state.name}></input> 
             <input className="Cell-cellValue bg-blue-100 block Cell-cellValue--edit" type="text" onChange={this.changeInput} value={this.state.input}></input>
-            <span className="Cell-cellResult inline-block">
-                {this.formatOutput()}
-            </span>
             <input type="submit" className="hidden"/>
           </form>
         } else {
             cellBody = <span>
             <div className="Cell-cellName">{this.state.name}</div>
-            <div className="Cell-cellValue">{this.formatOutput()}</div>
+            {cellResults}
             </span>
         }
 
