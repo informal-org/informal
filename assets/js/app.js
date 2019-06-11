@@ -254,17 +254,26 @@ class GridCell extends React.Component {
     }
     onKeyDown = (event) => {
         // Only process events that happen directly on the outer div, not in inner inputs, etc.
-        if(event.target.dataset["cell"] === this.props.cell.id){
+        let isCellTarget = event.target.dataset["cell"] === this.props.cell.id;
+        if(isCellTarget){
             // Deferred - up = 38, down=40. Requires more complex calculation to get grid pos.
-            if (event.keyCode == '37') {
-                // left arrow
+            if (event.keyCode == 37) {
+                // Left arrow
                 this.props.moveFocus(-1);
             }
-            else if (event.keyCode == '39') {
-                // right arrow
+            else if (event.keyCode == 39) {
+                // Right arrow
                 this.props.moveFocus(1);
-            } 
-        }    
+            } else if (event.keyCode == 27) {
+                // ESC with cell selected. Clear focus.
+                this.props.setFocus(null);
+            }
+        } else if (event.keyCode == 27) {
+            // ESC
+            // De-select input and set focus back on cells
+            event.target.blur();
+            event.target.closest(".Cell").focus();
+        }
     
     }
     render() {
