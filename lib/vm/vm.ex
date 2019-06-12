@@ -63,6 +63,7 @@ end
 
 defmodule VM do
   import VM.Math
+  import Arevel.Utils
 
   def binary_operators, do: %{
     "+" => &VM.Math.add/2,
@@ -93,9 +94,9 @@ defmodule VM do
   Evaluate an expression json tree.
   """
   def eval(code) do
-    %{"body" => body} = code
+    dependencies = get_eval_order(code)
     result = Enum.map(
-      body,
+      code,
       fn ({id, cell}) -> {id, eval_cell(cell)} end
     )
     # Convert tuple back into map
@@ -139,12 +140,38 @@ defmodule VM do
       "Literal" ->
         Map.get(expr, "value")
     end
+  end
+
+  @doc """
+  Performs a topological sort of the cells to figure out which leaf nodes we
+  can begin evaluating from in the graph and detects any cycles.
+  You could conceivably make this churn out seprate independent threads of execution
+  with multiple workers.
+  """
+  def get_eval_order(cells) do
+    dependency_map = Enum.map(cells, fn {id, cell} -> {id, Map.get(cell, "depends_on")} end)
+    dependency_count = Enum.map(dependency_map, fn {id, deps} -> {id, length(deps)} end)
+    dependency_count_map = Enum.into(dependency_count, %{})
+    leafs = Enum.filter(dependency_count, fn {_, count} -> count == 0 end)
+    used_by_map = Arevel.Utils.invert_map(dependency_map)
+
+    # eval_order = get_eval_order(leafs, dependency_map)
+    eval_order = Enum.reduce()
+  end
+
+
+
+  def get_used_by(cells) do
 
   end
 
-  def get_dependencies() do
-      # TODO
-  end
+  # def get_eval_order(leafs, dependency_map) do
+  #   [cell | _] = leafs
+
+  #   # Enum.concat([cell], )
+  # end
+
+
 end
 
 

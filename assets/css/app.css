@@ -88,7 +88,8 @@ a {
   overflow: hidden;
   text-overflow: ellipsis;
   position: relative;
-  outline: 1px solid #a0aec0;
+  /* outline: 1px solid #a0aec0; */
+  outline: 1px dotted rgba(160, 174, 192, 0.55);
 }
 
 .Cell-cellName {

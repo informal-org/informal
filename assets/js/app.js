@@ -13,20 +13,20 @@ import { Provider } from 'react-redux'
 const initialState = {
     cells: {
         byId: {
-            "01": {
-                id: "01",
+            "id01": {
+                id: "id01",
                 type: "cell",
                 name: "Count",
                 input: "1 + 1"
             },
-            "02": {
-                id: "02",
+            "id02": {
+                id: "id02",
                 type: "cell",
                 name: "Name",
-                input: "2 + 3"
+                input: "2 + id01"
             }
         },
-        allIds: ["01", "02"],
+        allIds: ["id01", "id02"],
         focus: null  // ID of the element selected
     }
 }
@@ -38,7 +38,7 @@ for(var i = 3; i < 80; i++){
     }
     id = id + i
     initialState.cells.byId[id] = {
-        id: id
+        id: "id" + id
     }
     initialState.cells.allIds.push(id);
 }
@@ -123,6 +123,11 @@ const store = configureStore({
     cellsReducer
   }
 })
+
+// Initial evaluation
+store.dispatch(reEvaluate())
+
+
 
 const mapStateToProps = (state /*, ownProps*/) => {
     return {

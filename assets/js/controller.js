@@ -1,4 +1,4 @@
-import parseExpr from "./expr.js"
+import { parseExpr, getDependencies }  from "./expr.js"
 import { cellGet } from "./utils.js"
 
 export function modifySize(cell, dimension, min, max, amt) {
@@ -11,7 +11,6 @@ export function modifySize(cell, dimension, min, max, amt) {
     return cell
 }
 
-
 export function parseEverything(cells) {
     let data = {}
     data.body = {}
@@ -23,10 +22,14 @@ export function parseEverything(cells) {
             // So that it's valid to have cells with space            
             continue
         }
+        let parsed = parseExpr(cellInput);
+        let depends_on = getDependencies(parsed);
+        console.log(id + " : " + depends_on);
         data.body[cell.id] = {
             id: cell.id,
             input: cellInput,
-            parsed: parseExpr(cellInput)
+            parsed: parsed,
+            depends_on: depends_on
         }
     }
     return data

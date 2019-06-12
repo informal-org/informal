@@ -50,7 +50,8 @@ defmodule ArevelWeb.EvalController do
   use ArevelWeb, :controller
   def evaluate(conn, _params) do
     IO.inspect(conn.body_params)
-    result = VM.eval(conn.body_params)
+    %{"body" => body} = conn.body_params
+    result = VM.eval(body)
 
     json(conn, %{status: "OK", body: result})
   end
