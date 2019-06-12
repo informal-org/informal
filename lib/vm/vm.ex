@@ -94,7 +94,7 @@ defmodule VM do
   Evaluate an expression json tree.
   """
   def eval(code) do
-    dependencies = get_eval_order(code)
+    # dependencies = get_eval_order(code)
     result = Enum.map(
       code,
       fn ({id, cell}) -> {id, eval_cell(cell)} end
@@ -143,26 +143,36 @@ defmodule VM do
   end
 
   @doc """
-  Performs a topological sort of the cells to figure out which leaf nodes we
-  can begin evaluating from in the graph and detects any cycles.
-  You could conceivably make this churn out seprate independent threads of execution
-  with multiple workers.
+  Performs a topological sort over a dependency map in the form [{"id01", []}, {"id02", ["id01"]}]
+  returns a tuple of :ok, [path of ids] or :cycle, [cyclical IDs]
   """
   def get_eval_order(cells) do
-    dependency_map = Enum.map(cells, fn {id, cell} -> {id, Map.get(cell, "depends_on")} end)
-    dependency_count = Enum.map(dependency_map, fn {id, deps} -> {id, length(deps)} end)
-    dependency_count_map = Enum.into(dependency_count, %{})
-    leafs = Enum.filter(dependency_count, fn {_, count} -> count == 0 end)
-    used_by_map = Arevel.Utils.invert_map(dependency_map)
-
-    # eval_order = get_eval_order(leafs, dependency_map)
-    eval_order = Enum.reduce()
+    graph = get_dependency_graph(cells)
+    if path = :digraph_utils.topsort(graph) do
+      print_path(path)
+      {:ok, path}
+    else
+      cyclic_cells = Enum.filter(:digraph.vertices(graph), fn cell -> :digraph.get_short_cycle(graph,cell) end)
+      {:cycle, cyclic_cells}
+    end
   end
 
+  def get_dependency_graph(cells) do
+    dependency_map = Enum.map(cells, fn {id, cell} -> {id, Map.get(cell, "depends_on")} end)
+    graph = :digraph.new
+    Enum.each(dependency_map, fn {cell,deps} ->
+      :digraph.add_vertex(graph,cell)
+      Enum.each(deps, fn dep -> add_dependency(graph,cell,dep) end)
+    end)
+    graph
+  end
 
+  defp print_path(l), do: IO.puts Enum.join(l, " -> ")
 
-  def get_used_by(cells) do
-
+  def add_dependency(_graph,cell,cell), do: :ok   # Skip adding dependencies to self.
+  def add_dependency(graph,cell,dependency) do
+    :digraph.add_vertex(graph,dependency)         # No-op if it already exists.
+    :digraph.add_edge(graph,dependency,cell)      # Dependencies represented as an edge d -> l
   end
 
   # def get_eval_order(leafs, dependency_map) do
