@@ -1,17 +1,10 @@
 * Current
 ** Parser
-*** DONE Floating point numbers
-*** DONE Variables
-*** DONE Boolean expressions
-*** DONE Comparison operators
-*** DONE Send and execute a whole program beyond individual cells
 *** TODO Error state on evaluation failure
 *** TODO Revaluate on change
-*** TODO Feed output back to cells
 *** TODO Single cell failure doesn't block whole thing
 *** TODO Dependency graph
 *** TODO Use IDs rather than names transparently.
-*** TODO Intinite virtualized grid
 *** TODO List operators
 *** TODO String operators
 *** TODO Figure out separate process for code execution, with timeouts.
@@ -28,7 +21,7 @@
 *** Setup user signup
 *** Security access control
 ** Language
-*** Basic runtime that can return a response
+*** DONE Basic runtime that can return a response
 ** Operational
 *** Setup stackdriver logging
 *** Setup amplitude analytics
@@ -41,7 +34,14 @@
 ** UI
 *** Drag handler
 *** UP and Down movement with grid calculation.
+*** Virtualized grid - deffered in favor of a cell limit.
 
 
 * Done
 ** DONE Finish setting up load balancer and webapp
+** DONE Floating point numbers
+** DONE Variables
+** DONE Boolean expressions
+** DONE Comparison operators
+** DONE Send and execute a whole program beyond individual cells
+** DONE Feed output back to cells
