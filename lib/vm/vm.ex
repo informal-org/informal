@@ -94,18 +94,25 @@ defmodule VM do
   Evaluate an expression json tree.
   """
   def eval(code) do
-    # dependencies = get_eval_order(code)
-    result = Enum.map(
+    {status, order} = get_eval_order(code)
+    # TODO handle error case
+    {_, result} = Enum.map_reduce(
+      order,
       code,
-      fn ({id, cell}) -> {id, eval_cell(cell)} end
+      fn (id, acc) -> eval_cell(Map.get(acc, id), acc) end
     )
+    IO.inspect(result)
     # Convert tuple back into map
-    Enum.into(result, %{})
+    # Enum.into(result, %{})
+    result
   end
 
-  def eval_cell(cell) do
-    %{"id" => _, "parsed" => parsed} = cell
-    Map.put(cell, "output", eval_expr(parsed))
+  def eval_cell(cell, cells) do
+    %{"id" => id, "parsed" => parsed} = cell
+    out = eval_expr(parsed)
+    cell = Map.put(cell, "output", out)
+    cells = Map.put(cells, id, cell)
+    {cell, cells}
   end
 
   def eval_expr(expr) do

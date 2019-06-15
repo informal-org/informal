@@ -23,7 +23,7 @@ const initialState = {
                 id: "id02",
                 type: "cell",
                 name: "Name",
-                input: "2 + id01"
+                input: "2 + 3"
             }
         },
         allIds: ["id01", "id02"],

@@ -60,4 +60,64 @@ defmodule EvalTest do
     assert VM.eval_expr(expr) == true
   end
 
+
+  test "Simple multi cell evaluation" do
+    body = %{
+      "id01" => %{
+        "depends_on" => [],
+        "id" => "id01",
+        "input" => "1 + 1",
+        "parsed" => %{
+          "left" => %{"raw" => "1", "type" => "Literal", "value" => 1},
+          "operator" => "+",
+          "right" => %{"raw" => "1", "type" => "Literal", "value" => 1},
+          "type" => "BinaryExpression"
+        }
+      },
+      "id02" => %{
+        "depends_on" => [],
+        "id" => "id02",
+        "input" => "2 + 3",
+        "parsed" => %{
+          "left" => %{"raw" => "2", "type" => "Literal", "value" => 2},
+          "operator" => "+",
+          "right" => %{"raw" => "3", "type" => "Literal", "value" => 3},
+          "type" => "BinaryExpression"
+        }
+      }
+    }
+    VM.eval(body)
+
+  end
+
+  test "Simple dependency evaluation" do
+    body = %{
+      "id01" => %{
+        "depends_on" => [],
+        "id" => "id01",
+        "input" => "1 + 1",
+        "parsed" => %{
+          "left" => %{"raw" => "1", "type" => "Literal", "value" => 1},
+          "operator" => "+",
+          "right" => %{"raw" => "1", "type" => "Literal", "value" => 1},
+          "type" => "BinaryExpression"
+        }
+      },
+      "id02" => %{
+        "depends_on" => ["id01"],
+        "id" => "id02",
+        "input" => "2 + id01",
+        "parsed" => %{
+          "left" => %{"raw" => "2", "type" => "Literal", "value" => 2},
+          "operator" => "+",
+          "right" => %{"name" => "id01", "type" => "Identifier"},
+          "type" => "BinaryExpression"
+        }
+      }
+    }
+
+    VM.eval(body)
+
+  end
+
 end
