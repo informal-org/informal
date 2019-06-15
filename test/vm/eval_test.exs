@@ -16,7 +16,7 @@ defmodule EvalTest do
       "right" => %{"raw" => "1", "type" => "Literal", "value" => 1},
       "type" => "BinaryExpression"
     }
-    assert VM.eval_expr(expr) == 2
+    assert VM.eval_expr(expr, %{}) == 2
   end
 
 
@@ -39,7 +39,7 @@ defmodule EvalTest do
       "type" => "BinaryExpression"
     }
 
-    assert VM.eval_expr(expr) == -14
+    assert VM.eval_expr(expr, %{}) == -14
 
   end
 
@@ -57,7 +57,7 @@ defmodule EvalTest do
       "type" => "BinaryExpression"
     }
 
-    assert VM.eval_expr(expr) == true
+    assert VM.eval_expr(expr, %{}) == true
   end
 
 

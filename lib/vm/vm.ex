@@ -109,16 +109,16 @@ defmodule VM do
 
   def eval_cell(cell, cells) do
     %{"id" => id, "parsed" => parsed} = cell
-    out = eval_expr(parsed)
+    out = eval_expr(parsed, cells)
     cell = Map.put(cell, "output", out)
     cells = Map.put(cells, id, cell)
     {cell, cells}
   end
 
-  def eval_expr(expr) do
+  def eval_expr(expr, cells) do
     # %{id: id, value: value} = cell
     # TODO: case value starts with =
-    recurse_expr(expr)
+    recurse_expr(expr, cells)
   end
 
   def eval_binary(op, left, right) do
@@ -132,20 +132,24 @@ defmodule VM do
   end
 
   # [integer: 1], {:binopt, "+"}, [integer: 2, binopt: "*", integer: 3]
-  def recurse_expr(expr) do
+  def recurse_expr(expr, cells) do
     case Map.get(expr, "type") do
       # Unwrap empty wrapper
       "BinaryExpression" ->
         op = Map.get(expr, "operator")
-        left = recurse_expr(Map.get(expr, "left"))
-        right = recurse_expr(Map.get(expr, "right"))
+        left = recurse_expr(Map.get(expr, "left"), cells)
+        right = recurse_expr(Map.get(expr, "right"), cells)
         eval_binary(op, left, right)
       "UnaryExpression" ->
         op = Map.get(expr, "operator")
-        arg = recurse_expr(Map.get(expr, "argument"))
+        arg = recurse_expr(Map.get(expr, "argument"), cells)
         eval_unary(op, arg)
       "Literal" ->
         Map.get(expr, "value")
+      "Identifier" ->
+        ref = Map.get(cells, Map.get(expr, "name"))
+        # Does it always reference the output value or should it ref the cell?
+        Map.get(ref, "output")
     end
   end
 

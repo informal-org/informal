@@ -208,7 +208,9 @@ class GridCell extends React.Component {
         //     return
         // }
         this.props.setInput({id: this.props.cell.id, input: this.state.input})
-        this.props.reEvaluate()
+        this.props.reEvaluate();
+
+        this.clearFocus();
 
         // const parsed = parseExpr(this.state.input);
 
@@ -224,6 +226,9 @@ class GridCell extends React.Component {
         // });
 
         // this.props.recomputeCell(this.state.cell)
+    }
+    clearFocus = () => {
+        this.props.setFocus(null);
     }
     changeInput = (event) => {
         this.setState({input: event.target.value});
@@ -259,7 +264,7 @@ class GridCell extends React.Component {
                 this.props.moveFocus(1);
             } else if (event.keyCode == 27) {
                 // ESC with cell selected. Clear focus.
-                this.props.setFocus(null);
+                this.clearFocus();
             }
         } else if (event.keyCode == 27) {
             // ESC
