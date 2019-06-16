@@ -60,6 +60,7 @@ const cellsSlice = createSlice({
                 let responseCell = response[id];
                 let stateCell = state.byId[id];
                 stateCell.output = responseCell.output;
+                stateCell.error = responseCell.error;
             });
         },
         incWidth: (state, action) => {

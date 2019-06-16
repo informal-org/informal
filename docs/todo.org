@@ -1,5 +1,6 @@
 * Current
 ** Parser
+*** TODO Scope (scope, parent. get function.)
 *** TODO Error state on evaluation failure
 *** TODO Revaluate on change
 *** TODO Single cell failure doesn't block whole thing

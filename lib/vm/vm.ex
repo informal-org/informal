@@ -109,16 +109,27 @@ defmodule VM do
 
   def eval_cell(cell, cells) do
     %{"id" => id, "parsed" => parsed} = cell
-    out = eval_expr(parsed, cells)
-    cell = Map.put(cell, "output", out)
-    cells = Map.put(cells, id, cell)
-    {cell, cells}
+    result = try do
+      out = eval_expr(parsed, cells)
+      %{
+        "id" => id,
+        "output" => out
+      }
+    rescue
+      ArithmeticError -> %{
+        "id" => id,
+        "error" => "ArithmeticError"
+      }
+    end
+
+    cells = Map.put(cells, id, result)
+    {result, cells}
   end
 
-  def eval_expr(expr, cells) do
+  def eval_expr(expr, context) do
     # %{id: id, value: value} = cell
     # TODO: case value starts with =
-    recurse_expr(expr, cells)
+    recurse_expr(expr, context)
   end
 
   def eval_binary(op, left, right) do
@@ -132,23 +143,26 @@ defmodule VM do
   end
 
   # [integer: 1], {:binopt, "+"}, [integer: 2, binopt: "*", integer: 3]
-  def recurse_expr(expr, cells) do
+  def recurse_expr(expr, context) do
     case Map.get(expr, "type") do
       # Unwrap empty wrapper
       "BinaryExpression" ->
         op = Map.get(expr, "operator")
-        left = recurse_expr(Map.get(expr, "left"), cells)
-        right = recurse_expr(Map.get(expr, "right"), cells)
+        left = recurse_expr(Map.get(expr, "left"), context)
+        right = recurse_expr(Map.get(expr, "right"), context)
         eval_binary(op, left, right)
       "UnaryExpression" ->
         op = Map.get(expr, "operator")
-        arg = recurse_expr(Map.get(expr, "argument"), cells)
+        arg = recurse_expr(Map.get(expr, "argument"), context)
         eval_unary(op, arg)
       "Literal" ->
         Map.get(expr, "value")
       "Identifier" ->
-        ref = Map.get(cells, Map.get(expr, "name"))
-        # Does it always reference the output value or should it ref the cell?
+        # TODO: Error case if cell by that name/id doesn't exist.
+        ref = Map.get(context, Map.get(expr, "name"))
+        # TODO: Does it always reference the output value or should it ref the cell?
+        # Not sure if this is the right way to do this...
+        # TODO: Propagate errors to any referencing cell
         Map.get(ref, "output")
     end
   end

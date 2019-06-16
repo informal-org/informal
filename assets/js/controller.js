@@ -22,14 +22,23 @@ export function parseEverything(cells) {
             // So that it's valid to have cells with space            
             continue
         }
-        let parsed = parseExpr(cellInput);
-        let depends_on = getDependencies(parsed);
-        console.log(id + " : " + depends_on);
-        data.body[cell.id] = {
-            id: cell.id,
-            input: cellInput,
-            parsed: parsed,
-            depends_on: depends_on
+        try {
+            let parsed = parseExpr(cellInput);
+            let depends_on = getDependencies(parsed);
+            console.log(id + " : " + depends_on);
+            data.body[cell.id] = {
+                id: cell.id,
+                input: cellInput,
+                parsed: parsed,
+                depends_on: depends_on
+            }
+        } catch (err) {
+            // Catch any parse error 
+            data.body[cell.id] = {
+                id: cell.id,
+                input: cellInput, 
+                error: err          // TODO: Human friendly error
+            }
         }
     }
     return data
