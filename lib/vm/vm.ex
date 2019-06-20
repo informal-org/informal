@@ -90,21 +90,61 @@ defmodule VM do
     "NOT" => &VM.Bool.bool_not/1,
   }
 
+
+  def filter_cycles(dep_map, cycles) do
+    Enum.filter(dep_map, fn {id, _} -> id not in cycles end)
+  end
+
+  def get_cycle_errors(cycles) do
+    errors = Enum.map(cycles, fn id -> {id, %{"id" => id, "error" => "Circular Reference Error"}} end)
+    Enum.into(errors, %{})
+  end
+
   @doc """
   Evaluate an expression json tree.
   """
   def eval(code) do
-    {status, order} = get_eval_order(code)
-    # TODO handle error case
-    {_, result} = Enum.map_reduce(
-      order,
-      code,
-      fn (id, acc) -> eval_cell(Map.get(acc, id), acc) end
-    )
-    IO.inspect(result)
-    # Convert tuple back into map
-    # Enum.into(result, %{})
-    result
+    dep_map = get_dependency_map(code)
+    eval(code, dep_map)
+  end
+
+  @doc """
+  Evaluate all of the nodes that are not cycles, filtering out cyclic and failure nodes
+  """
+  def eval(code, dep_map) do
+    {status, order} = get_eval_order(dep_map)
+
+    if status == :ok do
+      IO.puts("status ok")
+      # TODO handle error case
+      {_, result} = Enum.map_reduce(
+        order,
+        code,
+        fn (id, acc) -> eval_cell(Map.get(acc, id), acc) end
+      )
+      IO.inspect(result)
+      # Convert tuple back into map
+      # Enum.into(result, %{})
+      result
+    else
+      cycles = order
+      # Set the error for all of the cycles
+      IO.puts("Status not ok")
+      IO.inspect(order)
+      errors = get_cycle_errors(cycles)
+      IO.inspect(errors)
+
+      IO.inspect(dep_map)
+      # Filter out all the cyclic nodes and continue evaluating the rest.
+      acyclic_deps = filter_cycles(dep_map, cycles)
+      result = eval(code, acyclic_deps)
+
+      IO.puts("Combined result")
+      combined = Map.merge(result, errors)
+      IO.inspect(combined)
+    end
+
+
   end
 
   def eval_cell(cell, cells) do
@@ -118,7 +158,7 @@ defmodule VM do
     rescue
       ArithmeticError -> %{
         "id" => id,
-        "error" => "ArithmeticError"
+        "error" => "Arithmetic Error"
       }
     end
 
@@ -167,12 +207,16 @@ defmodule VM do
     end
   end
 
+  def get_dependency_map(cells) do
+    Enum.map(cells, fn {id, cell} -> {id, Map.get(cell, "depends_on")} end)
+  end
+
   @doc """
   Performs a topological sort over a dependency map in the form [{"id01", []}, {"id02", ["id01"]}]
   returns a tuple of :ok, [path of ids] or :cycle, [cyclical IDs]
   """
-  def get_eval_order(cells) do
-    graph = get_dependency_graph(cells)
+  def get_eval_order(dependency_map) do
+    graph = get_dependency_graph(dependency_map)
     if path = :digraph_utils.topsort(graph) do
       print_path(path)
       {:ok, path}
@@ -182,8 +226,7 @@ defmodule VM do
     end
   end
 
-  def get_dependency_graph(cells) do
-    dependency_map = Enum.map(cells, fn {id, cell} -> {id, Map.get(cell, "depends_on")} end)
+  def get_dependency_graph(dependency_map) do
     graph = :digraph.new
     Enum.each(dependency_map, fn {cell,deps} ->
       :digraph.add_vertex(graph,cell)

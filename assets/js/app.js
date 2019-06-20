@@ -32,13 +32,14 @@ const initialState = {
 }
 
 for(var i = 3; i < 280; i++){
-    let id = "";
+    let id = "id";
     if(i < 10) {
         id += "0";
     }
-    id = id + i
+    id += i
+
     initialState.cells.byId[id] = {
-        id: "id" + id
+        "id": id
     }
     initialState.cells.allIds.push(id);
 }
@@ -50,7 +51,10 @@ const cellsSlice = createSlice({
     initialState: initialState.cells,
     reducers: {
         setInput: (state, action) => {
-            state.byId[action.payload.id].input = action.payload.input;
+            let cell = state.byId[action.payload.id]
+            console.log(action.payload.id);
+            console.log(cell);
+            cell.input = action.payload.input;
         },
         saveOutput: (state, action) => {
             let status = action.payload.status;
