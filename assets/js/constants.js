@@ -14,3 +14,6 @@ export const typeDefaults = {
     },
     "listcell": {}
 }
+
+const CELL_MAX_WIDTH = 7;
+const CELL_MAX_HEIGHT = 8;
