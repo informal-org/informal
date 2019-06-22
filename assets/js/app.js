@@ -5,7 +5,7 @@ import computeGridPositions from "./grid.js"
 import React from "React";
 import ReactDOM from "react-dom";
 import { connect } from 'react-redux'
-import { apiPost, cellGet } from './utils.js'
+import { apiPost, cellGet, formatCellOutput } from './utils.js'
 import { modifySize, parseEverything } from './controller.js'
 import { configureStore, createSlice } from 'redux-starter-kit'
 import { Provider } from 'react-redux'
@@ -24,15 +24,40 @@ const initialState = {
                 type: "cell",
                 name: "Name",
                 input: "2 + 3"
+            },
+            "id03": {
+                id: "id03",
+                type: "list",
+                name: "List",
+                length: 3,
+                contents: ["id04", "id05", "id06"]
+            },
+            "id04": {
+                id: "id04",
+                type: "listcell",
+                input: "1",
+                parent: "id03"
+            },
+            "id05": {
+                id: "id05",
+                type: "listcell",
+                input: "2",
+                parent: "id03"
+            },
+            "id06": {
+                id: "id06",
+                type: "listcell",
+                input: "3",
+                parent: "id03"
             }
         },
-        allIds: ["id01", "id02"],
+        allIds: ["id01", "id02", "id03", "id04", "id05", "id06"],
         focus: null,  // ID of the element selected
         modified: true,  // Allow initial evaluation
     }
 }
 
-for(var i = 3; i < 280; i++){
+for(var i = 7; i < 280; i++){
     let id = "id";
     if(i < 10) {
         id += "0";
@@ -40,7 +65,8 @@ for(var i = 3; i < 280; i++){
     id += i
 
     initialState.cells.byId[id] = {
-        "id": id
+        "id": id,
+        "type": "cell"
     }
     initialState.cells.allIds.push(id);
 }
@@ -198,14 +224,11 @@ class ActionBar extends React.Component {
 }
 
 
-
-class GridCell extends React.Component {
+// Abstract base cell that all other cell types inherit from
+// Contains common functionality.
+class AbstractBaseCell extends React.Component {
     constructor(props){
         super(props)
-        this.state = {
-            input: cellGet(props.cell, "input"),
-            name: cellGet(props.cell, "name")
-        }
     }
 
     setFocus = (event) => {
@@ -213,74 +236,10 @@ class GridCell extends React.Component {
         this.props.setFocus(this.props.cell.id);
     }
 
-    saveResult = (response) => {
-        this.setState({
-            output: response.output
-        })
-    }
-
-    showError = (error) => {
-        console.log("Error: " + error);
-    }
-
-    saveCell = (event) => {
-        console.log("Saving cell");
-        event.preventDefault();
-        console.log(this.state.input);
-        // TODO: Port over
-        // if(this.state.input.trim() === ""){
-        //     this.setState({output: ""})
-        //     return
-        // }
-        this.props.setInput({id: this.props.cell.id, input: this.state.input})
-        this.props.reEvaluate();
-
-        this.clearFocus();
-
-        // const parsed = parseExpr(this.state.input);
-
-        // postData("/api/evaluate", parsed)
-        // .then(json => {
-        //         // document.getElementById("result").textContent = json.status + " : " + json.result;
-        //         this.saveResult(json)
-        //     }
-        // )
-        // .catch(error => {
-        //     // document.getElementById("result").textContent = "Error : " + error
-        //     this.showError(error);
-        // });
-
-        // this.props.recomputeCell(this.state.cell)
-    }
     clearFocus = () => {
         this.props.setFocus(null);
     }
-    changeInput = (event) => {
-        let input = event.target.value;
-        this.props.setInput({id: this.props.cell.id, input: input})
-        this.setState({input: input});
-        this.props.setModified();
-    }
-    changeName = (event) => {
-        let name = event.target.value;
-        this.props.setName({id: this.props.cell.id, name: name})
-        this.setState({name: name});
-        this.props.setModified();
-    }
-    formatOutput = () => {
-        let output = cellGet(this.props.cell, "output");
-        if(output === undefined){
-            return " "
-        }
-        else if(output === true) {
-            return "True"
-        } 
-        else if(output === false) {
-            return "False"
-        } else {
-            return "" + output
-        }
-    }
+
     onKeyDown = (event) => {
         // Only process events that happen directly on the outer div, not in inner inputs, etc.
         let isCellTarget = event.target.dataset["cell"] === this.props.cell.id;
@@ -303,7 +262,47 @@ class GridCell extends React.Component {
             event.target.blur();
             event.target.closest(".Cell").focus();
         }
+    }    
+}
+
+class GridCell extends AbstractBaseCell {
+    constructor(props){
+        super(props)
+        this.state = {
+            input: cellGet(props.cell, "input"),
+            name: cellGet(props.cell, "name")
+        }
     }
+
+    saveCell = (event) => {
+        event.preventDefault();
+        // TODO: Port over
+        // if(this.state.input.trim() === ""){
+        //     this.setState({output: ""})
+        //     return
+        // }
+        this.props.setInput({id: this.props.cell.id, input: this.state.input})
+        this.props.reEvaluate();
+
+        this.clearFocus();
+    }
+
+    changeInput = (event) => {
+        let input = event.target.value;
+        this.props.setInput({id: this.props.cell.id, input: input})
+        this.setState({input: input});
+        this.props.setModified();
+    }
+    changeName = (event) => {
+        let name = event.target.value;
+        this.props.setName({id: this.props.cell.id, name: name})
+        this.setState({name: name});
+        this.props.setModified();
+    }
+    formatOutput = () => {
+        return formatCellOutput(this.props.cell);
+    }
+
     render() {
         let className = "Cell";
         className += " Cell--width" + cellGet(this.props.cell, "width", 1);
@@ -414,7 +413,9 @@ class Grid extends React.Component {
     }
     render() {
         const cells = this.props.cells.map((cell) => {
-            return <GridCell 
+
+            if(cell.type === "cell"){
+                return <GridCell 
                 cell={cell}
                 isFocused={this.isFocused(cell)}
                 isError={false}
@@ -427,7 +428,14 @@ class Grid extends React.Component {
                 reEvaluate={this.props.reEvaluate}
                 recomputeCell = {this.recomputeCell}
                 />
-        })
+            }else if (cell.type === "list") {
+
+            }
+
+
+            // Unknown types are not rendered
+            return undefined;
+        }).filter((r) => r !== undefined) // Filter out un-rendered cells
         
         return <div>
             <ActionBar 

@@ -1,4 +1,4 @@
-import { cellDefaults } from './constants.js'
+import { typeDefaults } from './constants.js'
 
 export function inc(x) {
     return x + 1
@@ -42,5 +42,28 @@ export function getattr(object, attr, fallback) {
 }
 
 export function cellGet(cell, attr) {
-    return getattr(cell, attr, cellDefaults[attr])
+    if(attr in cell){
+        return cell[attr]
+    }
+    let type = cell["type"];                        // Assume this always exists
+    if(type in typeDefaults && attr in typeDefaults[type]){
+        return typeDefaults[type][attr];
+    }
+    return typeDefaults["default"][attr];
+}
+
+
+export function formatCellOutput(cell) {
+    let output = cellGet(cell, "output");
+    if(output === undefined){
+        return " "
+    }
+    else if(output === true) {
+        return "True"
+    } 
+    else if(output === false) {
+        return "False"
+    } else {
+        return "" + output
+    }
 }

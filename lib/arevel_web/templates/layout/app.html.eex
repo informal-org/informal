@@ -15,7 +15,6 @@
     <header>
       <nav role="navigation" class="flex bg-white border-b border-gray-200 items-center flex-wrap p-4 justify-between">
 
-
       <div class="w-full max-w-screen-xl relative mx-auto px-6">
         <div class="logo lg:w-1/4 xl:w-1/5 pl-6 pr-6 lg:pr-8">
           <img class="block h-8" src="<%= Routes.static_path(@conn, "/images/arevel_beta_logo.png") %>" alt="Arevel logo"/>
