@@ -117,9 +117,7 @@ const setModified = cellsSlice.actions.setModified;
 const reEvaluate = () => {
     return (dispatch, getState) => {
         const state = getState();
-        console.log(state.cellsReducer.modified)
         if(state.cellsReducer.modified === false){
-            console.log("Skipping un-modified re-evaluation");
             return
         }
         let parsed = parseEverything(state.cellsReducer.byId);

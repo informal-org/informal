@@ -11,10 +11,13 @@
 *** TODO String operators
 *** TODO Figure out separate process for code execution, with timeouts.
 *** TODO Add db indexes.
-** UI
-*** TODO Arrow key navigation
+** UI/UX
+*** DONE Arrow key navigation
 *** TODO handlebars for resize
 *** TODO Expand collapse
+*** TODO Delete to clear cell.
+*** TODO Cut/paste.
+*** TODO Undo/redo.
 * Next
 
 * Backlog
