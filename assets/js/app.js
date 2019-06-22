@@ -27,7 +27,8 @@ const initialState = {
             }
         },
         allIds: ["id01", "id02"],
-        focus: null  // ID of the element selected
+        focus: null,  // ID of the element selected
+        modified: true,  // Allow initial evaluation
     }
 }
 
@@ -55,6 +56,17 @@ const cellsSlice = createSlice({
             console.log(action.payload.id);
             console.log(cell);
             cell.input = action.payload.input;
+            state.modified = true;
+        },
+        setName: (state, action) => {
+            let cell = state.byId[action.payload.id]
+            console.log(action.payload.id);
+            console.log(cell);
+            cell.name = action.payload.name;
+            state.modified = true;
+        },        
+        setModified: (state, action) => {
+            state.modified = true;
         },
         saveOutput: (state, action) => {
             let status = action.payload.status;
@@ -66,6 +78,8 @@ const cellsSlice = createSlice({
                 stateCell.output = responseCell.output;
                 stateCell.error = responseCell.error;
             });
+            // Short-circuit re-evaluation until a change happens.
+            state.modified = false;
         },
         incWidth: (state, action) => {
             modifySize(state.byId[action.payload.id], "width", 1, CELL_MAX_WIDTH, action.payload.amt);
@@ -90,19 +104,26 @@ const cellsSlice = createSlice({
 
 
 const setInput = cellsSlice.actions.setInput;
+const setName = cellsSlice.actions.setName;
 const saveOutput = cellsSlice.actions.saveOutput;
 // const reEvaluate = cellsSlice.actions.reEvaluate;
 const incWidth = cellsSlice.actions.incWidth;
 const incHeight = cellsSlice.actions.incHeight;
 const setFocus = cellsSlice.actions.setFocus;
 const moveFocus = cellsSlice.actions.moveFocus;
-
+const setModified = cellsSlice.actions.setModified;
 
 
 const reEvaluate = () => {
     return (dispatch, getState) => {
         const state = getState();
-        let parsed = parseEverything(state.cellsReducer.byId)
+        console.log(state.cellsReducer.modified)
+        if(state.cellsReducer.modified === false){
+            console.log("Skipping un-modified re-evaluation");
+            return
+        }
+        let parsed = parseEverything(state.cellsReducer.byId);
+
         apiPost("/api/evaluate", parsed)
         .then(json => {
             // Find the cells and save the value.
@@ -141,7 +162,7 @@ const mapStateToProps = (state /*, ownProps*/) => {
     }
 }
 
-const mapDispatchToProps = {setFocus, setInput, reEvaluate, incWidth, incHeight, moveFocus}
+const mapDispatchToProps = {setFocus, setInput, setName, reEvaluate, incWidth, incHeight, moveFocus, setModified}
 
 // Sentinels will provide us a fast data structure without needing an element per item.
 var NEXT_ID = initialState["cells"].length + 1;
@@ -190,6 +211,7 @@ class GridCell extends React.Component {
     }
 
     setFocus = (event) => {
+        this.props.reEvaluate();    // Potentially re-evaluate the result of previous cell modification.
         this.props.setFocus(this.props.cell.id);
     }
 
@@ -236,10 +258,16 @@ class GridCell extends React.Component {
         this.props.setFocus(null);
     }
     changeInput = (event) => {
-        this.setState({input: event.target.value});
+        let input = event.target.value;
+        this.props.setInput({id: this.props.cell.id, input: input})
+        this.setState({input: input});
+        this.props.setModified();
     }
     changeName = (event) => {
-        this.setState({name: event.target.value});
+        let name = event.target.value;
+        this.props.setName({id: this.props.cell.id, name: name})
+        this.setState({name: name});
+        this.props.setModified();
     }
     formatOutput = () => {
         let output = cellGet(this.props.cell, "output");
@@ -292,13 +320,12 @@ class GridCell extends React.Component {
             cellResults = <div className="Cell-cellError">{error}</div>
         } else {
             cellResults = <div className="Cell-cellValue">{this.formatOutput()}</div>
-
         }
 
         let cellBody = null;
         if(this.props.isFocused){
             cellBody = <form onSubmit={this.saveCell}>
-                <i className="fas fa-expand float-right text-gray-700 maximize"></i>
+            <i className="fas fa-expand float-right text-gray-700 maximize"></i>
             <input className="Cell-cellName block Cell-cellName--edit" placeholder="Name" type="text" onChange={this.changeName} value={this.state.name}></input> 
             <input className="Cell-cellValue bg-blue-100 block Cell-cellValue--edit" type="text" onChange={this.changeInput} value={this.state.input}></input>
             <input type="submit" className="hidden"/>
@@ -394,9 +421,11 @@ class Grid extends React.Component {
                 isFocused={this.isFocused(cell)}
                 isError={false}
                 key={cell.id}
+                setModified={this.props.setModified}
                 setFocus={this.props.setFocus}
                 moveFocus={this.props.moveFocus}
                 setInput={this.props.setInput}
+                setName={this.props.setName}
                 reEvaluate={this.props.reEvaluate}
                 recomputeCell = {this.recomputeCell}
                 />
