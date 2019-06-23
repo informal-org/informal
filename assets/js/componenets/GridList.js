@@ -1,5 +1,8 @@
 import React from "React";
 import ReactDOM from "react-dom";
+import AbstractBaseCell from "./AbstractBaseCell.js"
+import GridCell from "./GridCell.js"
+import { cellGet, formatCellOutput } from "../utils.js"
 
 export default class GridList extends AbstractBaseCell {
     constructor(props){
@@ -28,27 +31,49 @@ export default class GridList extends AbstractBaseCell {
         }
         let cellResults = null;
         let error = cellGet(this.props.cell, "error")
-        if(error) {
-            className += " Cell--error";
-            cellResults = <div className="Cell-cellError">{error}</div>
-        } else {
-            cellResults = <div className="Cell-cellValue">{this.formatOutput()}</div>
-        }
+        // TODO: Error handling of cells
+
+        // if(error) {
+        //     className += " Cell--error";
+        //     cellResults = <div className="Cell-cellError">{error}</div>
+        // } else {
+        //     cellResults = <div className="Cell-cellValue">{this.formatOutput()}</div>
+        // }
+
+        // Todo: Focused state?
+        let values = this.props.values.map((cell) => {
+            let isFocused = this.props.focus === cell.id;
+            // TODO - support of arbritrary cell type.
+            return <GridCell 
+                cell={cell}
+                isFocused={isFocused}
+                isError={false}
+                key={cell.id}
+                setModified={this.props.setModified}
+                setFocus={this.props.setFocus}
+                moveFocus={this.props.moveFocus}
+                setInput={this.props.setInput}
+                setName={this.props.setName}
+                reEvaluate={this.props.reEvaluate}
+                recomputeCell = {this.recomputeCell}
+                />
+        })
+
 
         let cellBody = null;
         if(this.props.isFocused){
             cellBody = <form onSubmit={this.saveCell}>
             <i className="fas fa-expand float-right text-gray-700 maximize"></i>
             <input className="Cell-cellName block Cell-cellName--edit" placeholder="Name" type="text" onChange={this.changeName} value={this.state.name}></input> 
-            <input className="Cell-cellValue bg-blue-100 block Cell-cellValue--edit" type="text" onChange={this.changeInput} value={this.state.input}></input>
             <input type="submit" className="hidden"/>
           </form>
         } else {
             cellBody = <span>
             <div className="Cell-cellName">{this.state.name}</div>
-            {cellResults}
+            {values}
             </span>
         }
+
 
         return <div className={className} 
         onClick={this.setFocus} 

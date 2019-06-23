@@ -1,15 +1,11 @@
 import React from "React";
 import GridCell from "./GridCell.js"
+import GridList from "./GridList.js"
 import ActionBar from "./ActionBar.js"
 
 export default class Grid extends React.Component {
     constructor(props) {
         super(props);
-        console.log(this.props);
-        console.log("store");
-        console.log(store)
-        // this.state = initialState;
-        // this.recomputeCells()
     }
     recomputeCells = () => {
         var allParsed = parseEverything(this.state.cells)
@@ -87,7 +83,26 @@ export default class Grid extends React.Component {
                 recomputeCell = {this.recomputeCell}
                 />
             }else if (cell.type === "list") {
+                let values = [];
+                cell.values.forEach((id) => {
+                    values.push(this.props.byId[id]);
+                })
 
+                return <GridList 
+                cell={cell}
+                isFocused={this.isFocused(cell)}
+                focus={this.props.focus}
+                isError={false}
+                key={cell.id}
+                setModified={this.props.setModified}
+                setFocus={this.props.setFocus}
+                moveFocus={this.props.moveFocus}
+                setInput={this.props.setInput}
+                setName={this.props.setName}
+                reEvaluate={this.props.reEvaluate}
+                recomputeCell = {this.recomputeCell}
+                values = {values}
+                />
             }
 
 

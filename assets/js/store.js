@@ -1,6 +1,7 @@
 import { configureStore, createSlice } from 'redux-starter-kit'
 import { modifySize, parseEverything } from './controller.js'
 import { apiPost, cellGet, formatCellOutput } from './utils.js'
+import { CELL_MAX_WIDTH, CELL_MAX_HEIGHT } from './utils.js'
 
 const initialState = {
     cells: {
@@ -22,7 +23,7 @@ const initialState = {
                 type: "list",
                 name: "List",
                 length: 3,
-                contents: ["id04", "id05", "id06"]
+                values: ["id04", "id05", "id06"]
             },
             "id04": {
                 id: "id04",
@@ -175,6 +176,7 @@ store.dispatch(reEvaluate())
 export const mapStateToProps = (state /*, ownProps*/) => {
     return {
         cells: state.cellsReducer.allIds.map((id) => state.cellsReducer.byId[id]),
+        byId: state.cellsReducer.byId,
         focus: state.cellsReducer.focus
     }
 }
