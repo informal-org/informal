@@ -1,4 +1,6 @@
-enum AbstractNode {
+
+#[derive(Debug)]
+enum AbstractNodeType {
     Compound, 
     Identifier,
     MemberExpression,
@@ -12,10 +14,26 @@ enum AbstractNode {
     ArrayExpression
 }
 
+#[derive(Debug)]
+struct LiteralNode {
+    node_type: AbstractNodeType,
+    value: LiteralValue,
+    raw: String
+}
+
+#[derive(Debug)]
+enum AbstractNode {
+    Literal(LiteralNode)
+}
+
+#[derive(Debug)]
+#[derive(PartialEq)]
 enum LiteralValue {
-    TrueVal, 
-    FalseVal, 
-    NoneVal
+    BoolVal(bool), 
+    FloatVal(f64),
+    IntVal(i64),
+    StrVal(String),
+    NoneVal,
 }
 
 const PERIOD_CODE: char = '.';
@@ -44,7 +62,7 @@ const MAX_BINARY_LEN: i8 = 3;
 
 // This may be tricky since the result is of a mixed value type
 const LITERAL: &[&str] = &["TRUE", "True", "true", "FALSE", "False", "false", "NONE", "None", "none"];
-const LITERAL_VAL: &[LiteralValue] = &[LiteralValue::TrueVal, LiteralValue::TrueVal, LiteralValue::TrueVal, LiteralValue::FalseVal, LiteralValue::FalseVal, LiteralValue::FalseVal, LiteralValue::NoneVal, LiteralValue::NoneVal, LiteralValue::NoneVal];
+const LITERAL_VAL: &[LiteralValue] = &[LiteralValue::BoolVal(true), LiteralValue::BoolVal(true), LiteralValue::BoolVal(true), LiteralValue::BoolVal(false), LiteralValue::BoolVal(false), LiteralValue::BoolVal(false), LiteralValue::NoneVal, LiteralValue::NoneVal, LiteralValue::NoneVal];
 
 fn throw_error(message: &str, index: i32) {
     // TODO: Throw an actual error, ey?
@@ -82,7 +100,8 @@ fn gobble_token(expr: &Vec<char>, start: usize) -> (&str, usize) {
     let mut index = gobble_spaces(expr, start);
     let ch: char = expr[index];
     if is_decimal_digit(ch) || ch == PERIOD_CODE {
-        return gobble_numeric_literal(expr, index);
+        // TODO
+        println!("{:?}",gobble_numeric_literal(expr, index))
     }
     return ("", start); // TODO
 }
@@ -118,19 +137,21 @@ fn char_at_helper(expr: &Vec<char>, index: usize) -> char {
     return ' ';
 }
 
-fn gobble_numeric_literal(expr: &Vec<char>, start: usize) -> (&str, usize) {
+fn gobble_numeric_literal(expr: &Vec<char>, start: usize) -> (LiteralNode, usize) {
     let mut number: Vec<char> = vec![];
     let mut index = start;
     let length = expr.len();
+    let mut is_float: bool = false;
     
     let (digit, i) = gobble_digits_helper(expr, index);
     number.extend(digit);
     index = i;
     let mut ch = char_at_helper(expr, index);
 
-    if(ch == '.') {
+    if ch == '.'  {
         number.push(ch);
         index += 1;
+        is_float = true;
         let (digit, i) = gobble_digits_helper(expr, index);
         number.extend(digit);
         index = i;
@@ -140,6 +161,7 @@ fn gobble_numeric_literal(expr: &Vec<char>, start: usize) -> (&str, usize) {
     if(ch == 'e' || ch == 'E') { // Exponent marker
         number.push(ch);
         index += 1;
+        is_float = true;
         ch = char_at_helper(expr, index);
         if(ch == '+' || ch == '-') { // Exponent sign
             number.push(ch);
@@ -158,8 +180,31 @@ fn gobble_numeric_literal(expr: &Vec<char>, start: usize) -> (&str, usize) {
         }
     }
 
+    let num: String = number.iter().collect();
+    ch = char_at_helper(expr, index);
+    if(is_identifier_start(ch)){
+        println!("Variable names cannot start with a number ({}{}) at {}", num, ch, index)
+    } else if(ch == PERIOD_CODE) {
+        println!("Unexpected period at {}", index)
+    }
 
-    return ("", start); // TODO
+    let value: LiteralValue;
+
+    if is_float {
+        let v: f64 = num.parse().unwrap();
+        value = LiteralValue::FloatVal(v);
+    } else {
+        let v: i64 = num.parse().unwrap();
+        value = LiteralValue::IntVal(v);
+    }
+
+    let node: LiteralNode = LiteralNode { 
+        node_type: AbstractNodeType::Literal, 
+        value: value, 
+        raw: num
+    };
+
+    return (node, index); // TODO
 }
 
 fn gobble_binary_op(expr: &Vec<char>, start: usize) -> (&str, usize) {
@@ -179,14 +224,43 @@ fn parse(expr: &str) {
     // Char-at isn't constant time due to utf, so do an upfront conversion
     let expr_vector: Vec<char> = expr.chars().collect();
     let index = gobble_spaces(&expr_vector, 0);
-    println!("Result index {}", index)
+    println!("Result index {}", index);
+    gobble_token(&expr_vector, index);
 }
 
 fn main() {
     println!("hey");
-    // parse("   1 + 2");
-    // let pie: f64 = " 3.14E-2".parse().unwrap();
+    parse("32e12");
+    // let pie: f64 = "3.14E-2".parse().unwrap();
     // println!("{}", pie);
+}
 
+
+#[cfg(test)]
+mod tests {
+    // Note this useful idiom: importing names from outer (for mod tests) scope.
+    use super::*;
+
+    #[test]
+    fn test_parse_int() {
+        let expr: Vec<char> = "42".chars().collect();
+        let (v, i) = gobble_numeric_literal(&expr, 0);
+        assert_eq!(v.value, LiteralValue::IntVal(42));
+    }
+
+    #[test]
+    fn test_parse_float() {
+        let expr: Vec<char> = "27.9932".chars().collect();
+        let (v, i) = gobble_numeric_literal(&expr, 0);
+        assert_eq!(v.value, LiteralValue::FloatVal(27.9932));
+    }
+
+
+    #[test]
+    fn test_parse_exponential() {
+        let expr: Vec<char> = "27.4e10".chars().collect();
+        let (v, i) = gobble_numeric_literal(&expr, 0);
+        assert_eq!(v.value, LiteralValue::FloatVal(27.4e10));
+    }    
 
 }
