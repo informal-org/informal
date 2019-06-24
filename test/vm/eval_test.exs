@@ -176,5 +176,42 @@ defmodule EvalTest do
     assert VM.filter_cycles(dep_map, cycles) == [{"id03", []}, {"id04", ["id03"]}]
   end
 
+  test "Load testing" do
+    range = 1..500000
+    cells = %{}
+    cells = Enum.map(range, fn x ->
+      c1 = "id#{x}"
+      # c2 = "id02"
+
+      {c1, %{
+          "depends_on" => [],
+          "id" => c1,
+          "input" => "1 + 1",
+          "parsed" => %{
+            "left" => %{"raw" => "1", "type" => "Literal", "value" => 1},
+            "operator" => "+",
+            "right" => %{"raw" => "1", "type" => "Literal", "value" => 1},
+            "type" => "BinaryExpression"
+          }
+        }
+      }
+
+      # cells = Map.put(cells, c2, %{
+      #   "depends_on" => [c1],
+      #   "id" => c2,
+      #   "input" => "2 + " c1,
+      #   "parsed" => %{
+      #     "left" => %{"raw" => "2", "type" => "Literal", "value" => 2},
+      #     "operator" => "+",
+      #     "right" => %{"name" => c1, "type" => "Identifier"},
+      #     "type" => "BinaryExpression"
+      #   }
+      # })
+    end)
+    cells = Enum.into(cells, %{})
+    VM.eval(cells)
+
+  end
+
 
 end

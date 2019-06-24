@@ -115,14 +115,14 @@ defmodule VM do
     {status, order} = get_eval_order(dep_map)
 
     if status == :ok do
-      IO.puts("status ok")
+      # IO.puts("status ok")
       # TODO handle error case
       {_, result} = Enum.map_reduce(
         order,
         code,
         fn (id, acc) -> eval_cell(Map.get(acc, id), acc) end
       )
-      IO.inspect(result)
+      # IO.inspect(result)
       # Convert tuple back into map
       # Enum.into(result, %{})
       result
@@ -235,7 +235,7 @@ defmodule VM do
     graph
   end
 
-  defp print_path(l), do: IO.puts Enum.join(l, " -> ")
+  defp print_path(l), do: true # IO.puts Enum.join(l, " -> ")
 
   def add_dependency(_graph,cell,cell), do: :ok   # Skip adding dependencies to self.
   def add_dependency(graph,cell,dependency) do
