@@ -5,3 +5,13 @@ authors = ["Feni Varughese <feni727@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+# actix-web = "0.7"
+# serde_derive = "1.0.93"
+# serde = "1.0.93"
+
+
+
+
+
+[buiild]
+rustflags = "-C target-cpu=native"
