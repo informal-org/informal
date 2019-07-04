@@ -49,7 +49,7 @@ fn bench32() {
 
 fn main() {
     println!("hey");
-    println!("{:?}", parser::lex("1232 + 23.32/459.4 + 312"))
+    println!("{:?}", parser::lex("1232 + 23.32/459.4 + 312 - hello"))
 
     // let wasm_binary = wat2wasm(WAT).unwrap();
     

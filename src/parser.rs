@@ -1,5 +1,6 @@
 extern crate nom;
 
+use std::iter::Peekable;
 use std::num::ParseIntError;
 use std::str::FromStr;
 use nom::{
@@ -79,7 +80,7 @@ fn throw_error(message: &str, index: i32) {
     println!("{} at character {}", message, index);
 }
 
-fn addToken(token: String, result: &mut Vec<String>){
+fn add_token(token: String, result: &mut Vec<String>){
     if !token.is_empty() {
         result.push(token.clone());
     }
@@ -93,6 +94,70 @@ fn is_alphabetic(ch: char) -> bool {
     return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z');
 }
 
+fn gobble_digits(token: &mut String, it: &mut Peekable<std::str::Chars<'_>>) {
+    while let Some(&body) = it.peek() {
+        if is_digit(body) {
+            token.push(body);
+            it.next();
+        } else {
+            break;
+        }
+    }
+}
+
+// TODO: Return a lex struct to indicate whether this is
+// a float
+fn parse_number(it: &mut Peekable<std::str::Chars<'_>>) -> String {
+    // TODO: add a token type which will save some of the metadata
+    // about it being a float vs int.
+    // TODO: Group floating point numbers together into a single token.
+    let mut token = String::from("");
+    let mut is_float = false;
+
+    // Leading decimal digits
+    gobble_digits(&mut token, it);
+
+    // (Optional) decimal
+    if let Some(&decimal) = it.peek() {
+        if decimal == '.' {
+            is_float = true;
+            token.push(decimal);
+            it.next();
+
+            // (Optional) decimal digits
+            gobble_digits(&mut token, it);
+        }
+    }
+
+    // (Optional) Exponent
+    if let Some(&exp) = it.peek() {
+        if exp == 'e' || exp == 'E' {
+            is_float = true;
+            token.push(exp);
+            it.next();
+
+            if let(Some(&exp_sign)) = it.peek() {
+                if exp_sign == '+' || exp_sign == '-' {
+                    token.push(exp_sign);
+                    it.next();
+                }
+            }
+
+            // Can't have a bare exponent without a value
+            // Alternatively, treat this as e1
+            if let(Some(&exp_digit)) = it.peek() {
+                if !is_digit(exp_digit) {
+                    // TODO: Error handling
+                    println!("Invalid exponent.")
+                }
+            }
+            gobble_digits(&mut token, it);
+        }
+    }
+
+    return token;
+}
+
 pub fn lex(expr: &str) -> Vec<String> {
     // Split into lexems based on some known operators
     let mut tokens: Vec<String> = vec![];
@@ -102,89 +167,49 @@ pub fn lex(expr: &str) -> Vec<String> {
         // The match should have a case for each starting value of any valid token
         let mut token = String::from("");
         match ch {
-            '0'...'9' => {
-                while let Some(&body) = it.peek() {
-                    if is_digit(body) {
-                        token.push(body);
-                        it.next();
-                    }
-                }
-                token.push(ch);
+            // TODO: -12.3
+            // Digit start
+            '0'...'9' | '.' => {
+                token = parse_number(&mut it);
+                add_token(token, &mut tokens);
+            }
+            // Identifier start
+            'a'...'z' | 'A'...'Z' | '$' | '_' => {
+
+                // Check if literal
                 it.next();
             }
+            // Whitespace - ignore
             ' ' => {
-                addToken(token, &mut result);
+                add_token(token, &mut tokens);
                 token = String::from("");
                 it.next();
             }
             _ => {
                 token.push(ch);
+                add_token(token, &mut tokens);
                 it.next();
             }
         }
     }
 
-    return result;
+    return tokens;
 
 }
 
-// fn is_identifier_start(ch: char) -> bool {
-//     return ch == '$' || ch == '_' || 
-//     (ch >= 'a' && ch <= 'z') ||
-//     (ch >= 'A' && ch <= 'Z');
-//     // Jsep also supports any non-ascii char that's not an operator
-//     // We'll exclude that since names are separate from IDs
-// }
-
-// fn is_identifier_part(ch: char) -> bool {
-//     // Any ascii character and can contain numbers within.
-//     return is_identifier_start(ch) || is_digit(ch);
-// }
-
-
-// Group expressions using parenthesis. Whitespace is optional.
-fn group_expr(s: &str) -> IResult<&str, i64> {
-  delimited(
-    space,
-    delimited(
-      tag("("),
-      expr,
-      tag(")")
-    ),
-    space
-  )(s)
+fn is_identifier_start(ch: char) -> bool {
+    return ch == '$' || ch == '_' || 
+    (ch >= 'a' && ch <= 'z') ||
+    (ch >= 'A' && ch <= 'Z');
+    // Jsep also supports any non-ascii char that's not an operator
+    // We'll exclude that since names are separate from IDs
 }
 
-fn factor(i: &str) -> IResult<&str, i64> {
-  alt((
-    map_res(delimited(space, digit, space), FromStr::from_str),
-    group_expr
-  ))(i)
+fn is_identifier_part(ch: char) -> bool {
+    // Any ascii character and can contain numbers within.
+    return is_identifier_start(ch) || is_digit(ch);
 }
 
-fn term(i: &str) -> IResult<&str, i64> {
-  let (i, init) = factor(i)?;
-
-  fold_many0(
-    pair(alt((char('*'), char('/'))), factor),
-    init,
-    |acc, (op, val): (char, i64)| {
-        if op  == '*' { acc * val } else { acc / val }
-    }
-  )(i)
-}
-
-fn expr(i: &str) -> IResult<&str, i64> {
-  let (i, init) = term(i)?;
-
-  fold_many0(
-    pair(alt((char('+'), char('-'))), term),
-    init,
-    |acc, (op, val): (char, i64)| {
-        if op  == '+' { acc + val } else { acc - val }
-    }
-  )(i)
-}
 
 
 fn parse_literal(expr: &Vec<char>, start: usize) -> Option<LiteralNode> {
@@ -193,8 +218,6 @@ fn parse_literal(expr: &Vec<char>, start: usize) -> Option<LiteralNode> {
 
 // Split
 // +,-,/,^,<=,>=,<,>
-
-
 
 // fn gobble_token(expr: &Vec<char>, start: usize) -> (&str, usize) {
 //     let mut index = gobble_spaces(expr, start);
@@ -340,49 +363,60 @@ mod tests {
     //     let expr: Vec<char> = "27.4e10".chars().collect();
     //     let (v, i) = gobble_numeric_literal(&expr, 0);
     //     assert_eq!(v.value, LiteralValue::FloatVal(27.4e10));
-    // }    
-
-
-    #[test]
-    fn factor_test() {
-        assert_eq!(factor("3"), Ok(("", 3)));
-        assert_eq!(factor(" 12"), Ok(("", 12)));
-        assert_eq!(factor("537  "), Ok(("", 537)));
-        assert_eq!(factor("  24   "), Ok(("", 24)));
-    }
+    // } 
 
     #[test]
-    fn term_test() {
-    assert_eq!(term(" 12 *2 /  3"), Ok(("", 8)));
-    assert_eq!(
-        term(" 2* 3  *2 *2 /  3"),
-        Ok(("", 8))
-    );
-    assert_eq!(term(" 48 /  3/2"), Ok(("", 8)));
+    fn lex_float() {
+        // Floating point numbers should be grouped together
+        assert_eq!(lex("3.1415"), ["3.1415"]);
+        assert_eq!(lex("9 .75 9"), ["9", ".75", "9"]);
+        assert_eq!(lex("9 1e10"), ["9", "1e10"]);
+        assert_eq!(lex("1e-10"), ["1e-10"]);
+        assert_eq!(lex("123e+10"), ["123e+10"]);
+        assert_eq!(lex("4.237e+101"), ["4.237e+101"]);
     }
 
-    #[test]
-    fn expr_test() {
-    assert_eq!(expr(" 1 +  2 "), Ok(("", 3)));
-    assert_eq!(
-        expr(" 12 + 6 - 4+  3"),
-        Ok(("", 17))
-    );
-    assert_eq!(expr(" 1 + 2*3 + 4"), Ok(("", 11)));
-    }
 
-    #[test]
-    fn parens_test() {
-    assert_eq!(expr(" (  2 )"), Ok(("", 2)));
-    assert_eq!(
-        expr(" 2* (  3 + 4 ) "),
-        Ok(("", 14))
-    );
-    assert_eq!(
-        expr("  2*2 / ( 5 - 1) + 3"),
-        Ok(("", 4))
-    );
-    }
+    // #[test]
+    // fn factor_test() {
+    //     assert_eq!(factor("3"), Ok(("", 3)));
+    //     assert_eq!(factor(" 12"), Ok(("", 12)));
+    //     assert_eq!(factor("537  "), Ok(("", 537)));
+    //     assert_eq!(factor("  24   "), Ok(("", 24)));
+    // }
+
+    // #[test]
+    // fn term_test() {
+    // assert_eq!(term(" 12 *2 /  3"), Ok(("", 8)));
+    // assert_eq!(
+    //     term(" 2* 3  *2 *2 /  3"),
+    //     Ok(("", 8))
+    // );
+    // assert_eq!(term(" 48 /  3/2"), Ok(("", 8)));
+    // }
+
+    // #[test]
+    // fn expr_test() {
+    // assert_eq!(expr(" 1 +  2 "), Ok(("", 3)));
+    // assert_eq!(
+    //     expr(" 12 + 6 - 4+  3"),
+    //     Ok(("", 17))
+    // );
+    // assert_eq!(expr(" 1 + 2*3 + 4"), Ok(("", 11)));
+    // }
+
+    // #[test]
+    // fn parens_test() {
+    // assert_eq!(expr(" (  2 )"), Ok(("", 2)));
+    // assert_eq!(
+    //     expr(" 2* (  3 + 4 ) "),
+    //     Ok(("", 14))
+    // );
+    // assert_eq!(
+    //     expr("  2*2 / ( 5 - 1) + 3"),
+    //     Ok(("", 4))
+    // );
+    // }
 
 
 }
