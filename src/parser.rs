@@ -154,6 +154,60 @@ fn parse_number(it: &mut Peekable<std::str::Chars<'_>>) -> String {
             gobble_digits(&mut token, it);
         }
     }
+    return token;
+}
+
+fn parse_string(it: &mut Peekable<std::str::Chars<'_>>) -> String {
+    let mut token = String::from("");
+    
+    // Don't include the quotes in the resulting string.
+    // Starting quote is always present for this function to be called.
+    let quote_start = it.next().unwrap();
+
+    while let Some(&ch) = it.peek() {
+        // Backslash escape sequences
+        match ch {
+            '\\' => {
+                it.next(); // Skip over the slash
+
+                // \\ \' \" \r \n
+                if let Some(&escaped) = it.peek() {
+                    match escaped {
+                        '\\' | '\'' | '"' => {
+                            token.push(escaped);
+                        }
+                        'r' => {
+                            token.push('\r');
+                        }
+                        'n' => {
+                            token.push('\n');
+                        }
+                        't' => {
+                            token.push('\t');
+                        }
+                        '0' => {
+                            token.push('\0');
+                        }
+                        _ => {
+                            // Push other sequences as-is
+                            token.push('\\');
+                            token.push(escaped);
+                        }
+                    }
+                    it.next();
+                }
+            }
+            _ if ch == quote_start => {
+                // End of string
+                it.next();
+                break;
+            }
+            _ => {
+                token.push(ch);
+                it.next();
+            }
+        }
+    }
 
     return token;
 }
@@ -171,7 +225,31 @@ pub fn lex(expr: &str) -> Vec<String> {
             // Digit start
             '0'...'9' | '.' => {
                 token = parse_number(&mut it);
-                add_token(token, &mut tokens);
+            }
+            '+' | '-' | '*' | '/' => {
+                token.push(ch);
+                it.next();
+            }
+            '<' | '>' => {
+                // Group <= & >= together
+                token.push(ch);
+                it.next();
+                if let Some(&eq) = it.peek() {
+                    if eq == '=' {
+                        token.push(eq);
+                        it.next();
+                    }
+                }
+            }
+            '=' => {
+                token.push(ch);
+                it.next();
+            }
+            '"' | '\'' => {
+                // Interchangable single/double quoted strings
+                // TODO: Type annotate as string.
+                // Group the entire string value together
+                token = parse_string(&mut it);
             }
             // Identifier start
             'a'...'z' | 'A'...'Z' | '$' | '_' => {
@@ -181,16 +259,14 @@ pub fn lex(expr: &str) -> Vec<String> {
             }
             // Whitespace - ignore
             ' ' => {
-                add_token(token, &mut tokens);
-                token = String::from("");
                 it.next();
             }
             _ => {
                 token.push(ch);
-                add_token(token, &mut tokens);
                 it.next();
             }
         }
+        add_token(token, &mut tokens);
     }
 
     return tokens;
@@ -374,6 +450,14 @@ mod tests {
         assert_eq!(lex("1e-10"), ["1e-10"]);
         assert_eq!(lex("123e+10"), ["123e+10"]);
         assert_eq!(lex("4.237e+101"), ["4.237e+101"]);
+
+        assert_eq!(lex("-1"), ["-", "1"]);
+        assert_eq!(lex("-.05"), ["-", ".05"]);
+        assert_eq!(lex("5 -.05"), ["5", "-", ".05"]);
+
+        // Unary minus is not combined with the number in the lexer
+        // It's treated in the parser.
+        assert_eq!(lex("5 + -.05"), ["5", "+", "-", ".05"]);
     }
 
 
