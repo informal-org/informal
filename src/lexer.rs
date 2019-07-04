@@ -12,6 +12,7 @@ pub enum TokenType {
     OpDivide,
     OpOpenParen,
     OpCloseParen,
+    OpEquals,
     OpGt,
     OpLt,
     OpGte,
@@ -48,12 +49,6 @@ fn throw_error(message: &str, index: i32) {
     println!("{} at character {}", message, index);
 }
 
-fn add_token(token: String, result: &mut Vec<String>){
-    if !token.is_empty() {
-        result.push(token.clone());
-    }
-}
-
 fn is_digit(ch: char) -> bool {
     return ch >= '0' && ch <= '9';
 }
@@ -69,8 +64,6 @@ fn gobble_digits(token: &mut String, it: &mut Peekable<std::str::Chars<'_>>) {
     }
 }
 
-// TODO: Return a lex struct to indicate whether this is
-// a float
 fn parse_number(it: &mut Peekable<std::str::Chars<'_>>) -> LiteralValue {
     // TODO: add a token type which will save some of the metadata
     // about it being a float vs int.
@@ -100,7 +93,7 @@ fn parse_number(it: &mut Peekable<std::str::Chars<'_>>) -> LiteralValue {
             token.push(exp);
             it.next();
 
-            if let(Some(&exp_sign)) = it.peek() {
+            if let Some(&exp_sign) = it.peek() {
                 if exp_sign == '+' || exp_sign == '-' {
                     token.push(exp_sign);
                     it.next();
@@ -109,7 +102,7 @@ fn parse_number(it: &mut Peekable<std::str::Chars<'_>>) -> LiteralValue {
 
             // Can't have a bare exponent without a value
             // Alternatively, treat this as e1
-            if let(Some(&exp_digit)) = it.peek() {
+            if let Some(&exp_digit) = it.peek() {
                 if !is_digit(exp_digit) {
                     // TODO: Error handling
                     println!("Invalid exponent.")
@@ -195,6 +188,23 @@ macro_rules! lex_advance_return {
     });
 }
 
+// Shortcut for lte and gte - check next token and decide which form it is.
+macro_rules! lex_comparison_eq {
+    ($it:expr, $comp:expr, $comp_eq:expr) => ({
+        $it.next();
+        if let Some(&eq) = $it.peek() {
+            if eq == '=' {
+                $it.next();
+                Some($comp_eq)
+            } else {
+                Some($comp)
+            }
+        } else {
+            Some($comp)
+        }
+    });
+}
+
 pub fn lex(expr: &str) -> Vec<TokenType> {
     // Split into lexems based on some known operators
     let mut tokens: Vec<TokenType> = vec![];
@@ -202,64 +212,42 @@ pub fn lex(expr: &str) -> Vec<TokenType> {
 
     while let Some(&ch) = it.peek() {
         // The match should have a case for each starting value of any valid token
-        let mut token: Option<TokenType> = match ch {
+        let token: Option<TokenType> = match ch {
             // Digit start
             '0'...'9' | '.' => Some(TokenType::Literal(parse_number(&mut it))),
             // Operators
             '+' => lex_advance_return!(it, TokenType::OpPlus),
-            // '-' => {
-            //     it.next();
-            //     TokenType.OP_MINUS
-            // }
-            // '*' | '/' => {
-            //     tokenBuffer.push(ch);
-                
-            // }
-            // '(' | ')' => {
-            //     // Parenthesis. Matching is handled by parser
-            //     tokenBuffer.push(ch);
-            //     it.next();
-            // }
-            // '<' | '>' => {
-            //     // Group <= & >= together
-            //     tokenBuffer.push(ch);
-            //     it.next();
-            //     if let Some(&eq) = it.peek() {
-            //         if eq == '=' {
-            //             tokenBuffer.push(eq);
-            //             it.next();
-            //         }
-            //     }
-            // }
-            // '=' => {
-            //     tokenBuffer.push(ch);
-            //     it.next();
-            // }
-            // '"' | '\'' => {
-            //     // Interchangable single/double quoted strings
-            //     // TODO: Type annotate as string.
-            //     // Group the entire string value together
-            //     tokenBuffer = parse_string(&mut it);
-            // }
-            // 'a'...'z' | 'A'...'Z' | '_' => {
-            //     // Identifier start. Note: No 0-9 in start.
-            //     tokenBuffer = parse_identifier(&mut it);
-            //     // Check if it's a reserved literal.
-            // }
-            // // Whitespace - ignore
-            // ' ' => {
-            //     it.next();
-            // }
-            // _ => { // All other characters - error
-            //     it.next();
-            // }
-            _ => {
+            '-' => lex_advance_return!(it, TokenType::OpMinus),
+            '*' => lex_advance_return!(it, TokenType::OpMultiply),
+            '/' => lex_advance_return!(it, TokenType::OpDivide),
+            '(' => lex_advance_return!(it, TokenType::OpOpenParen),
+            ')' => lex_advance_return!(it, TokenType::OpCloseParen),
+            '=' => lex_advance_return!(it, TokenType::OpEquals),
+            '<' => lex_comparison_eq!(it, TokenType::OpLt, TokenType::OpLte),
+            '>' => lex_comparison_eq!(it, TokenType::OpGt, TokenType::OpGte),
+            // Interchangable single/double quoted strings grouped as single token.
+            '"' | '\'' => Some(TokenType::Literal(parse_string(&mut it))),
+            // Identifiers and reserved keywords
+            'a'...'z' | 'A'...'Z' | '_' => {
+                let tokenStr: String = parse_identifier(&mut it);
+                Some(TokenType::Identifier(String::from(tokenStr) ))
+                // TODO: Check if it's a reserved literal.
+            },
+            // Whitespace - ignore
+            ' ' => {
                 it.next();
                 None
             }
-
+            _ => {  // All other characters - TODO: error
+                it.next();
+                None
+            }
         };
-        // add_token(token, &mut tokens); // TODO
+        // Add token to result if present
+        match token {
+            Some(t) => tokens.push(t),
+            _ => {}
+        };
     }
     return tokens;
 }
