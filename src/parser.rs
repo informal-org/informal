@@ -1,79 +1,47 @@
-extern crate nom;
+extern crate lexical;
 
 use std::iter::Peekable;
-use std::num::ParseIntError;
-use std::str::FromStr;
-use nom::{
-  IResult,
-  bytes::complete::{tag, take_while_m_n},
-  combinator::map_res,
-  sequence::tuple,
-  character::is_space,
-  character::is_alphanumeric,
-  character::complete::{digit1 as digit, space0 as space},
-  sequence::{delimited, pair},
-  branch::alt,
-  character::complete::char,
-  multi::fold_many0,
-};
 
 #[derive(Debug,PartialEq)]
-enum AbstractNodeType {
-    Identifier,
-    Literal,
-    CallExpression,
-    UnaryExpression,
-    BinaryExpression
-}
-
-#[derive(Debug)]
-struct LiteralNode {
-    node_type: AbstractNodeType,
-    value: LiteralValue,
-    raw: String
-}
-
-#[derive(Debug)]
-enum AbstractNode {
-    Literal(LiteralNode)
+pub enum TokenType {
+    Literal(LiteralValue),
+    Identifier(String),
+    OpPlus,
+    OpMinus,
+    OpMultiply,
+    OpDivide,
+    OpOpenParen,
+    OpCloseParen,
+    OpGt,
+    OpLt,
+    OpGte,
+    OpLte,
+    OpAnd,
+    OpOr,
+    OpNot,
+    OpIs,
 }
 
 #[derive(Debug,PartialEq)]
 enum LiteralValue {
-    BoolVal(bool), 
-    FloatVal(f64),
-    IntVal(i64),
-    StrVal(String),
-    NoneVal,
+    NoneValue,
+    BooleanValue(bool), 
+    NumericValue(f64),    // Integers are represented within the floats.
+    StringValue(String),  // TODO: String -> Obj. To c-string.
 }
 
-const PERIOD_CODE: char = '.';
-const COMMA_CODE: char = ',';
-const SQUOTE_CODE: char = '\'';
-const DQUOTE_CODE: char = '"';
-const OPAREN_CODE: char = '(';
-const CPAREN_CODE: char = ')';
-// const OBRACK_CODE: char = '[';
-// const CBRACK_CODE: char = ']';
-const QUMARK_CODE: char = '?';
-const SEMCOL_CODE: char = ';';
-const COLON_CODE: char = ':';
 
 // These could both be sets, but honestly seems like array would be
 // more performant here given how small it is. 
 // Worth a micro-benchmark later. 
 const UNARY_OPS: &[&str] = &["-", "NOT", "Not", "not"];
 
-const BINARY_OPS: &[&str] =      &["^", "OR", "Or", "or", "AND", "And", "and", "IS", "Is", "is", "<", ">", "<=", ">=", "+", "-", "*", "/"];
-const BINARY_PRECEDENCE: &[i8] = &[1,   1,    1,     1,   2,      2,    2,     6,    6,      6,  7,   7,   7,  7,    9,    9,   10,  10];
-
-// This should be updated any time a longer token is added.
-const MAX_UNARY_LEN: i8 = 3;
-const MAX_BINARY_LEN: i8 = 3;
+const BINARY_OPS: &[&str] =      &["OR", "Or", "or", "AND", "And", "and", "IS", "Is", "is", "<", ">", "<=", ">=", "+", "-", "*", "/"];
+const BINARY_PRECEDENCE: &[i8] = &[ 1,    1,     1,   2,      2,    2,     6,    6,      6,  7,   7,   7,  7,    9,    9,   10,  10];
 
 // This may be tricky since the result is of a mixed value type
 const LITERAL: &[&str] = &["TRUE", "True", "true", "FALSE", "False", "false", "NONE", "None", "none"];
-const LITERAL_VAL: &[LiteralValue] = &[LiteralValue::BoolVal(true), LiteralValue::BoolVal(true), LiteralValue::BoolVal(true), LiteralValue::BoolVal(false), LiteralValue::BoolVal(false), LiteralValue::BoolVal(false), LiteralValue::NoneVal, LiteralValue::NoneVal, LiteralValue::NoneVal];
+const LITERAL_VAL: &[LiteralValue] = &[LiteralValue::BooleanValue(true), LiteralValue::BooleanValue(true), LiteralValue::BooleanValue(true), LiteralValue::BooleanValue(false), LiteralValue::BooleanValue(false), LiteralValue::BooleanValue(false), LiteralValue::NoneValue, LiteralValue::NoneValue, LiteralValue::NoneValue];
 
 fn throw_error(message: &str, index: i32) {
     // TODO: Throw an actual error, ey?
@@ -90,10 +58,6 @@ fn is_digit(ch: char) -> bool {
     return ch >= '0' && ch <= '9';
 }
 
-fn is_alphabetic(ch: char) -> bool {
-    return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z');
-}
-
 fn gobble_digits(token: &mut String, it: &mut Peekable<std::str::Chars<'_>>) {
     while let Some(&body) = it.peek() {
         if is_digit(body) {
@@ -107,7 +71,7 @@ fn gobble_digits(token: &mut String, it: &mut Peekable<std::str::Chars<'_>>) {
 
 // TODO: Return a lex struct to indicate whether this is
 // a float
-fn parse_number(it: &mut Peekable<std::str::Chars<'_>>) -> String {
+fn parse_number(it: &mut Peekable<std::str::Chars<'_>>) -> LiteralValue {
     // TODO: add a token type which will save some of the metadata
     // about it being a float vs int.
     // TODO: Group floating point numbers together into a single token.
@@ -154,40 +118,32 @@ fn parse_number(it: &mut Peekable<std::str::Chars<'_>>) -> String {
             gobble_digits(&mut token, it);
         }
     }
-    return token;
+    // Parse should be sufficient since we've validated format already.
+    let val: f64 = lexical::parse(token);
+    return LiteralValue::NumericValue(val);
 }
 
-fn parse_string(it: &mut Peekable<std::str::Chars<'_>>) -> String {
+fn parse_string(it: &mut Peekable<std::str::Chars<'_>>) -> LiteralValue {
     let mut token = String::from("");
     
     // Don't include the quotes in the resulting string.
     // Starting quote is always present for this function to be called.
     let quote_start = it.next().unwrap();
+    let mut terminated: bool = false;
 
     while let Some(&ch) = it.peek() {
         // Backslash escape sequences
         match ch {
             '\\' => {
                 it.next(); // Skip over the slash
-
                 // \\ \' \" \r \n
                 if let Some(&escaped) = it.peek() {
                     match escaped {
-                        '\\' | '\'' | '"' => {
-                            token.push(escaped);
-                        }
-                        'r' => {
-                            token.push('\r');
-                        }
-                        'n' => {
-                            token.push('\n');
-                        }
-                        't' => {
-                            token.push('\t');
-                        }
-                        '0' => {
-                            token.push('\0');
-                        }
+                        '\\' | '\'' | '"' => token.push(escaped),
+                        'n' => token.push('\n'),
+                        'r' => token.push('\r'),
+                        't' => token.push('\t'),
+                        '0' => token.push('\0'),
                         _ => {
                             // Push other sequences as-is
                             token.push('\\');
@@ -200,6 +156,7 @@ fn parse_string(it: &mut Peekable<std::str::Chars<'_>>) -> String {
             _ if ch == quote_start => {
                 // End of string
                 it.next();
+                terminated = true;
                 break;
             }
             _ => {
@@ -208,211 +165,116 @@ fn parse_string(it: &mut Peekable<std::str::Chars<'_>>) -> String {
             }
         }
     }
+    // TODO: Throw error for non-terminated strings.
+    return LiteralValue::StringValue(token);
+}
 
+fn parse_identifier(it: &mut Peekable<std::str::Chars<'_>>) -> String {
+    let mut token = String::from("");
+    // Assert - the caller checks if the first char is not a number
+    while let Some(&ch) = it.peek() {
+        match ch {
+            // IDs are separate from names, so the character set could be more restrictive.
+            'a'...'z' | 'A'...'Z' | '_' | '0'...'9' => {
+                token.push(ch);
+                it.next(); 
+            }
+            _ => {
+                break;
+            }
+        }
+    }
     return token;
 }
 
-pub fn lex(expr: &str) -> Vec<String> {
+// One-liner shorthand to advance the iterator and return the given value
+macro_rules! lex_advance_return {
+    ($it:expr, $e:expr) => ({
+        $it.next();
+        Some($e)
+    });
+}
+
+pub fn lex(expr: &str) -> Vec<TokenType> {
     // Split into lexems based on some known operators
-    let mut tokens: Vec<String> = vec![];
+    let mut tokens: Vec<TokenType> = vec![];
     let mut it = expr.chars().peekable();
 
     while let Some(&ch) = it.peek() {
         // The match should have a case for each starting value of any valid token
-        let mut token = String::from("");
-        match ch {
-            // TODO: -12.3
+        let mut token: Option<TokenType> = match ch {
             // Digit start
-            '0'...'9' | '.' => {
-                token = parse_number(&mut it);
-            }
-            '+' | '-' | '*' | '/' => {
-                token.push(ch);
-                it.next();
-            }
-            '<' | '>' => {
-                // Group <= & >= together
-                token.push(ch);
-                it.next();
-                if let Some(&eq) = it.peek() {
-                    if eq == '=' {
-                        token.push(eq);
-                        it.next();
-                    }
-                }
-            }
-            '=' => {
-                token.push(ch);
-                it.next();
-            }
-            '"' | '\'' => {
-                // Interchangable single/double quoted strings
-                // TODO: Type annotate as string.
-                // Group the entire string value together
-                token = parse_string(&mut it);
-            }
-            // Identifier start
-            'a'...'z' | 'A'...'Z' | '$' | '_' => {
-
-                // Check if literal
-                it.next();
-            }
-            // Whitespace - ignore
-            ' ' => {
-                it.next();
-            }
+            '0'...'9' | '.' => Some(TokenType::Literal(parse_number(&mut it))),
+            // Operators
+            '+' => lex_advance_return!(it, TokenType::OpPlus),
+            // '-' => {
+            //     it.next();
+            //     TokenType.OP_MINUS
+            // }
+            // '*' | '/' => {
+            //     tokenBuffer.push(ch);
+                
+            // }
+            // '(' | ')' => {
+            //     // Parenthesis. Matching is handled by parser
+            //     tokenBuffer.push(ch);
+            //     it.next();
+            // }
+            // '<' | '>' => {
+            //     // Group <= & >= together
+            //     tokenBuffer.push(ch);
+            //     it.next();
+            //     if let Some(&eq) = it.peek() {
+            //         if eq == '=' {
+            //             tokenBuffer.push(eq);
+            //             it.next();
+            //         }
+            //     }
+            // }
+            // '=' => {
+            //     tokenBuffer.push(ch);
+            //     it.next();
+            // }
+            // '"' | '\'' => {
+            //     // Interchangable single/double quoted strings
+            //     // TODO: Type annotate as string.
+            //     // Group the entire string value together
+            //     tokenBuffer = parse_string(&mut it);
+            // }
+            // 'a'...'z' | 'A'...'Z' | '_' => {
+            //     // Identifier start. Note: No 0-9 in start.
+            //     tokenBuffer = parse_identifier(&mut it);
+            //     // Check if it's a reserved literal.
+            // }
+            // // Whitespace - ignore
+            // ' ' => {
+            //     it.next();
+            // }
+            // _ => { // All other characters - error
+            //     it.next();
+            // }
             _ => {
-                token.push(ch);
                 it.next();
+                None
             }
-        }
-        add_token(token, &mut tokens);
+
+        };
+        // add_token(token, &mut tokens); // TODO
     }
-
     return tokens;
-
 }
 
-fn is_identifier_start(ch: char) -> bool {
-    return ch == '$' || ch == '_' || 
-    (ch >= 'a' && ch <= 'z') ||
-    (ch >= 'A' && ch <= 'Z');
-    // Jsep also supports any non-ascii char that's not an operator
-    // We'll exclude that since names are separate from IDs
-}
-
-fn is_identifier_part(ch: char) -> bool {
-    // Any ascii character and can contain numbers within.
-    return is_identifier_start(ch) || is_digit(ch);
-}
-
-
-
-fn parse_literal(expr: &Vec<char>, start: usize) -> Option<LiteralNode> {
-    Option::None
-}
-
-// Split
-// +,-,/,^,<=,>=,<,>
-
-// fn gobble_token(expr: &Vec<char>, start: usize) -> (&str, usize) {
-//     let mut index = gobble_spaces(expr, start);
-//     let ch: char = expr[index];
-//     if is_decimal_digit(ch) || ch == PERIOD_CODE {
-//         // TODO
-//         println!("{:?}",gobble_numeric_literal(expr, index))
-//     }
-//     return ("", start); // TODO
+// fn is_identifier_part(ch: char) -> bool {
+//     // Any ascii character and can contain numbers within.
+//     return is_identifier_start(ch) || is_digit(ch);
 // }
 
 
-// fn gobble_digits_helper(expr: &Vec<char>, start: usize) -> (Vec<char>, usize) {
-//     let mut index = start;
-//     let mut number: Vec<char> = vec![];
-//     let length = expr.len();
-//     if index >= length {
-//         return (number, length);
-//     }
-//     let mut ch = expr[index];
-//     while is_decimal_digit(ch) {
-//         number.push(ch);
-//         index+=1;
-//         if index >= length {
-//             return (number, length);
-//         }
-//         ch = expr[index];
-//     }
-//     return (number, index);
+
+// fn parse_literal(expr: &Vec<char>, start: usize) -> Option<LiteralNode> {
+//     Option::None
 // }
 
-// // Kind of a very special-case char at, because it will return
-// // Empty space if you go out of range. Which differs from jsep, which 
-// // can return empty string. Use carefully (i.e. only in comparison against other non space values)
-// fn char_at_helper(expr: &Vec<char>, index: usize) -> char {
-//     if index < expr.len() {
-//         return expr[index];
-//     }
-//     return ' ';
-// }
-
-// fn gobble_numeric_literal(expr: &Vec<char>, start: usize) -> (LiteralNode, usize) {
-//     let mut number: Vec<char> = vec![];
-//     let mut index = start;
-//     let length = expr.len();
-//     let mut is_float: bool = false;
-    
-//     let (digit, i) = gobble_digits_helper(expr, index);
-//     number.extend(digit);
-//     index = i;
-//     let mut ch = char_at_helper(expr, index);
-
-//     if ch == '.' {
-//         number.push(ch);
-//         index += 1;
-//         is_float = true;
-//         let (digit, i) = gobble_digits_helper(expr, index);
-//         number.extend(digit);
-//         index = i;
-//         ch = char_at_helper(expr, index);
-//     }
-
-//     if(ch == 'e' || ch == 'E') { // Exponent marker
-//         number.push(ch);
-//         index += 1;
-//         is_float = true;
-//         ch = char_at_helper(expr, index);
-//         if(ch == '+' || ch == '-') { // Exponent sign
-//             number.push(ch);
-//             index += 1;
-//         }
-//         // Exponent
-//         let (digit, i) = gobble_digits_helper(expr, index);
-//         number.extend(digit);
-//         index = i;
-//         if(!is_decimal_digit(char_at_helper(expr, index-1))){
-//             // TODO validate
-//             // throw_error( &["Expected exponent (", number.iter().collect(), char_at_helper(expr, index), ")"].concat(), index)
-//             let num: String = number.iter().collect();
-//             println!("Expected exponent ({}{}) at {}", num, char_at_helper(expr, index), index);
-//             // TODO - raise error in this case?
-//         }
-//     }
-
-//     let num: String = number.iter().collect();
-//     ch = char_at_helper(expr, index);
-//     if(is_identifier_start(ch)){
-//         println!("Variable names cannot start with a number ({}{}) at {}", num, ch, index)
-//     } else if(ch == PERIOD_CODE) {
-//         println!("Unexpected period at {}", index)
-//     }
-
-//     let value: LiteralValue;
-
-//     if is_float {
-//         let v: f64 = num.parse().unwrap();
-//         value = LiteralValue::FloatVal(v);
-//     } else {
-//         let v: i64 = num.parse().unwrap();
-//         value = LiteralValue::IntVal(v);
-//     }
-
-//     let node: LiteralNode = LiteralNode { 
-//         node_type: AbstractNodeType::Literal, 
-//         value: value, 
-//         raw: num
-//     };
-
-//     return (node, index); // TODO
-// }
-
-// pub fn parse(expr: &str) {
-//     let mut index = 0;
-//     // Char-at isn't constant time due to utf, so do an upfront conversion
-//     let expr_vector: Vec<char> = expr.chars().collect();
-//     let index = gobble_spaces(&expr_vector, 0);
-//     println!("Result index {}", index);
-//     gobble_token(&expr_vector, index);
-// }
 
 #[cfg(test)]
 mod tests {
@@ -441,24 +303,24 @@ mod tests {
     //     assert_eq!(v.value, LiteralValue::FloatVal(27.4e10));
     // } 
 
-    #[test]
-    fn lex_float() {
-        // Floating point numbers should be grouped together
-        assert_eq!(lex("3.1415"), ["3.1415"]);
-        assert_eq!(lex("9 .75 9"), ["9", ".75", "9"]);
-        assert_eq!(lex("9 1e10"), ["9", "1e10"]);
-        assert_eq!(lex("1e-10"), ["1e-10"]);
-        assert_eq!(lex("123e+10"), ["123e+10"]);
-        assert_eq!(lex("4.237e+101"), ["4.237e+101"]);
+    // #[test]
+    // fn lex_float() {
+    //     // Floating point numbers should be grouped together
+    //     assert_eq!(lex("3.1415"), ["3.1415"]);
+    //     assert_eq!(lex("9 .75 9"), ["9", ".75", "9"]);
+    //     assert_eq!(lex("9 1e10"), ["9", "1e10"]);
+    //     assert_eq!(lex("1e-10"), ["1e-10"]);
+    //     assert_eq!(lex("123e+10"), ["123e+10"]);
+    //     assert_eq!(lex("4.237e+101"), ["4.237e+101"]);
 
-        assert_eq!(lex("-1"), ["-", "1"]);
-        assert_eq!(lex("-.05"), ["-", ".05"]);
-        assert_eq!(lex("5 -.05"), ["5", "-", ".05"]);
+    //     assert_eq!(lex("-1"), ["-", "1"]);
+    //     assert_eq!(lex("-.05"), ["-", ".05"]);
+    //     assert_eq!(lex("5 -.05"), ["5", "-", ".05"]);
 
-        // Unary minus is not combined with the number in the lexer
-        // It's treated in the parser.
-        assert_eq!(lex("5 + -.05"), ["5", "+", "-", ".05"]);
-    }
+    //     // Unary minus is not combined with the number in the lexer
+    //     // It's treated in the parser.
+    //     assert_eq!(lex("5 + -.05"), ["5", "+", "-", ".05"]);
+    // }
 
 
     // #[test]
