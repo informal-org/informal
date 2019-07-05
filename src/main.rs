@@ -1,50 +1,50 @@
 mod lexer;
-use std::str;
+// use std::str;
 
-use wasmer_runtime::{error, func, imports, Ctx, Value, compile};
-use wasmer_runtime::{Func, Instance, error::ResolveResult};
-
-
-use wabt::wat2wasm;
-
-static WAT: &'static str = r#"
-(module
-  (type $t0 (func (param i32 i32) (result i32)))
-  (type $t1 (func))
-  (func $add (type $t0) (param $p0 i32) (param $p1 i32) (result i32)
-    get_local $p0
-    get_local $p1
-    i32.add)
-  (func $f1 (type $t1))
-  (table $T0 1 anyfunc)
-  (memory $memory 0)
-  (export "memory" (memory 0))
-  (export "add" (func $add))
-  (elem (i32.const 0) $f1))
-"#;
-
-static WAT1: &'static str = r#"
-(module
-  (type $t0 (func (param i32) (result i32)))
-  (type $t1 (func))
-  (func $add (type $t0) (param $p0 i32) (result i32)
-    get_local $p0
-    i32.const 1
-    i32.add)
-  (func $f1 (type $t1))
-  (table $T0 1 anyfunc)
-  (memory $memory 0)
-  (export "memory" (memory 0))
-  (export "add" (func $add))
-  (elem (i32.const 0) $f1))
-"#;
+// use wasmer_runtime::{error, func, imports, Ctx, Value, compile};
+// use wasmer_runtime::{Func, Instance, error::ResolveResult};
 
 
-use std::time::{Duration, SystemTime};
+// use wabt::wat2wasm;
 
-fn bench32() {
+// static WAT: &'static str = r#"
+// (module
+//   (type $t0 (func (param i32 i32) (result i32)))
+//   (type $t1 (func))
+//   (func $add (type $t0) (param $p0 i32) (param $p1 i32) (result i32)
+//     get_local $p0
+//     get_local $p1
+//     i32.add)
+//   (func $f1 (type $t1))
+//   (table $T0 1 anyfunc)
+//   (memory $memory 0)
+//   (export "memory" (memory 0))
+//   (export "add" (func $add))
+//   (elem (i32.const 0) $f1))
+// "#;
 
-}
+// static WAT1: &'static str = r#"
+// (module
+//   (type $t0 (func (param i32) (result i32)))
+//   (type $t1 (func))
+//   (func $add (type $t0) (param $p0 i32) (result i32)
+//     get_local $p0
+//     i32.const 1
+//     i32.add)
+//   (func $f1 (type $t1))
+//   (table $T0 1 anyfunc)
+//   (memory $memory 0)
+//   (export "memory" (memory 0))
+//   (export "add" (func $add))
+//   (elem (i32.const 0) $f1))
+// "#;
+
+
+// use std::time::{Duration, SystemTime};
+
+// fn bench32() {
+
+// }
 
 
 fn main() {

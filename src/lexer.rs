@@ -1,6 +1,7 @@
 extern crate lexical;
 
 use std::iter::Peekable;
+use std::result;
 
 #[derive(Debug,PartialEq)]
 pub enum TokenType {
@@ -35,20 +36,15 @@ pub const TRUE_VALUE: LiteralValue = LiteralValue::BooleanValue(true);
 pub const FALSE_VALUE: LiteralValue = LiteralValue::BooleanValue(false);
 pub const NONE_VALUE: LiteralValue = LiteralValue::NoneValue;
 
-#[derive(Debug)]
-pub struct ParseError {
-    message: str
+#[derive(Debug,PartialEq)]
+pub enum ArevelError {
+    ParseError,
+    InvalidFloatFmt,
+    UnterminatedString,
+    UnknownToken
 }
 
-pub type Result<T> = result::Result<T, ParseError>;
-
-// Error constants
-// Very generic fallback error for unhandled cases.
-// TODO: Better, more friendly messages for these.
-pub const ERR_PARSE: ParseError = ParseError{message: "Could not parse expression."};
-pub const ERR_FLOAT_FMT: ParseError = ParseError{message: "Invalid floating point format."};
-pub const ERR_UNTERMINATED_STR: ParseError = ParseError{message: "Unterminated string."};
-pub const ERR_UNKNOWN_TOKEN: ParseError = ParseError{message: "Unrecognized token in expression."};
+pub type Result<T> = result::Result<T, ArevelError>;
 
 // These could both be sets, but honestly seems like array would be
 // more performant here given how small it is. 
@@ -76,7 +72,7 @@ fn gobble_digits(token: &mut String, it: &mut Peekable<std::str::Chars<'_>>) {
     }
 }
 
-fn parse_number(it: &mut Peekable<std::str::Chars<'_>>) -> LiteralValue {
+fn parse_number(it: &mut Peekable<std::str::Chars<'_>>) -> Result<LiteralValue> {
     let mut token = String::from("");
     let mut _is_float = false;       // Unused. Could be used for dedicated int type later.
 
@@ -113,18 +109,20 @@ fn parse_number(it: &mut Peekable<std::str::Chars<'_>>) -> LiteralValue {
             if let Some(&exp_digit) = it.peek() {
                 if !is_digit(exp_digit) {
                     // TODO: Error handling
-                    println!("Invalid exponent.")
+                    return Err(ArevelError::InvalidFloatFmt);
                 }
+            } else { // Premature end of string
+                return Err(ArevelError::InvalidFloatFmt);
             }
             gobble_digits(&mut token, it);
         }
     }
     // Parse should be sufficient since we've validated format already.
     let val: f64 = lexical::parse(token);
-    return LiteralValue::NumericValue(val);
+    return Ok(LiteralValue::NumericValue(val));
 }
 
-fn parse_string(it: &mut Peekable<std::str::Chars<'_>>) -> LiteralValue {
+fn parse_string(it: &mut Peekable<std::str::Chars<'_>>) -> Result<LiteralValue> {
     let mut token = String::from("");
     
     // Don't include the quotes in the resulting string.
@@ -166,8 +164,11 @@ fn parse_string(it: &mut Peekable<std::str::Chars<'_>>) -> LiteralValue {
             }
         }
     }
-    // TODO: Throw error for non-terminated strings.
-    return LiteralValue::StringValue(token);
+    // Invalid if you reach end of input before closing quotes.
+    if ! _terminated {
+        return Err(ArevelError::UnterminatedString);
+    }
+    return Ok(LiteralValue::StringValue(token));
 }
 
 fn parse_identifier(it: &mut Peekable<std::str::Chars<'_>>) -> String {
@@ -234,7 +235,7 @@ macro_rules! numeric_literal {
     });
 }
 
-pub fn lex(expr: &str) -> Vec<TokenType> {
+pub fn lex(expr: &str) -> Result<Vec<TokenType>> {
     // Split into lexems based on some known operators
     let mut tokens: Vec<TokenType> = vec![];
     let mut it = expr.chars().peekable();
@@ -243,7 +244,7 @@ pub fn lex(expr: &str) -> Vec<TokenType> {
         // The match should have a case for each starting value of any valid token
         let token: Option<TokenType> = match ch {
             // Digit start
-            '0'...'9' | '.' => Some(TokenType::Literal(parse_number(&mut it))),
+            '0'...'9' | '.' => Some(TokenType::Literal(parse_number(&mut it)? )),
             // Operators
             '+' => lex_advance_return!(it, TokenType::OpPlus),
             '-' => lex_advance_return!(it, TokenType::OpMinus),
@@ -255,7 +256,7 @@ pub fn lex(expr: &str) -> Vec<TokenType> {
             '<' => lex_comparison_eq!(it, TokenType::OpLt, TokenType::OpLte),
             '>' => lex_comparison_eq!(it, TokenType::OpGt, TokenType::OpGte),
             // Interchangable single/double quoted strings grouped as single token.
-            '"' | '\'' => Some(TokenType::Literal(parse_string(&mut it))),
+            '"' | '\'' => Some(TokenType::Literal(parse_string(&mut it)?)),
             // Identifiers and reserved keywords
             'a'...'z' | 'A'...'Z' | '_' => {
                 let token_str: String = parse_identifier(&mut it);
@@ -272,9 +273,10 @@ pub fn lex(expr: &str) -> Vec<TokenType> {
                 it.next();
                 None
             }
-            _ => {  // All other characters - TODO: error
+            _ => {
+                // Error out on any unrecognized token starts.
                 it.next();
-                None
+                return Err(ArevelError::UnknownToken);
             }
         };
         // Add token to result if present
@@ -283,7 +285,7 @@ pub fn lex(expr: &str) -> Vec<TokenType> {
             _ => {}
         };
     }
-    return tokens;
+    return Ok(tokens);
 }
 
 #[cfg(test)]
@@ -294,20 +296,24 @@ mod tests {
     #[test]
     fn test_lex_float() {
         // Floating point numbers should be grouped together
-        assert_eq!(lex("3.1415"), [numeric_literal!(3.1415)]);
+        assert_eq!(lex("3.1415").unwrap(), [numeric_literal!(3.1415)]);
 
         // Note: Numeric literals converted to float in lexer. Handled separately in parser.
-        assert_eq!(lex("9 .75 9"), [numeric_literal!(9.0), numeric_literal!(0.75), numeric_literal!(9.0)]);
-        assert_eq!(lex("9 1e10"), [numeric_literal!(9.0), numeric_literal!(1e10)]);
-        assert_eq!(lex("1e-10"), [numeric_literal!(1e-10)]);
-        assert_eq!(lex("123e+10"), [numeric_literal!(123e+10)]);
-        assert_eq!(lex("4.237e+101"), [numeric_literal!(4.237e+101)]);
+        assert_eq!(lex("9 .75 9").unwrap(), [numeric_literal!(9.0), numeric_literal!(0.75), numeric_literal!(9.0)]);
+        assert_eq!(lex("9 1e10").unwrap(), [numeric_literal!(9.0), numeric_literal!(1e10)]);
+        assert_eq!(lex("1e-10").unwrap(), [numeric_literal!(1e-10)]);
+        assert_eq!(lex("123e+10").unwrap(), [numeric_literal!(123e+10)]);
+        assert_eq!(lex("4.237e+101").unwrap(), [numeric_literal!(4.237e+101)]);
 
         // Unary minus is kept separate in lexer stage and evaluated in parser.
-        assert_eq!(lex("-1"), [TokenType::OpMinus, numeric_literal!(1.0)]);
-        assert_eq!(lex("-.05"), [TokenType::OpMinus, numeric_literal!(0.05)]);
-        assert_eq!(lex("5 -.05"), [numeric_literal!(5.0), TokenType::OpMinus, numeric_literal!(0.05)]);
-        assert_eq!(lex("5 + -.05"), [numeric_literal!(5.0), TokenType::OpPlus, TokenType::OpMinus, numeric_literal!(0.05)]);
+        assert_eq!(lex("-1").unwrap(), [TokenType::OpMinus, numeric_literal!(1.0)]);
+        assert_eq!(lex("-.05").unwrap(), [TokenType::OpMinus, numeric_literal!(0.05)]);
+        assert_eq!(lex("5 -.05").unwrap(), [numeric_literal!(5.0), TokenType::OpMinus, numeric_literal!(0.05)]);
+        assert_eq!(lex("5 + -.05").unwrap(), [numeric_literal!(5.0), TokenType::OpPlus, TokenType::OpMinus, numeric_literal!(0.05)]);
+
+        // Error on undefined exponents
+        assert_eq!(lex("5.1e").unwrap_err(), ArevelError::InvalidFloatFmt);
+        assert_eq!(lex("5.1e ").unwrap_err(), ArevelError::InvalidFloatFmt);
     }
 
 
@@ -324,11 +330,13 @@ mod tests {
 
     #[test]
     fn test_lex_string() {
-        assert_eq!(parse_string(&mut r#""hello world""#.chars().peekable()), LiteralValue::StringValue(String::from("hello world")) );
+        assert_eq!(parse_string(&mut r#""hello world""#.chars().peekable()).unwrap(), LiteralValue::StringValue(String::from("hello world")) );
         // Terminates at end of quote
-        assert_eq!(parse_string(&mut r#""hello world" test"#.chars().peekable()), LiteralValue::StringValue(String::from("hello world")) );
+        assert_eq!(parse_string(&mut r#""hello world" test"#.chars().peekable()).unwrap(), LiteralValue::StringValue(String::from("hello world")) );
         // Matches quotes
-        assert_eq!(parse_string(&mut r#"'hello " world' test"#.chars().peekable()), LiteralValue::StringValue(String::from("hello \" world")) );
+        assert_eq!(parse_string(&mut r#"'hello " world' test"#.chars().peekable()).unwrap(), LiteralValue::StringValue(String::from("hello \" world")) );
+        // Error on unterminated string
+        assert_eq!(parse_string(&mut r#"'hello"#.chars().peekable()).unwrap_err(), ArevelError::UnterminatedString);
     }
 
     // #[test]
@@ -371,6 +379,4 @@ mod tests {
     //     Ok(("", 4))
     // );
     // }
-
-
 }
