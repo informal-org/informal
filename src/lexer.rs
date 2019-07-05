@@ -36,7 +36,6 @@ enum LiteralValue {
 // more performant here given how small it is. 
 // Worth a micro-benchmark later. 
 const UNARY_OPS: &[&str] = &["-", "NOT", "Not", "not"];
-
 const BINARY_OPS: &[&str] =      &["OR", "Or", "or", "AND", "And", "and", "IS", "Is", "is", "<", ">", "<=", ">=", "+", "-", "*", "/"];
 const BINARY_PRECEDENCE: &[i8] = &[ 1,    1,     1,   2,      2,    2,     6,    6,      6,  7,   7,   7,  7,    9,    9,   10,  10];
 
@@ -180,6 +179,21 @@ fn parse_identifier(it: &mut Peekable<std::str::Chars<'_>>) -> String {
     return token;
 }
 
+fn reserved_keyword(token: &str) -> Option<TokenType> {
+    // Returns the token type if the token matches a reserved keyword.
+    let token_upcase: &str = &token.to_ascii_uppercase();
+    return match token_upcase {
+        "IS" => Some(TokenType::OpIs),
+        "NONE" => Some(TokenType::Literal(LiteralValue::NoneValue)),
+        "TRUE" => Some(TokenType::Literal(LiteralValue::BooleanValue(true))),
+        "FALSE" => Some(TokenType::Literal(LiteralValue::BooleanValue(false))),
+        "NOT" => Some(TokenType::OpNot),
+        "AND" => Some(TokenType::OpAnd),
+        "OR" => Some(TokenType::OpOr),
+        _ => None
+    }
+}
+
 // One-liner shorthand to advance the iterator and return the given value
 macro_rules! lex_advance_return {
     ($it:expr, $e:expr) => ({
@@ -230,8 +244,13 @@ pub fn lex(expr: &str) -> Vec<TokenType> {
             // Identifiers and reserved keywords
             'a'...'z' | 'A'...'Z' | '_' => {
                 let tokenStr: String = parse_identifier(&mut it);
-                Some(TokenType::Identifier(String::from(tokenStr) ))
-                // TODO: Check if it's a reserved literal.
+                let keyword = reserved_keyword(&tokenStr);
+                if keyword != None { 
+                    keyword
+                }
+                else {
+                    Some(TokenType::Identifier(String::from(tokenStr) ))
+                }
             },
             // Whitespace - ignore
             ' ' => {
@@ -251,18 +270,6 @@ pub fn lex(expr: &str) -> Vec<TokenType> {
     }
     return tokens;
 }
-
-// fn is_identifier_part(ch: char) -> bool {
-//     // Any ascii character and can contain numbers within.
-//     return is_identifier_start(ch) || is_digit(ch);
-// }
-
-
-
-// fn parse_literal(expr: &Vec<char>, start: usize) -> Option<LiteralNode> {
-//     Option::None
-// }
-
 
 #[cfg(test)]
 mod tests {
@@ -309,6 +316,18 @@ mod tests {
     //     // It's treated in the parser.
     //     assert_eq!(lex("5 + -.05"), ["5", "+", "-", ".05"]);
     // }
+
+
+    #[test]
+    fn test_reserved_keyword() {
+        assert_eq!(reserved_keyword("not"), Some(TokenType::OpNot));
+        assert_eq!(reserved_keyword("And"), Some(TokenType::OpAnd));
+        assert_eq!(reserved_keyword("NONE"), Some(TokenType::Literal(LiteralValue::NoneValue)));
+        assert_eq!(reserved_keyword("True"), Some(TokenType::Literal(LiteralValue::BooleanValue(true))));
+        assert_eq!(reserved_keyword("TRUE"), Some(TokenType::Literal(LiteralValue::BooleanValue(true))));
+        assert_eq!(reserved_keyword("false"), Some(TokenType::Literal(LiteralValue::BooleanValue(false))));
+        assert_eq!(reserved_keyword("unreserved"), None);
+    }
 
 
     // #[test]

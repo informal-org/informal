@@ -24,8 +24,5 @@ panic = "unwind"
 [profile.release]
 panic = "unwind"
 
-
-
-
 [buiild]
 rustflags = "-C target-cpu=native"
