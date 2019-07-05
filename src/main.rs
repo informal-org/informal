@@ -1,4 +1,4 @@
-mod lexer;
+// use super::lexer;
 // use std::str;
 
 // use wasmer_runtime::{error, func, imports, Ctx, Value, compile};
@@ -49,7 +49,7 @@ mod lexer;
 
 fn main() {
     println!("hey");
-    println!("{:?}", lexer::lex("1232 + 23.32/459.4 + 312 - hello"))
+    // println!("{:?}", lexer::lex("1232 + 23.32/459.4 + 312 - hello"))
 
     // let wasm_binary = wat2wasm(WAT).unwrap();
     

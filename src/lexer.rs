@@ -1,7 +1,7 @@
 extern crate lexical;
 
+use super::error::{ArevelError, Result};
 use std::iter::Peekable;
-use std::result;
 
 #[derive(Debug,PartialEq)]
 pub enum TokenType {
@@ -35,27 +35,6 @@ pub enum LiteralValue {
 pub const TRUE_VALUE: LiteralValue = LiteralValue::BooleanValue(true);
 pub const FALSE_VALUE: LiteralValue = LiteralValue::BooleanValue(false);
 pub const NONE_VALUE: LiteralValue = LiteralValue::NoneValue;
-
-#[derive(Debug,PartialEq)]
-pub enum ArevelError {
-    ParseError,
-    InvalidFloatFmt,
-    UnterminatedString,
-    UnknownToken
-}
-
-pub type Result<T> = result::Result<T, ArevelError>;
-
-// These could both be sets, but honestly seems like array would be
-// more performant here given how small it is. 
-// Worth a micro-benchmark later. 
-const UNARY_OPS: &[&str] = &["-", "NOT", "Not", "not"];
-const BINARY_OPS: &[&str] =      &["OR", "Or", "or", "AND", "And", "and", "IS", "Is", "is", "<", ">", "<=", ">=", "+", "-", "*", "/"];
-const BINARY_PRECEDENCE: &[i8] = &[ 1,    1,     1,   2,      2,    2,     6,    6,      6,  7,   7,   7,  7,    9,    9,   10,  10];
-
-// This may be tricky since the result is of a mixed value type
-const LITERAL: &[&str] = &["TRUE", "True", "true", "FALSE", "False", "false", "NONE", "None", "none"];
-const LITERAL_VAL: &[LiteralValue] = &[LiteralValue::BooleanValue(true), LiteralValue::BooleanValue(true), LiteralValue::BooleanValue(true), LiteralValue::BooleanValue(false), LiteralValue::BooleanValue(false), LiteralValue::BooleanValue(false), LiteralValue::NoneValue, LiteralValue::NoneValue, LiteralValue::NoneValue];
 
 fn is_digit(ch: char) -> bool {
     return ch >= '0' && ch <= '9';
@@ -210,7 +189,7 @@ macro_rules! lex_advance_return {
         $it.next();
         Some($e)
     });
-}
+};
 
 // Shortcut for lte and gte - check next token and decide which form it is.
 macro_rules! lex_comparison_eq {
@@ -227,13 +206,13 @@ macro_rules! lex_comparison_eq {
             Some($comp)
         }
     });
-}
+};
 
 macro_rules! numeric_literal {
      ($val:expr) => ({
        TokenType::Literal(LiteralValue::NumericValue($val))
     });
-}
+};
 
 pub fn lex(expr: &str) -> Result<Vec<TokenType>> {
     // Split into lexems based on some known operators
@@ -311,20 +290,20 @@ mod tests {
         assert_eq!(lex("5 -.05").unwrap(), [numeric_literal!(5.0), TokenType::OpMinus, numeric_literal!(0.05)]);
         assert_eq!(lex("5 + -.05").unwrap(), [numeric_literal!(5.0), TokenType::OpPlus, TokenType::OpMinus, numeric_literal!(0.05)]);
 
-        // Error on undefined exponents
+        // Error on undefined exponents.
         assert_eq!(lex("5.1e").unwrap_err(), ArevelError::InvalidFloatFmt);
         assert_eq!(lex("5.1e ").unwrap_err(), ArevelError::InvalidFloatFmt);
+        // 30_000_000 syntax support? Stick to standard valid floats for now.
     }
-
 
     #[test]
     fn test_reserved_keyword() {
         assert_eq!(reserved_keyword("not"), Some(TokenType::OpNot));
         assert_eq!(reserved_keyword("And"), Some(TokenType::OpAnd));
         assert_eq!(reserved_keyword("NONE"), Some(TokenType::Literal(LiteralValue::NoneValue)));
-        assert_eq!(reserved_keyword("True"), Some(TokenType::Literal(LiteralValue::BooleanValue(true))));
-        assert_eq!(reserved_keyword("TRUE"), Some(TokenType::Literal(LiteralValue::BooleanValue(true))));
-        assert_eq!(reserved_keyword("false"), Some(TokenType::Literal(LiteralValue::BooleanValue(false))));
+        assert_eq!(reserved_keyword("True"), Some(TokenType::Literal(TRUE_VALUE)));
+        assert_eq!(reserved_keyword("TRUE"), Some(TokenType::Literal(TRUE_VALUE)));
+        assert_eq!(reserved_keyword("false"), Some(TokenType::Literal(FALSE_VALUE)));
         assert_eq!(reserved_keyword("unreserved"), None);
     }
 
