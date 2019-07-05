@@ -3,25 +3,36 @@ extern crate lexical;
 use super::error::{ArevelError, Result};
 use std::iter::Peekable;
 
+
+#[derive(Debug,PartialEq)]
+#[repr(u8)]
+pub enum KeywordType {
+    OpOr = 0,
+    OpAnd = 1,
+    OpIs = 2,
+    OpNot = 3,
+    
+    OpLt = 4,
+    OpLte = 5,
+    OpGt = 6,
+    OpGte = 7,
+
+    OpPlus = 8,
+    OpMinus = 9,
+    OpMultiply = 10,
+    OpDivide = 11,
+    
+    OpOpenParen = 12,
+    OpCloseParen = 13,
+    OpEquals = 14,
+}
+
+// Enum values are associated with their index for fast precedence lookup.
 #[derive(Debug,PartialEq)]
 pub enum TokenType {
+    Keyword(KeywordType),
     Literal(LiteralValue),
     Identifier(String),
-    OpPlus,
-    OpMinus,
-    OpMultiply,
-    OpDivide,
-    OpOpenParen,
-    OpCloseParen,
-    OpEquals,
-    OpGt,
-    OpLt,
-    OpGte,
-    OpLte,
-    OpAnd,
-    OpOr,
-    OpNot,
-    OpIs,
 }
 
 #[derive(Debug,PartialEq)]
@@ -32,9 +43,35 @@ pub enum LiteralValue {
     StringValue(String),  // TODO: String -> Obj. To c-string.
 }
 
+// Constants for basic literals
 pub const TRUE_VALUE: LiteralValue = LiteralValue::BooleanValue(true);
 pub const FALSE_VALUE: LiteralValue = LiteralValue::BooleanValue(false);
 pub const NONE_VALUE: LiteralValue = LiteralValue::NoneValue;
+
+// Constants for each token type
+pub const TOKEN_TRUE: TokenType = TokenType::Literal(TRUE_VALUE);
+pub const TOKEN_FALSE: TokenType = TokenType::Literal(FALSE_VALUE);
+pub const TOKEN_NONE: TokenType = TokenType::Literal(NONE_VALUE);
+
+pub const TOKEN_OR: TokenType = TokenType::Keyword(KeywordType::OpOr);
+pub const TOKEN_AND: TokenType = TokenType::Keyword(KeywordType::OpAnd);
+pub const TOKEN_IS: TokenType = TokenType::Keyword(KeywordType::OpIs);
+pub const TOKEN_NOT: TokenType = TokenType::Keyword(KeywordType::OpNot);
+
+pub const TOKEN_LT: TokenType = TokenType::Keyword(KeywordType::OpLt);
+pub const TOKEN_LTE: TokenType = TokenType::Keyword(KeywordType::OpLte);
+pub const TOKEN_GT: TokenType = TokenType::Keyword(KeywordType::OpGt);
+pub const TOKEN_GTE: TokenType = TokenType::Keyword(KeywordType::OpGte);
+
+pub const TOKEN_PLUS: TokenType = TokenType::Keyword(KeywordType::OpPlus);
+pub const TOKEN_MINUS: TokenType = TokenType::Keyword(KeywordType::OpMinus);
+pub const TOKEN_MULTIPLY: TokenType = TokenType::Keyword(KeywordType::OpMultiply);
+pub const TOKEN_DIVIDE: TokenType = TokenType::Keyword(KeywordType::OpDivide);
+
+pub const TOKEN_OPEN_PAREN: TokenType = TokenType::Keyword(KeywordType::OpOpenParen);
+pub const TOKEN_CLOSE_PAREN: TokenType = TokenType::Keyword(KeywordType::OpCloseParen);
+pub const TOKEN_EQUALS: TokenType = TokenType::Keyword(KeywordType::OpEquals);
+
 
 fn is_digit(ch: char) -> bool {
     return ch >= '0' && ch <= '9';
@@ -172,13 +209,13 @@ fn reserved_keyword(token: &str) -> Option<TokenType> {
     // Returns the token type if the token matches a reserved keyword.
     let token_upcase: &str = &token.to_ascii_uppercase();
     return match token_upcase {
-        "IS" => Some(TokenType::OpIs),
-        "NONE" => Some(TokenType::Literal(NONE_VALUE)),
-        "TRUE" => Some(TokenType::Literal(TRUE_VALUE)),
-        "FALSE" => Some(TokenType::Literal(FALSE_VALUE)),
-        "NOT" => Some(TokenType::OpNot),
-        "AND" => Some(TokenType::OpAnd),
-        "OR" => Some(TokenType::OpOr),
+        "IS" => Some(TOKEN_IS),
+        "NONE" => Some(TOKEN_NONE),
+        "TRUE" => Some(TOKEN_TRUE),
+        "FALSE" => Some(TOKEN_FALSE),
+        "NOT" => Some(TOKEN_NOT),
+        "AND" => Some(TOKEN_AND),
+        "OR" => Some(TOKEN_OR),
         _ => None
     }
 }
@@ -189,7 +226,7 @@ macro_rules! lex_advance_return {
         $it.next();
         Some($e)
     });
-};
+}
 
 // Shortcut for lte and gte - check next token and decide which form it is.
 macro_rules! lex_comparison_eq {
@@ -206,13 +243,13 @@ macro_rules! lex_comparison_eq {
             Some($comp)
         }
     });
-};
+}
 
 macro_rules! numeric_literal {
      ($val:expr) => ({
        TokenType::Literal(LiteralValue::NumericValue($val))
     });
-};
+}
 
 pub fn lex(expr: &str) -> Result<Vec<TokenType>> {
     // Split into lexems based on some known operators
@@ -225,15 +262,15 @@ pub fn lex(expr: &str) -> Result<Vec<TokenType>> {
             // Digit start
             '0'...'9' | '.' => Some(TokenType::Literal(parse_number(&mut it)? )),
             // Operators
-            '+' => lex_advance_return!(it, TokenType::OpPlus),
-            '-' => lex_advance_return!(it, TokenType::OpMinus),
-            '*' => lex_advance_return!(it, TokenType::OpMultiply),
-            '/' => lex_advance_return!(it, TokenType::OpDivide),
-            '(' => lex_advance_return!(it, TokenType::OpOpenParen),
-            ')' => lex_advance_return!(it, TokenType::OpCloseParen),
-            '=' => lex_advance_return!(it, TokenType::OpEquals),
-            '<' => lex_comparison_eq!(it, TokenType::OpLt, TokenType::OpLte),
-            '>' => lex_comparison_eq!(it, TokenType::OpGt, TokenType::OpGte),
+            '+' => lex_advance_return!(it, TOKEN_PLUS),
+            '-' => lex_advance_return!(it, TOKEN_MINUS),
+            '*' => lex_advance_return!(it, TOKEN_MULTIPLY),
+            '/' => lex_advance_return!(it, TOKEN_DIVIDE),
+            '(' => lex_advance_return!(it, TOKEN_OPEN_PAREN),
+            ')' => lex_advance_return!(it, TOKEN_CLOSE_PAREN),
+            '=' => lex_advance_return!(it, TOKEN_EQUALS),
+            '<' => lex_comparison_eq!(it, TOKEN_LT, TOKEN_LTE),
+            '>' => lex_comparison_eq!(it, TOKEN_GT, TOKEN_GTE),
             // Interchangable single/double quoted strings grouped as single token.
             '"' | '\'' => Some(TokenType::Literal(parse_string(&mut it)?)),
             // Identifiers and reserved keywords
