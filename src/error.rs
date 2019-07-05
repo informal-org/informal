@@ -5,7 +5,8 @@ pub enum ArevelError {
     ParseError,
     InvalidFloatFmt,
     UnterminatedString,
-    UnknownToken
+    UnknownToken,
+    UnmatchedParens,
 }
 
 pub type Result<T> = result::Result<T, ArevelError>;
