@@ -245,6 +245,7 @@ macro_rules! lex_comparison_eq {
     });
 }
 
+#[macro_export]
 macro_rules! numeric_literal {
      ($val:expr) => ({
        TokenType::Literal(LiteralValue::NumericValue($val))
@@ -306,7 +307,6 @@ pub fn lex(expr: &str) -> Result<Vec<TokenType>> {
 
 #[cfg(test)]
 mod tests {
-    // Note this useful idiom: importing names from outer (for mod tests) scope.
     use super::*;
 
     #[test]
@@ -322,10 +322,10 @@ mod tests {
         assert_eq!(lex("4.237e+101").unwrap(), [numeric_literal!(4.237e+101)]);
 
         // Unary minus is kept separate in lexer stage and evaluated in parser.
-        assert_eq!(lex("-1").unwrap(), [TokenType::OpMinus, numeric_literal!(1.0)]);
-        assert_eq!(lex("-.05").unwrap(), [TokenType::OpMinus, numeric_literal!(0.05)]);
-        assert_eq!(lex("5 -.05").unwrap(), [numeric_literal!(5.0), TokenType::OpMinus, numeric_literal!(0.05)]);
-        assert_eq!(lex("5 + -.05").unwrap(), [numeric_literal!(5.0), TokenType::OpPlus, TokenType::OpMinus, numeric_literal!(0.05)]);
+        assert_eq!(lex("-1").unwrap(), [TOKEN_MINUS, numeric_literal!(1.0)]);
+        assert_eq!(lex("-.05").unwrap(), [TOKEN_MINUS, numeric_literal!(0.05)]);
+        assert_eq!(lex("5 -.05").unwrap(), [numeric_literal!(5.0), TOKEN_MINUS, numeric_literal!(0.05)]);
+        assert_eq!(lex("5 + -.05").unwrap(), [numeric_literal!(5.0), TOKEN_PLUS, TOKEN_MINUS, numeric_literal!(0.05)]);
 
         // Error on undefined exponents.
         assert_eq!(lex("5.1e").unwrap_err(), ArevelError::InvalidFloatFmt);
@@ -335,12 +335,12 @@ mod tests {
 
     #[test]
     fn test_reserved_keyword() {
-        assert_eq!(reserved_keyword("not"), Some(TokenType::OpNot));
-        assert_eq!(reserved_keyword("And"), Some(TokenType::OpAnd));
-        assert_eq!(reserved_keyword("NONE"), Some(TokenType::Literal(LiteralValue::NoneValue)));
-        assert_eq!(reserved_keyword("True"), Some(TokenType::Literal(TRUE_VALUE)));
-        assert_eq!(reserved_keyword("TRUE"), Some(TokenType::Literal(TRUE_VALUE)));
-        assert_eq!(reserved_keyword("false"), Some(TokenType::Literal(FALSE_VALUE)));
+        assert_eq!(reserved_keyword("not"), Some(TOKEN_NOT));
+        assert_eq!(reserved_keyword("And"), Some(TOKEN_AND));
+        assert_eq!(reserved_keyword("NONE"), Some(TOKEN_NONE));
+        assert_eq!(reserved_keyword("True"), Some(TOKEN_TRUE));
+        assert_eq!(reserved_keyword("TRUE"), Some(TOKEN_TRUE));
+        assert_eq!(reserved_keyword("false"), Some(TOKEN_FALSE));
         assert_eq!(reserved_keyword("unreserved"), None);
     }
 
