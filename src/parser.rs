@@ -43,16 +43,24 @@ fn parse(tokens: &mut Vec<TokenType>) -> Result<Vec<TokenType>> {
     let mut operator_stack: Vec<TokenType> = Vec::with_capacity(tokens.len());
     println!("Parsing");
 
+    println!("{:?}",tokens);
+
     for token in tokens.drain(..) {
         match &token {
             TokenType::Keyword(kw) => {
                 println!("Found top level keyword");
                 match kw {
-                    KeywordType::OpOpenParen => operator_stack.push(token),
+                    KeywordType::OpOpenParen => {
+                        println!("Found open paren");
+                        operator_stack.push(token);
+                        println!("Op stack {:?}", operator_stack);
+                    },
                     KeywordType::OpCloseParen => {
+                        println!("Op stack {:?}", operator_stack);
                         // Pop until you find the matching opening paren
                         let mut found = false;
                         while let Some(op) = operator_stack.pop() {
+                            println!("Op {:?}", op);
                             // Sholud always be true since the operator stack only contains keywords
                             if let TokenType::Keyword(op_kw) = &op {
                                 match op_kw {
@@ -61,22 +69,30 @@ fn parse(tokens: &mut Vec<TokenType>) -> Result<Vec<TokenType>> {
                                         break;
                                     }
                                     _ => {
+                                        println!("no match {:?}", op);
                                         output.push(op);
                                     }
                                 }
                             }
                         }
+                        println!("Op stack {:?}", operator_stack);
                         if found == false {
+                            println!("Didn't find inner matching paren");
                             return Err(ArevelError::UnmatchedParens)
                         }
                     },
                     _ => {
+                        println!("Flush op stack {:?}", operator_stack);
                         // For all other operators, flush higher or equal level operators
                         // All operators are left associative in our system right now. (else, equals doesn't get pushed)
                         let my_precedence = get_op_precedence(*kw);
                         while operator_stack.len() > 0 {
                             let op_peek_last = operator_stack.get(operator_stack.len() - 1);
                             if let Some(TokenType::Keyword(op_kw)) = op_peek_last {
+                                if *op_kw == KeywordType::OpOpenParen {
+                                    break;
+                                }
+
                                 let other_precedence = get_op_precedence(*op_kw);
                                 if other_precedence >= my_precedence {
                                     // Then it takes priority. Output.
@@ -84,8 +100,11 @@ fn parse(tokens: &mut Vec<TokenType>) -> Result<Vec<TokenType>> {
                                 } else {
                                     break;
                                 }
+
                             }
                         }
+
+                        println!("Flush op stack {:?}", operator_stack);
 
                         println!("Adding to operator stack");
                         // Flushed all operators with higher precedence. Add to op stack.
@@ -107,12 +126,15 @@ fn parse(tokens: &mut Vec<TokenType>) -> Result<Vec<TokenType>> {
     }
 
     // Flush all remaining operators onto the output. 
+    // Reverse so we get items in the stack order.
+    operator_stack.reverse();
     for token in operator_stack.drain(..) {
         println!("Token drain");
         // All of them should be keywords
         if let TokenType::Keyword(op_kw) = &token {
             match op_kw {
                 KeywordType::OpOpenParen => {
+                    println!("Invalid paren in drain operator stack");
                     return Err(ArevelError::UnmatchedParens)
                 }
                 _ => {}
@@ -131,10 +153,93 @@ mod tests {
 
     #[test]
     fn test_parse_basic() {
+        // Verify straightforward conversion to postfix
         let mut input: Vec<TokenType> = vec![TokenType::Literal(LiteralValue::NumericValue(1.0)), TOKEN_PLUS, TokenType::Literal(LiteralValue::NumericValue(2.0))];
         let output: Vec<TokenType> = vec![TokenType::Literal(LiteralValue::NumericValue(1.0)), TokenType::Literal(LiteralValue::NumericValue(2.0)), TOKEN_PLUS];
         assert_eq!(parse(&mut input).unwrap(), output);
+    }
 
-        
+    #[test]
+    fn test_parse_add_mult() {
+        // Verify order of operands - multiply before addition
+        // 1 * 2 + 3 = 1 2 * 3 +
+        let mut input: Vec<TokenType> = vec![
+            TokenType::Literal(LiteralValue::NumericValue(1.0)), 
+            TOKEN_MULTIPLY, 
+            TokenType::Literal(LiteralValue::NumericValue(2.0)),
+            TOKEN_PLUS, 
+            TokenType::Literal(LiteralValue::NumericValue(3.0)),
+        ];
+        let output: Vec<TokenType> = vec![
+            TokenType::Literal(LiteralValue::NumericValue(1.0)), 
+            TokenType::Literal(LiteralValue::NumericValue(2.0)),
+            TOKEN_MULTIPLY, 
+            TokenType::Literal(LiteralValue::NumericValue(3.0)),
+            TOKEN_PLUS,
+        ];
+        assert_eq!(parse(&mut input).unwrap(), output);
+
+        // above test with order reversed. 1 + 2 * 3 = 1 2 3 * +
+        let mut input2: Vec<TokenType> = vec![
+            TokenType::Literal(LiteralValue::NumericValue(1.0)), 
+            TOKEN_PLUS, 
+            TokenType::Literal(LiteralValue::NumericValue(2.0)),
+            TOKEN_MULTIPLY, 
+            TokenType::Literal(LiteralValue::NumericValue(3.0)),
+        ];
+
+        let output2: Vec<TokenType> = vec![
+            TokenType::Literal(LiteralValue::NumericValue(1.0)), 
+            TokenType::Literal(LiteralValue::NumericValue(2.0)),
+            TokenType::Literal(LiteralValue::NumericValue(3.0)),
+            TOKEN_MULTIPLY,
+            TOKEN_PLUS,
+        ];
+
+        assert_eq!(parse(&mut input2).unwrap(), output2);
+    }
+
+    #[test]
+    fn test_parse_add_mult_paren() {
+        // Verify order of operands - multiply before addition
+        // 1 * (2 + 3) = 1 2 3 + *
+        let mut input: Vec<TokenType> = vec![
+            TokenType::Literal(LiteralValue::NumericValue(1.0)), 
+            TOKEN_MULTIPLY, 
+            TOKEN_OPEN_PAREN, 
+            TokenType::Literal(LiteralValue::NumericValue(2.0)),
+            TOKEN_PLUS, 
+            TokenType::Literal(LiteralValue::NumericValue(3.0)),
+            TOKEN_CLOSE_PAREN 
+        ];
+        let output: Vec<TokenType> = vec![
+            TokenType::Literal(LiteralValue::NumericValue(1.0)), 
+            TokenType::Literal(LiteralValue::NumericValue(2.0)),
+            TokenType::Literal(LiteralValue::NumericValue(3.0)),
+            TOKEN_PLUS,
+            TOKEN_MULTIPLY
+        ];
+        assert_eq!(parse(&mut input).unwrap(), output);
+
+        // // above test with order reversed. (1 + 2) * 3 = 1 2 + 3 *
+        // let mut input2: Vec<TokenType> = vec![
+        //     TOKEN_OPEN_PAREN,
+        //     TokenType::Literal(LiteralValue::NumericValue(1.0)),
+        //     TOKEN_PLUS,
+        //     TokenType::Literal(LiteralValue::NumericValue(2.0)),
+        //     TOKEN_CLOSE_PAREN,
+        //     TOKEN_MULTIPLY,
+        //     TokenType::Literal(LiteralValue::NumericValue(3.0)),
+        // ];
+
+        // let output2: Vec<TokenType> = vec![
+        //     TokenType::Literal(LiteralValue::NumericValue(1.0)), 
+        //     TokenType::Literal(LiteralValue::NumericValue(2.0)),
+        //     TOKEN_PLUS,
+        //     TokenType::Literal(LiteralValue::NumericValue(3.0)),
+        //     TOKEN_MULTIPLY,
+        // ];
+
+        // assert_eq!(parse(&mut input2).unwrap(), output2);
     }
 }
