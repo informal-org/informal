@@ -36,31 +36,23 @@ fn get_op_precedence(keyword: KeywordType) -> u8 {
 }
 
 
+// TODO: There may be additional edge cases for handling inline function calls within the expression
+// Current assumption is that all variable references are to a value.
 fn parse(tokens: &mut Vec<TokenType>) -> Result<Vec<TokenType>> {
     // Parse the lexed tokens and construct an AST representation
     // Current implementation uses the shunting yard algorithm for operator precedence.
     let mut output: Vec<TokenType> = Vec::with_capacity(tokens.len());
     let mut operator_stack: Vec<TokenType> = Vec::with_capacity(tokens.len());
-    println!("Parsing");
-
-    println!("{:?}",tokens);
 
     for token in tokens.drain(..) {
         match &token {
             TokenType::Keyword(kw) => {
-                println!("Found top level keyword");
                 match kw {
-                    KeywordType::OpOpenParen => {
-                        println!("Found open paren");
-                        operator_stack.push(token);
-                        println!("Op stack {:?}", operator_stack);
-                    },
+                    KeywordType::OpOpenParen => operator_stack.push(token),
                     KeywordType::OpCloseParen => {
-                        println!("Op stack {:?}", operator_stack);
                         // Pop until you find the matching opening paren
                         let mut found = false;
                         while let Some(op) = operator_stack.pop() {
-                            println!("Op {:?}", op);
                             // Sholud always be true since the operator stack only contains keywords
                             if let TokenType::Keyword(op_kw) = &op {
                                 match op_kw {
@@ -68,60 +60,42 @@ fn parse(tokens: &mut Vec<TokenType>) -> Result<Vec<TokenType>> {
                                         found = true;
                                         break;
                                     }
-                                    _ => {
-                                        println!("no match {:?}", op);
-                                        output.push(op);
-                                    }
+                                    _ => output.push(op)
                                 }
                             }
                         }
-                        println!("Op stack {:?}", operator_stack);
                         if found == false {
-                            println!("Didn't find inner matching paren");
                             return Err(ArevelError::UnmatchedParens)
                         }
                     },
                     _ => {
-                        println!("Flush op stack {:?}", operator_stack);
                         // For all other operators, flush higher or equal level operators
                         // All operators are left associative in our system right now. (else, equals doesn't get pushed)
                         let my_precedence = get_op_precedence(*kw);
                         while operator_stack.len() > 0 {
                             let op_peek_last = operator_stack.get(operator_stack.len() - 1);
                             if let Some(TokenType::Keyword(op_kw)) = op_peek_last {
+                                // Skip any items that aren't really operators.
                                 if *op_kw == KeywordType::OpOpenParen {
                                     break;
                                 }
 
                                 let other_precedence = get_op_precedence(*op_kw);
-                                if other_precedence >= my_precedence {
-                                    // Then it takes priority. Output.
+                                if other_precedence >= my_precedence {        // Output any higher priority operators.
                                     output.push(operator_stack.pop().unwrap());
                                 } else {
                                     break;
                                 }
-
                             }
                         }
-
-                        println!("Flush op stack {:?}", operator_stack);
-
-                        println!("Adding to operator stack");
                         // Flushed all operators with higher precedence. Add to op stack.
                         operator_stack.push(token);
                     }
                 }
 
             },
-            TokenType::Literal(_lit) => {
-                println!("Found top level literal");
-                // Add numbers to output
-                output.push(token);
-            },
-            TokenType::Identifier(_id) => {
-                println!("Found top level id");
-                output.push(token);
-            }
+            TokenType::Literal(_lit) => output.push(token),
+            TokenType::Identifier(_id) => output.push(token),
         }
     }
 
@@ -221,25 +195,25 @@ mod tests {
         ];
         assert_eq!(parse(&mut input).unwrap(), output);
 
-        // // above test with order reversed. (1 + 2) * 3 = 1 2 + 3 *
-        // let mut input2: Vec<TokenType> = vec![
-        //     TOKEN_OPEN_PAREN,
-        //     TokenType::Literal(LiteralValue::NumericValue(1.0)),
-        //     TOKEN_PLUS,
-        //     TokenType::Literal(LiteralValue::NumericValue(2.0)),
-        //     TOKEN_CLOSE_PAREN,
-        //     TOKEN_MULTIPLY,
-        //     TokenType::Literal(LiteralValue::NumericValue(3.0)),
-        // ];
+        // above test with order reversed. (1 + 2) * 3 = 1 2 + 3 *
+        let mut input2: Vec<TokenType> = vec![
+            TOKEN_OPEN_PAREN,
+            TokenType::Literal(LiteralValue::NumericValue(1.0)),
+            TOKEN_PLUS,
+            TokenType::Literal(LiteralValue::NumericValue(2.0)),
+            TOKEN_CLOSE_PAREN,
+            TOKEN_MULTIPLY,
+            TokenType::Literal(LiteralValue::NumericValue(3.0)),
+        ];
 
-        // let output2: Vec<TokenType> = vec![
-        //     TokenType::Literal(LiteralValue::NumericValue(1.0)), 
-        //     TokenType::Literal(LiteralValue::NumericValue(2.0)),
-        //     TOKEN_PLUS,
-        //     TokenType::Literal(LiteralValue::NumericValue(3.0)),
-        //     TOKEN_MULTIPLY,
-        // ];
+        let output2: Vec<TokenType> = vec![
+            TokenType::Literal(LiteralValue::NumericValue(1.0)), 
+            TokenType::Literal(LiteralValue::NumericValue(2.0)),
+            TOKEN_PLUS,
+            TokenType::Literal(LiteralValue::NumericValue(3.0)),
+            TOKEN_MULTIPLY,
+        ];
 
-        // assert_eq!(parse(&mut input2).unwrap(), output2);
+        assert_eq!(parse(&mut input2).unwrap(), output2);
     }
 }
