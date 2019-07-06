@@ -38,13 +38,13 @@ fn get_op_precedence(keyword: KeywordType) -> u8 {
 
 // TODO: There may be additional edge cases for handling inline function calls within the expression
 // Current assumption is that all variable references are to a value.
-fn parse(tokens: &mut Vec<TokenType>) -> Result<Vec<TokenType>> {
-    // Parse the lexed tokens and construct an AST representation
+fn parse(infix: &mut Vec<TokenType>) -> Result<Vec<TokenType>> {
+    // Parse the lexed infix input and construct a postfix version
     // Current implementation uses the shunting yard algorithm for operator precedence.
-    let mut output: Vec<TokenType> = Vec::with_capacity(tokens.len());
-    let mut operator_stack: Vec<TokenType> = Vec::with_capacity(tokens.len());
+    let mut postfix: Vec<TokenType> = Vec::with_capacity(infix.len());
+    let mut operator_stack: Vec<TokenType> = Vec::with_capacity(infix.len());
 
-    for token in tokens.drain(..) {
+    for token in infix.drain(..) {
         match &token {
             TokenType::Keyword(kw) => {
                 match kw {
@@ -60,7 +60,7 @@ fn parse(tokens: &mut Vec<TokenType>) -> Result<Vec<TokenType>> {
                                         found = true;
                                         break;
                                     }
-                                    _ => output.push(op)
+                                    _ => postfix.push(op)
                                 }
                             }
                         }
@@ -81,8 +81,8 @@ fn parse(tokens: &mut Vec<TokenType>) -> Result<Vec<TokenType>> {
                                 }
 
                                 let other_precedence = get_op_precedence(*op_kw);
-                                if other_precedence >= my_precedence {        // Output any higher priority operators.
-                                    output.push(operator_stack.pop().unwrap());
+                                if other_precedence >= my_precedence {        // output any higher priority operators.
+                                    postfix.push(operator_stack.pop().unwrap());
                                 } else {
                                     break;
                                 }
@@ -94,12 +94,12 @@ fn parse(tokens: &mut Vec<TokenType>) -> Result<Vec<TokenType>> {
                 }
 
             },
-            TokenType::Literal(_lit) => output.push(token),
-            TokenType::Identifier(_id) => output.push(token),
+            TokenType::Literal(_lit) => postfix.push(token),
+            TokenType::Identifier(_id) => postfix.push(token),
         }
     }
 
-    // Flush all remaining operators onto the output. 
+    // Flush all remaining operators onto the postfix output. 
     // Reverse so we get items in the stack order.
     operator_stack.reverse();
     for token in operator_stack.drain(..) {
@@ -114,10 +114,15 @@ fn parse(tokens: &mut Vec<TokenType>) -> Result<Vec<TokenType>> {
                 _ => {}
             }
         }
-        output.push(token);
+        postfix.push(token);
     }
 
-    return Ok(output);
+    return Ok(postfix);
+}
+
+
+fn expr_to_wat(postfix: Vec<TokenType>) {
+    
 }
 
 
