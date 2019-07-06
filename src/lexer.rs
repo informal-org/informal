@@ -286,7 +286,7 @@ pub fn lex(expr: &str) -> Result<Vec<TokenType>> {
                 }
             },
             // Whitespace - ignore
-            ' ' => {
+            ' ' | '\t' | '\n' => {
                 it.next();
                 None
             }

@@ -129,20 +129,27 @@ pub fn expr_to_wat(postfix: Vec<TokenType>) -> String {
       func $main (type $t0) (result f64)
   "#);
 
-    let mut body: Vec<&str> = vec![];
+    let mut body: Vec<String> = vec![];
 
     for token in postfix {
         match &token {
             TokenType::Keyword(kw) => {
                 match kw {
                     // TODO: Predefine constants for these;
-                    KeywordType::OpPlus => body.push("(f64.add)"),
+                    KeywordType::OpPlus => body.push(String::from("(f64.add)")),
                     _ => {}
                 }
             }
-            TokenType::Literal(_lit) => {
+            TokenType::Literal(lit) => {
                 // TODO: Push the literal value
-                body.push("(f64.const 1)")
+                match &lit {
+                    LiteralValue::NumericValue(num) => {
+                        let lit_def = ["(f64.const ", &num.to_string(), ")"].concat();
+                        body.push( lit_def );
+                    }
+                    _ => {} // TODO
+                }
+                
             },
             _ => {}
             // TODO

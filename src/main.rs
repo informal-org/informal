@@ -4,6 +4,7 @@ mod error;
 
 // use std::str;
 
+use std::io::{stdin,stdout,Write};
 use wasmer_runtime::{func, imports, Ctx, Value, compile};
 use wasmer_runtime::{Func, Instance, error::ResolveResult};
 use wabt::wat2wasm;
@@ -76,29 +77,45 @@ static WAT: &'static str = r#"
 fn main() {
     // println!("{:?}", lexer::lex("1232 + 23.32/459.4 + 312 - hello"))
 
-    let mut lexed = lexer::lex("1 + 2").unwrap();
-    println!("Lexed: {:?}", lexed);
+    loop {
+        print!("> ");
+        let _=stdout().flush();
+        let mut reader = stdin();
 
-    let mut parsed = parser::parse(&mut lexed).unwrap();
-    println!("Parsed: {:?}", parsed);
+        let mut input = String::new();
+        reader.read_line(&mut input).ok().expect("Failed to read line");
 
-    let mut wat = parser::expr_to_wat(parsed);
-    println!("Wat: {:?}", wat);
+        println!("{}", input);
 
-    let wasm_binary = wat2wasm(wat).unwrap();
-    let module = compile(&wasm_binary).unwrap();
+        let mut lexed = lexer::lex(&input).unwrap();
+        println!("Lexed: {:?}", lexed);
 
-    // // We're not importing anything, so make an empty import object.
-    let import_object = imports! {};
-    
+        let mut parsed = parser::parse(&mut lexed).unwrap();
+        println!("Parsed: {:?}", parsed);
 
-    let instance = module.instantiate(&import_object).unwrap();
+        let mut wat = parser::expr_to_wat(parsed);
+        println!("Wat: {:?}", wat);
 
-    let main: Func<(),f64> = instance.func("main").unwrap();
+        let wasm_binary = wat2wasm(wat).unwrap();
+        let module = compile(&wasm_binary).unwrap();
 
-    // let param: i32 = 41;
-    let value = main.call();
-    println!("{:?}", value);
+        // // We're not importing anything, so make an empty import object.
+        let import_object = imports! {};
+        
+
+        let instance = module.instantiate(&import_object).unwrap();
+
+        let main: Func<(),f64> = instance.func("main").unwrap();
+
+        // let param: i32 = 41;
+        let value = main.call();
+        println!("{:?}", value);
+
+
+
+    }
+
+
 
     // // assert_eq!(value, 42);
      
