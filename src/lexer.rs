@@ -3,7 +3,7 @@ extern crate lexical;
 use super::error::{ArevelError, Result};
 use std::iter::Peekable;
 
-#[derive(Debug,PartialEq,Eq)]
+#[derive(Debug,PartialEq,Eq,Copy,Clone)]
 #[repr(u8)]
 pub enum KeywordType {
     // The u8 repr index into the parser precedence array.

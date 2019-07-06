@@ -35,55 +35,85 @@ fn get_op_precedence(keyword: KeywordType) -> u8 {
 }
 
 
-fn parse(tokens: Vec<TokenType>) { //  -> Result<Vec<TokenType>> 
+fn parse(tokens: &mut Vec<TokenType>) -> Result<Vec<TokenType>> {
     // Parse the lexed tokens and construct an AST representation
     // Current implementation uses the shunting yard algorithm for operator precedence.
-    let mut output: Vec<&TokenType> = Vec::with_capacity(tokens.len());
-    let mut operator_stack: Vec<&TokenType> = Vec::with_capacity(tokens.len());
+    let mut output: Vec<TokenType> = Vec::with_capacity(tokens.len());
+    let mut operator_stack: Vec<TokenType> = Vec::with_capacity(tokens.len());
 
-    for token in tokens.iter() {
-        match token {
+    for token in tokens.drain(..) {
+        match &token {
             TokenType::Keyword(kw) => {
                 match kw {
-                    KeywordType::OpOpenParen => operator_stack.push(&TOKEN_OPEN_PAREN),
+                    KeywordType::OpOpenParen => operator_stack.push(token),
                     KeywordType::OpCloseParen => {
                         // Pop until you find the matching opening paren
                         let mut found = false;
                         while let Some(op) = operator_stack.pop() {
-                            match op {
-                                // &TOKEN_OPEN_PAREN => {
-                                //     found = true;
-                                // }
-                                _ => {
-                                    // output.push(op);
+                            // Sholud always be true since the operator stack only contains keywords
+                            if let TokenType::Keyword(op_kw) = &op {
+                                match op_kw {
+                                    KeywordType::OpOpenParen => {
+                                        found = true;
+                                        break;
+                                    }
+                                    _ => {
+                                        output.push(op);
+                                    }
                                 }
                             }
                         }
                         if found == false {
-                            // return Err(ArevelError::UnmatchedParens)
+                            return Err(ArevelError::UnmatchedParens)
                         }
                     },
                     _ => {
-                        // While there's an operator on the operator stack with greater precedence. 
-                        // All operators are left associative in our system right now.
-                        // let op_iter = operator_stack.iter().peekable();
-                        // while let Some(&op) = op_iter.peek() {
+                        // For all other operators, flush higher or equal level operators
+                        // All operators are left associative in our system right now. (else, equals doesn't get pushed)
+                        let my_precedence = get_op_precedence(*kw);
+                        let op_iter = operator_stack.iter().peekable();
+                        while operator_stack.len() > 0 {
+                            let op_peek_last = operator_stack.get(operator_stack.len() - 1);
+                            if let Some(TokenType::Keyword(op_kw)) = op_peek_last {
+                                let other_precedence = get_op_precedence(*op_kw);
+                                if other_precedence >= my_precedence {
+                                    // Then it takes priority. Output.
+                                    output.push(operator_stack.pop().unwrap());
+                                } else {
+                                    break;
+                                }
+                            }
+                        }
 
-                        // }
-
+                        // Flushed all operators with higher precedence. Add to op stack.
+                        output.push(token);
                     }
                 }
 
             },
             Literal => {
                 // Add numbers to output
-                output.push(&token);
+                output.push(token);
             },
             Identifier => {
-                output.push(&token);
+                output.push(token);
             }
-
         }
     }
-    // return Ok(output);
+
+    // Flush all remaining operators onto the output. 
+    for token in tokens.drain(..) {
+        // All of them should be keywords
+        if let TokenType::Keyword(op_kw) = &token {
+            match op_kw {
+                KeywordType::OpOpenParen => {
+                    return Err(ArevelError::UnmatchedParens)
+                }
+                _ => {}
+            }
+        }
+        output.push(token);
+    }
+
+    return Ok(output);
 }
