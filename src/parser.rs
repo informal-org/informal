@@ -122,6 +122,46 @@ fn parse(infix: &mut Vec<TokenType>) -> Result<Vec<TokenType>> {
 
 
 fn expr_to_wat(postfix: Vec<TokenType>) {
+    let header = r#"
+    (module
+  (type $t0 (func (result f64)))
+  (
+      func $main (type $t0) (result f64)
+  "#;
+
+    let mut body: Vec<&str> = vec![];
+
+    for token in postfix {
+        match &token {
+            TokenType::Keyword(kw) => {
+                match kw {
+                    // TODO: Predefine constants for these;
+                    KeywordType::OpPlus => body.push("(f64.add)"),
+                    _ => {}
+                }
+            }
+            TokenType::Literal(_lit) => {
+                // TODO: Push the literal value
+                body.push("(f64.const 1)")
+            },
+            _ => {}
+            // TODO
+            // TokenType::Identifier(_id) => postfix.push(token),
+        }
+    }
+
+    // (f64.const 1)
+    // (f64.const 2)
+    // f64.add
+
+
+    let footer = r#"
+    )
+  (table $T0 1 anyfunc)
+  (memory $memory 0)
+  (export "memory" (memory 0))
+  (export "main" (func $main))
+  )"#;
     
 }
 
