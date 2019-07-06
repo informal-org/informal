@@ -7,24 +7,24 @@ use std::iter::Peekable;
 #[repr(u8)]
 pub enum KeywordType {
     // The u8 repr index into the parser precedence array.
-    OpOr = 0,
-    OpAnd = 1,
-    OpIs = 2,
-    OpNot = 3,
+    KwOr = 0,
+    KwAnd = 1,
+    KwIs = 2,
+    KwNot = 3,
     
-    OpLt = 4,
-    OpLte = 5,
-    OpGt = 6,
-    OpGte = 7,
+    KwLt = 4,
+    KwLte = 5,
+    KwGt = 6,
+    KwGte = 7,
 
-    OpPlus = 8,
-    OpMinus = 9,
-    OpMultiply = 10,
-    OpDivide = 11,
+    KwPlus = 8,
+    KwMinus = 9,
+    KwMultiply = 10,
+    KwDivide = 11,
     
-    OpOpenParen = 12,
-    OpCloseParen = 13,
-    OpEquals = 14,
+    KwOpenParen = 12,
+    KwCloseParen = 13,
+    KwEquals = 14,
 }
 
 // Enum values are associated with their index for fast precedence lookup.
@@ -53,24 +53,24 @@ pub const TOKEN_TRUE: TokenType = TokenType::Literal(TRUE_VALUE);
 pub const TOKEN_FALSE: TokenType = TokenType::Literal(FALSE_VALUE);
 pub const TOKEN_NONE: TokenType = TokenType::Literal(NONE_VALUE);
 
-pub const TOKEN_OR: TokenType = TokenType::Keyword(KeywordType::OpOr);
-pub const TOKEN_AND: TokenType = TokenType::Keyword(KeywordType::OpAnd);
-pub const TOKEN_IS: TokenType = TokenType::Keyword(KeywordType::OpIs);
-pub const TOKEN_NOT: TokenType = TokenType::Keyword(KeywordType::OpNot);
+pub const TOKEN_OR: TokenType = TokenType::Keyword(KeywordType::KwOr);
+pub const TOKEN_AND: TokenType = TokenType::Keyword(KeywordType::KwAnd);
+pub const TOKEN_IS: TokenType = TokenType::Keyword(KeywordType::KwIs);
+pub const TOKEN_NOT: TokenType = TokenType::Keyword(KeywordType::KwNot);
 
-pub const TOKEN_LT: TokenType = TokenType::Keyword(KeywordType::OpLt);
-pub const TOKEN_LTE: TokenType = TokenType::Keyword(KeywordType::OpLte);
-pub const TOKEN_GT: TokenType = TokenType::Keyword(KeywordType::OpGt);
-pub const TOKEN_GTE: TokenType = TokenType::Keyword(KeywordType::OpGte);
+pub const TOKEN_LT: TokenType = TokenType::Keyword(KeywordType::KwLt);
+pub const TOKEN_LTE: TokenType = TokenType::Keyword(KeywordType::KwLte);
+pub const TOKEN_GT: TokenType = TokenType::Keyword(KeywordType::KwGt);
+pub const TOKEN_GTE: TokenType = TokenType::Keyword(KeywordType::KwGte);
 
-pub const TOKEN_PLUS: TokenType = TokenType::Keyword(KeywordType::OpPlus);
-pub const TOKEN_MINUS: TokenType = TokenType::Keyword(KeywordType::OpMinus);
-pub const TOKEN_MULTIPLY: TokenType = TokenType::Keyword(KeywordType::OpMultiply);
-pub const TOKEN_DIVIDE: TokenType = TokenType::Keyword(KeywordType::OpDivide);
+pub const TOKEN_PLUS: TokenType = TokenType::Keyword(KeywordType::KwPlus);
+pub const TOKEN_MINUS: TokenType = TokenType::Keyword(KeywordType::KwMinus);
+pub const TOKEN_MULTIPLY: TokenType = TokenType::Keyword(KeywordType::KwMultiply);
+pub const TOKEN_DIVIDE: TokenType = TokenType::Keyword(KeywordType::KwDivide);
 
-pub const TOKEN_OPEN_PAREN: TokenType = TokenType::Keyword(KeywordType::OpOpenParen);
-pub const TOKEN_CLOSE_PAREN: TokenType = TokenType::Keyword(KeywordType::OpCloseParen);
-pub const TOKEN_EQUALS: TokenType = TokenType::Keyword(KeywordType::OpEquals);
+pub const TOKEN_OPEN_PAREN: TokenType = TokenType::Keyword(KeywordType::KwOpenParen);
+pub const TOKEN_CLOSE_PAREN: TokenType = TokenType::Keyword(KeywordType::KwCloseParen);
+pub const TOKEN_EQUALS: TokenType = TokenType::Keyword(KeywordType::KwEquals);
 
 
 fn is_digit(ch: char) -> bool {

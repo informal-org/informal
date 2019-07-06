@@ -30,6 +30,14 @@ const KEYWORD_PRECEDENCE: &[u8] = &[
     0           // Equals
 ];
 
+pub const WASM_FBIN_ADD: &'static str  = "(f64.add)";
+pub const WASM_FBIN_SUB: &'static str  = "(f64.sub)";
+pub const WASM_FBIN_MUL: &'static str  = "(f64.mul)";
+pub const WASM_FBIN_DIV: &'static str  = "(f64.div)";
+
+// alternatively. Do .nearest first
+pub const WASM_F64_AS_I32: &'static str  = "(i32.trunc_s/f64)";
+
 fn get_op_precedence(keyword: KeywordType) -> u8 {
     let index = keyword as usize;
     return KEYWORD_PRECEDENCE[index];
@@ -48,15 +56,15 @@ pub fn parse(infix: &mut Vec<TokenType>) -> Result<Vec<TokenType>> {
         match &token {
             TokenType::Keyword(kw) => {
                 match kw {
-                    KeywordType::OpOpenParen => operator_stack.push(token),
-                    KeywordType::OpCloseParen => {
+                    KeywordType::KwOpenParen => operator_stack.push(token),
+                    KeywordType::KwCloseParen => {
                         // Pop until you find the matching opening paren
                         let mut found = false;
                         while let Some(op) = operator_stack.pop() {
                             // Sholud always be true since the operator stack only contains keywords
                             if let TokenType::Keyword(op_kw) = &op {
                                 match op_kw {
-                                    KeywordType::OpOpenParen => {
+                                    KeywordType::KwOpenParen => {
                                         found = true;
                                         break;
                                     }
@@ -76,7 +84,7 @@ pub fn parse(infix: &mut Vec<TokenType>) -> Result<Vec<TokenType>> {
                             let op_peek_last = operator_stack.get(operator_stack.len() - 1);
                             if let Some(TokenType::Keyword(op_kw)) = op_peek_last {
                                 // Skip any items that aren't really operators.
-                                if *op_kw == KeywordType::OpOpenParen {
+                                if *op_kw == KeywordType::KwOpenParen {
                                     break;
                                 }
 
@@ -107,7 +115,7 @@ pub fn parse(infix: &mut Vec<TokenType>) -> Result<Vec<TokenType>> {
         // All of them should be keywords
         if let TokenType::Keyword(op_kw) = &token {
             match op_kw {
-                KeywordType::OpOpenParen => {
+                KeywordType::KwOpenParen => {
                     println!("Invalid paren in drain operator stack");
                     return Err(ArevelError::UnmatchedParens)
                 }
@@ -119,6 +127,7 @@ pub fn parse(infix: &mut Vec<TokenType>) -> Result<Vec<TokenType>> {
 
     return Ok(postfix);
 }
+
 
 
 pub fn expr_to_wat(postfix: Vec<TokenType>) -> String {
@@ -134,11 +143,15 @@ pub fn expr_to_wat(postfix: Vec<TokenType>) -> String {
     for token in postfix {
         match &token {
             TokenType::Keyword(kw) => {
-                match kw {
+                let wasm_op = match kw {
                     // TODO: Predefine constants for these;
-                    KeywordType::OpPlus => body.push(String::from("(f64.add)")),
-                    _ => {}
-                }
+                    KeywordType::KwPlus => WASM_FBIN_ADD,
+                    KeywordType::KwMinus => WASM_FBIN_SUB,
+                    KeywordType::KwMultiply => WASM_FBIN_MUL,
+                    KeywordType::KwDivide => WASM_FBIN_DIV,
+                    _ => {""}
+                };
+                body.push(String::from(wasm_op));
             }
             TokenType::Literal(lit) => {
                 // TODO: Push the literal value
