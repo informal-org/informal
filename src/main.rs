@@ -1,7 +1,10 @@
-// use super::lexer;
+mod lexer;
+mod parser;
+mod error;
+
 // use std::str;
 
-use wasmer_runtime::{error, func, imports, Ctx, Value, compile};
+use wasmer_runtime::{func, imports, Ctx, Value, compile};
 use wasmer_runtime::{Func, Instance, error::ResolveResult};
 use wabt::wat2wasm;
 
@@ -71,11 +74,18 @@ static WAT: &'static str = r#"
 
 
 fn main() {
-    println!("hey");
     // println!("{:?}", lexer::lex("1232 + 23.32/459.4 + 312 - hello"))
 
-    let wasm_binary = wat2wasm(WAT).unwrap();
-    
+    let mut lexed = lexer::lex("1 + 2").unwrap();
+    println!("Lexed: {:?}", lexed);
+
+    let mut parsed = parser::parse(&mut lexed).unwrap();
+    println!("Parsed: {:?}", parsed);
+
+    let mut wat = parser::expr_to_wat(parsed);
+    println!("Wat: {:?}", wat);
+
+    let wasm_binary = wat2wasm(wat).unwrap();
     let module = compile(&wasm_binary).unwrap();
 
     // // We're not importing anything, so make an empty import object.

@@ -38,7 +38,7 @@ fn get_op_precedence(keyword: KeywordType) -> u8 {
 
 // TODO: There may be additional edge cases for handling inline function calls within the expression
 // Current assumption is that all variable references are to a value.
-fn parse(infix: &mut Vec<TokenType>) -> Result<Vec<TokenType>> {
+pub fn parse(infix: &mut Vec<TokenType>) -> Result<Vec<TokenType>> {
     // Parse the lexed infix input and construct a postfix version
     // Current implementation uses the shunting yard algorithm for operator precedence.
     let mut postfix: Vec<TokenType> = Vec::with_capacity(infix.len());
@@ -121,13 +121,13 @@ fn parse(infix: &mut Vec<TokenType>) -> Result<Vec<TokenType>> {
 }
 
 
-fn expr_to_wat(postfix: Vec<TokenType>) {
-    let header = r#"
+pub fn expr_to_wat(postfix: Vec<TokenType>) -> String {
+    let header = String::from(r#"
     (module
   (type $t0 (func (result f64)))
   (
       func $main (type $t0) (result f64)
-  "#;
+  "#);
 
     let mut body: Vec<&str> = vec![];
 
@@ -150,18 +150,21 @@ fn expr_to_wat(postfix: Vec<TokenType>) {
         }
     }
 
+
     // (f64.const 1)
     // (f64.const 2)
     // f64.add
 
 
-    let footer = r#"
+    let footer = String::from(r#"
     )
   (table $T0 1 anyfunc)
   (memory $memory 0)
   (export "memory" (memory 0))
   (export "main" (func $main))
-  )"#;
+  )"#);
+
+  return header + (&body.join("")) + &footer;
     
 }
 
