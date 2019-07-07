@@ -355,44 +355,4 @@ mod tests {
         assert_eq!(parse_string(&mut r#"'hello"#.chars().peekable()).unwrap_err(), ArevelError::UnterminatedString);
     }
 
-    // #[test]
-    // fn factor_test() {
-    //     assert_eq!(factor("3"), Ok(("", 3)));
-    //     assert_eq!(factor(" 12"), Ok(("", 12)));
-    //     assert_eq!(factor("537  "), Ok(("", 537)));
-    //     assert_eq!(factor("  24   "), Ok(("", 24)));
-    // }
-
-    // #[test]
-    // fn term_test() {
-    // assert_eq!(term(" 12 *2 /  3"), Ok(("", 8)));
-    // assert_eq!(
-    //     term(" 2* 3  *2 *2 /  3"),
-    //     Ok(("", 8))
-    // );
-    // assert_eq!(term(" 48 /  3/2"), Ok(("", 8)));
-    // }
-
-    // #[test]
-    // fn expr_test() {
-    // assert_eq!(expr(" 1 +  2 "), Ok(("", 3)));
-    // assert_eq!(
-    //     expr(" 12 + 6 - 4+  3"),
-    //     Ok(("", 17))
-    // );
-    // assert_eq!(expr(" 1 + 2*3 + 4"), Ok(("", 11)));
-    // }
-
-    // #[test]
-    // fn parens_test() {
-    // assert_eq!(expr(" (  2 )"), Ok(("", 2)));
-    // assert_eq!(
-    //     expr(" 2* (  3 + 4 ) "),
-    //     Ok(("", 14))
-    // );
-    // assert_eq!(
-    //     expr("  2*2 / ( 5 - 1) + 3"),
-    //     Ok(("", 4))
-    // );
-    // }
 }

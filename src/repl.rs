@@ -43,5 +43,35 @@ pub fn read_eval_print(input: String) {
     let wat = read(input);
     let result = eval(wat);
     print(result);
+}
 
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    macro_rules! read_eval {
+        ($e:expr) => ({
+            eval(read(String::from($e)))
+        });
+    }
+
+    #[test]
+    fn test_reval_num_literals() {
+        assert_eq!(read_eval!("9.0"), 9.0);
+        assert_eq!(read_eval!("42"), 42.0);
+        assert_eq!(read_eval!("3.14159"), 3.14159);
+        assert_eq!(read_eval!("10e5"), 10e5);
+    }
+
+    #[test]
+    fn test_reval_arithmetic() {
+        assert_eq!(read_eval!("12 * 2 / 3"), 8.0);
+        assert_eq!(read_eval!("48 / 3 / 2"), 8.0);
+        assert_eq!(read_eval!("1 + 2"), 3.0);
+        assert_eq!(read_eval!("1 + 2 * 3 + 4"), 11.0);
+        assert_eq!(read_eval!("( 2 ) "), 2.0);
+        assert_eq!(read_eval!("2 * (3 + 4) "), 14.0);
+        assert_eq!(read_eval!("2 * 2 / (5 - 1) + 3"), 4.0);
+    }    
 }
