@@ -74,5 +74,15 @@ mod tests {
         assert_eq!(read_eval!("( 2 ) "), 2.0);
         assert_eq!(read_eval!("2 * (3 + 4) "), 14.0);
         assert_eq!(read_eval!("2 * 2 / (5 - 1) + 3"), 4.0);
-    }    
+    }
+
+    #[test]
+    fn test_reval_bool() {
+        assert_eq!(read_eval!("true"), 1.0);
+        assert_eq!(read_eval!("false"), 0.0);
+        assert_eq!(read_eval!("true or false"), 1.0);
+        assert_eq!(read_eval!("true and false"), 0.0);
+        assert_eq!(read_eval!("true and not false"), 1.0);
+        assert_eq!(read_eval!("not true or false"), 0.0);
+    }
 }

@@ -10,8 +10,16 @@ pub const WASM_FBIN_SUB: &'static str  = "(f64.sub)\n";
 pub const WASM_FBIN_MUL: &'static str  = "(f64.mul)\n";
 pub const WASM_FBIN_DIV: &'static str  = "(f64.div)\n";
 
+pub const WASM_IBIN_AND: &'static str  = "(i32.and)\n";
+pub const WASM_IBIN_OR: &'static str   = "(i32.or)\n";
+
+// Not = val xor(1)
+pub const WASM_IBIN_NOT: &'static str   = "(i32.const 1)(i32.xor)\n";
+
 // alternatively. Do .nearest first
 pub const WASM_F64_AS_I32: &'static str  = "(i32.trunc_s/f64)\n";
+
+pub const WASM_I32_AS_F64: &'static str  = "(f64.convert_s/i32)\n";
 
 /*
 A standard list of type headers allowed for functions. 
@@ -40,11 +48,18 @@ pub const WASM_TYPE_HEADER: &'static str = r#"
 (type $t10 (func (param i32) (param i32) (result i32)))
 (type $t11 (func (param i32) (param i32) (result f64)))
 
-(type $t12 (func (param i32) (param i32) ))
-(type $t13 (func (param i32) (param i32) (result i32)))
-(type $t14 (func (param i32) (param i32) (result f64)))
-"#;
+(type $t12 (func (param i32) (param f64) ))
+(type $t13 (func (param i32) (param f64) (result i32)))
+(type $t14 (func (param i32) (param f64) (result f64)))
 
+(type $t15 (func (param f64) (param i32) ))
+(type $t16 (func (param f64) (param i32) (result i32)))
+(type $t17 (func (param f64) (param i32) (result f64)))
+
+(type $t18 (func (param f64) (param f64) ))
+(type $t19 (func (param f64) (param f64) (result i32)))
+(type $t20 (func (param f64) (param f64) (result f64)))
+"#;
 
 
 /**
@@ -61,7 +76,6 @@ pub const WASM_FN_IS_NAN: &'static str = r#"
 "#;
 
 
-
 pub fn expr_to_wat(postfix: Vec<TokenType>) -> String {
     let header = String::from(r#"
 (module
@@ -72,16 +86,44 @@ pub fn expr_to_wat(postfix: Vec<TokenType>) -> String {
     "#);
 
     let mut body: Vec<String> = vec![];
+    
+    // Flag to trace whether the top of the stack if a float or an int for casting.
+    let mut stackTopIsFloat = false;
 
     for token in postfix {
         match &token {
             TokenType::Keyword(kw) => {
-                let wasm_op = match kw {
-                    // TODO: Predefine constants for these;
-                    KeywordType::KwPlus => WASM_FBIN_ADD,
-                    KeywordType::KwMinus => WASM_FBIN_SUB,
-                    KeywordType::KwMultiply => WASM_FBIN_MUL,
-                    KeywordType::KwDivide => WASM_FBIN_DIV,
+                let wasm_op: &str = match kw {
+                    KeywordType::KwPlus => {
+                        stackTopIsFloat = true;
+                        WASM_FBIN_ADD
+                    }
+                    KeywordType::KwMinus => {
+                        stackTopIsFloat = true;
+                        WASM_FBIN_SUB
+                    }
+                    KeywordType::KwMultiply => {
+                        stackTopIsFloat = true;
+                        WASM_FBIN_MUL
+                    }
+                    KeywordType::KwDivide => {
+                        stackTopIsFloat = true;
+                        WASM_FBIN_DIV
+                    }
+                    
+                    // TODO: Type checking of values?
+                    KeywordType::KwAnd => {
+                        stackTopIsFloat = false;
+                        WASM_IBIN_AND
+                    }
+                    KeywordType::KwOr => {
+                        stackTopIsFloat = false;
+                        WASM_IBIN_OR
+                    }
+                    KeywordType::KwNot => {
+                        stackTopIsFloat = false;
+                        WASM_IBIN_NOT
+                    }
                     _ => {""}
                 };
                 body.push(String::from(wasm_op));
@@ -92,15 +134,24 @@ pub fn expr_to_wat(postfix: Vec<TokenType>) -> String {
                     LiteralValue::NumericValue(num) => {
                         let lit_def = ["(f64.const ", &num.to_string(), ")"].concat();
                         body.push( lit_def );
-                    }
+                        stackTopIsFloat = true;
+                    },
+                    LiteralValue::BooleanValue(val) => {    // val = 1 or 0
+                        let lit_def = ["(i32.const ", &val.to_string(), ")"].concat();
+                        body.push( lit_def );
+                        stackTopIsFloat = false;
+                    },
                     _ => {} // TODO
                 }
-                
             },
             _ => {}
             // TODO
             // TokenType::Identifier(_id) => postfix.push(token),
         }
+    }
+
+    if !stackTopIsFloat {
+        body.push( WASM_I32_AS_F64.to_string() );
     }
 
     let footer = String::from(r#")
