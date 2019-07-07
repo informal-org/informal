@@ -2,21 +2,6 @@ use super::error::{Result, ArevelError};
 #[macro_use]
 use super::lexer::*;
 
-// const UNARY_OPS: &[TokenType] = [TokenType::OpNot];
-// This could be a set, but array is likely competetive given size. TODO benchmark.
-// const BINARY_OPS: &[TokenType] = [
-//     TokenType::OpOr, TokenType::OpAnd, 
-//     TokenType::OpIs,
-//     TokenType::OpNot,   // TODO: Precedence of 'Not' in 'x is not false'
-//     TokenType::OpLt, TokenType::OpLte, TokenType::OpGt, TokenType::OpGte,
-//     TokenType::OpPlus, TokenType::OpMinus, 
-//     TokenType::OpMultiply, TokenType::OpDivide,
-
-//     // Not real operations
-//     TokenType::OpOpenParen, TokenType::OpCloseParen,
-//     TokenType::Equals
-// ];
-
 // Higher numbers have higher precedence. 
 // Indexes should match with TokenType enum values.
 const KEYWORD_PRECEDENCE: &[u8] = &[
@@ -30,13 +15,13 @@ const KEYWORD_PRECEDENCE: &[u8] = &[
     0           // Equals
 ];
 
-pub const WASM_FBIN_ADD: &'static str  = "(f64.add)";
-pub const WASM_FBIN_SUB: &'static str  = "(f64.sub)";
-pub const WASM_FBIN_MUL: &'static str  = "(f64.mul)";
-pub const WASM_FBIN_DIV: &'static str  = "(f64.div)";
+pub const WASM_FBIN_ADD: &'static str  = "(f64.add)\n";
+pub const WASM_FBIN_SUB: &'static str  = "(f64.sub)\n";
+pub const WASM_FBIN_MUL: &'static str  = "(f64.mul)\n";
+pub const WASM_FBIN_DIV: &'static str  = "(f64.div)\n";
 
 // alternatively. Do .nearest first
-pub const WASM_F64_AS_I32: &'static str  = "(i32.trunc_s/f64)";
+pub const WASM_F64_AS_I32: &'static str  = "(i32.trunc_s/f64)\n";
 
 fn get_op_precedence(keyword: KeywordType) -> u8 {
     let index = keyword as usize;
@@ -132,10 +117,9 @@ pub fn parse(infix: &mut Vec<TokenType>) -> Result<Vec<TokenType>> {
 
 pub fn expr_to_wat(postfix: Vec<TokenType>) -> String {
     let header = String::from(r#"
-    (module
+(module
   (type $t0 (func (result f64)))
-  (
-      func $main (type $t0) (result f64)
+  (func $main (type $t0) (result f64)
   "#);
 
     let mut body: Vec<String> = vec![];
@@ -170,14 +154,7 @@ pub fn expr_to_wat(postfix: Vec<TokenType>) -> String {
         }
     }
 
-
-    // (f64.const 1)
-    // (f64.const 2)
-    // f64.add
-
-
-    let footer = String::from(r#"
-    )
+    let footer = String::from(r#")
   (table $T0 1 anyfunc)
   (memory $memory 0)
   (export "memory" (memory 0))

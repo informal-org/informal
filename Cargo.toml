@@ -13,8 +13,8 @@ edition = "2018"
 # wasmer-runtime = { git = "https://github.com/wasmerio/wasmer", rev = "09177ac3aee69ad6145322d104c2778525d03130" }
 wasmer-runtime = "0.4.2"
 wabt = "0.7.4"
-nom = "5.0.0"
 lexical = "2.2.1"   # Floating point parsing
+
 
 
 # Allow us to catch panics in parsing, eval etc. without bringing down the system.

@@ -1,13 +1,15 @@
-mod lexer;
-mod parser;
-mod error;
+extern crate arevel;
+
+
+pub mod lexer;
+pub mod parser;
+pub mod error;
+pub mod repl;
+
 
 // use std::str;
-
 use std::io::{stdin,stdout,Write};
-use wasmer_runtime::{func, imports, Ctx, Value, compile};
-use wasmer_runtime::{Func, Instance, error::ResolveResult};
-use wabt::wat2wasm;
+
 
 // static WAT: &'static str = r#"
 // (module
@@ -76,43 +78,14 @@ static WAT: &'static str = r#"
 
 fn main() {
     // println!("{:?}", lexer::lex("1232 + 23.32/459.4 + 312 - hello"))
-
     loop {
         print!("> ");
         let _=stdout().flush();
         let mut reader = stdin();
-
         let mut input = String::new();
         reader.read_line(&mut input).ok().expect("Failed to read line");
 
-        println!("{}", input);
-
-        let mut lexed = lexer::lex(&input).unwrap();
-        println!("Lexed: {:?}", lexed);
-
-        let mut parsed = parser::parse(&mut lexed).unwrap();
-        println!("Parsed: {:?}", parsed);
-
-        let mut wat = parser::expr_to_wat(parsed);
-        println!("Wat: {:?}", wat);
-
-        let wasm_binary = wat2wasm(wat).unwrap();
-        let module = compile(&wasm_binary).unwrap();
-
-        // // We're not importing anything, so make an empty import object.
-        let import_object = imports! {};
-        
-
-        let instance = module.instantiate(&import_object).unwrap();
-
-        let main: Func<(),f64> = instance.func("main").unwrap();
-
-        // let param: i32 = 41;
-        let value = main.call();
-        println!("{:?}", value);
-
-
-
+        repl::read_eval_print(input);
     }
 
 
