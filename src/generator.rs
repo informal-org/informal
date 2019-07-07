@@ -82,7 +82,7 @@ pub fn expr_to_wat(postfix: Vec<TokenType>) -> String {
   "#);
   
     let fn_header = String::from(r#"
-    (func $main (type $t2) (result f64)
+    (func $_start (type $t2) (result f64)
     "#);
 
     let mut body: Vec<String> = vec![];
@@ -158,7 +158,7 @@ pub fn expr_to_wat(postfix: Vec<TokenType>) -> String {
   (table 1 anyfunc)
   (memory $memory 0)
   (export "memory" (memory 0))
-  (export "main" (func $main))
+  (export "_start" (func $_start))
   )"#);
 
   return header + &String::from(WASM_TYPE_HEADER) + &fn_header + (&body.join("")) + &footer;

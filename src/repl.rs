@@ -30,7 +30,7 @@ pub fn eval(wat: String) -> f64 {
     let import_object = imports! {};
 
     let instance = module.instantiate(&import_object).unwrap();
-    let main: Func<(),f64> = instance.func("main").unwrap();
+    let main: Func<(),f64> = instance.func("_start").unwrap();
     let value = main.call();
     return value.unwrap();
 }
