@@ -15,14 +15,6 @@ const KEYWORD_PRECEDENCE: &[u8] = &[
     0           // Equals
 ];
 
-pub const WASM_FBIN_ADD: &'static str  = "(f64.add)\n";
-pub const WASM_FBIN_SUB: &'static str  = "(f64.sub)\n";
-pub const WASM_FBIN_MUL: &'static str  = "(f64.mul)\n";
-pub const WASM_FBIN_DIV: &'static str  = "(f64.div)\n";
-
-// alternatively. Do .nearest first
-pub const WASM_F64_AS_I32: &'static str  = "(i32.trunc_s/f64)\n";
-
 fn get_op_precedence(keyword: KeywordType) -> u8 {
     let index = keyword as usize;
     return KEYWORD_PRECEDENCE[index];
@@ -85,7 +77,6 @@ pub fn parse(infix: &mut Vec<TokenType>) -> Result<Vec<TokenType>> {
                         operator_stack.push(token);
                     }
                 }
-
             },
             TokenType::Literal(_lit) => postfix.push(token),
             TokenType::Identifier(_id) => postfix.push(token),
@@ -111,58 +102,6 @@ pub fn parse(infix: &mut Vec<TokenType>) -> Result<Vec<TokenType>> {
     }
 
     return Ok(postfix);
-}
-
-
-
-pub fn expr_to_wat(postfix: Vec<TokenType>) -> String {
-    let header = String::from(r#"
-(module
-  (type $t0 (func (result f64)))
-  (func $main (type $t0) (result f64)
-  "#);
-
-    let mut body: Vec<String> = vec![];
-
-    for token in postfix {
-        match &token {
-            TokenType::Keyword(kw) => {
-                let wasm_op = match kw {
-                    // TODO: Predefine constants for these;
-                    KeywordType::KwPlus => WASM_FBIN_ADD,
-                    KeywordType::KwMinus => WASM_FBIN_SUB,
-                    KeywordType::KwMultiply => WASM_FBIN_MUL,
-                    KeywordType::KwDivide => WASM_FBIN_DIV,
-                    _ => {""}
-                };
-                body.push(String::from(wasm_op));
-            }
-            TokenType::Literal(lit) => {
-                // TODO: Push the literal value
-                match &lit {
-                    LiteralValue::NumericValue(num) => {
-                        let lit_def = ["(f64.const ", &num.to_string(), ")"].concat();
-                        body.push( lit_def );
-                    }
-                    _ => {} // TODO
-                }
-                
-            },
-            _ => {}
-            // TODO
-            // TokenType::Identifier(_id) => postfix.push(token),
-        }
-    }
-
-    let footer = String::from(r#")
-  (table $T0 1 anyfunc)
-  (memory $memory 0)
-  (export "memory" (memory 0))
-  (export "main" (func $main))
-  )"#);
-
-  return header + (&body.join("")) + &footer;
-    
 }
 
 

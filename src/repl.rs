@@ -1,5 +1,6 @@
 use super::lexer;
 use super::parser;
+use super::generator;
 use super::error;
 
 use wasmer_runtime::{func, imports, Ctx, Value, compile};
@@ -16,12 +17,12 @@ fn read(input: String) -> String {
     let mut parsed = parser::parse(&mut lexed).unwrap();
     println!("Parsed: {:?}", parsed);
     
-    let mut wat = parser::expr_to_wat(parsed);
+    let mut wat = generator::expr_to_wat(parsed);
     println!("Wat: {}", wat);
     return wat
 }
 
-fn eval(wat: String) -> f64 {
+pub fn eval(wat: String) -> f64 {
     let wasm_binary = wat2wasm(wat).unwrap();
     let module = compile(&wasm_binary).unwrap();
 
