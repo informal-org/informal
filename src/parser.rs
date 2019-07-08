@@ -2,7 +2,7 @@ use super::error::{Result, ArevelError};
 #[macro_use]
 use super::lexer::*;
 
-#[derive(Debug)]
+#[derive(Debug,PartialEq)]
 pub enum ASTNodeType {
     BinaryExpression,
     UnaryExpression,
@@ -10,13 +10,13 @@ pub enum ASTNodeType {
     Literal
 }
 
-#[derive(Debug)]
+#[derive(Debug,PartialEq)]
 pub enum Value {
     Literal(LiteralValue),
     Identifier(String)
 }
 
-#[derive(Debug)]
+#[derive(Debug,PartialEq)]
 pub enum ValueType {
     NoneType, 
     BooleanType,
@@ -25,14 +25,14 @@ pub enum ValueType {
     UnknownType
 }
 
-#[derive(Debug)]
+#[derive(Debug,PartialEq)]
 pub struct ASTNode {
-    node_type: ASTNodeType,
-    operator: Option<KeywordType>,
-    left: Option<Box<ASTNode>>,
-    right: Option<Box<ASTNode>>,
-    result_type: ValueType,
-    value: Option<Value>
+    pub node_type: ASTNodeType,
+    pub operator: Option<KeywordType>,
+    pub left: Option<Box<ASTNode>>,
+    pub right: Option<Box<ASTNode>>,
+    pub result_type: ValueType,
+    pub value: Option<Value>
 }
 
 // Higher numbers have higher precedence. 
@@ -197,92 +197,119 @@ mod tests {
     #[test]
     fn test_parse_basic() {
         // Verify straightforward conversion to postfix
+        // 1 + 2
         let mut input: Vec<TokenType> = vec![TokenType::Literal(LiteralValue::NumericValue(1.0)), TOKEN_PLUS, TokenType::Literal(LiteralValue::NumericValue(2.0))];
-        let output: Vec<TokenType> = vec![TokenType::Literal(LiteralValue::NumericValue(1.0)), TokenType::Literal(LiteralValue::NumericValue(2.0)), TOKEN_PLUS];
+
+        let left = ASTNode {
+            left: None ,
+            right: None,
+            operator: None,
+            node_type: ASTNodeType::Literal,
+            result_type: ValueType::UnknownType,
+            value: Some(Value::Literal(LiteralValue::NumericValue(1.0)))
+        };
+
+        let right = ASTNode {
+            left: None ,
+            right: None,
+            operator: None,
+            node_type: ASTNodeType::Literal,
+            result_type: ValueType::UnknownType,
+            value: Some(Value::Literal(LiteralValue::NumericValue(2.0)))
+        };
+
+        let output = ASTNode {
+            left: Some(Box::new(left)) ,
+            right: Some(Box::new(right)),
+            operator: Some(KeywordType::KwPlus),
+            node_type: ASTNodeType::BinaryExpression,
+            result_type: ValueType::UnknownType,
+            value: None
+        };
         assert_eq!(parse(&mut input).unwrap(), output);
     }
 
-    #[test]
-    fn test_parse_add_mult() {
-        // Verify order of operands - multiply before addition
-        // 1 * 2 + 3 = 1 2 * 3 +
-        let mut input: Vec<TokenType> = vec![
-            TokenType::Literal(LiteralValue::NumericValue(1.0)), 
-            TOKEN_MULTIPLY, 
-            TokenType::Literal(LiteralValue::NumericValue(2.0)),
-            TOKEN_PLUS, 
-            TokenType::Literal(LiteralValue::NumericValue(3.0)),
-        ];
-        let output: Vec<TokenType> = vec![
-            TokenType::Literal(LiteralValue::NumericValue(1.0)), 
-            TokenType::Literal(LiteralValue::NumericValue(2.0)),
-            TOKEN_MULTIPLY, 
-            TokenType::Literal(LiteralValue::NumericValue(3.0)),
-            TOKEN_PLUS,
-        ];
-        assert_eq!(parse(&mut input).unwrap(), output);
+    // #[test]
+    // fn test_parse_add_mult() {
+    //     // Verify order of operands - multiply before addition
+    //     // 1 * 2 + 3 = 1 2 * 3 +
+    //     let mut input: Vec<TokenType> = vec![
+    //         TokenType::Literal(LiteralValue::NumericValue(1.0)), 
+    //         TOKEN_MULTIPLY, 
+    //         TokenType::Literal(LiteralValue::NumericValue(2.0)),
+    //         TOKEN_PLUS, 
+    //         TokenType::Literal(LiteralValue::NumericValue(3.0)),
+    //     ];
+    //     let output: Vec<TokenType> = vec![
+    //         TokenType::Literal(LiteralValue::NumericValue(1.0)), 
+    //         TokenType::Literal(LiteralValue::NumericValue(2.0)),
+    //         TOKEN_MULTIPLY, 
+    //         TokenType::Literal(LiteralValue::NumericValue(3.0)),
+    //         TOKEN_PLUS,
+    //     ];
+    //     assert_eq!(parse(&mut input).unwrap(), output);
 
-        // above test with order reversed. 1 + 2 * 3 = 1 2 3 * +
-        let mut input2: Vec<TokenType> = vec![
-            TokenType::Literal(LiteralValue::NumericValue(1.0)), 
-            TOKEN_PLUS, 
-            TokenType::Literal(LiteralValue::NumericValue(2.0)),
-            TOKEN_MULTIPLY, 
-            TokenType::Literal(LiteralValue::NumericValue(3.0)),
-        ];
+    //     // above test with order reversed. 1 + 2 * 3 = 1 2 3 * +
+    //     let mut input2: Vec<TokenType> = vec![
+    //         TokenType::Literal(LiteralValue::NumericValue(1.0)), 
+    //         TOKEN_PLUS, 
+    //         TokenType::Literal(LiteralValue::NumericValue(2.0)),
+    //         TOKEN_MULTIPLY, 
+    //         TokenType::Literal(LiteralValue::NumericValue(3.0)),
+    //     ];
 
-        let output2: Vec<TokenType> = vec![
-            TokenType::Literal(LiteralValue::NumericValue(1.0)), 
-            TokenType::Literal(LiteralValue::NumericValue(2.0)),
-            TokenType::Literal(LiteralValue::NumericValue(3.0)),
-            TOKEN_MULTIPLY,
-            TOKEN_PLUS,
-        ];
+    //     let output2: Vec<TokenType> = vec![
+    //         TokenType::Literal(LiteralValue::NumericValue(1.0)), 
+    //         TokenType::Literal(LiteralValue::NumericValue(2.0)),
+    //         TokenType::Literal(LiteralValue::NumericValue(3.0)),
+    //         TOKEN_MULTIPLY,
+    //         TOKEN_PLUS,
+    //     ];
 
-        assert_eq!(parse(&mut input2).unwrap(), output2);
-    }
+    //     assert_eq!(parse(&mut input2).unwrap(), output2);
+    // }
 
-    #[test]
-    fn test_parse_add_mult_paren() {
-        // Verify order of operands - multiply before addition
-        // 1 * (2 + 3) = 1 2 3 + *
-        let mut input: Vec<TokenType> = vec![
-            TokenType::Literal(LiteralValue::NumericValue(1.0)), 
-            TOKEN_MULTIPLY, 
-            TOKEN_OPEN_PAREN, 
-            TokenType::Literal(LiteralValue::NumericValue(2.0)),
-            TOKEN_PLUS, 
-            TokenType::Literal(LiteralValue::NumericValue(3.0)),
-            TOKEN_CLOSE_PAREN 
-        ];
-        let output: Vec<TokenType> = vec![
-            TokenType::Literal(LiteralValue::NumericValue(1.0)), 
-            TokenType::Literal(LiteralValue::NumericValue(2.0)),
-            TokenType::Literal(LiteralValue::NumericValue(3.0)),
-            TOKEN_PLUS,
-            TOKEN_MULTIPLY
-        ];
-        assert_eq!(parse(&mut input).unwrap(), output);
+    // #[test]
+    // fn test_parse_add_mult_paren() {
+    //     // Verify order of operands - multiply before addition
+    //     // 1 * (2 + 3) = 1 2 3 + *
+    //     let mut input: Vec<TokenType> = vec![
+    //         TokenType::Literal(LiteralValue::NumericValue(1.0)), 
+    //         TOKEN_MULTIPLY, 
+    //         TOKEN_OPEN_PAREN, 
+    //         TokenType::Literal(LiteralValue::NumericValue(2.0)),
+    //         TOKEN_PLUS, 
+    //         TokenType::Literal(LiteralValue::NumericValue(3.0)),
+    //         TOKEN_CLOSE_PAREN 
+    //     ];
+    //     let output: Vec<TokenType> = vec![
+    //         TokenType::Literal(LiteralValue::NumericValue(1.0)), 
+    //         TokenType::Literal(LiteralValue::NumericValue(2.0)),
+    //         TokenType::Literal(LiteralValue::NumericValue(3.0)),
+    //         TOKEN_PLUS,
+    //         TOKEN_MULTIPLY
+    //     ];
+    //     assert_eq!(parse(&mut input).unwrap(), output);
 
-        // above test with order reversed. (1 + 2) * 3 = 1 2 + 3 *
-        let mut input2: Vec<TokenType> = vec![
-            TOKEN_OPEN_PAREN,
-            TokenType::Literal(LiteralValue::NumericValue(1.0)),
-            TOKEN_PLUS,
-            TokenType::Literal(LiteralValue::NumericValue(2.0)),
-            TOKEN_CLOSE_PAREN,
-            TOKEN_MULTIPLY,
-            TokenType::Literal(LiteralValue::NumericValue(3.0)),
-        ];
+    //     // above test with order reversed. (1 + 2) * 3 = 1 2 + 3 *
+    //     let mut input2: Vec<TokenType> = vec![
+    //         TOKEN_OPEN_PAREN,
+    //         TokenType::Literal(LiteralValue::NumericValue(1.0)),
+    //         TOKEN_PLUS,
+    //         TokenType::Literal(LiteralValue::NumericValue(2.0)),
+    //         TOKEN_CLOSE_PAREN,
+    //         TOKEN_MULTIPLY,
+    //         TokenType::Literal(LiteralValue::NumericValue(3.0)),
+    //     ];
 
-        let output2: Vec<TokenType> = vec![
-            TokenType::Literal(LiteralValue::NumericValue(1.0)), 
-            TokenType::Literal(LiteralValue::NumericValue(2.0)),
-            TOKEN_PLUS,
-            TokenType::Literal(LiteralValue::NumericValue(3.0)),
-            TOKEN_MULTIPLY,
-        ];
+    //     let output2: Vec<TokenType> = vec![
+    //         TokenType::Literal(LiteralValue::NumericValue(1.0)), 
+    //         TokenType::Literal(LiteralValue::NumericValue(2.0)),
+    //         TOKEN_PLUS,
+    //         TokenType::Literal(LiteralValue::NumericValue(3.0)),
+    //         TOKEN_MULTIPLY,
+    //     ];
 
-        assert_eq!(parse(&mut input2).unwrap(), output2);
-    }
+    //     assert_eq!(parse(&mut input2).unwrap(), output2);
+    // }
 }

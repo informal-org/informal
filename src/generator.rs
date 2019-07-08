@@ -1,5 +1,6 @@
 #[macro_use]
 use super::lexer::*;
+use super::parser::*;
 
 /*
 // Takes parsed tokens and generates wasm code from it.
@@ -75,8 +76,70 @@ pub const WASM_FN_IS_NAN: &'static str = r#"
     f64.ne)
 "#;
 
+pub fn operator_to_wat(operator: KeywordType) -> String {
+    let wasm_op: &str = match operator {
+        KeywordType::KwPlus => {
+            WASM_FBIN_ADD
+        }
+        KeywordType::KwMinus => {
+            WASM_FBIN_SUB
+        }
+        KeywordType::KwMultiply => {
+            WASM_FBIN_MUL
+        }
+        KeywordType::KwDivide => {
+            WASM_FBIN_DIV
+        }
+        
+        // TODO: Type checking of values?
+        KeywordType::KwAnd => {
+            WASM_IBIN_AND
+        }
+        KeywordType::KwOr => {
+            WASM_IBIN_OR
+        }
+        KeywordType::KwNot => {
+            WASM_IBIN_NOT
+        }
+        _ => {""}
+    };
+    return String::from(wasm_op);
+}
 
-pub fn expr_to_wat(postfix: Vec<TokenType>) -> String {
+pub fn ast_to_wat(node: ASTNode) -> String {
+    match node.node_type {
+        ASTNodeType::BinaryExpression => {
+            let mut result: Vec<String> = vec![];
+            // TODO: Validate order
+            result.push(ast_to_wat(*node.left.unwrap()));
+            result.push(ast_to_wat(*node.right.unwrap()));
+            result.push(operator_to_wat(node.operator.unwrap()));
+
+            return result.join("");
+        }, 
+        ASTNodeType::Literal => {
+            match node.value.unwrap() {
+                Value::Literal(LiteralValue::NumericValue(num)) => {
+                    let lit_def = ["(f64.const ", &num.to_string(), ")"].concat();
+                    
+                    return lit_def;
+                },
+                Value::Literal(LiteralValue::BooleanValue(val)) => {    // val = 1 or 0
+                    let lit_def = ["(i32.const ", &val.to_string(), ")"].concat();
+                    return lit_def;
+                },
+                _ => {return String::from("");} // TODO
+            }
+        },
+        _ => {
+            // TODO
+            return String::from("")
+        }
+    }
+}
+
+
+pub fn expr_to_wat(node: ASTNode) -> String {
     let header = String::from(r#"
 (module
   "#);
@@ -88,67 +151,24 @@ pub fn expr_to_wat(postfix: Vec<TokenType>) -> String {
     let mut body: Vec<String> = vec![];
     
     // Flag to trace whether the top of the stack if a float or an int for casting.
-    let mut stackTopIsFloat = false;
+    let mut stackTopIsFloat = true;
+    body.push(ast_to_wat(node));
 
-    for token in postfix {
-        match &token {
-            TokenType::Keyword(kw) => {
-                let wasm_op: &str = match kw {
-                    KeywordType::KwPlus => {
-                        stackTopIsFloat = true;
-                        WASM_FBIN_ADD
-                    }
-                    KeywordType::KwMinus => {
-                        stackTopIsFloat = true;
-                        WASM_FBIN_SUB
-                    }
-                    KeywordType::KwMultiply => {
-                        stackTopIsFloat = true;
-                        WASM_FBIN_MUL
-                    }
-                    KeywordType::KwDivide => {
-                        stackTopIsFloat = true;
-                        WASM_FBIN_DIV
-                    }
-                    
-                    // TODO: Type checking of values?
-                    KeywordType::KwAnd => {
-                        stackTopIsFloat = false;
-                        WASM_IBIN_AND
-                    }
-                    KeywordType::KwOr => {
-                        stackTopIsFloat = false;
-                        WASM_IBIN_OR
-                    }
-                    KeywordType::KwNot => {
-                        stackTopIsFloat = false;
-                        WASM_IBIN_NOT
-                    }
-                    _ => {""}
-                };
-                body.push(String::from(wasm_op));
-            }
-            TokenType::Literal(lit) => {
-                // TODO: Push the literal value
-                match &lit {
-                    LiteralValue::NumericValue(num) => {
-                        let lit_def = ["(f64.const ", &num.to_string(), ")"].concat();
-                        body.push( lit_def );
-                        stackTopIsFloat = true;
-                    },
-                    LiteralValue::BooleanValue(val) => {    // val = 1 or 0
-                        let lit_def = ["(i32.const ", &val.to_string(), ")"].concat();
-                        body.push( lit_def );
-                        stackTopIsFloat = false;
-                    },
-                    _ => {} // TODO
-                }
-            },
-            _ => {}
-            // TODO
-            // TokenType::Identifier(_id) => postfix.push(token),
-        }
-    }
+    // for token in postfix {
+    //     match &token {
+    //         TokenType::Keyword(kw) => {
+
+    //         }
+    //         TokenType::Literal(lit) => {
+    //             // TODO: Push the literal value
+    //             match &lit {
+    //             }
+    //         },
+    //         _ => {}
+    //         // TODO
+    //         // TokenType::Identifier(_id) => postfix.push(token),
+    //     }
+    // }
 
     if !stackTopIsFloat {
         body.push( WASM_I32_AS_F64.to_string() );
