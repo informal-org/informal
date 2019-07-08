@@ -2,6 +2,39 @@ use super::error::{Result, ArevelError};
 #[macro_use]
 use super::lexer::*;
 
+#[derive(Debug)]
+pub enum ASTNodeType {
+    BinaryExpression,
+    UnaryExpression,
+    Identifier,
+    Literal
+}
+
+#[derive(Debug)]
+pub enum Value {
+    Literal(LiteralValue),
+    Identifier(String)
+}
+
+#[derive(Debug)]
+pub enum ValueType {
+    NoneType, 
+    BooleanType,
+    NumericType,
+    StringType,
+    UnknownType
+}
+
+#[derive(Debug)]
+pub struct ASTNode {
+    node_type: ASTNodeType,
+    operator: Option<KeywordType>,
+    left: Option<Box<ASTNode>>,
+    right: Option<Box<ASTNode>>,
+    result_type: ValueType,
+    value: Option<Value>
+}
+
 // Higher numbers have higher precedence. 
 // Indexes should match with TokenType enum values.
 const KEYWORD_PRECEDENCE: &[u8] = &[
@@ -20,34 +53,63 @@ fn get_op_precedence(keyword: KeywordType) -> u8 {
     return KEYWORD_PRECEDENCE[index];
 }
 
+fn build_ast_node(ast: &mut Vec<ASTNode>, operator: KeywordType){
+    // if(operator == KeywordType::KwNot || operator == KeywordType::KwMinus){
+    //     // Potential unary operators
+    //     // TODO
+    //     println!("Found error case with unary ops?")
+    // }
+    if ast.len() >= 2 {
+        // Postfix order. Pop right node first.
+        let right: ASTNode = ast.pop().unwrap();
+        let left: ASTNode = ast.pop().unwrap();
+        let node = ASTNode {
+            left: Some(Box::new(left)),
+            right: Some(Box::new(right)),
+            operator: Some(operator),
+            node_type: ASTNodeType::BinaryExpression,
+            result_type: ValueType::UnknownType,
+            value: None
+        };
+        ast.push(node);
+    } else {
+        // todo: Raise error
+        println!("Found error case with insufficient ops")
+    }
+    
+}
 
 // TODO: There may be additional edge cases for handling inline function calls within the expression
 // Current assumption is that all variable references are to a value.
-pub fn parse(infix: &mut Vec<TokenType>) -> Result<Vec<TokenType>> {
+pub fn parse(infix: &mut Vec<TokenType>) -> Result<ASTNode> {
     // Parse the lexed infix input and construct a postfix version
     // Current implementation uses the shunting yard algorithm for operator precedence.
-    let mut postfix: Vec<TokenType> = Vec::with_capacity(infix.len());
-    let mut operator_stack: Vec<TokenType> = Vec::with_capacity(infix.len());
+    // let mut postfix: Vec<TokenType> = Vec::with_capacity(infix.len());
+    let mut operator_stack: Vec<KeywordType> = Vec::with_capacity(infix.len());
+    let mut ast: Vec<ASTNode> = Vec::with_capacity(infix.len());
 
     for token in infix.drain(..) {
-        match &token {
+        match token {
             TokenType::Keyword(kw) => {
-                match kw {
-                    KeywordType::KwOpenParen => operator_stack.push(token),
+                match &kw {
+                    KeywordType::KwOpenParen => operator_stack.push(kw),
                     KeywordType::KwCloseParen => {
                         // Pop until you find the matching opening paren
                         let mut found = false;
                         while let Some(op) = operator_stack.pop() {
                             // Sholud always be true since the operator stack only contains keywords
-                            if let TokenType::Keyword(op_kw) = &op {
-                                match op_kw {
+                            //if let TokenType::Keyword(op_kw) = &op {
+                                match op {
                                     KeywordType::KwOpenParen => {
                                         found = true;
                                         break;
                                     }
-                                    _ => postfix.push(op)
+                                    _ => {
+                                        // postfix.push(op)
+                                        build_ast_node(&mut ast, op);
+                                    }
                                 }
-                            }
+                            // }
                         }
                         if found == false {
                             return Err(ArevelError::UnmatchedParens)
@@ -56,52 +118,75 @@ pub fn parse(infix: &mut Vec<TokenType>) -> Result<Vec<TokenType>> {
                     _ => {
                         // For all other operators, flush higher or equal level operators
                         // All operators are left associative in our system right now. (else, equals doesn't get pushed)
-                        let my_precedence = get_op_precedence(*kw);
+                        let my_precedence = get_op_precedence(kw);
                         while operator_stack.len() > 0 {
-                            let op_peek_last = operator_stack.get(operator_stack.len() - 1);
-                            if let Some(TokenType::Keyword(op_kw)) = op_peek_last {
+                            let op_peek_last = operator_stack.get(operator_stack.len() - 1).unwrap();
+                            // if let Some(TokenType::Keyword(op_kw)) = op_peek_last {
                                 // Skip any items that aren't really operators.
-                                if *op_kw == KeywordType::KwOpenParen {
+                                if *op_peek_last == KeywordType::KwOpenParen {
                                     break;
                                 }
 
-                                let other_precedence = get_op_precedence(*op_kw);
+                                let other_precedence = get_op_precedence(*op_peek_last);
                                 if other_precedence >= my_precedence {        // output any higher priority operators.
-                                    postfix.push(operator_stack.pop().unwrap());
+                                    // postfix.push(operator_stack.pop().unwrap());
+                                    // todo: RENABLE
+                                    build_ast_node(&mut ast, operator_stack.pop().unwrap());
                                 } else {
                                     break;
                                 }
-                            }
+                            // }
                         }
                         // Flushed all operators with higher precedence. Add to op stack.
-                        operator_stack.push(token);
+                        operator_stack.push(kw);
                     }
                 }
             },
-            TokenType::Literal(_lit) => postfix.push(token),
-            TokenType::Identifier(_id) => postfix.push(token),
+            TokenType::Literal(lit) => {
+                let node = ASTNode {
+                    left: None,
+                    right: None,
+                    operator: None,
+                    node_type: ASTNodeType::Literal,
+                    result_type: ValueType::UnknownType,
+                    value: Some(Value::Literal(lit))
+                };
+                ast.push(node);
+            },
+            TokenType::Identifier(id) => {
+                let node = ASTNode {
+                    left: None,
+                    right: None,
+                    operator: None,
+                    node_type: ASTNodeType::Literal,
+                    result_type: ValueType::UnknownType,
+                    value: Some(Value::Identifier(id))
+                };
+                ast.push(node);
+            },
         }
     }
 
     // Flush all remaining operators onto the postfix output. 
     // Reverse so we get items in the stack order.
     operator_stack.reverse();
-    for token in operator_stack.drain(..) {
+    for op_kw in operator_stack.drain(..) {
         println!("Token drain");
         // All of them should be keywords
-        if let TokenType::Keyword(op_kw) = &token {
-            match op_kw {
-                KeywordType::KwOpenParen => {
-                    println!("Invalid paren in drain operator stack");
-                    return Err(ArevelError::UnmatchedParens)
-                }
-                _ => {}
+        match op_kw {
+            KeywordType::KwOpenParen => {
+                println!("Invalid paren in drain operator stack");
+                return Err(ArevelError::UnmatchedParens)
             }
+            _ => {}
         }
-        postfix.push(token);
+        build_ast_node(&mut ast, op_kw);
+        // postfix.push(token);
     }
+    println!("AST {:?}", ast);
 
-    return Ok(postfix);
+    // return Err(ArevelError::UnmatchedParens);
+    return Ok(ast.pop().unwrap());
 }
 
 

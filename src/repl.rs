@@ -74,6 +74,7 @@ mod tests {
         assert_eq!(read_eval!("( 2 ) "), 2.0);
         assert_eq!(read_eval!("2 * (3 + 4) "), 14.0);
         assert_eq!(read_eval!("2 * 2 / (5 - 1) + 3"), 4.0);
+        // assert_eq!(read_eval!("2 + -1"), 1.0);
     }
 
     #[test]
