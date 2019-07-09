@@ -78,7 +78,16 @@ mod tests {
         assert_eq!(read_eval!("( 2 ) "), 2.0);
         assert_eq!(read_eval!("2 * (3 + 4) "), 14.0);
         assert_eq!(read_eval!("2 * 2 / (5 - 1) + 3"), 4.0);
-        // assert_eq!(read_eval!("2 + -1"), 1.0);
+
+    }
+
+    #[test]
+    fn test_unary_minus(){
+        assert_eq!(read_eval!("2 + -1"), 1.0);
+        assert_eq!(read_eval!("5 * -2"), -10.0);
+        assert_eq!(read_eval!("5 * -(2)"), -10.0);
+        assert_eq!(read_eval!("5 * -(1 + 1)"), -10.0);
+        assert_eq!(read_eval!("-(4) + 2"), -2.0);
     }
 
     #[test]

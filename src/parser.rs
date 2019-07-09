@@ -89,7 +89,7 @@ pub fn parse(infix: &mut Vec<TokenType>) -> Result<Vec<TokenType>> {
                         // All operators are left associative in our system right now. (else, equals doesn't get pushed)
                         let my_precedence = get_op_precedence(*kw);
                         while operator_stack.len() > 0 {
-                            let op_peek_last = operator_stack.get(operator_stack.len() - 1).unwrap();
+                            let op_peek_last = operator_stack.last().unwrap();
                             // Skip any items that aren't really operators.
                             if *op_peek_last == KeywordType::KwOpenParen {
                                 break;

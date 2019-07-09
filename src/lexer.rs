@@ -88,7 +88,7 @@ fn gobble_digits(token: &mut String, it: &mut Peekable<std::str::Chars<'_>>) {
     }
 }
 
-fn parse_number(it: &mut Peekable<std::str::Chars<'_>>) -> Result<LiteralValue> {
+fn parse_number(it: &mut Peekable<std::str::Chars<'_>>, is_negative: bool) -> Result<LiteralValue> {
     let mut token = String::from("");
     let mut _is_float = false;       // Unused. Could be used for dedicated int type later.
 
@@ -134,7 +134,10 @@ fn parse_number(it: &mut Peekable<std::str::Chars<'_>>) -> Result<LiteralValue> 
         }
     }
     // Parse should be sufficient since we've validated format already.
-    let val: f64 = lexical::parse(token);
+    let mut val: f64 = lexical::parse(token);
+    if is_negative {
+        val = -1.0 * val;
+    }
     return Ok(LiteralValue::NumericValue(val));
 }
 
@@ -252,6 +255,27 @@ macro_rules! numeric_literal {
     });
 }
 
+
+macro_rules! apply_unary_minus {
+    ($it:expr, $tokens:expr) => ({
+        if let Some(next) = $it.peek() {
+            match next {
+                '(' => {
+                    // Rewrite A + -(.. => A + -1 * (
+                    $tokens.push( TokenType::Literal(LiteralValue::NumericValue( -1.0 ) ));
+                    Some(TOKEN_MULTIPLY)
+                },
+                _ => {
+                    Some(TokenType::Literal(parse_number(&mut $it, true)? ))
+                }
+            }
+        } else {
+            // Unexpected end of string
+            return Err(ArevelError::UnknownToken);
+        }
+    });
+}
+
 pub fn lex(expr: &str) -> Result<Vec<TokenType>> {
     // Split into lexems based on some known operators
     let mut tokens: Vec<TokenType> = vec![];
@@ -261,10 +285,28 @@ pub fn lex(expr: &str) -> Result<Vec<TokenType>> {
         // The match should have a case for each starting value of any valid token
         let token: Option<TokenType> = match ch {
             // Digit start
-            '0'...'9' | '.' => Some(TokenType::Literal(parse_number(&mut it)? )),
+            '0'...'9' | '.' => Some(TokenType::Literal(parse_number(&mut it, false)? )),
+            // Differentiate subtraction or unary minus
+            '-' => {
+                // If the previous char was begining of string or another operator
+                if let Some(prev) = tokens.last() {
+                    match prev {
+                        TokenType::Keyword(_kw) => {
+                            it.next();
+                            apply_unary_minus!(it, tokens)
+                        },
+                        _ => {
+                            lex_advance_return!(it, TOKEN_MINUS)
+                        }
+                    }
+                } else {
+                    // Beginning of string = unary minus
+                    it.next();
+                    apply_unary_minus!(it, tokens)
+                }
+            },
             // Operators
             '+' => lex_advance_return!(it, TOKEN_PLUS),
-            '-' => lex_advance_return!(it, TOKEN_MINUS),
             '*' => lex_advance_return!(it, TOKEN_MULTIPLY),
             '/' => lex_advance_return!(it, TOKEN_DIVIDE),
             '(' => lex_advance_return!(it, TOKEN_OPEN_PAREN),
@@ -321,16 +363,25 @@ mod tests {
         assert_eq!(lex("123e+10").unwrap(), [numeric_literal!(123e+10)]);
         assert_eq!(lex("4.237e+101").unwrap(), [numeric_literal!(4.237e+101)]);
 
-        // Unary minus is kept separate in lexer stage and evaluated in parser.
-        assert_eq!(lex("-1").unwrap(), [TOKEN_MINUS, numeric_literal!(1.0)]);
-        assert_eq!(lex("-.05").unwrap(), [TOKEN_MINUS, numeric_literal!(0.05)]);
-        assert_eq!(lex("5 -.05").unwrap(), [numeric_literal!(5.0), TOKEN_MINUS, numeric_literal!(0.05)]);
-        assert_eq!(lex("5 + -.05").unwrap(), [numeric_literal!(5.0), TOKEN_PLUS, TOKEN_MINUS, numeric_literal!(0.05)]);
-
         // Error on undefined exponents.
         assert_eq!(lex("5.1e").unwrap_err(), ArevelError::InvalidFloatFmt);
         assert_eq!(lex("5.1e ").unwrap_err(), ArevelError::InvalidFloatFmt);
         // 30_000_000 syntax support? Stick to standard valid floats for now.
+    }
+
+    #[test]
+    fn test_lex_unary_minus() {
+        // Unary minus is handled at the lexer stage.
+        // assert_eq!(lex("-1").unwrap(), [numeric_literal!(-1.0)]);
+        // assert_eq!(lex("-.05").unwrap(), [numeric_literal!(-0.05)]);
+        // assert_eq!(lex("5 -.05").unwrap(), [numeric_literal!(5.0), TOKEN_MINUS, numeric_literal!(0.05)]);
+        // assert_eq!(lex("5 + -.05").unwrap(), [numeric_literal!(5.0), TOKEN_PLUS, numeric_literal!(-0.05)]);
+
+        assert_eq!(lex("-(4) + 2").unwrap(), [numeric_literal!(-1.0), TOKEN_MULTIPLY, TOKEN_OPEN_PAREN, 
+         numeric_literal!(4.0), TOKEN_CLOSE_PAREN, TOKEN_PLUS, numeric_literal!(2.0)] );
+
+        // assert_eq!(lex("5 * -(2)").unwrap(), [numeric_literal!(5.0), TOKEN_MULTIPLY, numeric_literal!(-1.0), 
+        //     TOKEN_MULTIPLY, TOKEN_OPEN_PAREN, numeric_literal!(2.0), TOKEN_CLOSE_PAREN ]);
     }
 
     #[test]
