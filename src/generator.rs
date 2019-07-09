@@ -19,7 +19,7 @@ pub const AV_STD_NOT: &'static str   = "(call $__av_not)\n";
 // alternatively. Do .nearest first
 pub const WASM_F64_AS_I32: &'static str  = "(i32.trunc_s/f64)\n";
 pub const WASM_I32_AS_F64: &'static str  = "(f64.convert_s/i32)\n";
-
+pub const WASM_F64_AS_I64: &'static str = "(i64.reinterpret_f64)\n";
 
 pub fn operator_to_wat(operator: KeywordType) -> String {
     let wasm_op: &str = match operator {
@@ -61,11 +61,11 @@ pub fn expr_to_wat(postfix: &mut Vec<TokenType>) -> String {
             TokenType::Literal(lit) => {
                 match lit {
                     LiteralValue::NumericValue(num) => {
-                        let lit_def = ["(f64.const ", &num.to_string(), ")"].concat();
+                        let lit_def = ["(f64.const ", &num.to_string(), ")", WASM_F64_AS_I64].concat();
                         result += &lit_def;
                     },
                     LiteralValue::BooleanValue(val) => {    // val = 1 or 0
-                        let lit_def = ["(f64.const ", &val.to_string(), ")"].concat();
+                        let lit_def = ["(i64.const ", &val.to_string(), ")"].concat();
                         result += &lit_def;
                     },
                     _ => {return String::from("");} // TODO

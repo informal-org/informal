@@ -38,14 +38,17 @@ pub enum TokenType {
 #[derive(Debug,PartialEq)]
 pub enum LiteralValue {
     NoneValue,
-    BooleanValue(f64), 
+    BooleanValue(u64), 
     NumericValue(f64),    // Integers are represented within the floats.
     StringValue(String),  // TODO: String -> Obj. To c-string.
 }
 
 // Constants for basic literals
-pub const TRUE_VALUE: LiteralValue = LiteralValue::BooleanValue(1.0);
-pub const FALSE_VALUE: LiteralValue = LiteralValue::BooleanValue(0.0);
+pub const TRUE_REPR: u64 = 0xFFFB_0000_0000_0001;
+pub const FALSE_REPR: u64 = 0xFFFB_0000_0000_0000;
+
+pub const TRUE_VALUE: LiteralValue = LiteralValue::BooleanValue(TRUE_REPR);
+pub const FALSE_VALUE: LiteralValue = LiteralValue::BooleanValue(FALSE_REPR);
 pub const NONE_VALUE: LiteralValue = LiteralValue::NoneValue;
 
 // Constants for each token type

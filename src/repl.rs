@@ -1,4 +1,5 @@
 use super::lexer;
+use super::lexer::{TRUE_REPR, FALSE_REPR};
 use super::parser;
 use super::generator;
 use super::error;
@@ -34,9 +35,10 @@ pub fn eval(wat: String) -> f64 {
     let import_object = imports! {};
 
     let instance = module.instantiate(&import_object).unwrap();
-    let main: Func<(),f64> = instance.func("_start").unwrap();
+    let main: Func<(),u64> = instance.func("_start").unwrap();
     let value = main.call();
-    return value.unwrap();
+
+    return f64::from_bits(value.unwrap());
 }
 
 fn print(result: f64) {
@@ -92,16 +94,16 @@ mod tests {
 
     #[test]
     fn test_reval_bool() {
-        assert_eq!(read_eval!("true"), 1.0);
-        assert_eq!(read_eval!("false"), 0.0);
-        assert_eq!(read_eval!("true or false"), 1.0);
-        assert_eq!(read_eval!("true and false"), 0.0);
+        assert_eq!(read_eval!("true").to_bits(), TRUE_REPR);
+        assert_eq!(read_eval!("false").to_bits(), FALSE_REPR);
+        assert_eq!(read_eval!("true or false").to_bits(), TRUE_REPR);
+        assert_eq!(read_eval!("true and false").to_bits(), FALSE_REPR);
     }
 
     #[test]
     fn test_reval_bool_not() {
         // Not is kind of a special case since it's a bit of a unary op
-        assert_eq!(read_eval!("true and not false"), 1.0);
-        assert_eq!(read_eval!("not true or false"), 0.0);
+        assert_eq!(read_eval!("true and not false").to_bits(), TRUE_REPR);
+        assert_eq!(read_eval!("not true or false").to_bits(), FALSE_REPR);
     }
 }
