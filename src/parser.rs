@@ -76,8 +76,26 @@ fn build_ast_node(ast: &mut Vec<ASTNode>, operator: KeywordType){
         // todo: Raise error
         println!("Found error case with insufficient ops")
     }
-    
 }
+
+fn get_lit_value_type(lit: &LiteralValue) -> ValueType {
+    return match *lit {
+        LiteralValue::NoneValue => ValueType::NoneType,
+        LiteralValue::BooleanValue(_) => ValueType::BooleanType,
+        LiteralValue::NumericValue(_) => ValueType::NumericType,
+        LiteralValue::StringValue(_) => ValueType::StringType
+    }
+}
+
+// fn infer_result_type(left: LiteralValue, right: LiteralValue, operator: KeywordType) {
+//     match operator {
+//         KeywordType::KwOr | KeywordType::KwAnd => {
+//             // TODO: Python style and/or.
+//         }
+//     }
+// }
+
+
 
 // TODO: There may be additional edge cases for handling inline function calls within the expression
 // Current assumption is that all variable references are to a value.
@@ -148,7 +166,7 @@ pub fn parse(infix: &mut Vec<TokenType>) -> Result<ASTNode> {
                     right: None,
                     operator: None,
                     node_type: ASTNodeType::Literal,
-                    result_type: ValueType::UnknownType,
+                    result_type: get_lit_value_type(&lit),
                     value: Some(Value::Literal(lit))
                 };
                 ast.push(node);
@@ -205,7 +223,7 @@ mod tests {
             right: None,
             operator: None,
             node_type: ASTNodeType::Literal,
-            result_type: ValueType::UnknownType,
+            result_type: ValueType::NumericType,
             value: Some(Value::Literal(LiteralValue::NumericValue(1.0)))
         };
 
@@ -214,7 +232,7 @@ mod tests {
             right: None,
             operator: None,
             node_type: ASTNodeType::Literal,
-            result_type: ValueType::UnknownType,
+            result_type: ValueType::NumericType,
             value: Some(Value::Literal(LiteralValue::NumericValue(2.0)))
         };
 
@@ -223,7 +241,7 @@ mod tests {
             right: Some(Box::new(right)),
             operator: Some(KeywordType::KwPlus),
             node_type: ASTNodeType::BinaryExpression,
-            result_type: ValueType::UnknownType,
+            result_type: ValueType::NumericType,
             value: None
         };
         assert_eq!(parse(&mut input).unwrap(), output);
