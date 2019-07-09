@@ -241,7 +241,7 @@ mod tests {
             right: Some(Box::new(right)),
             operator: Some(KeywordType::KwPlus),
             node_type: ASTNodeType::BinaryExpression,
-            result_type: ValueType::NumericType,
+            result_type: ValueType::UnknownType,
             value: None
         };
         assert_eq!(parse(&mut input).unwrap(), output);
