@@ -17,9 +17,13 @@ fn read(input: String) -> String {
     let mut parsed = parser::parse(&mut lexed).unwrap();
     println!("Parsed: {:?}", parsed);
     
-    let mut wat = generator::expr_to_wat(parsed);
-    println!("Wat: {}", wat);
-    return wat
+    // Retrieve shorter summary wat for display.
+    let mut body = generator::expr_to_wat(&mut parsed);
+    println!("Wat: {}", body);
+    
+    // Evaluate full wat with std lib linked.
+    let mut full_wat = generator::link_av_std(body);
+    return full_wat
 }
 
 pub fn eval(wat: String) -> f64 {
@@ -83,6 +87,11 @@ mod tests {
         assert_eq!(read_eval!("false"), 0.0);
         assert_eq!(read_eval!("true or false"), 1.0);
         assert_eq!(read_eval!("true and false"), 0.0);
+    }
+
+    #[test]
+    fn test_reval_bool_not() {
+        // Not is kind of a special case since it's a bit of a unary op
         assert_eq!(read_eval!("true and not false"), 1.0);
         assert_eq!(read_eval!("not true or false"), 0.0);
     }
