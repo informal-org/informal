@@ -372,16 +372,14 @@ mod tests {
     #[test]
     fn test_lex_unary_minus() {
         // Unary minus is handled at the lexer stage.
-        // assert_eq!(lex("-1").unwrap(), [numeric_literal!(-1.0)]);
-        // assert_eq!(lex("-.05").unwrap(), [numeric_literal!(-0.05)]);
-        // assert_eq!(lex("5 -.05").unwrap(), [numeric_literal!(5.0), TOKEN_MINUS, numeric_literal!(0.05)]);
-        // assert_eq!(lex("5 + -.05").unwrap(), [numeric_literal!(5.0), TOKEN_PLUS, numeric_literal!(-0.05)]);
-
+        assert_eq!(lex("-1").unwrap(), [numeric_literal!(-1.0)]);
+        assert_eq!(lex("-.05").unwrap(), [numeric_literal!(-0.05)]);
+        assert_eq!(lex("5 -.05").unwrap(), [numeric_literal!(5.0), TOKEN_MINUS, numeric_literal!(0.05)]);
+        assert_eq!(lex("5 + -.05").unwrap(), [numeric_literal!(5.0), TOKEN_PLUS, numeric_literal!(-0.05)]);
         assert_eq!(lex("-(4) + 2").unwrap(), [numeric_literal!(-1.0), TOKEN_MULTIPLY, TOKEN_OPEN_PAREN, 
          numeric_literal!(4.0), TOKEN_CLOSE_PAREN, TOKEN_PLUS, numeric_literal!(2.0)] );
-
-        // assert_eq!(lex("5 * -(2)").unwrap(), [numeric_literal!(5.0), TOKEN_MULTIPLY, numeric_literal!(-1.0), 
-        //     TOKEN_MULTIPLY, TOKEN_OPEN_PAREN, numeric_literal!(2.0), TOKEN_CLOSE_PAREN ]);
+        assert_eq!(lex("5 * -(2)").unwrap(), [numeric_literal!(5.0), TOKEN_MULTIPLY, numeric_literal!(-1.0), 
+            TOKEN_MULTIPLY, TOKEN_OPEN_PAREN, numeric_literal!(2.0), TOKEN_CLOSE_PAREN ]);
     }
 
     #[test]
