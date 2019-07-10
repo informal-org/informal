@@ -127,4 +127,14 @@ mod tests {
         assert_eq!(read_eval!("true and not false"), VALUE_TRUE);
         assert_eq!(read_eval!("not true or false"), VALUE_FALSE);
     }
+
+
+    #[test]
+    fn test_reval_comparison() {
+        assert_eq!(read_eval!("1 < 2"), VALUE_TRUE);
+        assert_eq!(read_eval!("2 < 1"), VALUE_FALSE);
+        assert_eq!(read_eval!("2 > 1"), VALUE_TRUE);
+        assert_eq!(read_eval!("1 >= 0"), VALUE_TRUE);
+        assert_eq!(read_eval!("-1 > 1"), VALUE_FALSE);
+    }
 }

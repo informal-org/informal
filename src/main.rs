@@ -7,9 +7,6 @@ pub mod repl;
 // use std::str;
 use std::io::{stdin,stdout,Write};
 
-
-
-
 fn repl_it() {
     loop {
         print!("> ");

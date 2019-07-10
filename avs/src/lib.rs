@@ -70,6 +70,20 @@ macro_rules! disallow_nan {
 	}
 }
 
+macro_rules! valid_num {
+	($val:expr) => ({
+		if __av_typeof($val) != ValueType::NumericType {
+			return VALUE_ERR
+		}
+		let f_val = f64::from_bits($val);
+		// Disallow nan
+		if f_val != f_val {
+			return VALUE_ERR
+		}
+		f_val
+	})
+}
+
 #[no_mangle]
 pub extern "C" fn __av_typeof(value: u64) -> ValueType {
 	// Check if NaN boxed value
@@ -91,55 +105,33 @@ pub extern "C" fn __av_typeof(value: u64) -> ValueType {
 // TODO: Type checking
 #[no_mangle]
 pub extern "C" fn __av_add(a: u64, b: u64) -> u64 {
-	validate_type!(a, ValueType::NumericType);
-	validate_type!(b, ValueType::NumericType);
-	let f_a = f64::from_bits(a);
-	let f_b = f64::from_bits(b);
-
-	disallow_nan!(f_a, f_b);
-
+	let f_a: f64 = valid_num!(a);
+	let f_b: f64 = valid_num!(b);
 	return (f_a + f_b).to_bits()
 }
 
 #[no_mangle]
 pub extern "C" fn __av_sub(a: u64, b: u64) -> u64 {
-	validate_type!(a, ValueType::NumericType);
-	validate_type!(b, ValueType::NumericType);
-	let f_a = f64::from_bits(a);
-	let f_b = f64::from_bits(b);
-
-	disallow_nan!(f_a, f_b);
-
+	let f_a: f64 = valid_num!(a);
+	let f_b: f64 = valid_num!(b);
 	return (f_a - f_b).to_bits()
 }
 
 #[no_mangle]
 pub extern "C" fn __av_mul(a: u64, b: u64) -> u64 {
-	validate_type!(a, ValueType::NumericType);
-	validate_type!(b, ValueType::NumericType);
-	let f_a = f64::from_bits(a);
-	let f_b = f64::from_bits(b);
-
-	disallow_nan!(f_a, f_b);
-
+	let f_a: f64 = valid_num!(a);
+	let f_b: f64 = valid_num!(b);
 	return (f_a * f_b).to_bits()
 }
 
 #[no_mangle]
 pub extern "C" fn __av_div(a: u64, b: u64) -> u64 {
-	validate_type!(a, ValueType::NumericType);
-	validate_type!(b, ValueType::NumericType);
-	let f_a = f64::from_bits(a);
-	let f_b = f64::from_bits(b);
-	
+	let f_a: f64 = valid_num!(a);
+	let f_b: f64 = valid_num!(b);
+
 	if f_b == 0.0 {
 		return VALUE_ERR;
 	}
-
-	// Debatable: Disallow nan divisions.
-	disallow_nan!(f_a, f_b);
-
-	// TODO: Handle Infinity?
 
 	return (f_a / f_b).to_bits()
 }
@@ -199,9 +191,41 @@ pub extern "C" fn __av_or(a: u64, b: u64) -> u64 {
 
 #[no_mangle]
 pub extern "C" fn __av_not(a: u64) -> u64 {
-	
 	let a_bool: bool = __av_as_bool(a);
 	let result: bool = !a_bool;
+	return __repr_bool(result);
+}
+
+#[no_mangle]
+pub extern "C" fn __av_gt(a: u64, b: u64) -> u64 {
+	let f_a: f64 = valid_num!(a);
+	let f_b: f64 = valid_num!(b);
+	let result = f_a > f_b;
+	return __repr_bool(result);
+}
+
+#[no_mangle]
+pub extern "C" fn __av_gte(a: u64, b: u64) -> u64 {
+	let f_a: f64 = valid_num!(a);
+	let f_b: f64 = valid_num!(b);
+	let result = f_a >= f_b;
+	return __repr_bool(result);
+}
+
+
+#[no_mangle]
+pub extern "C" fn __av_lt(a: u64, b: u64) -> u64 {
+	let f_a: f64 = valid_num!(a);
+	let f_b: f64 = valid_num!(b);
+	let result = f_a < f_b;
+	return __repr_bool(result);
+}
+
+#[no_mangle]
+pub extern "C" fn __av_lte(a: u64, b: u64) -> u64 {
+	let f_a: f64 = valid_num!(a);
+	let f_b: f64 = valid_num!(b);
+	let result = f_a <= f_b;
 	return __repr_bool(result);
 }
 
