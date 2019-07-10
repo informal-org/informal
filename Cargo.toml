@@ -3,6 +3,9 @@ name = "arevel"
 version = "0.1.0"
 authors = ["Feni Varughese <feni727@gmail.com>"]
 edition = "2018"
+include = [
+  "avs/**/*",
+]
 
 [dependencies]
 # actix-web = "0.7"
@@ -14,7 +17,13 @@ edition = "2018"
 wasmer-runtime = "0.4.2"
 wabt = "0.7.4"
 lexical = "2.2.1"   # Floating point parsing
+avs = { path = "avs" }
 
+
+[workspace]
+members = [
+  "avs",
+]
 
 
 # Allow us to catch panics in parsing, eval etc. without bringing down the system.

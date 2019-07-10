@@ -4,7 +4,6 @@ pub mod parser;
 pub mod generator;
 pub mod repl;
 
-
 // use std::str;
 use std::io::{stdin,stdout,Write};
 

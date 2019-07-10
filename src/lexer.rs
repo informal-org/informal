@@ -2,6 +2,7 @@ extern crate lexical;
 
 use super::error::{ArevelError, Result};
 use std::iter::Peekable;
+use avs::{TRUE_VAL, FALSE_VAL};
 
 #[derive(Debug,PartialEq,Eq,Copy,Clone)]
 #[repr(u8)]
@@ -44,8 +45,8 @@ pub enum LiteralValue {
 }
 
 // Constants for basic literals
-pub const TRUE_REPR: u64 = 0xFFFB_0000_0000_0001;
-pub const FALSE_REPR: u64 = 0xFFFB_0000_0000_0000;
+pub const TRUE_REPR: u64 = TRUE_VAL;
+pub const FALSE_REPR: u64 = FALSE_VAL;
 
 pub const TRUE_VALUE: LiteralValue = LiteralValue::BooleanValue(TRUE_REPR);
 pub const FALSE_VALUE: LiteralValue = LiteralValue::BooleanValue(FALSE_REPR);
