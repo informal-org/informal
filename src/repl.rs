@@ -9,14 +9,14 @@ use wasmer_runtime::{Func};
 use wabt::wat2wasm;
 
 // TODO: Environment
-fn read(input: String) -> String {
+pub fn read(input: String) -> String {
     // Reads input expressions and returns WAT equivalent
 
     let mut lexed = lexer::lex(&input).unwrap();
     let mut parsed = parser::parse(&mut lexed).unwrap();
     // Retrieve shorter summary wat for display.
     let body = generator::expr_to_wat(&mut parsed);
-    println!("Wat: {}", body);
+    // println!("Wat: {}", body);
     
     // Evaluate full wat with std lib linked.
     let full_wat = generator::link_av_std(body);

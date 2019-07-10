@@ -213,7 +213,6 @@ pub extern "C" fn _start() -> u64 {
 	0
 }
 
-
 #[cfg(test)]
 mod tests {
 	use super::*;
