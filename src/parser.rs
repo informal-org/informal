@@ -1,5 +1,4 @@
 use super::error::{Result, ArevelError};
-#[macro_use]
 use super::lexer::*;
 
 #[derive(Debug,PartialEq)]
@@ -107,8 +106,8 @@ pub fn parse(infix: &mut Vec<TokenType>) -> Result<Vec<TokenType>> {
                     }
                 }
             },
-            TokenType::Literal(lit) => postfix.push(token),
-            TokenType::Identifier(id) => postfix.push(token)
+            TokenType::Literal(_lit) => postfix.push(token),
+            TokenType::Identifier(_id) => postfix.push(token)
         }
     }
 
@@ -140,7 +139,7 @@ mod tests {
         // Verify straightforward conversion to postfix
         // 1 + 2
         let mut input: Vec<TokenType> = vec![TokenType::Literal(LiteralValue::NumericValue(1.0)), TOKEN_PLUS, TokenType::Literal(LiteralValue::NumericValue(2.0))];
-        let mut output: Vec<TokenType> = vec![TokenType::Literal(LiteralValue::NumericValue(1.0)), TokenType::Literal(LiteralValue::NumericValue(2.0)), TOKEN_PLUS];
+        let output: Vec<TokenType> = vec![TokenType::Literal(LiteralValue::NumericValue(1.0)), TokenType::Literal(LiteralValue::NumericValue(2.0)), TOKEN_PLUS];
         assert_eq!(parse(&mut input).unwrap(), output);
     }
 

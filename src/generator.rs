@@ -1,7 +1,4 @@
-#[macro_use]
 use super::lexer::*;
-use super::parser::*;
-
 use std::fs;
 
 /*
@@ -83,10 +80,10 @@ pub fn expr_to_wat(postfix: &mut Vec<TokenType>) -> String {
 
 
 pub fn link_av_std(body: String) -> String {
-    let header = fs::read_to_string("/Users/feni/code/avstd/header.wat")
+    let header = fs::read_to_string("/Users/feni/code/arevel/avs/header.wat")
         .expect("Error reading header");
 
-    let footer = fs::read_to_string("/Users/feni/code/avstd/footer.wat")
+    let footer = fs::read_to_string("/Users/feni/code/arevel/avs/footer.wat")
         .expect("Error reading footer");
 
     return header + &body + ")" + &footer;

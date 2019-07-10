@@ -33,8 +33,8 @@ const VALUE_TYPE_BOOL: u64 = 0xFFFB_0000_0000_0000;
 const VALUE_TYPE_ERR: u64 = 0xFFFE_0000_0000_0000;
 
 // NaN-boxed boolean. 0xFFFB = Boolean type header.
-pub const TRUE_VAL: u64 = 0xFFFB_0000_0000_0001;
-pub const FALSE_VAL: u64 = 0xFFFB_0000_0000_0000;
+pub const VALUE_TRUE: u64 = 0xFFFB_0000_0000_0001;
+pub const VALUE_FALSE: u64 = 0xFFFB_0000_0000_0000;
 
 
 // TODO: Type checking
@@ -69,10 +69,10 @@ pub extern "C" fn __av_div(a: u64, b: u64) -> u64 {
 #[no_mangle]
 pub extern "C" fn __av_as_bool(a: u64) -> bool {
 	// TODO: More advanced type checking.
-	if a == TRUE_VAL {
+	if a == VALUE_TRUE {
 		return true
 	}
-	if a == FALSE_VAL {
+	if a == VALUE_FALSE {
 		return false;
 	}
 	// Truthiness for other empty types and errors.
@@ -82,10 +82,10 @@ pub extern "C" fn __av_as_bool(a: u64) -> bool {
 
 pub extern "C" fn __repr_bool(a: bool) -> u64 {
 	if a {
-		return TRUE_VAL
+		return VALUE_TRUE
 	} 
 	else {
-		return FALSE_VAL
+		return VALUE_FALSE
 	}
 }
 

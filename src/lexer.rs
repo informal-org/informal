@@ -2,7 +2,7 @@ extern crate lexical;
 
 use super::error::{ArevelError, Result};
 use std::iter::Peekable;
-use avs::{TRUE_VAL, FALSE_VAL};
+use avs::{VALUE_TRUE, VALUE_FALSE};
 
 #[derive(Debug,PartialEq,Eq,Copy,Clone)]
 #[repr(u8)]
@@ -45,17 +45,14 @@ pub enum LiteralValue {
 }
 
 // Constants for basic literals
-pub const TRUE_REPR: u64 = TRUE_VAL;
-pub const FALSE_REPR: u64 = FALSE_VAL;
-
-pub const TRUE_VALUE: LiteralValue = LiteralValue::BooleanValue(TRUE_REPR);
-pub const FALSE_VALUE: LiteralValue = LiteralValue::BooleanValue(FALSE_REPR);
-pub const NONE_VALUE: LiteralValue = LiteralValue::NoneValue;
+pub const TRUE_LIT: LiteralValue = LiteralValue::BooleanValue(VALUE_TRUE);
+pub const FALSE_LIT: LiteralValue = LiteralValue::BooleanValue(VALUE_FALSE);
+pub const NONE_LIT: LiteralValue = LiteralValue::NoneValue;
 
 // Constants for each token type
-pub const TOKEN_TRUE: TokenType = TokenType::Literal(TRUE_VALUE);
-pub const TOKEN_FALSE: TokenType = TokenType::Literal(FALSE_VALUE);
-pub const TOKEN_NONE: TokenType = TokenType::Literal(NONE_VALUE);
+pub const TOKEN_TRUE: TokenType = TokenType::Literal(TRUE_LIT);
+pub const TOKEN_FALSE: TokenType = TokenType::Literal(FALSE_LIT);
+pub const TOKEN_NONE: TokenType = TokenType::Literal(NONE_LIT);
 
 pub const TOKEN_OR: TokenType = TokenType::Keyword(KeywordType::KwOr);
 pub const TOKEN_AND: TokenType = TokenType::Keyword(KeywordType::KwAnd);
