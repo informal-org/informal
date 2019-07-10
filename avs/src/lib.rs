@@ -8,21 +8,24 @@ We pack a type and value into this space, for basic types and pointers.
 Type (3 bits). Value 48 bits.
 */
 
+pub mod error;
+use error::{ArevelError};
+
 // 8 = 1000
 const SIGNALING_NAN: u64 = 0xFFF8_0000_0000_0000;
 const QUITE_NAN: u64 = 0xFFF0_0000_0000_0000;
 
 // Not of signaling nan. 
 const VALUE_TYPE_MASK: u64 = 0x000F_0000_0000_0000;
-// Clear all type bits, preserve 
+// Clear all type bits, preserve. 
+// Mask with 0000 rather than 0007 for the nice letter codes.
 const VALUE_MASK: u64 = 0x0000_FFFF_FFFF_FFFF;
 
+// D,F Currenty unsed... 0-8 Invalid NaN (Do Not Use)
 const VALUE_TYPE_POINTER_MASK: u64 = 0x0009_0000_0000_0000;
 const VALUE_TYPE_NONE_MASK: u64 = 0x000A_0000_0000_0000;
 const VALUE_TYPE_BOOL_MASK: u64 = 0x000B_0000_0000_0000;
 const VALUE_TYPE_STR_MASK: u64 = 0x000C_0000_0000_0000;
-
-// Unused...
 const VALUE_TYPE_ERR_MASK: u64 = 0x000E_0000_0000_0000;
 
 // NaN-boxed boolean. 0xFFFB = Boolean type header.
@@ -30,7 +33,11 @@ pub const VALUE_TRUE: u64 = 0xFFFB_0000_0000_0001;
 pub const VALUE_FALSE: u64 = 0xFFFB_0000_0000_0000;
 pub const VALUE_NONE: u64 = 0xFFFA_0000_0000_0000;
 
-#[derive(Debug)]
+// Private - temprorary error code.
+// Future will contain payload of error region.
+const VALUE_ERR: u64 = 0xFFFE_0000_0000_0000;
+
+#[derive(Debug,PartialEq)]
 pub enum ValueType {
     NoneType, 
     BooleanType,
@@ -45,6 +52,22 @@ pub extern "C" fn is_nan(f: f64) -> bool {
     // By definition, any comparison with a nan returns 0. 
     // So NaNs can be identified with a self comparison.
     return f != f
+}
+
+macro_rules! validate_type {
+	($v:expr, $t:expr) => ({
+		if __av_typeof($v) != $t {
+			return VALUE_ERR;
+		}
+	})
+}
+
+macro_rules! disallow_nan {
+	($f_a:expr, $f_b: expr) => {
+		if $f_a != $f_a || $f_b != $f_b {
+			return VALUE_ERR;
+		}
+	}
 }
 
 #[no_mangle]
@@ -68,29 +91,56 @@ pub extern "C" fn __av_typeof(value: u64) -> ValueType {
 // TODO: Type checking
 #[no_mangle]
 pub extern "C" fn __av_add(a: u64, b: u64) -> u64 {
+	validate_type!(a, ValueType::NumericType);
+	validate_type!(b, ValueType::NumericType);
 	let f_a = f64::from_bits(a);
 	let f_b = f64::from_bits(b);
+
+	disallow_nan!(f_a, f_b);
+
 	return (f_a + f_b).to_bits()
 }
 
 #[no_mangle]
 pub extern "C" fn __av_sub(a: u64, b: u64) -> u64 {
+	validate_type!(a, ValueType::NumericType);
+	validate_type!(b, ValueType::NumericType);
 	let f_a = f64::from_bits(a);
 	let f_b = f64::from_bits(b);
+
+	disallow_nan!(f_a, f_b);
+
 	return (f_a - f_b).to_bits()
 }
 
 #[no_mangle]
 pub extern "C" fn __av_mul(a: u64, b: u64) -> u64 {
+	validate_type!(a, ValueType::NumericType);
+	validate_type!(b, ValueType::NumericType);
 	let f_a = f64::from_bits(a);
 	let f_b = f64::from_bits(b);
+
+	disallow_nan!(f_a, f_b);
+
 	return (f_a * f_b).to_bits()
 }
 
 #[no_mangle]
 pub extern "C" fn __av_div(a: u64, b: u64) -> u64 {
+	validate_type!(a, ValueType::NumericType);
+	validate_type!(b, ValueType::NumericType);
 	let f_a = f64::from_bits(a);
 	let f_b = f64::from_bits(b);
+	
+	if f_b == 0.0 {
+		return VALUE_ERR;
+	}
+
+	// Debatable: Disallow nan divisions.
+	disallow_nan!(f_a, f_b);
+
+	// TODO: Handle Infinity?
+
 	return (f_a / f_b).to_bits()
 }
 
@@ -100,12 +150,26 @@ pub extern "C" fn __av_as_bool(a: u64) -> bool {
 	if a == VALUE_TRUE {
 		return true
 	}
-	if a == VALUE_FALSE {
+	if a == VALUE_FALSE || a == VALUE_NONE {
 		return false;
 	}
 	// Truthiness for other empty types and errors.
-	// todo: verify this doesn't happen
-	return false;
+	let a_type = __av_typeof(a);
+	match a_type {
+		ValueType::NumericType => {
+			let f_a = f64::from_bits(a);
+			return f_a != 0.0;
+		} 
+		ValueType::ErrorType => {
+			// Does treating error as false have other consequences?
+			// What about not (1 / 0) being treated as true
+			return false;
+		}
+		_ => {
+			// TODO
+			return false
+		}
+	}
 }
 
 pub extern "C" fn __repr_bool(a: bool) -> u64 {
@@ -135,6 +199,7 @@ pub extern "C" fn __av_or(a: u64, b: u64) -> u64 {
 
 #[no_mangle]
 pub extern "C" fn __av_not(a: u64) -> u64 {
+	
 	let a_bool: bool = __av_as_bool(a);
 	let result: bool = !a_bool;
 	return __repr_bool(result);
@@ -146,4 +211,22 @@ pub extern "C" fn __av_not(a: u64) -> u64 {
 #[no_mangle]
 pub extern "C" fn _start() -> u64 {
 	0
+}
+
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+    fn test_as_bool() {
+		assert_eq!(__av_as_bool(VALUE_TRUE), true);
+		assert_eq!(__av_as_bool(VALUE_FALSE), false);
+		assert_eq!(__av_as_bool(VALUE_NONE), false);
+		assert_eq!(__av_as_bool(VALUE_ERR), false);
+		assert_eq!(__av_as_bool(f64::to_bits(1.0)), true);
+		assert_eq!(__av_as_bool(f64::to_bits(3.0)), true);
+		assert_eq!(__av_as_bool(f64::to_bits(0.0)), false);
+		assert_eq!(__av_as_bool(f64::to_bits(-0.0)), false);
+	}
 }

@@ -1,5 +1,6 @@
-use super::error::{Result, ArevelError};
+use super::error::Result;
 use super::lexer::*;
+use avs::error::ArevelError;
 
 #[derive(Debug,PartialEq)]
 pub enum ASTNodeType {

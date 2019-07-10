@@ -1,8 +1,9 @@
 extern crate lexical;
 
-use super::error::{ArevelError, Result};
+use super::error::{Result};
 use std::iter::Peekable;
 use avs::{VALUE_TRUE, VALUE_FALSE};
+use avs::error::ArevelError;
 
 #[derive(Debug,PartialEq,Eq,Copy,Clone)]
 #[repr(u8)]

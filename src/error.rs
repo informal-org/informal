@@ -1,12 +1,5 @@
 use std::result;
 
-#[derive(Debug,PartialEq)]
-pub enum ArevelError {
-    ParseError,
-    InvalidFloatFmt,
-    UnterminatedString,
-    UnknownToken,
-    UnmatchedParens,
-}
+use avs::error::ArevelError;
 
 pub type Result<T> = result::Result<T, ArevelError>;
