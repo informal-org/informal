@@ -16,21 +16,11 @@ pub enum Value {
 }
 
 #[derive(Debug,PartialEq)]
-pub enum ValueType {
-    NoneType, 
-    BooleanType,
-    NumericType,
-    StringType,
-    UnknownType
-}
-
-#[derive(Debug,PartialEq)]
 pub struct ASTNode {
     pub node_type: ASTNodeType,
     pub operator: Option<KeywordType>,
     pub left: Option<Box<ASTNode>>,
     pub right: Option<Box<ASTNode>>,
-    pub result_type: ValueType,
     pub value: Option<Value>
 }
 

@@ -20,29 +20,14 @@ pub const WASM_F64_AS_I64: &'static str = "(i64.reinterpret_f64)\n";
 
 pub fn operator_to_wat(operator: KeywordType) -> String {
     let wasm_op: &str = match operator {
-        KeywordType::KwPlus => {
-            AV_STD_ADD
-        }
-        KeywordType::KwMinus => {
-            AV_STD_SUB
-        }
-        KeywordType::KwMultiply => {
-            AV_STD_MUL
-        }
-        KeywordType::KwDivide => {
-            AV_STD_DIV
-        }
+        KeywordType::KwPlus => AV_STD_ADD,
+        KeywordType::KwMinus => AV_STD_SUB,
+        KeywordType::KwMultiply => AV_STD_MUL,
+        KeywordType::KwDivide => AV_STD_DIV,
         
-        // TODO: Type checking of values?
-        KeywordType::KwAnd => {
-            AV_STD_AND
-        }
-        KeywordType::KwOr => {
-            AV_STD_OR
-        }
-        KeywordType::KwNot => {
-            AV_STD_NOT
-        }
+        KeywordType::KwAnd => AV_STD_AND,
+        KeywordType::KwOr => AV_STD_OR,
+        KeywordType::KwNot => AV_STD_NOT,
         _ => {""}
     };
     return String::from(wasm_op);

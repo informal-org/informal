@@ -2,6 +2,7 @@ use super::lexer;
 use super::parser;
 use super::generator;
 
+use avs::{__av_typeof, ValueType, VALUE_TRUE, VALUE_FALSE, VALUE_NONE};
 
 use wasmer_runtime::{imports, compile};
 use wasmer_runtime::{Func};
@@ -12,11 +13,7 @@ fn read(input: String) -> String {
     // Reads input expressions and returns WAT equivalent
 
     let mut lexed = lexer::lex(&input).unwrap();
-    println!("Lexed: {:?}", lexed);
-
     let mut parsed = parser::parse(&mut lexed).unwrap();
-    println!("Parsed: {:?}", parsed);
-    
     // Retrieve shorter summary wat for display.
     let body = generator::expr_to_wat(&mut parsed);
     println!("Wat: {}", body);
@@ -41,8 +38,25 @@ pub fn eval(wat: String) -> u64 {
 }
 
 fn print(result: u64) {
-    // TODO: Unwrap result type
-    println!("{:?}", result);
+    let result_type = __av_typeof(result);
+    match result_type {
+        ValueType::NumericType => {
+            println!("{:?}", f64::from_bits(result));
+        },
+        ValueType::BooleanType => {
+            if result == VALUE_TRUE {
+                println!("TRUE");
+            } else {
+                println!("FALSE");
+            }
+        }
+        _ => {
+            println!("{:?}: {:?}", result_type, result);
+        }
+    }
+    
+
+    
 }
 
 pub fn read_eval_print(input: String) {
