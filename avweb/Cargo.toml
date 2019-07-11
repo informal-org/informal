@@ -9,4 +9,5 @@ edition = "2018"
 [dependencies]
 actix-web = "1.0.3"
 askama = "0.8.0"
+actix-files = "0.1.3"
 
