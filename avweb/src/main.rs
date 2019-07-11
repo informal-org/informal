@@ -16,7 +16,7 @@ fn main() -> std::io::Result<()> {
     HttpServer::new(
         || App::new().service(
               web::resource("/{id}/{name}/index.html").to(hello))
-              .service(fs::Files::new("/static", "static").show_files_listing())           // TODO: Disable this in prod.
+              .service(fs::Files::new("/static", "static/dist").show_files_listing())           // TODO: Disable this in prod.
               .route("/", web::get().to(index))
         )
         .bind("localhost:9000")?
