@@ -4,8 +4,8 @@
   "scripts": {
     "deploy": "webpack --mode production",
     "watch": "webpack --mode development --watch",
-    "tail": "npx tailwind build css/app.css -o dist/css/app.css",
-    "purge": "purgecss --css dist/*.css --content ../templates/*.html -o css"
+    "tail": "npx tailwind build css/app.css -o dist/static/css/app.css",
+    "purge": "purgecss --css dist/static/css/*.css --content ../templates/*.html -o css"
   },
   "dependencies": {
     "antd": "^3.19.3",
