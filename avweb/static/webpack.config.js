@@ -17,7 +17,7 @@ module.exports = (env, options) => ({
   },
   output: {
     filename: 'app.js',
-    path: path.resolve('./dist/js')
+    path: path.resolve('./js/')
   },
   module: {
     rules: [
@@ -43,9 +43,8 @@ module.exports = (env, options) => ({
     // new MiniCssExtractPlugin({ filename: '../css/app.css' }),
     // new CopyWebpackPlugin([{ from: 'js/', to: 'dist/js/' }])
     new CopyWebpackPlugin([
-      { from: 'images/', to: './dist/images/' },
-      { from: 'css/', to: './dist/css/' },
-  
+      { from: 'images/', to: 'dist/static/images/' },
+      { from: 'css/', to: 'dist/static/css/' },
   ])
   ]
 });

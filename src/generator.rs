@@ -71,9 +71,7 @@ pub fn expr_to_wat(postfix: &mut Vec<TokenType>) -> String {
         }
     }
     return result;
-
 }
-
 
 pub fn link_av_std(body: String) -> String {
     let header = fs::read_to_string("/Users/feni/code/arevel/avs/header.wat")

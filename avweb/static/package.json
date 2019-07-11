@@ -4,8 +4,8 @@
   "scripts": {
     "deploy": "webpack --mode production",
     "watch": "webpack --mode development --watch",
-    "tail": "npx tailwind build css/tailin.css -o css/tailout.css",
-    "purge": "purgecss --css scss/*.css --content ../lib/arevel_web/templates/page/**/*.eex -o css"
+    "tail": "npx tailwind build css/app.css -o dist/css/app.css",
+    "purge": "purgecss --css dist/*.css --content ../templates/*.html -o css"
   },
   "dependencies": {
     "antd": "^3.19.3",
