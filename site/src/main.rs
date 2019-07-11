@@ -1,9 +1,9 @@
 #[macro_use]
 extern crate serde_derive;
 
-extern crate arevel;
+extern crate runtime;
 
-// use arevel::repl::{read_eval};
+use runtime::repl::{read_eval};
 
 
 #[derive(Serialize, Deserialize)]
@@ -71,6 +71,7 @@ use std::io::Error;
 
 enum MainFuture {
     Root,
+    ArevelEval(String),
     Static(StaticFuture<Body>),
 }
 
@@ -88,6 +89,15 @@ impl Future for MainFuture {
                     // .header(header::LOCATION, "/hyper_staticfile/")
                     .body(Body::empty())
                     .expect("unable to build response");
+                Ok(Ready(res))
+            },
+            MainFuture::ArevelEval(ref expr) => {
+                let evaluated = read_eval(String::from(expr));
+
+                let res = ResponseBuilder::new()
+                .body(Body::from(evaluated))
+                .expect("unable to build response");
+
                 Ok(Ready(res))
             },
             MainFuture::Static(ref mut future) => {
@@ -121,9 +131,12 @@ impl hyper::service::Service for MainService {
     fn call(&mut self, req: Request<Body>) -> MainFuture {
         if req.uri().path() == "/" {
             MainFuture::Static(self.template_.serve(req))
-            
         } else if req.uri().path().starts_with("/static") {
             MainFuture::Static(self.static_.serve(req))
+        } else if req.uri().path().starts_with("/eval") {
+            let expr = String::from(req.uri().query().unwrap());
+            println!("Expr {:?}", expr);
+            MainFuture::ArevelEval(expr)
         } else {
             MainFuture::Root
         }
@@ -169,7 +182,7 @@ static TEXT: &str = "Hello, World!";
 fn main() {
     let addr = ([127, 0, 0, 1], 9000).into();
 
-    // let resp = read_eval("1 + 1");
+    let resp = read_eval(String::from("1 + 1"));
 
     // let new_svc = || {
     //     service_fn(echo)

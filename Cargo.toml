@@ -3,9 +3,9 @@ name = "arevel"
 version = "0.1.0"
 authors = ["Feni Varughese <feni727@gmail.com>"]
 edition = "2018"
-include = [
-  "runtime/**/*",
-]
+#include = [
+#  "runtime/**/*",
+#]
 
 
 [workspace]
