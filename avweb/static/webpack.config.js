@@ -16,8 +16,8 @@ module.exports = (env, options) => ({
       './js/app.js': ['./js/app.js'].concat(glob.sync('./vendor/**/*.js'))
   },
   output: {
-    filename: 'app.js',
-    path: path.resolve('./js/')
+    filename: 'static/js/app.js',
+    // path: path.resolve('dist/static/js/')
   },
   module: {
     rules: [
@@ -43,8 +43,8 @@ module.exports = (env, options) => ({
     // new MiniCssExtractPlugin({ filename: '../css/app.css' }),
     // new CopyWebpackPlugin([{ from: 'js/', to: 'dist/js/' }])
     new CopyWebpackPlugin([
-      { from: 'images/', to: 'dist/static/images/' },
-      { from: 'css/', to: 'dist/static/css/' },
+      { from: 'images/', to: 'static/images/' },
+      { from: 'css/', to: 'static/css/' },
   ])
   ]
 });
