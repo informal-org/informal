@@ -23,6 +23,7 @@ avs = { path = "avs" }
 [workspace]
 members = [
   "avs",
+  "avweb"
 ]
 
 

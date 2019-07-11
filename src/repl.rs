@@ -49,14 +49,11 @@ fn print(result: u64) {
             } else {
                 println!("FALSE");
             }
-        }
+        },
         _ => {
             println!("{:?}: {:?}", result_type, result);
         }
     }
-    
-
-    
 }
 
 pub fn read_eval_print(input: String) {
