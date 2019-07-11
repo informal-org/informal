@@ -8,10 +8,21 @@ include = [
 ]
 
 [dependencies]
-wasmer-runtime = "0.4.2"
+# wasmer-runtime = "0.4.2"
 wabt = "0.7.4"
 lexical = "2.2.1"   # Floating point parsing
 avs = { path = "../avs" }
+
+
+# Use the singlepass backend with faster compilation so interpreted mode is responsive.
+# The speed tradeoff seems worth it. In the future, the "production" publish step can re-compile with LLVM
+# Use cargo +nightly run since this requires feature flags.
+[dependencies.wasmer-runtime]
+version = "0.5.5"
+#default-features = false # do not include the default features, and optionally
+                         # cherry-pick individual features
+features = ["singlepass"]
+
 
 
 # `wee_alloc` is a tiny allocator for wasm that is only ~1K in code size
