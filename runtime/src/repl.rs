@@ -37,23 +37,27 @@ pub fn eval(wat: String) -> u64 {
     return value.unwrap();
 }
 
-fn print(result: u64) {
+pub fn format(result: u64) -> String {
     let result_type = __av_typeof(result);
     match result_type {
         ValueType::NumericType => {
-            println!("{:?}", f64::from_bits(result));
+            format!("{:?}", f64::from_bits(result))
         },
         ValueType::BooleanType => {
             if result == VALUE_TRUE {
-                println!("TRUE");
+                format!("TRUE")
             } else {
-                println!("FALSE");
+                format!("FALSE")
             }
         },
         _ => {
-            println!("{:?}: {:?}", result_type, result);
+            format!("{:?}: {:?}", result_type, result)
         }
     }
+}
+
+fn print(result: u64) {
+    println!("{:?}", format(result));
 }
 
 pub fn read_eval_print(input: String) {
@@ -62,6 +66,11 @@ pub fn read_eval_print(input: String) {
     print(result);
 }
 
+pub fn read_eval(input: String) -> String {
+    let wat = read(input);
+    let result = eval(wat);
+    return format(result)
+}
 
 #[cfg(test)]
 mod tests {

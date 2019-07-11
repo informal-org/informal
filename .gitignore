@@ -3,5 +3,5 @@
 .DS_Store
 avs/pkg/*
 avs/*.wat
-avweb/static/node_modules/*
+site/static/node_modules/*
 dist/

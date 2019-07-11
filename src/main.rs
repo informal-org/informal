@@ -1,8 +1,6 @@
-pub mod error;
-pub mod lexer;
-pub mod parser;
-pub mod generator;
-pub mod repl;
+extern crate runtime;
+
+use runtime::repl;
 
 // use std::str;
 use std::io::{stdin,stdout,Write};

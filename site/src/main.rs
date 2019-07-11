@@ -1,6 +1,11 @@
 #[macro_use]
 extern crate serde_derive;
 
+extern crate arevel;
+
+// use arevel::repl::{read_eval};
+
+
 #[derive(Serialize, Deserialize)]
 pub struct CellResult {
     pub output: String,
@@ -163,6 +168,8 @@ static TEXT: &str = "Hello, World!";
 
 fn main() {
     let addr = ([127, 0, 0, 1], 9000).into();
+
+    // let resp = read_eval("1 + 1");
 
     // let new_svc = || {
     //     service_fn(echo)

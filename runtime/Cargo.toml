@@ -1,0 +1,33 @@
+[package]
+name = "runtime"
+version = "0.1.0"
+authors = ["Feni Varughese <feni727@gmail.com>"]
+edition = "2018"
+include = [
+  "../avs/**/*",
+]
+
+[dependencies]
+wasmer-runtime = "0.4.2"
+wabt = "0.7.4"
+lexical = "2.2.1"   # Floating point parsing
+avs = { path = "../avs" }
+
+
+# `wee_alloc` is a tiny allocator for wasm that is only ~1K in code size
+# compared to the default allocator's ~10K. It is slower than the default
+# allocator, however.
+#
+# Unfortunately, `wee_alloc` requires nightly Rust when targeting wasm for now.
+wee_alloc = { version = "0.4.2", optional = true }
+
+[dev-dependencies]
+wasm-bindgen-test = "0.2"
+
+[profile.release]
+# Tell `rustc` to optimize for small code size.
+opt-level = "s"
+
+[dependencies.wasm-bindgen]
+version = "^0.2"
+features = ["serde-serialize"]

@@ -4,24 +4,19 @@ version = "0.1.0"
 authors = ["Feni Varughese <feni727@gmail.com>"]
 edition = "2018"
 include = [
-  "avs/**/*",
+  "runtime/**/*",
 ]
-
-[dependencies]
-# 0.5.1 as yet unpublished
-# wasmer-runtime-core = { git = "https://github.com/wasmerio/wasmer", rev = "09177ac3aee69ad6145322d104c2778525d03130" }
-# wasmer-runtime = { git = "https://github.com/wasmerio/wasmer", rev = "09177ac3aee69ad6145322d104c2778525d03130" }
-wasmer-runtime = "0.4.2"
-wabt = "0.7.4"
-lexical = "2.2.1"   # Floating point parsing
-avs = { path = "avs" }
 
 
 [workspace]
 members = [
   "avs",
-  "avweb"
+  "site",
+  "runtime"
 ]
+
+[dependencies]
+runtime = { path = "runtime" }
 
 
 # Allow us to catch panics in parsing, eval etc. without bringing down the system.
@@ -30,6 +25,3 @@ panic = "unwind"
 
 [profile.release]
 panic = "unwind"
-
-[buiild]
-rustflags = "-C target-cpu=native"
