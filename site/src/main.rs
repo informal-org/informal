@@ -8,7 +8,7 @@ use runtime::repl::{read_eval};
 extern crate serde_derive;
 
 #[derive(Serialize)]
-struct CellResult {
+struct CellResponse {
     id: String,
     output: String,
     error: String
@@ -16,7 +16,18 @@ struct CellResult {
 
 #[derive(Serialize)]
 struct EvalResponse {
-    results: Vec<CellResult>
+    results: Vec<CellResponse>
+}
+
+#[derive(Deserialize)]
+struct CellRequest {
+    id: String,
+    input: String,
+}
+
+#[derive(Deserialize)]
+struct EvalRequest {
+    body: Vec<CellRequest>
 }
 
 fn home(req: HttpRequest) -> actix_web::Result<NamedFile> {
@@ -24,11 +35,14 @@ fn home(req: HttpRequest) -> actix_web::Result<NamedFile> {
     return Ok(NamedFile::open("templates/index.html")?)
 }
 
-fn evaluate(req: HttpRequest) -> impl Responder {
-    let mut results: Vec<CellResult> = Vec::new();
-    results.push(CellResult { id: "id01".to_string(), output: "42".to_string(), error: "".to_string() });
-    results.push(CellResult { id: "id02".to_string(), output: "1".to_string(), error: "".to_string() });
-    results.push(CellResult { id: "id03".to_string(), output: "4".to_string(), error: "".to_string() });
+fn evaluate(req: web::Json<EvalRequest>) -> impl Responder {
+    let mut results: Vec<CellResponse> = Vec::new();
+    for cell in &req.body {
+        results.push(CellResponse { id: cell.id.clone(), output: read_eval(String::from(cell.input.clone())), error: "".to_string() });
+    }
+    
+    // results.push(CellResponse { id: "id02".to_string(), output: "1".to_string(), error: "".to_string() });
+    // results.push(CellResponse { id: "id03".to_string(), output: "4".to_string(), error: "".to_string() });
 
     return web::Json(EvalResponse{results: results} )
 }

@@ -12,7 +12,7 @@ export function modifySize(cell, dimension, min, max, amt) {
 
 export function parseEverything(cells) {
     let data = {}
-    data.body = {}
+    data.body = []
     for(var id in cells){
         let cell = cells[id];
         let cellInput = cellGet(cell, "input");
@@ -21,10 +21,10 @@ export function parseEverything(cells) {
             // So that it's valid to have cells with space            
             continue
         }
-        data.body[cell.id] = {
+        data.body.push({
             id: cell.id,
             input: cellInput,
-        }
+        });
     }
     return data
 }
