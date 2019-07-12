@@ -42,9 +42,57 @@ const initialState = {
                 type: "listcell",
                 input: "3",
                 parent: "id03"
-            }
+            },
+            
+            "id07": {
+                id: "id07",
+                type: "listcell",
+                input: "9",
+            },
+            "id08": {
+                id: "id08",
+                type: "listcell",
+                input: "9",
+            },            
+            "id09": {
+                id: "id09",
+                type: "listcell",
+                input: "9",
+            },
+            "id10": {
+                id: "id10",
+                type: "listcell",
+                input: "9",
+            },
+            "id11": {
+                id: "id11",
+                type: "listcell",
+                input: "9",
+            },
+            "id12": {
+                id: "id12",
+                type: "listcell",
+                input: "9",
+            },
+            "id13": {
+                id: "id13",
+                type: "listcell",
+                input: "9",
+            },
+            "id14": {
+                id: "id14",
+                type: "listcell",
+                input: "9",
+            },
+            "id15": {
+                id: "id15",
+                type: "listcell",
+                input: "9",
+            },                                                                                    
+
+            
         },
-        allIds: ["id01", "id02", "id03", "id04", "id05", "id06"],
+        allIds: ["id01", "id02", "id03", "id04", "id05", "id06", "id07", "id08", "id09", "id10", "id11", "id12", "id13", "id14", "id15",],
         focus: null,  // ID of the element selected
         modified: true,  // Allow initial evaluation
     }

@@ -1,10 +1,12 @@
 // Import CSS so webpack loads it. MiniCssExtractPlugin will split it.
+import '../css/app.css';
 import { connect } from 'react-redux'
 import { Provider } from 'react-redux'
 import { mapStateToProps, mapDispatchToProps } from './store.js'
 import Grid from './componenets/Grid.js'
 import React from "React";
 import ReactDOM from "react-dom";
+
 
 
 const ConnectedGrid = connect(

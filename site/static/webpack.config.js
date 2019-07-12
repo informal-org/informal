@@ -5,6 +5,18 @@ const UglifyJsPlugin = require('uglifyjs-webpack-plugin');
 const OptimizeCSSAssetsPlugin = require('optimize-css-assets-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 
+
+// const Encore = require('@symfony/webpack-encore')
+
+// Encore
+//   .setOutputPath('public/build/')
+//   .setPublicPath('/build')
+//   .addStyleEntry('app', './css/app.css')
+//   .enablePostCssLoader()
+
+// module.exports = Encore.getWebpackConfig()
+
+
 module.exports = (env, options) => ({
   optimization: {
     minimizer: [
@@ -31,8 +43,9 @@ module.exports = (env, options) => ({
       {
         test: /\.css$/,
         use: [
-          MiniCssExtractPlugin.loader, 
-          'css-loader',
+//           MiniCssExtractPlugin.loader, 
+          'style-loader',
+          { loader: 'css-loader', options: { importLoaders: 1 } },
           'postcss-loader'
         ],
         
