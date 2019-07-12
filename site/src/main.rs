@@ -9,8 +9,14 @@ extern crate serde_derive;
 
 #[derive(Serialize)]
 struct CellResult {
+    id: String,
     output: String,
     error: String
+}
+
+#[derive(Serialize)]
+struct EvalResponse {
+    results: Vec<CellResult>
 }
 
 fn home(req: HttpRequest) -> actix_web::Result<NamedFile> {
@@ -19,7 +25,12 @@ fn home(req: HttpRequest) -> actix_web::Result<NamedFile> {
 }
 
 fn evaluate(req: HttpRequest) -> impl Responder {
-    return web::Json(CellResult { output: "42".to_string(), error: "".to_string() })
+    let mut results: Vec<CellResult> = Vec::new();
+    results.push(CellResult { id: "id01".to_string(), output: "42".to_string(), error: "".to_string() });
+    results.push(CellResult { id: "id02".to_string(), output: "1".to_string(), error: "".to_string() });
+    results.push(CellResult { id: "id03".to_string(), output: "4".to_string(), error: "".to_string() });
+
+    return web::Json(EvalResponse{results: results} )
 }
 
 fn eval_expr(req: HttpRequest) -> impl Responder {

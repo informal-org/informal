@@ -91,10 +91,10 @@ const cellsSlice = createSlice({
         saveOutput: (state, action) => {
             let status = action.payload.status;
             let response = action.payload.response;
-            const ids = Object.keys(response);
-            ids.forEach((id) => {
-                let responseCell = response[id];
-                let stateCell = state.byId[id];
+            console.log(response);
+            const responseCells = response["results"];
+            responseCells.forEach((responseCell) => {
+                let stateCell = state.byId[responseCell.id];
                 stateCell.output = responseCell.output;
                 stateCell.error = responseCell.error;
             });
@@ -144,11 +144,10 @@ const reEvaluate = () => {
 
         apiPost("/api/evaluate", parsed)
         .then(json => {
-            // Find the cells and save the value.
-            let results = json["body"];
+            // Find the cells and save the value.;
             dispatch(saveOutput({
                 'status': true,
-                'response': results
+                'response': json
             }))
         })
         .catch(error => {
