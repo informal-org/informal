@@ -229,12 +229,16 @@ pub extern "C" fn __av_lte(a: u64, b: u64) -> u64 {
 	return __repr_bool(result);
 }
 
-
 // Placeholder function. The body of the compiled WAT version of this
 // will be linked with application code.
 #[no_mangle]
-pub extern "C" fn _start() -> u64 {
+pub extern "C" fn __av_run() -> u64 {
 	0
+}
+
+#[no_mangle]
+pub extern "C" fn _start() -> u64 {
+	__av_run()
 }
 
 #[cfg(test)]

@@ -18,7 +18,6 @@ pub const AV_STD_LTE: &'static str   = "(call $__av_lte)\n";
 pub const AV_STD_GT: &'static str   = "(call $__av_gt)\n";
 pub const AV_STD_GTE: &'static str   = "(call $__av_gte)\n";
 
-
 // alternatively. Do .nearest first
 pub const WASM_F64_AS_I32: &'static str  = "(i32.trunc_s/f64)\n";
 pub const WASM_I32_AS_F64: &'static str  = "(f64.convert_s/i32)\n";

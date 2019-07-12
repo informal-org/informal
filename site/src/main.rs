@@ -36,6 +36,7 @@ fn home(req: HttpRequest) -> actix_web::Result<NamedFile> {
 }
 
 fn evaluate(req: web::Json<EvalRequest>) -> impl Responder {
+    
     let mut results: Vec<CellResponse> = Vec::new();
     for cell in &req.body {
         results.push(CellResponse { id: cell.id.clone(), output: read_eval(String::from(cell.input.clone())), error: "".to_string() });

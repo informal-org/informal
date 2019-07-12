@@ -88,9 +88,7 @@ const initialState = {
                 id: "id15",
                 type: "listcell",
                 input: "9",
-            },                                                                                    
-
-            
+            },
         },
         allIds: ["id01", "id02", "id03", "id04", "id05", "id06", "id07", "id08", "id09", "id10", "id11", "id12", "id13", "id14", "id15",],
         focus: null,  // ID of the element selected
@@ -99,7 +97,7 @@ const initialState = {
 }
 
 // 280
-for(var i = 7; i < 280; i++){
+for(var i = 16; i < 26; i++){
     let id = "id";
     if(i < 10) {
         id += "0";
@@ -108,6 +106,7 @@ for(var i = 7; i < 280; i++){
 
     initialState.cells.byId[id] = {
         "id": id,
+        "input": "" + i,
         "type": "cell"
     }
     initialState.cells.allIds.push(id);
