@@ -84,5 +84,6 @@ pub fn link_av_std(body: String) -> String {
     let footer = fs::read_to_string("/Users/feni/code/arevel/avs/footer.wat")
         .expect("Error reading footer");
 
-    return header + &body + &footer;
+    // return header + &body + &footer;
+    return header + &footer;
 }
