@@ -45,6 +45,10 @@ pub fn operator_to_wat(operator: KeywordType) -> String {
 
 pub fn expr_to_wat(postfix: &mut Vec<TokenType>) -> String {
     let mut result = String::from("");
+    // Prepare for result save call. 
+    // This is kinda hacky right now and depends on the linked symbols & positional locals.
+    // result += "(local.get 0)(i32.const 8)(i32.add)";
+
     for token in postfix.drain(..) {
         match token {
             TokenType::Keyword(kw) => {
@@ -69,6 +73,7 @@ pub fn expr_to_wat(postfix: &mut Vec<TokenType>) -> String {
             }
         }
     }
+    result += "(call $__av_save)";
     return result;
 }
 
@@ -79,6 +84,5 @@ pub fn link_av_std(body: String) -> String {
     let footer = fs::read_to_string("/Users/feni/code/arevel/avs/footer.wat")
         .expect("Error reading footer");
 
-    return header + &body + ")" + &footer;
+    return header + &body + &footer;
 }
-

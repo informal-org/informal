@@ -1,12 +1,18 @@
-use wasmer_runtime::memory::MemoryView;
 use super::lexer;
 use super::parser;
 use super::generator;
+
 
 use avs::{__av_typeof, ValueType, VALUE_TRUE, VALUE_FALSE, VALUE_NONE};
 
 use wasmer_runtime::{error, func, Func, imports, compile, instantiate, Ctx, Value};
 use wabt::wat2wasm;
+
+use wasmer_runtime::memory::MemoryView;
+use wasmer_runtime::{Instance};
+#[macro_use]
+use super::{decode_values, decode_deref};
+
 
 // TODO: Environment
 pub fn read(input: String) -> String {
@@ -19,7 +25,7 @@ pub fn read(input: String) -> String {
     // println!("Wat: {}", body);
     
     // Evaluate full wat with std lib linked.
-    // todo: rename this. Confusion with link as std.
+    // todo: rename this. Confusion with link_as_std.
     let full_wat = generator::link_av_std(body);
     return full_wat
 }
@@ -40,28 +46,18 @@ pub fn eval(wat: String) -> u64 {
 
 
     let main: Func<(),u32> = instance.func("_start").unwrap();
-    let value = main.call();
+    let value = main.call().unwrap();
     // let value = instance.call("_start", &[]);
 
     println!("Return value {:?}", value);
-
-
-    
     let memory = instance.context().memory(0);
-    // // return value.unwrap();
-    let mem_view: MemoryView<u8> = memory.view();
+    // let memory_view: MemoryView<u64> = memory.view();
+    let memory_view: MemoryView<u64> = memory.view();
 
-    // let ptr = 0;
-    // let len = 10;
-    let start = value.unwrap() as usize;
-    let end = start + 100;
-    for ptr in start..end {
-        println!("{:?}", mem_view.get(ptr));
-    }
+    let result = decode_values!(memory_view, value, 32);
 
-    // println!("At value {:?}", mem_view.get());
-
-    return 9001
+    println!("At value {:?}", result);
+    return 0
 }
 
 pub fn format(result: u64) -> String {
@@ -104,7 +100,6 @@ mod tests {
     use super::*;
     use avs::{VALUE_TRUE, VALUE_FALSE};
 
-
     macro_rules! read_eval {
         ($e:expr) => ({
             eval(read(String::from($e)))
@@ -134,7 +129,6 @@ mod tests {
         assert_eq!(read_eval_f!("( 2 ) "), 2.0);
         assert_eq!(read_eval_f!("2 * (3 + 4) "), 14.0);
         assert_eq!(read_eval_f!("2 * 2 / (5 - 1) + 3"), 4.0);
-
     }
 
     #[test]
@@ -160,7 +154,6 @@ mod tests {
         assert_eq!(read_eval!("true and not false"), VALUE_TRUE);
         assert_eq!(read_eval!("not true or false"), VALUE_FALSE);
     }
-
 
     #[test]
     fn test_reval_comparison() {

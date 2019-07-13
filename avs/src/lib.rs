@@ -55,6 +55,14 @@ pub enum ValueType {
 	ErrorType
 }
 
+#[cfg(target_os = "unknown")]
+extern {
+	// Injection point for Arevel code. 
+	// This will be removed during linking phase.
+    fn __av_inject_body(env: &Environment);
+}
+
+
 // use std::collections::HashMap;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -63,21 +71,26 @@ use std::rc::Rc;
 #[no_mangle]
 #[derive(Serialize, Deserialize)]
 pub struct Environment {
-    code: u64,
-    cells: Vec<u64>,
+    index: u64,
+    cells: [u64; 32],
 }
 
 #[no_mangle]
 impl Environment {
 	pub fn new() -> Environment {
         return Environment {
-            code: 42,
-            cells: vec![]
+            index: 0,
+            cells: [0; 32]
         };
     }
 
+	#[no_mangle]
+	#[inline(never)]
     fn __av_save(&mut self, result: u64) {
         // self.cells.push(result);
+		// TODO: Bounds check
+		self.cells[self.index as usize] = result;
+		self.index += 1
     }
 }
 
@@ -94,6 +107,7 @@ impl Environment {
 
 
 #[no_mangle]
+#[inline(always)]
 pub extern "C" fn is_nan(f: f64) -> bool {
     // By definition, any comparison with a nan returns 0. 
     // So NaNs can be identified with a self comparison.
@@ -210,6 +224,7 @@ pub extern "C" fn __av_as_bool(a: u64) -> bool {
 	}
 }
 
+#[inline(always)]
 pub extern "C" fn __repr_bool(a: bool) -> u64 {
 	if a {
 		return VALUE_TRUE
@@ -288,36 +303,33 @@ pub extern "C" fn __av_malloc(size: u32) -> u32 {
 	return Box::into_raw(Box::new(contiguous_mem)) as u32
 }
 
+#[no_mangle]
 pub extern "C" fn __av_free(ptr: *mut u32) {
 	// Free memory allocated by __av_malloc. Should only be called once.
 	unsafe { Box::from_raw(ptr) };
 }
 
-// Placeholder function. The body of the compiled WAT version of this
-// will be linked with application code.
-#[no_mangle]
-pub extern "C" fn __av_run(env: &mut Environment) -> u64 {
-	// env.code = 932;
-	0
-}
 
 #[no_mangle]
+#[cfg(target_os = "unknown")]
 pub extern "C" fn _start() -> u32 {
 	let mut env = Environment::new();
-	env.__av_save(9);
-	env.__av_save(61);
-	env.__av_save(99);
-	env.__av_save(350);
-	env.__av_save(9);
+	env.__av_save(999);
+	env.__av_save(1023);
+	
+	// Arevel code will be injected here during linking
+	unsafe {
+		__av_inject_body(&env);
+	}
 
-	__av_run(&mut env);
-
-	let xs: [u64; 5] = [1, 2, 3, 4, 5];
+	
+	// let xs: [u64; 5] = [1009, 2004, 3000, 4242, 9001];
 	// let encoded: Vec<u8> = bincode::serialize(&env).unwrap();
 
-	return Box::into_raw(Box::new(env)) as u32
-	// return Box::into_raw(Box::new(encoded)) as u32;
-	
+
+	// return Box::into_raw(Box::new(env.cells.as_mut_slice())) as u32
+	return Box::into_raw(Box::new(env.cells)) as u32;
+	// return Box::into_raw(Box::new(env.cells.into_boxed_slice())) as u32;
 }
 
 #[cfg(test)]

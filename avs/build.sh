@@ -16,15 +16,27 @@ wasm-pack build -t no-modules --release
 # DO NOT use --generate-names, it has some bugs inserting invalid tokens for tables
 ~/code/wabt/bin/wasm2wat ../target/wasm32-unknown-unknown/release/avs.wasm -o avs.wat
 
-# Find injection point. f2 - line number. delimeter :
-export line=$(grep -rne "func \$__av_run (" avs.wat | cut -f2 -d:)
+# Find injection point for extern. f2 - line number. delimeter :
+export header_line=$(grep -rne "func \$__av_inject_body (" avs.wat | cut -f2 -d:)
 
 rm header.wat
+rm foot_tmp1.wat
+rm foot_tmp2.wat
+rm foot_tmp3.wat
 rm footer.wat
 # Split into header.wat and footer.wat
-awk "NR <= $line { print >> \"header.wat\"; next } { print >> \"foot_tmp.wat\"}" avs.wat
+awk "NR < $header_line { print >> \"header.wat\"; next } { print >> \"foot_tmp1.wat\"}" avs.wat
+# Remove first line
+tail -n +2 foot_tmp1.wat > foot_tmp2.wat
+
+# Find injection point where it's called in start
+export call_line=$(grep -rne "call \$__av_inject_body" foot_tmp2.wat | cut -f2 -d:)
+awk "NR < $call_line { print >> \"header.wat\"; next } { print >> \"foot_tmp3.wat\"}" foot_tmp2.wat
 
 # Remove main content from footer (+2 to skip 1 lines, because obviously). 
 # Can probably combine this into the awk step. Meh.
-tail -n +2 foot_tmp.wat > footer.wat
-rm foot_tmp.wat
+tail -n +2 foot_tmp3.wat > footer.wat
+
+rm foot_tmp1.wat
+rm foot_tmp2.wat
+rm foot_tmp3.wat
