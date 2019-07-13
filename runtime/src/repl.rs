@@ -39,23 +39,25 @@ pub fn eval(wat: String) -> u64 {
     // );
 
 
-    // let main: Func<(),u32> = instance.func("_start").unwrap();
-    // let value = main.call();
-    let value = instance.call("_start", &[]);
-
+    let main: Func<(),u32> = instance.func("_start").unwrap();
+    let value = main.call();
+    // let value = instance.call("_start", &[]);
 
     println!("Return value {:?}", value);
 
-    // let memory = instance.context_mut().memory(0);
+
+    
+    let memory = instance.context().memory(0);
     // // return value.unwrap();
-    // let mem_view: MemoryView<u8> = memory.view();
+    let mem_view: MemoryView<u8> = memory.view();
 
     // let ptr = 0;
     // let len = 10;
-    // for ptr in 0..10 {
-        
-    //     println!("{:?}", mem_view.get(3))
-    // }    
+    for ptr in 0..10 {
+        println!("{:?}", mem_view.get(ptr));
+    }
+
+    println!("At value {:?}", mem_view.get(value.unwrap() as usize));
 
     return 9001
 }
