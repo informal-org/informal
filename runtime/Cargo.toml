@@ -21,7 +21,7 @@ avs = { path = "../avs" }
 version = "0.5.5"
 #default-features = false # do not include the default features, and optionally
                          # cherry-pick individual features
-features = ["singlepass"]
+#features = ["singlepass"]
 
 
 # `wee_alloc` is a tiny allocator for wasm that is only ~1K in code size

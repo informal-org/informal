@@ -5,7 +5,8 @@ cd avs
 wasm-pack build -t no-modules --release
 
 # TODO: Portable path version of this
-~/code/wabt/bin/wasm2wat ../target/wasm32-unknown-unknown/release/avs.wasm --generate-names -o avs.wat
+# DO NOT use --generate-names, it has some bugs inserting invalid tokens for tables
+~/code/wabt/bin/wasm2wat ../target/wasm32-unknown-unknown/release/avs.wasm -o avs.wat
 
 # Find injection point. f2 - line number. delimeter :
 export line=$(grep -rne "func \$__av_run (" avs.wat | cut -f2 -d:)

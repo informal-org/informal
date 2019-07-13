@@ -1,11 +1,11 @@
+use wasmer_runtime::memory::MemoryView;
 use super::lexer;
 use super::parser;
 use super::generator;
 
 use avs::{__av_typeof, ValueType, VALUE_TRUE, VALUE_FALSE, VALUE_NONE};
 
-use wasmer_runtime::{imports, compile};
-use wasmer_runtime::{Func};
+use wasmer_runtime::{error, func, Func, imports, compile, instantiate, Ctx, Value};
 use wabt::wat2wasm;
 
 // TODO: Environment
@@ -19,6 +19,7 @@ pub fn read(input: String) -> String {
     // println!("Wat: {}", body);
     
     // Evaluate full wat with std lib linked.
+    // todo: rename this. Confusion with link as std.
     let full_wat = generator::link_av_std(body);
     return full_wat
 }
@@ -31,10 +32,32 @@ pub fn eval(wat: String) -> u64 {
     let import_object = imports! {};
 
     let instance = module.instantiate(&import_object).unwrap();
-    let main: Func<(),u64> = instance.func("_start").unwrap();
-    let value = main.call();
 
-    return value.unwrap();
+    // let result = instance.call(
+    //     "_start",
+    //     &[Value::I32(0)],
+    // );
+
+
+    // let main: Func<(),u32> = instance.func("_start").unwrap();
+    // let value = main.call();
+    let value = instance.call("_start", &[]);
+
+
+    println!("Return value {:?}", value);
+
+    // let memory = instance.context_mut().memory(0);
+    // // return value.unwrap();
+    // let mem_view: MemoryView<u8> = memory.view();
+
+    // let ptr = 0;
+    // let len = 10;
+    // for ptr in 0..10 {
+        
+    //     println!("{:?}", mem_view.get(3))
+    // }    
+
+    return 9001
 }
 
 pub fn format(result: u64) -> String {

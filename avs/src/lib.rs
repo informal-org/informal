@@ -9,6 +9,10 @@ Type (3 bits). Value 48 bits.
 */
 
 pub mod error;
+#[macro_use]
+extern crate lazy_static;
+
+
 use error::{ArevelError};
 
 // 8 = 1000
@@ -46,6 +50,43 @@ pub enum ValueType {
 	PointerType,
 	ErrorType
 }
+
+// use std::collections::HashMap;
+use std::cell::RefCell;
+use std::rc::Rc;
+
+
+#[no_mangle]
+pub struct Environment {
+    code: u64,
+    cells: Vec<u64>,
+}
+
+#[no_mangle]
+impl Environment {
+	pub fn new() -> Environment {
+        return Environment {
+            code: 42,
+            cells: vec![],
+        };
+    }
+
+    fn __av_save(&mut self, result: u64) {
+        self.cells.push(result);
+    }
+}
+
+// lazy_static! {
+// //    static ref RESULTS: &Vec<u64> = vec![];
+// // Vec<&'static str>
+//     static ref RESULTS: Rc<RefCell<Vec<u64>>> = Rc::new(RefCell::new(Vec::new()));
+// }
+
+// #[no_mangle]
+// pub extern "C" fn __av_save(result: u64) {
+// 	RESULTS.borrow_mut().push(result);
+// }
+
 
 #[no_mangle]
 pub extern "C" fn is_nan(f: f64) -> bool {
@@ -232,13 +273,17 @@ pub extern "C" fn __av_lte(a: u64, b: u64) -> u64 {
 // Placeholder function. The body of the compiled WAT version of this
 // will be linked with application code.
 #[no_mangle]
-pub extern "C" fn __av_run() -> u64 {
+pub extern "C" fn __av_run(env: &mut Environment) -> u64 {
+	// env.code = 932;
 	0
 }
 
 #[no_mangle]
-pub extern "C" fn _start() -> u64 {
-	__av_run()
+pub extern "C" fn _start() -> u32 {
+	let mut env = Environment::new();
+
+	__av_run(&mut env);
+	return Box::into_raw(Box::new(env)) as u32
 }
 
 #[cfg(test)]
