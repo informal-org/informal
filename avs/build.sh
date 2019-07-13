@@ -1,8 +1,16 @@
 #!/bin/bash
 # Builds the Arevel Standard Library
 
+######
+# One-time pre-setup (manual)
+# rustup target add wasm32-unknown-emscripten
+# cargo instal wasm-gc
+##########
+
 cd avs
 wasm-pack build -t no-modules --release
+# cargo build --target wasm32-unknown-emscripten --release
+
 
 # TODO: Portable path version of this
 # DO NOT use --generate-names, it has some bugs inserting invalid tokens for tables

@@ -53,11 +53,13 @@ pub fn eval(wat: String) -> u64 {
 
     // let ptr = 0;
     // let len = 10;
-    for ptr in 0..10 {
+    let start = value.unwrap() as usize;
+    let end = start + 100;
+    for ptr in start..end {
         println!("{:?}", mem_view.get(ptr));
     }
 
-    println!("At value {:?}", mem_view.get(value.unwrap() as usize));
+    // println!("At value {:?}", mem_view.get());
 
     return 9001
 }

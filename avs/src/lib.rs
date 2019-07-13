@@ -12,6 +12,10 @@ pub mod error;
 #[macro_use]
 extern crate lazy_static;
 
+#[macro_use]
+extern crate serde_derive;
+
+extern crate libc;
 
 use error::{ArevelError};
 
@@ -57,6 +61,7 @@ use std::rc::Rc;
 
 
 #[no_mangle]
+#[derive(Serialize, Deserialize)]
 pub struct Environment {
     code: u64,
     cells: Vec<u64>,
@@ -67,12 +72,12 @@ impl Environment {
 	pub fn new() -> Environment {
         return Environment {
             code: 42,
-            cells: vec![],
+            cells: vec![]
         };
     }
 
     fn __av_save(&mut self, result: u64) {
-        self.cells.push(result);
+        // self.cells.push(result);
     }
 }
 
@@ -270,6 +275,24 @@ pub extern "C" fn __av_lte(a: u64, b: u64) -> u64 {
 	return __repr_bool(result);
 }
 
+#[no_mangle]
+pub extern "C" fn __av_malloc(size: u32) -> u32 {
+	// This function should be called by the host system to allocate a region of memory
+	// before passing in any data to the WASM instance. 
+	// Otherwise, we risk data clobbering each other and exposing regions of memory.
+	
+	let arr: Vec<u8> = Vec::with_capacity( size as usize);
+	let contiguous_mem = arr.as_slice();
+	// let encoded: Vec<u8> = bincode::serialize(&env).unwrap();
+
+	return Box::into_raw(Box::new(contiguous_mem)) as u32
+}
+
+pub extern "C" fn __av_free(ptr: *mut u32) {
+	// Free memory allocated by __av_malloc. Should only be called once.
+	unsafe { Box::from_raw(ptr) };
+}
+
 // Placeholder function. The body of the compiled WAT version of this
 // will be linked with application code.
 #[no_mangle]
@@ -281,9 +304,20 @@ pub extern "C" fn __av_run(env: &mut Environment) -> u64 {
 #[no_mangle]
 pub extern "C" fn _start() -> u32 {
 	let mut env = Environment::new();
+	env.__av_save(9);
+	env.__av_save(61);
+	env.__av_save(99);
+	env.__av_save(350);
+	env.__av_save(9);
 
 	__av_run(&mut env);
+
+	let xs: [u64; 5] = [1, 2, 3, 4, 5];
+	// let encoded: Vec<u8> = bincode::serialize(&env).unwrap();
+
 	return Box::into_raw(Box::new(env)) as u32
+	// return Box::into_raw(Box::new(encoded)) as u32;
+	
 }
 
 #[cfg(test)]
