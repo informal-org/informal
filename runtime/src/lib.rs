@@ -4,3 +4,4 @@ pub mod parser;
 pub mod generator;
 pub mod repl;
 pub mod sharedmemory;
+pub mod interpreter;

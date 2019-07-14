@@ -300,7 +300,7 @@ fn __av_save(results: &mut Vec<u64>, id: usize, value: u64) {
 #[no_mangle]
 #[cfg(target_os = "unknown")]
 pub extern "C" fn __av_run(size: u32) -> u32 {
-	// Note: This is tied to the generated symbol in the linker.	
+	// Note: This is tied to the generated symbol in the linker.
 	let mut results: Vec<u64> = Vec::with_capacity(size as usize);
 	for _i in 0..size {
 		results.push(0)
