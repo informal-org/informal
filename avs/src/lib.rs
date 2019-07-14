@@ -17,6 +17,8 @@ extern crate serde_derive;
 
 extern crate libc;
 
+use std::slice;
+
 use error::{ArevelError};
 
 // 8 = 1000
@@ -59,7 +61,7 @@ pub enum ValueType {
 extern {
 	// Injection point for Arevel code. 
 	// This will be removed during linking phase.
-    fn __av_inject_body(ptr: &'static mut [u64]);
+    fn __av_inject_body(ptr: *const u64);
 }
 
 
@@ -291,12 +293,11 @@ pub extern "C" fn __av_lte(a: u64, b: u64) -> u64 {
 }
 
 #[no_mangle]
-pub extern "C" fn __av_malloc(size: u32) -> u32 {
+pub extern "C" fn __av_malloc(size: u32) -> *const u64 {
 	// Size in # of u64 values to store.
 	// This function should be called by the host system to allocate a region of memory
 	// before passing in any data to the WASM instance. 
 	// Otherwise, we risk data clobbering each other and exposing regions of memory.
-	
 	let mut arr: Vec<u64> = Vec::with_capacity( size as usize );
 	for _i in 0..size {
     	arr.push(0);
@@ -314,26 +315,29 @@ pub extern "C" fn __av_malloc(size: u32) -> u32 {
 	// let boxed_ptr = Box::new(contiguous_mem_ptr);
 	// return Box::into_raw(boxed_ptr) as u32
 	// return &contiguous_mem_ptr as *const i32
-
-	 return *(&contiguous_mem_ptr[0]) as u32
+	// Pointer to address of first element
+	// return *(&contiguous_mem_ptr[0]) as usize
+	return &(contiguous_mem_ptr[0]) as *const u64
 }
+
 
 // #[no_mangle]
 // // pub extern "C" fn __av_free(ptr: *mut u32) {
-pub extern "C" fn __av_free(ptr: *mut u32) {
+#[no_mangle]
+#[inline(never)]
+pub extern "C" fn __av_free(ptr: *const u64, size: usize) {
 	// Free memory allocated by __av_malloc. Should only be called once.
 	unsafe { 
-		let outer = Box::from_raw(ptr);
-		// let inner = Box::from_raw(*mut outer);
-		// drop(inner);
-		drop(outer);
+		let slice_ptr = slice::from_raw_parts_mut(ptr as *mut u64, size);
+		let slice_box = Box::from_raw(slice_ptr);
+		drop(slice_box);
 	};
 }
 
 #[no_mangle]
 #[inline(never)]
 #[cfg(target_os = "unknown")]
-pub extern "C" fn __av_run_injected(ptr: &'static mut [u64]) {
+pub extern "C" fn __av_run_injected(ptr: *const u64) {
 	// Arevel code will be injected here during linking
 	unsafe {
 		// let p = Box::from_raw(ptr);
@@ -346,7 +350,7 @@ pub extern "C" fn __av_run_injected(ptr: &'static mut [u64]) {
 #[cfg(target_os = "unknown")]
 pub extern "C" fn _start() -> u32 {	
 	let out = __av_malloc(32);
-	__av_run_injected(&out);
+	__av_run_injected(out as *const u64);
 
 	// let xs: [u64; 5] = [1009, 2004, 3000, 4242, 9001];
 	// let encoded: Vec<u8> = bincode::serialize(&env).unwrap();
@@ -362,6 +366,12 @@ pub extern "C" fn _start() -> u32 {
 mod tests {
 	use super::*;
 
+	unsafe fn get_slice<'a>(ptr: *const u64, size: usize) -> &'a [u64] {
+		let slice: [usize; 2] = [ptr as usize, size];
+		let slice_ptr = &slice as * const _ as *const () as *const &[u64];
+		*slice_ptr
+	}
+
 	#[test]
     fn test_as_bool() {
 		assert_eq!(__av_as_bool(VALUE_TRUE), true);
@@ -376,17 +386,19 @@ mod tests {
 
 	#[test]
     fn test_mem() {
-		// let result = _start();
-		// let out = __av_malloc(2) as *mut &'static mut [u64];
+		// Verify no panic on any of these operations
+
 		let out = __av_malloc(4);
-		// let val = *out as &'static mut [u64];
-		
-		// out[0] = 12;
-		// out[1] = 193;
-		println!("out: {:?}", out);
-		assert_eq!(1, 2);
-		// unsafe {
-		// 	assert_eq!(*out, [12, 193]);
-		// }
+		println!("Memory address: {:?}", out);
+		let points_at = unsafe {
+			println!("Value at: {:?}", *out);
+			println!("Values: {:?}", slice::from_raw_parts(out, 4));
+			*out
+		};
+
+		unsafe {
+			println!("out: {:?}", get_slice(out, 2));
+		}
+		__av_free(out, 4);
 	}
 }
