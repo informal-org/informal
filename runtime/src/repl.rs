@@ -1,11 +1,11 @@
 use super::lexer;
 use super::parser;
 use super::generator;
+use super::interpreter;
 extern crate wasmi;
 
 
 use avs::{__av_typeof, ValueType, VALUE_TRUE, VALUE_FALSE, VALUE_NONE};
-
 use wasmer_runtime::{error, func, Func, imports, compile, instantiate, Ctx, Value};
 use wabt::wat2wasm;
 
@@ -193,71 +193,85 @@ mod tests {
         });
     }
 
-    // macro_rules! read_eval_check {
-    //     ($e:expr) => ({
-    //         eval(read(String::from($e)))[0]
-    //     });
-    // }
+    macro_rules! read_eval_check {
+        ($e:expr, $expected:expr) => ({
+            // Execute both a compiled and interpreted version
+            let i_result = interpreter::interpret_one(String::from($e));
+            println!("Checking interpreted result");
+            assert_eq!(i_result, $expected);
+            
+
+            let c_result = eval(read(String::from($e)))[0];
+            println!("Checking compiled result");
+            assert_eq!(c_result, $expected);
+        });
+    }
+
 
     macro_rules! read_eval_check_f {
         ($e:expr, $expected:expr) => ({
-            let i_result = f64::from_bits(interpret_one(String::from($e)));
+            // Execute both a compiled and interpreted version
+            let i_result = f64::from_bits(interpreter::interpret_one(String::from($e)));
+            println!("Checking interpreted result");
+            assert_eq!(i_result, $expected);
             
-            // Execute both a compiled and evaluated version
-            // assert_eq!(i_result, $expected);
-            i_result == $expected;
+            let c_result = eval(read(String::from($e)))[0];
+            let c_result_f = f64::from_bits(c_result);
+            println!("Checking compiled result");
+            assert_eq!(c_result_f, $expected);
         });
     }
 
     #[test]
     fn test_reval_num_literals() {
-        read_eval_check_f!("9.0"), 9.0);
-        read_eval_check_f!("42"), 42.0);
-        read_eval_check_f!("3.14159"), 3.14159);
-        read_eval_check_f!("10e5"), 10e5);
+        read_eval_check_f!("9.0", 9.0);
+        read_eval_check_f!("42", 42.0);
+        read_eval_check_f!("3.14159", 3.14159);
+        read_eval_check_f!("10e5", 10e5);
     }
 
-    // #[test]
-    // fn test_reval_arithmetic() {
-    //     assert_eq!(read_eval_f!("12 * 2 / 3"), 8.0);
-    //     assert_eq!(read_eval_f!("48 / 3 / 2"), 8.0);
-    //     assert_eq!(read_eval_f!("1 + 2"), 3.0);
-    //     assert_eq!(read_eval_f!("1 + 2 * 3 + 4"), 11.0);
-    //     assert_eq!(read_eval_f!("( 2 ) "), 2.0);
-    //     assert_eq!(read_eval_f!("2 * (3 + 4) "), 14.0);
-    //     assert_eq!(read_eval_f!("2 * 2 / (5 - 1) + 3"), 4.0);
-    // }
+    #[test]
+    fn test_reval_arithmetic() {
+        read_eval_check_f!("( 2 ) ", 2.0);
+        read_eval_check_f!("1 + 2", 3.0);
+        read_eval_check_f!("3 * 2", 6.0);
+        read_eval_check_f!("12 * 2 / 3", 8.0);
+        read_eval_check_f!("48 / 3 / 2", 8.0);
+        read_eval_check_f!("1 + 2 * 3 + 4", 11.0);
+        read_eval_check_f!("2 * (3 + 4) ", 14.0);
+        read_eval_check_f!("2 * 2 / (5 - 1) + 3", 4.0);
+    }
 
-    // #[test]
-    // fn test_unary_minus(){
-    //     assert_eq!(read_eval_f!("2 + -1"), 1.0);
-    //     assert_eq!(read_eval_f!("5 * -2"), -10.0);
-    //     assert_eq!(read_eval_f!("5 * -(2)"), -10.0);
-    //     assert_eq!(read_eval_f!("5 * -(1 + 1)"), -10.0);
-    //     assert_eq!(read_eval_f!("-(4) + 2"), -2.0);
-    // }
+    #[test]
+    fn test_unary_minus(){
+        read_eval_check_f!("2 + -1", 1.0);
+        read_eval_check_f!("5 * -2", -10.0);
+        read_eval_check_f!("5 * -(2)", -10.0);
+        read_eval_check_f!("5 * -(1 + 1)", -10.0);
+        read_eval_check_f!("-(4) + 2", -2.0);
+    }
 
-    // #[test]
-    // fn test_reval_bool() {
-    //     assert_eq!(read_eval!("true"), VALUE_TRUE);
-    //     assert_eq!(read_eval!("false"), VALUE_FALSE);
-    //     assert_eq!(read_eval!("true or false"), VALUE_TRUE);
-    //     assert_eq!(read_eval!("true and false"), VALUE_FALSE);
-    // }
+    #[test]
+    fn test_reval_bool() {
+        read_eval_check!("true", VALUE_TRUE);
+        read_eval_check!("false", VALUE_FALSE);
+        read_eval_check!("true or false", VALUE_TRUE);
+        read_eval_check!("true and false", VALUE_FALSE);
+    }
 
-    // #[test]
-    // fn test_reval_bool_not() {
-    //     // Not is kind of a special case since it's a bit of a unary op
-    //     assert_eq!(read_eval!("true and not false"), VALUE_TRUE);
-    //     assert_eq!(read_eval!("not true or false"), VALUE_FALSE);
-    // }
+    #[test]
+    fn test_reval_bool_not() {
+        // Not is kind of a special case since it's a bit of a unary op
+        read_eval_check!("true and not false", VALUE_TRUE);
+        read_eval_check!("not true or false", VALUE_FALSE);
+    }
 
-    // #[test]
-    // fn test_reval_comparison() {
-    //     assert_eq!(read_eval!("1 < 2"), VALUE_TRUE);
-    //     assert_eq!(read_eval!("2 < 1"), VALUE_FALSE);
-    //     assert_eq!(read_eval!("2 > 1"), VALUE_TRUE);
-    //     assert_eq!(read_eval!("1 >= 0"), VALUE_TRUE);
-    //     assert_eq!(read_eval!("-1 > 1"), VALUE_FALSE);
-    // }
+    #[test]
+    fn test_reval_comparison() {
+        read_eval_check!("1 < 2", VALUE_TRUE);
+        read_eval_check!("2 < 1", VALUE_FALSE);
+        read_eval_check!("2 > 1", VALUE_TRUE);
+        read_eval_check!("1 >= 0", VALUE_TRUE);
+        read_eval_check!("-1 > 1", VALUE_FALSE);
+    }
 }

@@ -12,43 +12,32 @@ use std::fs;
 use avs::*;
 
 
+macro_rules! apply_bin_op {
+    ($op:expr, $stack:expr) => ({
+        // Pop b first since it's in postfix
+        let b = $stack.pop().unwrap();
+        let a = $stack.pop().unwrap();
+        $op(a, b)
+    });
+}
+
+
 pub fn apply_operator(operator: KeywordType, stack: &mut Vec<u64>) {
     let result = match operator {
-        KeywordType::KwPlus => { 
-            __av_add(stack.pop().unwrap(), stack.pop().unwrap())
-        },
-        KeywordType::KwMinus => {
-            __av_sub(stack.pop().unwrap(), stack.pop().unwrap())
-        },
-        KeywordType::KwMultiply => {
-            __av_mul(stack.pop().unwrap(), stack.pop().unwrap())
-        },
-        KeywordType::KwDivide => {
-            __av_div(stack.pop().unwrap(), stack.pop().unwrap())
-        },
-        
-        KeywordType::KwAnd => {
-            __av_and(stack.pop().unwrap(), stack.pop().unwrap())
-        },
-        KeywordType::KwOr => {
-            __av_or(stack.pop().unwrap(), stack.pop().unwrap())
-        },
+        KeywordType::KwPlus => apply_bin_op!(__av_add, stack),
+        KeywordType::KwMinus => apply_bin_op!(__av_sub, stack),
+        KeywordType::KwMultiply => apply_bin_op!(__av_mul, stack),
+        KeywordType::KwDivide => apply_bin_op!(__av_div, stack),
+        KeywordType::KwAnd => apply_bin_op!(__av_add, stack),
+        KeywordType::KwOr => apply_bin_op!(__av_or, stack),
         KeywordType::KwNot => {
             __av_not(stack.pop().unwrap())
         },
 
-        KeywordType::KwLt => {
-            __av_lt(stack.pop().unwrap(), stack.pop().unwrap())
-        },
-        KeywordType::KwLte => {
-            __av_lte(stack.pop().unwrap(), stack.pop().unwrap())
-        },
-        KeywordType::KwGt => {
-            __av_gt(stack.pop().unwrap(), stack.pop().unwrap())
-        },
-        KeywordType::KwGte => {
-            __av_gte(stack.pop().unwrap(), stack.pop().unwrap())
-        },
+        KeywordType::KwLt => apply_bin_op!(__av_lt, stack),
+        KeywordType::KwLte => apply_bin_op!(__av_lte, stack),
+        KeywordType::KwGt => apply_bin_op!(__av_gt, stack),
+        KeywordType::KwGte => apply_bin_op!(__av_gte, stack),
         _ => {0} // TODO
     };
 
@@ -92,7 +81,7 @@ pub fn interpret_expr(postfix: &mut Vec<TokenType>, id: i32) -> u64 {
 pub fn interpret_one(input: String) -> u64 {
     let mut lexed = lex(&input).unwrap();
     let mut parsed = parser::parse(&mut lexed).unwrap();
-    return interpret_expr(&mut parsed, index);
+    return interpret_expr(&mut parsed, 0);
 }
 
 pub fn interpret_all(inputs: Vec<String>) -> Vec<u64> {
