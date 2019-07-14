@@ -61,7 +61,7 @@ pub enum ValueType {
 extern {
 	// Injection point for Arevel code. 
 	// This will be removed during linking phase.
-    fn __av_inject_body(ptr: *const u64);
+    fn __av_inject_placeholder();
 }
 
 
@@ -293,6 +293,7 @@ pub extern "C" fn __av_lte(a: u64, b: u64) -> u64 {
 }
 
 #[no_mangle]
+#[inline(never)]
 pub extern "C" fn __av_malloc(size: u32) -> *const u64 {
 	// Size in # of u64 values to store.
 	// This function should be called by the host system to allocate a region of memory
@@ -308,18 +309,10 @@ pub extern "C" fn __av_malloc(size: u32) -> *const u64 {
 	contiguous_mem[0] = 23;
 	contiguous_mem[1] = 42;
 
-	// NOTE: This MUST be freed
+	// NOTE: This MUST be freed explicitly by the caller.
 	let contiguous_mem_ptr = Box::leak(contiguous_mem);
-	// Cannot return &'static mut [u64] since tuples aren't supported
-	// So wrap in an additional layer.
-	// let boxed_ptr = Box::new(contiguous_mem_ptr);
-	// return Box::into_raw(boxed_ptr) as u32
-	// return &contiguous_mem_ptr as *const i32
-	// Pointer to address of first element
-	// return *(&contiguous_mem_ptr[0]) as usize
 	return &(contiguous_mem_ptr[0]) as *const u64
 }
-
 
 // #[no_mangle]
 // // pub extern "C" fn __av_free(ptr: *mut u32) {
@@ -336,30 +329,32 @@ pub extern "C" fn __av_free(ptr: *const u64, size: usize) {
 
 #[no_mangle]
 #[inline(never)]
-#[cfg(target_os = "unknown")]
-pub extern "C" fn __av_run_injected(ptr: *const u64) {
-	// Arevel code will be injected here during linking
-	unsafe {
-		// let p = Box::from_raw(ptr);
-		// p[0] = 32;
-		__av_inject_body(ptr);
-	}
+fn __av_save(results: &mut Vec<u64>, id: usize, value: u64) { 
+	results[id] = value;
 }
 
 #[no_mangle]
 #[cfg(target_os = "unknown")]
-pub extern "C" fn _start() -> u32 {	
-	let out = __av_malloc(32);
-	__av_run_injected(out as *const u64);
+pub extern "C" fn _start(size: u32) -> u32 {
+	// Note: This is tied to the generated symbol in the linker.	
+	let mut results: Vec<u64> = Vec::with_capacity(size as usize);
+	for _i in 0..size {
+		results.push(0)
+	}
 
+	__av_save(&mut results, 3, 250);
+
+	unsafe {
+		__av_inject_placeholder();
+	}
 	// let xs: [u64; 5] = [1009, 2004, 3000, 4242, 9001];
 	// let encoded: Vec<u8> = bincode::serialize(&env).unwrap();
-
 
 	// return Box::into_raw(Box::new(env.cells.as_mut_slice())) as u32
 	// return Box::into_raw(Box::new(out)) as u32;
 	// return Box::into_raw(Box::new(env.cells.into_boxed_slice())) as u32;
-	return 0
+		
+	return (&results[0] as *const u64) as u32;
 }
 
 #[cfg(test)]
@@ -387,18 +382,17 @@ mod tests {
 	#[test]
     fn test_mem() {
 		// Verify no panic on any of these operations
-
-		let out = __av_malloc(4);
-		println!("Memory address: {:?}", out);
+		let ptr = __av_malloc(4);
+		println!("Memory address: {:?}", ptr);
 		let points_at = unsafe {
-			println!("Value at: {:?}", *out);
-			println!("Values: {:?}", slice::from_raw_parts(out, 4));
-			*out
+			println!("Value at: {:?}", *ptr);
+			println!("Values: {:?}", slice::from_raw_parts(ptr, 4));
+			*ptr
 		};
 
 		unsafe {
-			println!("out: {:?}", get_slice(out, 2));
+			println!("out: {:?}", get_slice(ptr, 2));
 		}
-		__av_free(out, 4);
+		__av_free(ptr, 4);
 	}
 }

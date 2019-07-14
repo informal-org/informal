@@ -13,7 +13,6 @@ use wasmer_runtime::{Instance};
 #[macro_use]
 use super::{decode_values, decode_deref};
 
-
 // TODO: Environment
 pub fn read(input: String) -> String {
     // Reads input expressions and returns WAT equivalent
@@ -21,7 +20,7 @@ pub fn read(input: String) -> String {
     let mut lexed = lexer::lex(&input).unwrap();
     let mut parsed = parser::parse(&mut lexed).unwrap();
     // Retrieve shorter summary wat for display.
-    let body = generator::expr_to_wat(&mut parsed);
+    let body = generator::expr_to_wat(&mut parsed, 0);
     // println!("Wat: {}", body);
     
     // Evaluate full wat with std lib linked.
@@ -44,9 +43,8 @@ pub fn eval(wat: String) -> u64 {
     //     &[Value::I32(0)],
     // );
 
-
-    let main: Func<(),u32> = instance.func("_start").unwrap();
-    let value = main.call().unwrap();
+    let main: Func<(u32),u32> = instance.func("_start").unwrap();
+    let value = main.call(32).unwrap();
     // let value = instance.call("_start", &[]);
 
     println!("Return value {:?}", value);
