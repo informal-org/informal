@@ -211,13 +211,14 @@ mod tests {
     macro_rules! read_eval_check_f {
         ($e:expr, $expected:expr) => ({
             // Execute both a compiled and interpreted version
-            let i_result = f64::from_bits(interpreter::interpret_one(String::from($e)));
-            println!("Checking interpreted result");
-            assert_eq!(i_result, $expected);
+            let i_result = interpreter::interpret_one(String::from($e));
+            let i_result_f = f64::from_bits(i_result);
+            println!("Checking interpreted result: {:?} {:?}", i_result, i_result_f);
+            assert_eq!(i_result_f, $expected);
             
             let c_result = eval(read(String::from($e)))[0];
             let c_result_f = f64::from_bits(c_result);
-            println!("Checking compiled result");
+            println!("Checking compiled result: {:?} {:?}", c_result, c_result_f);
             assert_eq!(c_result_f, $expected);
         });
     }

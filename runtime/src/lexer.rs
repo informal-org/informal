@@ -137,6 +137,7 @@ fn parse_number(it: &mut Peekable<std::str::Chars<'_>>, is_negative: bool) -> Re
         }
     }
     // Parse should be sufficient since we've validated format already.
+    
     let mut val: f64 = lexical::parse(token);
     if is_negative {
         val = -1.0 * val;

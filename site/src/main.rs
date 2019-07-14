@@ -3,6 +3,7 @@ use actix_files as fs;
 use actix_files::NamedFile;
 use actix_web::{web, App, HttpRequest, HttpServer, Responder};
 use runtime::repl::{read_eval, read_multi, eval, format};
+use runtime::interpreter::{interpret_all};
 
 #[macro_use]
 extern crate serde_derive;
@@ -44,8 +45,9 @@ fn evaluate(req: web::Json<EvalRequest>) -> impl Responder {
         inputs.push(cell.input.clone())
     }
 
-    let program_wat = read_multi(inputs);
-    let eval_res = eval(program_wat);
+    // let program_wat = read_multi(inputs);
+    // let eval_res = eval(program_wat);
+    let eval_res = interpret_all(inputs);
 
     let size = req.body.len();
     for i in 0..size {
