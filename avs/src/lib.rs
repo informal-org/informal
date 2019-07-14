@@ -8,18 +8,30 @@ We pack a type and value into this space, for basic types and pointers.
 Type (3 bits). Value 48 bits.
 */
 
+
+// #![feature(lang_items)]
+// #![no_std]
+// #![feature(alloc)]
+
 pub mod error;
-#[macro_use]
-extern crate lazy_static;
-
-#[macro_use]
-extern crate serde_derive;
-
-extern crate libc;
-
-use std::slice;
-
+use core::slice;
 use error::{ArevelError};
+
+use core::fmt::{Write, self};
+use core::panic::PanicInfo;
+
+
+extern crate alloc;
+use alloc::vec::Vec;
+use alloc::boxed::Box;
+
+
+extern crate wee_alloc;
+
+// Use `wee_alloc` as the global allocator.
+#[global_allocator]
+static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
+
 
 // 8 = 1000
 const SIGNALING_NAN: u64 = 0xFFF8_0000_0000_0000;
@@ -290,7 +302,7 @@ fn __av_save(results: &mut Vec<u64>, id: usize, value: u64) {
 
 #[no_mangle]
 #[cfg(target_os = "unknown")]
-pub extern "C" fn _start(size: u32) -> u32 {
+pub extern "C" fn __av_run(size: u32) -> u32 {
 	// Note: This is tied to the generated symbol in the linker.	
 	let mut results: Vec<u64> = Vec::with_capacity(size as usize);
 	for _i in 0..size {
@@ -308,42 +320,43 @@ pub extern "C" fn _start(size: u32) -> u32 {
 	return (&results[0] as *const u64) as u32;
 }
 
-#[cfg(test)]
-mod tests {
-	use super::*;
 
-	unsafe fn get_slice<'a>(ptr: *const u64, size: usize) -> &'a [u64] {
-		let slice: [usize; 2] = [ptr as usize, size];
-		let slice_ptr = &slice as * const _ as *const () as *const &[u64];
-		*slice_ptr
-	}
+// #[cfg(test)]
+// mod tests {
+// 	use super::*;
 
-	#[test]
-    fn test_as_bool() {
-		assert_eq!(__av_as_bool(VALUE_TRUE), true);
-		assert_eq!(__av_as_bool(VALUE_FALSE), false);
-		assert_eq!(__av_as_bool(VALUE_NONE), false);
-		assert_eq!(__av_as_bool(VALUE_ERR), false);
-		assert_eq!(__av_as_bool(f64::to_bits(1.0)), true);
-		assert_eq!(__av_as_bool(f64::to_bits(3.0)), true);
-		assert_eq!(__av_as_bool(f64::to_bits(0.0)), false);
-		assert_eq!(__av_as_bool(f64::to_bits(-0.0)), false);
-	}
+// 	unsafe fn get_slice<'a>(ptr: *const u64, size: usize) -> &'a [u64] {
+// 		let slice: [usize; 2] = [ptr as usize, size];
+// 		let slice_ptr = &slice as * const _ as *const () as *const &[u64];
+// 		*slice_ptr
+// 	}
 
-	#[test]
-    fn test_mem() {
-		// Verify no panic on any of these operations
-		let ptr = __av_malloc(4);
-		println!("Memory address: {:?}", ptr);
-		let points_at = unsafe {
-			println!("Value at: {:?}", *ptr);
-			println!("Values: {:?}", slice::from_raw_parts(ptr, 4));
-			*ptr
-		};
+// 	#[test]
+//     fn test_as_bool() {
+// 		assert_eq!(__av_as_bool(VALUE_TRUE), true);
+// 		assert_eq!(__av_as_bool(VALUE_FALSE), false);
+// 		assert_eq!(__av_as_bool(VALUE_NONE), false);
+// 		assert_eq!(__av_as_bool(VALUE_ERR), false);
+// 		assert_eq!(__av_as_bool(f64::to_bits(1.0)), true);
+// 		assert_eq!(__av_as_bool(f64::to_bits(3.0)), true);
+// 		assert_eq!(__av_as_bool(f64::to_bits(0.0)), false);
+// 		assert_eq!(__av_as_bool(f64::to_bits(-0.0)), false);
+// 	}
 
-		unsafe {
-			println!("out: {:?}", get_slice(ptr, 2));
-		}
-		__av_free(ptr, 4);
-	}
-}
+// 	#[test]
+//     fn test_mem() {
+// 		// Verify no panic on any of these operations
+// 		let ptr = __av_malloc(4);
+// 		println!("Memory address: {:?}", ptr);
+// 		let points_at = unsafe {
+// 			println!("Value at: {:?}", *ptr);
+// 			println!("Values: {:?}", slice::from_raw_parts(ptr, 4));
+// 			*ptr
+// 		};
+
+// 		unsafe {
+// 			println!("out: {:?}", get_slice(ptr, 2));
+// 		}
+// 		__av_free(ptr, 4);
+// 	}
+// }

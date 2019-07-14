@@ -15,7 +15,7 @@ macro_rules! decode_values {
             panic!("Unexpected, Arevel WASM unaligned memory access!");
             // return 0;
         }
-        println!("index: {:?} Remainder: {:?}", index, byte_alignment);
+        // println!("index: {:?} Remainder: {:?}", index, byte_alignment);
 
         let start = index as usize;
         let end = (index + $length) as usize;
@@ -26,7 +26,7 @@ macro_rules! decode_values {
         //     println!("Values {:?}", mem_view.get(i));
         // }
 
-        println!("Values {:?}", result);
+        // println!("Values {:?}", result);
         result
     });
 }
