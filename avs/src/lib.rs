@@ -64,50 +64,6 @@ extern {
     fn __av_inject_placeholder();
 }
 
-
-// use std::collections::HashMap;
-// use std::cell::RefCell;
-// use std::rc::Rc;
-
-
-// #[no_mangle]
-// #[derive(Serialize, Deserialize)]
-// pub struct Environment {
-//     index: u64,
-//     cells: [u64; 32],
-// }
-
-// #[no_mangle]
-// impl Environment {
-// 	pub fn new() -> Environment {
-//         return Environment {
-//             index: 0,
-//             cells: [0; 32]
-//         };
-//     }
-
-// 	#[no_mangle]
-// 	#[inline(never)]
-//     fn __av_save(&mut self, result: u64) {
-//         // self.cells.push(result);
-// 		// TODO: Bounds check
-// 		self.cells[self.index as usize] = result;
-// 		self.index += 1
-//     }
-// }
-
-// lazy_static! {
-// //    static ref RESULTS: &Vec<u64> = vec![];
-// // Vec<&'static str>
-//     static ref RESULTS: Rc<RefCell<Vec<u64>>> = Rc::new(RefCell::new(Vec::new()));
-// }
-
-// #[no_mangle]
-// pub extern "C" fn __av_save(result: u64) {
-// 	RESULTS.borrow_mut().push(result);
-// }
-
-
 #[no_mangle]
 #[inline(always)]
 pub extern "C" fn is_nan(f: f64) -> bool {
@@ -164,7 +120,6 @@ pub extern "C" fn __av_typeof(value: u64) -> ValueType {
 	}
 }
 
-// TODO: Type checking
 #[no_mangle]
 pub extern "C" fn __av_add(a: u64, b: u64) -> u64 {
 	let f_a: f64 = valid_num!(a);
@@ -347,13 +302,9 @@ pub extern "C" fn _start(size: u32) -> u32 {
 	unsafe {
 		__av_inject_placeholder();
 	}
-	// let xs: [u64; 5] = [1009, 2004, 3000, 4242, 9001];
-	// let encoded: Vec<u8> = bincode::serialize(&env).unwrap();
 
-	// return Box::into_raw(Box::new(env.cells.as_mut_slice())) as u32
 	// return Box::into_raw(Box::new(out)) as u32;
 	// return Box::into_raw(Box::new(env.cells.into_boxed_slice())) as u32;
-		
 	return (&results[0] as *const u64) as u32;
 }
 

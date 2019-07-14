@@ -38,24 +38,18 @@ pub fn eval(wat: String) -> u64 {
 
     let instance = module.instantiate(&import_object).unwrap();
 
-    // let result = instance.call(
-    //     "_start",
-    //     &[Value::I32(0)],
-    // );
-
     let main: Func<(u32),u32> = instance.func("_start").unwrap();
     let value = main.call(32).unwrap();
     // let value = instance.call("_start", &[]);
 
     println!("Return value {:?}", value);
     let memory = instance.context().memory(0);
-    // let memory_view: MemoryView<u64> = memory.view();
     let memory_view: MemoryView<u64> = memory.view();
 
     let result = decode_values!(memory_view, value, 32);
 
     println!("At value {:?}", result);
-    return 0
+    return result[0].get()
 }
 
 pub fn format(result: u64) -> String {
