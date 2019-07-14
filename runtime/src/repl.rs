@@ -40,9 +40,17 @@ pub fn read_multi(inputs: Vec<String>) -> String {
     let mut body = String::from("");
     let mut index = 0;
     for input in inputs {
+        let t1 = SystemTime::now();
         let mut lexed = lexer::lex(&input).unwrap();
+        // println!("Lex: {:?}", SystemTime::now().duration_since(t1));
+
+        let t2 = SystemTime::now();
         let mut parsed = parser::parse(&mut lexed).unwrap();
+        //println!("Parse: {:?}", SystemTime::now().duration_since(t2));
+
+        // let t3 = SystemTime::now();
         body += &generator::expr_to_wat(&mut parsed, index);
+        // println!("Gen: {:?}", SystemTime::now().duration_since(t3));
         index += 1;
     }
     let full_wat = generator::link_av_std(body);
@@ -130,8 +138,8 @@ pub fn eval(wat: String) -> Vec<u64> {
     println!("Wat2wasm: {:?}", t1.duration_since(t0));
     let t2 = SystemTime::now();
 
-    // return eval_compiled(wasm_binary);
-    let result =  eval_interpreted(wasm_binary);
+    let result = eval_compiled(wasm_binary);
+    // let result =  eval_interpreted(wasm_binary);
 
     let t3 = SystemTime::now();
     println!("Full Evaluation: {:?}", t3.duration_since(t2));

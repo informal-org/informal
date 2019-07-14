@@ -77,6 +77,7 @@ pub fn expr_to_wat(postfix: &mut Vec<TokenType>, id: i32) -> String {
     }
 
     result += "(call $__av_save)";
+    // result += "(drop)";
     return result;
 }
 

@@ -8,7 +8,6 @@ We pack a type and value into this space, for basic types and pointers.
 Type (3 bits). Value 48 bits.
 */
 
-
 // #![feature(lang_items)]
 // #![no_std]
 // #![feature(alloc)]
@@ -20,11 +19,9 @@ use error::{ArevelError};
 use core::fmt::{Write, self};
 use core::panic::PanicInfo;
 
-
 extern crate alloc;
 use alloc::vec::Vec;
 use alloc::boxed::Box;
-
 
 extern crate wee_alloc;
 
@@ -308,8 +305,6 @@ pub extern "C" fn __av_run(size: u32) -> u32 {
 	for _i in 0..size {
 		results.push(0)
 	}
-
-	__av_save(&mut results, 3, 250);
 
 	unsafe {
 		__av_inject_placeholder();
