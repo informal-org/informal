@@ -1,6 +1,6 @@
 use super::error::Result;
 use super::lexer::*;
-use avs::error::ArevelError;
+use avs;
 
 #[derive(Debug,PartialEq)]
 pub enum ASTNodeType {
@@ -71,7 +71,7 @@ pub fn parse(infix: &mut Vec<TokenType>) -> Result<Vec<TokenType>> {
                             }
                         }
                         if found == false {
-                            return Err(ArevelError::UnmatchedParens)
+                            return Err(avs::error::PARSE_ERR_UNMATCHED_PARENS)
                         }
                     },
                     _ => {
@@ -110,7 +110,7 @@ pub fn parse(infix: &mut Vec<TokenType>) -> Result<Vec<TokenType>> {
         match op_kw {
             KeywordType::KwOpenParen => {
                 println!("Invalid paren in drain operator stack");
-                return Err(ArevelError::UnmatchedParens)
+                return Err(avs::error::PARSE_ERR_UNMATCHED_PARENS)
             }
             _ => {}
         }

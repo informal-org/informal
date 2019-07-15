@@ -14,7 +14,6 @@ Type (3 bits). Value 48 bits.
 
 pub mod error;
 use core::slice;
-use error::{ArevelError};
 
 use core::fmt::{Write, self};
 use core::panic::PanicInfo;

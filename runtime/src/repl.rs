@@ -154,7 +154,9 @@ pub fn format(result: u64) -> String {
             } else if result == error::PARSE_ERR_INVALID_FLOAT {
                 String::from("This decimal number is in a weird format.")
             } else if result == error::PARSE_ERR_UNKNOWN_TOKEN {
-                String::from("There's an unexpected token in this expression.")
+                String::from("There's an unknown token in this expression.")
+            } else if result == error::PARSE_ERR_UNEXPECTED_TOKEN {
+                String::from("There's a token in an unexpected location in this expression.")
             } else if result == error::PARSE_ERR_UNMATCHED_PARENS {
                 String::from("Arevel couldn't find where the brackets end. Check whether all opened brackets are closed.")
             } else if result == error::RUNTIME_ERR_INVALID_TYPE {

@@ -4,7 +4,6 @@ extern crate lexical;
 use super::error::{Result};
 use std::iter::Peekable;
 use avs::{VALUE_TRUE, VALUE_FALSE};
-use avs::error::ArevelError;
 
 #[derive(Debug,PartialEq,Eq,Copy,Clone)]
 #[repr(u8)]
@@ -128,10 +127,10 @@ fn parse_number(it: &mut Peekable<std::str::Chars<'_>>, is_negative: bool) -> Re
             if let Some(&exp_digit) = it.peek() {
                 if !is_digit(exp_digit) {
                     // TODO: Error handling
-                    return Err(ArevelError::InvalidFloatFmt);
+                    return Err(avs::error::PARSE_ERR_INVALID_FLOAT);
                 }
             } else { // Premature end of string
-                return Err(ArevelError::InvalidFloatFmt);
+                return Err(avs::error::PARSE_ERR_INVALID_FLOAT);
             }
             gobble_digits(&mut token, it);
         }
@@ -189,7 +188,7 @@ fn parse_string(it: &mut Peekable<std::str::Chars<'_>>) -> Result<LiteralValue> 
     }
     // Invalid if you reach end of input before closing quotes.
     if ! _terminated {
-        return Err(ArevelError::UnterminatedString);
+        return Err(avs::error::PARSE_ERR_UNTERM_STR);
     }
     return Ok(LiteralValue::StringValue(token));
 }
@@ -275,7 +274,7 @@ macro_rules! apply_unary_minus {
             }
         } else {
             // Unexpected end of string
-            return Err(ArevelError::UnknownToken);
+            return Err(avs::error::PARSE_ERR_UNEXPECTED_TOKEN);
         }
     });
 }
@@ -339,7 +338,7 @@ pub fn lex(expr: &str) -> Result<Vec<TokenType>> {
             _ => {
                 // Error out on any unrecognized token starts.
                 it.next();
-                return Err(ArevelError::UnknownToken);
+                return Err(avs::error::PARSE_ERR_UNKNOWN_TOKEN);
             }
         };
         // Add token to result if present
@@ -368,8 +367,8 @@ mod tests {
         assert_eq!(lex("4.237e+101").unwrap(), [numeric_literal!(4.237e+101)]);
 
         // Error on undefined exponents.
-        assert_eq!(lex("5.1e").unwrap_err(), ArevelError::InvalidFloatFmt);
-        assert_eq!(lex("5.1e ").unwrap_err(), ArevelError::InvalidFloatFmt);
+        assert_eq!(lex("5.1e").unwrap_err(), avs::error::PARSE_ERR_INVALID_FLOAT);
+        assert_eq!(lex("5.1e ").unwrap_err(), avs::error::PARSE_ERR_INVALID_FLOAT);
         // 30_000_000 syntax support? Stick to standard valid floats for now.
     }
 
@@ -405,7 +404,7 @@ mod tests {
         // Matches quotes
         assert_eq!(parse_string(&mut r#"'hello " world' test"#.chars().peekable()).unwrap(), LiteralValue::StringValue(String::from("hello \" world")) );
         // Error on unterminated string
-        assert_eq!(parse_string(&mut r#"'hello"#.chars().peekable()).unwrap_err(), ArevelError::UnterminatedString);
+        assert_eq!(parse_string(&mut r#"'hello"#.chars().peekable()).unwrap_err(), avs::error::PARSE_ERR_UNTERM_STR);
     }
 
 }
