@@ -5,32 +5,9 @@ use actix_web::{web, App, HttpRequest, HttpServer, Responder};
 use runtime::repl::{read_eval, read_multi, eval, format};
 use runtime::format;
 use runtime::interpreter::{interpret_all};
+use runtime::request::{CellRequest, CellResponse, EvalRequest, EvalResponse};
 
-#[macro_use]
-extern crate serde_derive;
 
-#[derive(Serialize)]
-struct CellResponse {
-    id: String,
-    output: String,
-    error: String
-}
-
-#[derive(Serialize)]
-struct EvalResponse {
-    results: Vec<CellResponse>
-}
-
-#[derive(Deserialize)]
-struct CellRequest {
-    id: String,
-    input: String,
-}
-
-#[derive(Deserialize)]
-struct EvalRequest {
-    body: Vec<CellRequest>
-}
 
 fn home(req: HttpRequest) -> actix_web::Result<NamedFile> {
     // let path: PathBuf = req.match_info().query("filename").parse().unwrap();

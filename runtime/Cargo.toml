@@ -12,6 +12,8 @@ wabt = "0.7.4"
 lexical = "2.2.1"   # Floating point parsing
 lazy_static = "1.3.0"
 avs = { path = "../avs" }
+serde_derive = "1.0.94"
+serde = "1.0.94"
 
 # `wee_alloc` is a tiny allocator for wasm that is only ~1K in code size
 # compared to the default allocator's ~10K. It is slower than the default

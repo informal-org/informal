@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate serde_derive;
+
 pub mod error;
 pub mod lexer;
 pub mod parser;
@@ -6,3 +9,4 @@ pub mod repl;
 pub mod sharedmemory;
 pub mod interpreter;
 pub mod format;
+pub mod request;
