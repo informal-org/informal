@@ -2,14 +2,11 @@ use super::lexer;
 use super::parser;
 use super::generator;
 use super::interpreter;
-extern crate wasmi;
 
 
 use avs::{__av_typeof, ValueType, VALUE_TRUE, VALUE_FALSE, VALUE_NONE};
 use wasmer_runtime::{error, func, Func, imports, compile, instantiate, Ctx, Value};
 use wabt::wat2wasm;
-
-use wasmi::{ModuleInstance, ImportsBuilder, NopExternals, RuntimeValue};
 
 
 use wasmer_runtime::memory::MemoryView;
@@ -92,38 +89,6 @@ pub fn eval_compiled(wasm_binary: Vec<u8>) -> Vec<u64> {
     println!("Result decode: {:?}", SystemTime::now());
 
     // println!("At value {:?}", results);
-    return results;
-}
-
-
-pub fn eval_interpreted(wasm_binary: Vec<u8>) -> Vec<u64> {
-    let CELL_COUNT = 2000;
-    // Load wasm binary and prepare it for instantiation.
-    let module = wasmi::Module::from_buffer(&wasm_binary)
-        .expect("failed to load wasm");
-
-    // Instantiate a module with empty imports and
-    // assert that there is no `start` function.
-    let instance =
-        ModuleInstance::new(
-            &module,
-            &ImportsBuilder::default()
-        )
-        .expect("failed to instantiate wasm module")
-        .assert_no_start();
-
-    // Finally, invoke the exported function "test" with no parameters
-    // and empty external function executor.
-    let runtime_result = instance.invoke_export(
-            "__av_run",
-            &[RuntimeValue::I32(CELL_COUNT)],
-            &mut NopExternals,
-        ).expect("failed to execute export");
-    //    Some(RuntimeValue::I32(1337)),
-    //);
-
-    let mut results: Vec<u64> = Vec::with_capacity(CELL_COUNT as usize);
-    results.push(0);
     return results;
 }
 
