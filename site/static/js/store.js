@@ -97,7 +97,7 @@ const initialState = {
 }
 
 // 280
-for(var i = 16; i < 20; i++){
+for(var i = 16; i < 100; i++){
     let id = "id";
     if(i < 10) {
         id += "0";
@@ -106,7 +106,7 @@ for(var i = 16; i < 20; i++){
 
     initialState.cells.byId[id] = {
         "id": id,
-        "input": "" + i,
+        "input": "",
         "type": "cell"
     }
     initialState.cells.allIds.push(id);

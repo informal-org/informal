@@ -18,9 +18,10 @@ pub enum ArevelError {
 // Generic runtime error
 // Top order bits = error code. parsing stage -> execution stage. 
 // TODO: Bottom 32 bits may contain a pointer to more information (to be implemented)
+// Validate that constants are not re-used!
 pub const RUNTIME_ERR: u64 = 0xFFFE_0001_0000_0000;
 pub const PARSE_ERR: u64 = 0xFFFE_1000_0000_0000;
-pub const INTERPRETER_ERR: u64 = 0xFFFE_0002_0000_0000;
+pub const INTERPRETER_ERR: u64 = 0xFFFE_0020_0000_0000;
 
 // Parsing errors
 pub const PARSE_ERR_UNTERM_STR: u64 = 0xFFFE_2000_0000_0000;
