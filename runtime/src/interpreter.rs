@@ -47,7 +47,6 @@ pub fn apply_operator(operator: KeywordType, stack: &mut Vec<u64>) {
 
 
 pub fn interpret_expr(postfix: &mut Vec<TokenType>, id: i32) -> u64 {
-    println!("{:?}", postfix);
     // TODO: Faster stack version of this without heap alloc.
     let mut expr_stack: Vec<u64> = Vec::with_capacity(postfix.len());
 
@@ -59,7 +58,6 @@ pub fn interpret_expr(postfix: &mut Vec<TokenType>, id: i32) -> u64 {
             TokenType::Literal(lit) => {
                 match lit {
                     LiteralValue::NumericValue(num) => {
-                        println!("Pushing {:?} bits {:?}", num, num.to_bits());
                         // f64 -> u64
                         expr_stack.push(num.to_bits());
                     },

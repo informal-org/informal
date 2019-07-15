@@ -116,7 +116,14 @@ pub fn format(result: u64) -> String {
     let result_type = __av_typeof(result);
     match result_type {
         ValueType::NumericType => {
-            format!("{:?}", f64::from_bits(result))
+            let f_val: f64 = f64::from_bits(result);
+            // Print integers without the trailing zeroes
+            if f_val.fract() < 1e10 {
+                format!("{:?}", f_val.trunc() as i64)
+            } else {
+                format!("{:?}", f_val)
+            }
+            
         },
         ValueType::BooleanType => {
             if result == VALUE_TRUE {
