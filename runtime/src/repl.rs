@@ -138,6 +138,7 @@ pub fn format(result: u64) -> String {
             // Write errors for humans, not computers. No ParseError 0013: Err at line 2 col 4.
             // Sympathize with the user. Don't blame them (avoid 'your'). This may be their first exposure to programming.
             // Help them recover if possible. (Largely a TODO once we have error pointers)
+            // https://uxplanet.org/how-to-write-good-error-messages-858e4551cd4
             let err = match result {
                 RUNTIME_ERR => String::from("There was a mysterious error while running this code."),
                 PARSE_ERR => String::from("Arevel couldn't understand this expression."),
