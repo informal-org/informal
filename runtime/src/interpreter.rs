@@ -28,7 +28,8 @@ pub fn apply_operator(operator: KeywordType, stack: &mut Vec<u64>) {
         KeywordType::KwMinus => apply_bin_op!(__av_sub, stack),
         KeywordType::KwMultiply => apply_bin_op!(__av_mul, stack),
         KeywordType::KwDivide => apply_bin_op!(__av_div, stack),
-        KeywordType::KwAnd => apply_bin_op!(__av_add, stack),
+        
+        KeywordType::KwAnd => apply_bin_op!(__av_and, stack),
         KeywordType::KwOr => apply_bin_op!(__av_or, stack),
         KeywordType::KwNot => {
             __av_not(stack.pop().unwrap())

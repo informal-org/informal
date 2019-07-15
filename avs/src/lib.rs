@@ -23,11 +23,11 @@ extern crate alloc;
 use alloc::vec::Vec;
 use alloc::boxed::Box;
 
-extern crate wee_alloc;
+// extern crate wee_alloc;
 
 // Use `wee_alloc` as the global allocator.
-#[global_allocator]
-static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
+// #[global_allocator]
+// static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 
 // 8 = 1000
@@ -70,6 +70,7 @@ pub enum ValueType {
 extern {
 	// Injection point for Arevel code. 
 	// This will be removed during linking phase.
+	#[inline(never)]
     fn __av_inject_placeholder();
 }
 
@@ -293,11 +294,24 @@ pub extern "C" fn __av_free(ptr: *const u64, size: usize) {
 
 #[no_mangle]
 #[inline(never)]
-fn __av_save(results: &mut Vec<u64>, id: usize, value: u64) { 
+pub extern "C" fn __av_save(results: &mut Vec<u64>, id: usize, value: u64) { 
 	results[id] = value;
 }
 
 #[no_mangle]
+#[inline(never)]
+#[cfg(target_os = "unknown")]
+pub extern "C" fn __av_inject(results: &mut Vec<u64>) {
+	__av_save(results, 0, 0);
+
+	unsafe {
+		__av_inject_placeholder();
+	}
+
+}
+
+#[no_mangle]
+#[inline(never)]
 #[cfg(target_os = "unknown")]
 pub extern "C" fn __av_run(size: u32) -> u32 {
 	// Note: This is tied to the generated symbol in the linker.
@@ -306,9 +320,9 @@ pub extern "C" fn __av_run(size: u32) -> u32 {
 		results.push(0)
 	}
 
-	unsafe {
-		__av_inject_placeholder();
-	}
+	// Done this way to prevent the compiler from inlining the injection point 
+	// multiple times with allocations
+	__av_inject(&mut results);
 
 	// return Box::into_raw(Box::new(out)) as u32;
 	// return Box::into_raw(Box::new(env.cells.into_boxed_slice())) as u32;

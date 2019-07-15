@@ -48,7 +48,7 @@ pub fn expr_to_wat(postfix: &mut Vec<TokenType>, id: i32) -> String {
     // Prepare for result save call. 
     // This is kinda hacky right now and depends on the linked symbols & positional locals.
 
-    result += "(local.get 1)";
+    result += "(local.get 0)";
     result += &["(i32.const ", &id.to_string(), ")"].concat();   // Location/ID of cell
 
     for token in postfix.drain(..) {
@@ -88,5 +88,5 @@ pub fn link_av_std(body: String) -> String {
     let footer = fs::read_to_string("/Users/feni/code/arevel/avs/footer.wat")
        .expect("Error reading footer");
 
-    return header + &body + &footer;
+    return header + &body + ")" + &footer;
 }
