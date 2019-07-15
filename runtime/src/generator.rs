@@ -81,7 +81,7 @@ pub fn expr_to_wat(postfix: &mut Vec<TokenType>, id: i32) -> String {
     return result;
 }
 
-pub fn link_av_std(body: String) -> String {
+pub fn link_avs(body: String) -> String {
     let header = fs::read_to_string("/Users/feni/code/arevel/avs/header.wat")
        .expect("Error reading header");
 

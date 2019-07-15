@@ -3,6 +3,7 @@ use actix_files as fs;
 use actix_files::NamedFile;
 use actix_web::{web, App, HttpRequest, HttpServer, Responder};
 use runtime::repl::{read_eval, read_multi, eval, format};
+use runtime::format;
 use runtime::interpreter::{interpret_all};
 
 #[macro_use]
@@ -53,7 +54,7 @@ fn evaluate(req: web::Json<EvalRequest>) -> impl Responder {
     for i in 0..size {
         let cell = &req.body[i];
         let cell_result = eval_res[i];
-        results.push(CellResponse { id: cell.id.clone(), output: format(cell_result), error: "".to_string() });
+        results.push(CellResponse { id: cell.id.clone(), output: format::repr(cell_result), error: "".to_string() });
     }
     
     // results.push(CellResponse { id: "id02".to_string(), output: "1".to_string(), error: "".to_string() });

@@ -2,16 +2,14 @@ use super::lexer;
 use super::parser;
 use super::generator;
 use super::interpreter;
+use super::format;
 
-
-use avs::{__av_typeof, ValueType, VALUE_TRUE, VALUE_FALSE, VALUE_NONE};
-use avs::error;
 use wasmer_runtime::{func, Func, imports, compile, instantiate, Ctx, Value};
 use wabt::wat2wasm;
 
-
 use wasmer_runtime::memory::MemoryView;
 use wasmer_runtime::{Instance};
+
 #[macro_use]
 use super::{decode_values, decode_deref};
 
@@ -25,36 +23,23 @@ pub fn read(input: String) -> String {
     let mut parsed = parser::parse(&mut lexed).unwrap();
     // Retrieve shorter summary wat for display.
     let body = generator::expr_to_wat(&mut parsed, 0);
-    // println!("Wat: {}", body);
     
     // Evaluate full wat with std lib linked.
-    // todo: rename this. Confusion with link_as_std.
-    let full_wat = generator::link_av_std(body);
+    let full_wat = generator::link_avs(body);
     return full_wat
 }
 
 pub fn read_multi(inputs: Vec<String>) -> String {
-    let start = SystemTime::now();
     let mut body = String::from("");
     let mut index = 0;
     for input in inputs {
-        let t1 = SystemTime::now();
         let mut lexed = lexer::lex(&input).unwrap();
-        // println!("Lex: {:?}", SystemTime::now().duration_since(t1));
-
-        let t2 = SystemTime::now();
         let mut parsed = parser::parse(&mut lexed).unwrap();
-        //println!("Parse: {:?}", SystemTime::now().duration_since(t2));
 
-        // let t3 = SystemTime::now();
         body += &generator::expr_to_wat(&mut parsed, index);
-        // println!("Gen: {:?}", SystemTime::now().duration_since(t3));
         index += 1;
     }
-    let full_wat = generator::link_av_std(body);
-
-    let end = SystemTime::now();
-    println!("ReadMulti: {:?}", end.duration_since(start));
+    let full_wat = generator::link_avs(body);
     return full_wat
 }
 
@@ -113,74 +98,9 @@ pub fn eval(wat: String) -> Vec<u64> {
     return result
 }
 
-pub fn format(result: u64) -> String {
-    let result_type = __av_typeof(result);
-    match result_type {
-        ValueType::NumericType => {
-            let f_val: f64 = f64::from_bits(result);
-            // Print integers without the trailing zeroes
-            if f_val.fract() == 0.0 {
-                format!("{:?}", f_val.trunc() as i64)
-            } else {
-                format!("{:?}", f_val)
-            }
-        },
-        ValueType::BooleanType => {
-            if result == VALUE_TRUE {
-                format!("TRUE")
-            } else {
-                format!("FALSE")
-            }
-        },
-        ValueType::ErrorType => {
-            // TODO: Return this as Error rather than Ok?
-            // TODO: Log most common errors
-            println!("{:X}", result);
-            
-            // Guidelines:
-            // Write errors for humans, not computers. No ParseError 0013: Err at line 2 col 4.
-            // Sympathize with the user. Don't blame them (avoid 'your'). This may be their first exposure to programming.
-            // Help them recover if possible. (Largely a TODO once we have error pointers)
-            // https://uxplanet.org/how-to-write-good-error-messages-858e4551cd4
-            // Alas - match doesn't work for this. These sholud be ordered by expected frequency.
-            if result == error::RUNTIME_ERR {
-                String::from("There was a mysterious error while running this code.")
-            } else if result == error::PARSE_ERR {
-                String::from("Arevel couldn't understand this expression.")
-            } else if result == error::INTERPRETER_ERR {
-                String::from("There was an unknown error while interpreting this code.")
-            } else if result == error::PARSE_ERR_UNTERM_STR {
-                String::from("Arevel couldn't find where this string ends. Make sure the text has matching quotation marks.")
-            } else if result == error::PARSE_ERR_INVALID_FLOAT {
-                String::from("This decimal number is in a weird format.")
-            } else if result == error::PARSE_ERR_UNKNOWN_TOKEN {
-                String::from("There's an unknown token in this expression.")
-            } else if result == error::PARSE_ERR_UNEXPECTED_TOKEN {
-                String::from("There's a token in an unexpected location in this expression.")
-            } else if result == error::PARSE_ERR_UNMATCHED_PARENS {
-                String::from("Arevel couldn't find where the brackets end. Check whether all opened brackets are closed.")
-            } else if result == error::RUNTIME_ERR_INVALID_TYPE {
-                String::from("That data type doesn't work with this operation.")
-            } else if result == error::RUNTIME_ERR_TYPE_NAN {
-                String::from("This operation doesn't work with not-a-number (NaN) values.")
-            } else if result == error::RUNTIME_ERR_EXPECTED_NUM {
-                String::from("Hmmm... Arevel expects a number here.")
-            } else if result == error::RUNTIME_ERR_EXPECTED_BOOL {
-                String::from("Arevel expects a true/false boolean here.")
-            } else if result == error::RUNTIME_ERR_DIV_Z {
-                String::from("Dividing by zero is undefined. Make sure the denominator is not a zero before dividing.")
-            } else {
-                format!("Sorry, Arevel encountered a completely unknown error: {:?}", result)
-            }
-        },
-        _ => {
-            format!("{:?}: {:?}", result_type, result)
-        }
-    }
-}
 
 fn print(result: u64) {
-    println!("{:?}", format(result));
+    println!("{:?}", format::repr(result));
 }
 
 pub fn read_eval_print(input: String) {
@@ -192,7 +112,7 @@ pub fn read_eval_print(input: String) {
 pub fn read_eval(input: String) -> String {
     let wat = read(input);
     let result = eval(wat)[0];
-    return format(result)
+    return format::repr(result)
 }
 
 #[cfg(test)]
@@ -210,7 +130,7 @@ mod tests {
         ($e:expr, $expected:expr) => ({
             // Execute both a compiled and interpreted version
             let i_result = interpreter::interpret_one(String::from($e));
-            println!("Checking interpreted result {:?} expected {:?}", format(i_result), format($expected));
+            println!("Checking interpreted result {:?} expected {:?}", format::repr(i_result), format::repr($expected));
             assert_eq!(i_result, $expected);
             
 
@@ -287,4 +207,11 @@ mod tests {
         read_eval_check!("1 >= 0", VALUE_TRUE);
         read_eval_check!("-1 > 1", VALUE_FALSE);
     }
+
+
+    #[test]
+    fn test_identifiers() {
+        // Can't just have single value inputs anymore, need cells as inputs
+    }
+
 }

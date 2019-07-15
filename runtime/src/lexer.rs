@@ -258,7 +258,6 @@ macro_rules! numeric_literal {
     });
 }
 
-
 macro_rules! apply_unary_minus {
     ($it:expr, $tokens:expr) => ({
         if let Some(next) = $it.peek() {

@@ -1,24 +1,9 @@
 // Denotes types of errors. 
-// There's an error type when expressions fail. 
+// There's an error type when expressions fail or fails to parse.
 // The payload is a pointer to a memory region which will contain additional metadata
 // Like function, stack trace, etc.
-
-// #[derive(Debug,PartialEq)]
-// pub enum ArevelError {
-//     ParseError(u64),
-//     // InvalidFloatFmt,
-//     // UnterminatedString,
-//     // UnknownToken,
-//     // UnmatchedParens,
-//     // ArithmeticError,
-//     // TypeError
-// }
-
-
-// Generic runtime error
-// Top order bits = error code. parsing stage -> execution stage. 
-// TODO: Bottom 32 bits may contain a pointer to more information (to be implemented)
-// Validate that constants are not re-used!
+// Top order bits = error code. parsing stage -> execution stage. (left to right in bits)
+// Ensure that constants are not re-used!
 pub const RUNTIME_ERR: u64 = 0xFFFE_0001_0000_0000;
 pub const PARSE_ERR: u64 = 0xFFFE_1000_0000_0000;
 pub const INTERPRETER_ERR: u64 = 0xFFFE_0010_0000_0000;
