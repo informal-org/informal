@@ -10,6 +10,7 @@ use super::generator;
 use super::lexer::*;
 use std::fs;
 use avs::*;
+use avs::error::{INTERPRETER_ERR};
 
 
 macro_rules! apply_bin_op {
@@ -39,7 +40,7 @@ pub fn apply_operator(operator: KeywordType, stack: &mut Vec<u64>) {
         KeywordType::KwLte => apply_bin_op!(__av_lte, stack),
         KeywordType::KwGt => apply_bin_op!(__av_gt, stack),
         KeywordType::KwGte => apply_bin_op!(__av_gte, stack),
-        _ => {0} // TODO
+        _ => {INTERPRETER_ERR} // TODO
     };
 
     stack.push(result);

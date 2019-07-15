@@ -85,7 +85,7 @@ pub extern "C" fn is_nan(f: f64) -> bool {
 macro_rules! validate_type {
 	($v:expr, $t:expr) => ({
 		if __av_typeof($v) != $t {
-			return VALUE_ERR;
+			return error::RUNTIME_ERR_INVALID_TYPE;
 		}
 	})
 }
@@ -93,7 +93,7 @@ macro_rules! validate_type {
 macro_rules! disallow_nan {
 	($f_a:expr, $f_b: expr) => {
 		if $f_a != $f_a || $f_b != $f_b {
-			return VALUE_ERR;
+			return error::RUNTIME_ERR_TYPE_NAN;
 		}
 	}
 }
@@ -101,12 +101,12 @@ macro_rules! disallow_nan {
 macro_rules! valid_num {
 	($val:expr) => ({
 		if __av_typeof($val) != ValueType::NumericType {
-			return VALUE_ERR
+			return error::RUNTIME_ERR_EXPECTED_NUM
 		}
 		let f_val = f64::from_bits($val);
 		// Disallow nan
 		if f_val != f_val {
-			return VALUE_ERR
+			return error::RUNTIME_ERR_TYPE_NAN
 		}
 		f_val
 	})
@@ -157,7 +157,7 @@ pub extern "C" fn __av_div(a: u64, b: u64) -> u64 {
 	let f_b: f64 = valid_num!(b);
 
 	if f_b == 0.0 {
-		return VALUE_ERR;
+		return error::RUNTIME_ERR_DIV_Z;
 	}
 
 	return (f_a / f_b).to_bits()

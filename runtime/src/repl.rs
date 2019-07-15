@@ -118,12 +118,11 @@ pub fn format(result: u64) -> String {
         ValueType::NumericType => {
             let f_val: f64 = f64::from_bits(result);
             // Print integers without the trailing zeroes
-            if f_val.fract() < 1e10 {
+            if f_val.fract() == 0.0 {
                 format!("{:?}", f_val.trunc() as i64)
             } else {
                 format!("{:?}", f_val)
             }
-            
         },
         ValueType::BooleanType => {
             if result == VALUE_TRUE {
@@ -131,6 +130,35 @@ pub fn format(result: u64) -> String {
             } else {
                 format!("FALSE")
             }
+        },
+        ValueType::ErrorType => {
+            // TODO: Return this as Error rather than Ok?
+
+            // Guidelines:
+            // Write errors for humans, not computers. No ParseError 0013: Err at line 2 col 4.
+            // Sympathize with the user. Don't blame them (avoid 'your'). This may be their first exposure to programming.
+            // Help them recover if possible. (Largely a TODO once we have error pointers)
+            let err = match result {
+                RUNTIME_ERR => String::from("There was a mysterious error while running this code."),
+                PARSE_ERR => String::from("Arevel couldn't understand this expression."),
+                INTERPRETER_ERR => String::from("There was an unknown error while interpreting this code."),
+
+                PARSE_ERR_UNTERM_STR => String::from("Arevel couldn't find where this string ends. Make sure the text has matching quotation marks."),
+                PARSE_ERR_INVALID_FLOAT => String::from("This decimal number is in a weird format."),
+                PARSE_ERR_UNKNOWN_TOKEN => String::from("There's an unexpected token in this expression."),
+                PARSE_ERR_UNMATCHED_PARENS => String::from("Arevel couldn't find where the brackets end. Check whether all opened brackets are closed."),
+
+                RUNTIME_ERR_INVALID_TYPE => String::from("That data type doesn't work with this operation."),
+                RUNTIME_ERR_TYPE_NAN => String::from("This operation doesn't work with not-a-number (NaN) values."),
+                RUNTIME_ERR_EXPECTED_NUM => String::from("Hmmm... Arevel expects a number here."),
+                RUNTIME_ERR_EXPECTED_BOOL => String::from("Arevel expects a true/false boolean here."),
+
+                RUNTIME_ERR_DIV_Z => String::from("Dividing by zero is undefined. Make sure the denominator is not a zero before dividing."),
+                _ => {
+                    format!("Sorry, Arevel encountered a completely unknown error: {:?}", result)
+                }
+            };
+            err
         },
         _ => {
             format!("{:?}: {:?}", result_type, result)
