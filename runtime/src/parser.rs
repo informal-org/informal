@@ -1,29 +1,12 @@
-use super::error::Result;
+use super::Result;
 use super::lexer::*;
 use avs;
 
-#[derive(Debug,PartialEq)]
-pub enum ASTNodeType {
-    BinaryExpression,
-    UnaryExpression,
-    Identifier,
-    Literal
-}
+use avs::constants::*;
+use super::constants::*;
+use super::structs::*;
 
-#[derive(Debug,PartialEq)]
-pub enum Value {
-    Literal(LiteralValue),
-    Identifier(String)
-}
 
-#[derive(Debug,PartialEq)]
-pub struct ASTNode {
-    pub node_type: ASTNodeType,
-    pub operator: Option<KeywordType>,
-    pub left: Option<Box<ASTNode>>,
-    pub right: Option<Box<ASTNode>>,
-    pub value: Option<Value>
-}
 
 // Higher numbers have higher precedence. 
 // Indexes should match with TokenType enum values.
@@ -42,7 +25,6 @@ fn get_op_precedence(keyword: KeywordType) -> u8 {
     let index = keyword as usize;
     return KEYWORD_PRECEDENCE[index];
 }
-
 
 // TODO: There may be additional edge cases for handling inline function calls within the expression
 // Current assumption is that all variable references are to a value.
@@ -71,7 +53,7 @@ pub fn parse(infix: &mut Vec<TokenType>) -> Result<Vec<TokenType>> {
                             }
                         }
                         if found == false {
-                            return Err(avs::error::PARSE_ERR_UNMATCHED_PARENS)
+                            return Err(PARSE_ERR_UNMATCHED_PARENS)
                         }
                     },
                     _ => {
@@ -110,7 +92,7 @@ pub fn parse(infix: &mut Vec<TokenType>) -> Result<Vec<TokenType>> {
         match op_kw {
             KeywordType::KwOpenParen => {
                 println!("Invalid paren in drain operator stack");
-                return Err(avs::error::PARSE_ERR_UNMATCHED_PARENS)
+                return Err(PARSE_ERR_UNMATCHED_PARENS)
             }
             _ => {}
         }

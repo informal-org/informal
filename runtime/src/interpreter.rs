@@ -10,7 +10,13 @@ use super::generator;
 use super::lexer::*;
 use std::fs;
 use avs::*;
-use avs::error::{INTERPRETER_ERR};
+use std::collections::HashMap;
+
+
+use avs::constants::*;
+use super::constants::*;
+use super::structs::*;
+
 
 
 macro_rules! apply_bin_op {
@@ -40,7 +46,7 @@ pub fn apply_operator(operator: KeywordType, stack: &mut Vec<u64>) {
         KeywordType::KwLte => apply_bin_op!(__av_lte, stack),
         KeywordType::KwGt => apply_bin_op!(__av_gt, stack),
         KeywordType::KwGte => apply_bin_op!(__av_gte, stack),
-        _ => {INTERPRETER_ERR} // TODO
+        _ => {INTERPRETER_ERR}              // TODO
     };
 
     stack.push(result);
@@ -67,7 +73,8 @@ pub fn interpret_expr(postfix: &mut Vec<TokenType>, id: i32) -> u64 {
                     },
                     _ => {
                         // TODO
-                    } 
+
+                    }
                 }
             },
             _ => {
@@ -88,6 +95,8 @@ pub fn interpret_one(input: String) -> u64 {
 
 pub fn interpret_all(inputs: Vec<String>) -> Vec<u64> {
     let mut results: Vec<u64> = Vec::with_capacity(inputs.len());
+    // let mut symbol_table: HashMap<u64> = Vec::with_capacity(inputs.len());
+    let mut symbol_table: HashMap<String, usize> = HashMap::new();
     let mut index = 0;
 
     for input in inputs {

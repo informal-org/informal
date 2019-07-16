@@ -1,5 +1,11 @@
-use avs::error;
-use avs::{__av_typeof, ValueType, VALUE_TRUE, VALUE_FALSE, VALUE_NONE};
+use avs::{__av_typeof};
+use avs::structs::{ValueType};
+use avs::constants::*;
+
+use avs::constants::*;
+use super::constants::*;
+use super::structs::*;
+
 
 pub fn repr(result: u64) -> String {
     let result_type = __av_typeof(result);
@@ -31,31 +37,31 @@ pub fn repr(result: u64) -> String {
             // Help them recover if possible. (Largely a TODO once we have error pointers)
             // https://uxplanet.org/how-to-write-good-error-messages-858e4551cd4
             // Alas - match doesn't work for this. These sholud be ordered by expected frequency.
-            if result == error::RUNTIME_ERR {
+            if result == RUNTIME_ERR {
                 String::from("There was a mysterious error while running this code.")
-            } else if result == error::PARSE_ERR {
+            } else if result == PARSE_ERR {
                 String::from("Arevel couldn't understand this expression.")
-            } else if result == error::INTERPRETER_ERR {
+            } else if result == INTERPRETER_ERR {
                 String::from("There was an unknown error while interpreting this code.")
-            } else if result == error::PARSE_ERR_UNTERM_STR {
+            } else if result == PARSE_ERR_UNTERM_STR {
                 String::from("Arevel couldn't find where this string ends. Make sure the text has matching quotation marks.")
-            } else if result == error::PARSE_ERR_INVALID_FLOAT {
+            } else if result == PARSE_ERR_INVALID_FLOAT {
                 String::from("This decimal number is in a weird format.")
-            } else if result == error::PARSE_ERR_UNKNOWN_TOKEN {
+            } else if result == PARSE_ERR_UNKNOWN_TOKEN {
                 String::from("There's an unknown token in this expression.")
-            } else if result == error::PARSE_ERR_UNEXPECTED_TOKEN {
+            } else if result == PARSE_ERR_UNEXPECTED_TOKEN {
                 String::from("There's a token in an unexpected location in this expression.")
-            } else if result == error::PARSE_ERR_UNMATCHED_PARENS {
+            } else if result == PARSE_ERR_UNMATCHED_PARENS {
                 String::from("Arevel couldn't find where the brackets end. Check whether all opened brackets are closed.")
-            } else if result == error::RUNTIME_ERR_INVALID_TYPE {
+            } else if result == RUNTIME_ERR_INVALID_TYPE {
                 String::from("That data type doesn't work with this operation.")
-            } else if result == error::RUNTIME_ERR_TYPE_NAN {
+            } else if result == RUNTIME_ERR_TYPE_NAN {
                 String::from("This operation doesn't work with not-a-number (NaN) values.")
-            } else if result == error::RUNTIME_ERR_EXPECTED_NUM {
+            } else if result == RUNTIME_ERR_EXPECTED_NUM {
                 String::from("Hmmm... Arevel expects a number here.")
-            } else if result == error::RUNTIME_ERR_EXPECTED_BOOL {
+            } else if result == RUNTIME_ERR_EXPECTED_BOOL {
                 String::from("Arevel expects a true/false boolean here.")
-            } else if result == error::RUNTIME_ERR_DIV_Z {
+            } else if result == RUNTIME_ERR_DIV_Z {
                 String::from("Dividing by zero is undefined. Make sure the denominator is not a zero before dividing.")
             } else {
                 format!("Sorry, Arevel encountered a completely unknown error: {:?}", result)

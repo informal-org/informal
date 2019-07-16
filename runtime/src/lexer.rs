@@ -1,78 +1,13 @@
 // Float parsing
 extern crate lexical;
 
-use super::error::{Result};
+use super::{Result};
 use std::iter::Peekable;
-use avs::{VALUE_TRUE, VALUE_FALSE};
 
-#[derive(Debug,PartialEq,Eq,Copy,Clone)]
-#[repr(u8)]
-pub enum KeywordType {
-    // The u8 repr index into the parser precedence array.
-    KwOr = 0,
-    KwAnd = 1,
-    KwIs = 2,
-    KwNot = 3,
-    
-    KwLt = 4,
-    KwLte = 5,
-    KwGt = 6,
-    KwGte = 7,
+use avs::constants::*;
+use super::constants::*;
+use super::structs::*;
 
-    KwPlus = 8,
-    KwMinus = 9,
-    KwMultiply = 10,
-    KwDivide = 11,
-    
-    KwOpenParen = 12,
-    KwCloseParen = 13,
-    KwEquals = 14,
-}
-
-// Enum values are associated with their index for fast precedence lookup.
-#[derive(Debug,PartialEq)]
-pub enum TokenType {
-    Keyword(KeywordType),
-    Literal(LiteralValue),
-    Identifier(String),
-}
-
-#[derive(Debug,PartialEq)]
-pub enum LiteralValue {
-    NoneValue,
-    BooleanValue(u64), 
-    NumericValue(f64),    // Integers are represented within the floats.
-    StringValue(String),  // TODO: String -> Obj. To c-string.
-}
-
-// Constants for basic literals
-pub const TRUE_LIT: LiteralValue = LiteralValue::BooleanValue(VALUE_TRUE);
-pub const FALSE_LIT: LiteralValue = LiteralValue::BooleanValue(VALUE_FALSE);
-pub const NONE_LIT: LiteralValue = LiteralValue::NoneValue;
-
-// Constants for each token type
-pub const TOKEN_TRUE: TokenType = TokenType::Literal(TRUE_LIT);
-pub const TOKEN_FALSE: TokenType = TokenType::Literal(FALSE_LIT);
-pub const TOKEN_NONE: TokenType = TokenType::Literal(NONE_LIT);
-
-pub const TOKEN_OR: TokenType = TokenType::Keyword(KeywordType::KwOr);
-pub const TOKEN_AND: TokenType = TokenType::Keyword(KeywordType::KwAnd);
-pub const TOKEN_IS: TokenType = TokenType::Keyword(KeywordType::KwIs);
-pub const TOKEN_NOT: TokenType = TokenType::Keyword(KeywordType::KwNot);
-
-pub const TOKEN_LT: TokenType = TokenType::Keyword(KeywordType::KwLt);
-pub const TOKEN_LTE: TokenType = TokenType::Keyword(KeywordType::KwLte);
-pub const TOKEN_GT: TokenType = TokenType::Keyword(KeywordType::KwGt);
-pub const TOKEN_GTE: TokenType = TokenType::Keyword(KeywordType::KwGte);
-
-pub const TOKEN_PLUS: TokenType = TokenType::Keyword(KeywordType::KwPlus);
-pub const TOKEN_MINUS: TokenType = TokenType::Keyword(KeywordType::KwMinus);
-pub const TOKEN_MULTIPLY: TokenType = TokenType::Keyword(KeywordType::KwMultiply);
-pub const TOKEN_DIVIDE: TokenType = TokenType::Keyword(KeywordType::KwDivide);
-
-pub const TOKEN_OPEN_PAREN: TokenType = TokenType::Keyword(KeywordType::KwOpenParen);
-pub const TOKEN_CLOSE_PAREN: TokenType = TokenType::Keyword(KeywordType::KwCloseParen);
-pub const TOKEN_EQUALS: TokenType = TokenType::Keyword(KeywordType::KwEquals);
 
 
 fn is_digit(ch: char) -> bool {
@@ -127,10 +62,10 @@ fn parse_number(it: &mut Peekable<std::str::Chars<'_>>, is_negative: bool) -> Re
             if let Some(&exp_digit) = it.peek() {
                 if !is_digit(exp_digit) {
                     // TODO: Error handling
-                    return Err(avs::error::PARSE_ERR_INVALID_FLOAT);
+                    return Err(PARSE_ERR_INVALID_FLOAT);
                 }
             } else { // Premature end of string
-                return Err(avs::error::PARSE_ERR_INVALID_FLOAT);
+                return Err(PARSE_ERR_INVALID_FLOAT);
             }
             gobble_digits(&mut token, it);
         }
@@ -188,7 +123,7 @@ fn parse_string(it: &mut Peekable<std::str::Chars<'_>>) -> Result<LiteralValue> 
     }
     // Invalid if you reach end of input before closing quotes.
     if ! _terminated {
-        return Err(avs::error::PARSE_ERR_UNTERM_STR);
+        return Err(PARSE_ERR_UNTERM_STR);
     }
     return Ok(LiteralValue::StringValue(token));
 }
@@ -199,7 +134,7 @@ fn parse_identifier(it: &mut Peekable<std::str::Chars<'_>>) -> String {
     while let Some(&ch) = it.peek() {
         match ch {
             // IDs are separate from names, so the character set could be more restrictive.
-            'a'...'z' | 'A'...'Z' | '_' | '0'...'9' => {
+            'a'..='z' | 'A'..='Z' | '_' | '0'..='9' => {
                 token.push(ch);
                 it.next(); 
             }
@@ -273,7 +208,7 @@ macro_rules! apply_unary_minus {
             }
         } else {
             // Unexpected end of string
-            return Err(avs::error::PARSE_ERR_UNEXPECTED_TOKEN);
+            return Err(PARSE_ERR_UNEXPECTED_TOKEN);
         }
     });
 }
@@ -287,7 +222,7 @@ pub fn lex(expr: &str) -> Result<Vec<TokenType>> {
         // The match should have a case for each starting value of any valid token
         let token: Option<TokenType> = match ch {
             // Digit start
-            '0'...'9' | '.' => Some(TokenType::Literal(parse_number(&mut it, false)? )),
+            '0'..='9' | '.' => Some(TokenType::Literal(parse_number(&mut it, false)? )),
             // Differentiate subtraction or unary minus
             '-' => {
                 // If the previous char was begining of string or another operator
@@ -319,7 +254,7 @@ pub fn lex(expr: &str) -> Result<Vec<TokenType>> {
             // Interchangable single/double quoted strings grouped as single token.
             '"' | '\'' => Some(TokenType::Literal(parse_string(&mut it)?)),
             // Identifiers and reserved keywords
-            'a'...'z' | 'A'...'Z' | '_' => {
+            'a'..='z' | 'A'..='Z' | '_' => {
                 let token_str: String = parse_identifier(&mut it);
                 let keyword = reserved_keyword(&token_str);
                 if keyword != None { 
@@ -337,7 +272,7 @@ pub fn lex(expr: &str) -> Result<Vec<TokenType>> {
             _ => {
                 // Error out on any unrecognized token starts.
                 it.next();
-                return Err(avs::error::PARSE_ERR_UNKNOWN_TOKEN);
+                return Err(PARSE_ERR_UNKNOWN_TOKEN);
             }
         };
         // Add token to result if present
@@ -366,8 +301,8 @@ mod tests {
         assert_eq!(lex("4.237e+101").unwrap(), [numeric_literal!(4.237e+101)]);
 
         // Error on undefined exponents.
-        assert_eq!(lex("5.1e").unwrap_err(), avs::error::PARSE_ERR_INVALID_FLOAT);
-        assert_eq!(lex("5.1e ").unwrap_err(), avs::error::PARSE_ERR_INVALID_FLOAT);
+        assert_eq!(lex("5.1e").unwrap_err(), PARSE_ERR_INVALID_FLOAT);
+        assert_eq!(lex("5.1e ").unwrap_err(), PARSE_ERR_INVALID_FLOAT);
         // 30_000_000 syntax support? Stick to standard valid floats for now.
     }
 
@@ -403,7 +338,7 @@ mod tests {
         // Matches quotes
         assert_eq!(parse_string(&mut r#"'hello " world' test"#.chars().peekable()).unwrap(), LiteralValue::StringValue(String::from("hello \" world")) );
         // Error on unterminated string
-        assert_eq!(parse_string(&mut r#"'hello"#.chars().peekable()).unwrap_err(), avs::error::PARSE_ERR_UNTERM_STR);
+        assert_eq!(parse_string(&mut r#"'hello"#.chars().peekable()).unwrap_err(), PARSE_ERR_UNTERM_STR);
     }
 
 }

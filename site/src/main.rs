@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use actix_files as fs;
 use actix_files::NamedFile;
 use actix_web::{web, App, HttpRequest, HttpServer, Responder};
-use runtime::repl::{read_eval, read_multi, eval, format};
+use runtime::repl::{read_eval, read_multi, eval};
 use runtime::format;
 use runtime::interpreter::{interpret_all};
 use runtime::request::{CellRequest, CellResponse, EvalRequest, EvalResponse};

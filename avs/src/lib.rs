@@ -12,58 +12,23 @@ Type (3 bits). Value 48 bits.
 // #![no_std]
 // #![feature(alloc)]
 
-pub mod error;
-use core::slice;
+pub mod constants;
+pub mod structs;
+pub mod macros;
 
+use constants::*;
+use structs::*;
+
+#[macro_use]
+use macros::*;
+
+use core::slice;
 use core::fmt::{Write, self};
 use core::panic::PanicInfo;
 
 extern crate alloc;
 use alloc::vec::Vec;
 use alloc::boxed::Box;
-
-// extern crate wee_alloc;
-
-// Use `wee_alloc` as the global allocator.
-// #[global_allocator]
-// static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
-
-
-// 8 = 1000
-const SIGNALING_NAN: u64 = 0xFFF8_0000_0000_0000;
-const QUITE_NAN: u64 = 0xFFF0_0000_0000_0000;
-
-// Not of signaling nan. 
-const VALUE_TYPE_MASK: u64 = 0x000F_0000_0000_0000;
-// Clear all type bits, preserve. 
-// Mask with 0000 rather than 0007 for the nice letter codes.
-const VALUE_MASK: u64 = 0x0000_FFFF_FFFF_FFFF;
-
-// D,F Currenty unsed... 0-8 Invalid NaN (Do Not Use)
-const VALUE_TYPE_POINTER_MASK: u64 = 0x0009_0000_0000_0000;
-const VALUE_TYPE_NONE_MASK: u64 = 0x000A_0000_0000_0000;
-const VALUE_TYPE_BOOL_MASK: u64 = 0x000B_0000_0000_0000;
-const VALUE_TYPE_STR_MASK: u64 = 0x000C_0000_0000_0000;
-const VALUE_TYPE_ERR_MASK: u64 = 0x000E_0000_0000_0000;
-
-// NaN-boxed boolean. 0xFFFB = Boolean type header.
-pub const VALUE_TRUE: u64 = 0xFFFB_0000_0000_0001;
-pub const VALUE_FALSE: u64 = 0xFFFB_0000_0000_0000;
-pub const VALUE_NONE: u64 = 0xFFFA_0000_0000_0000;
-
-// Private - temprorary error code.
-// Future will contain payload of error region.
-const VALUE_ERR: u64 = 0xFFFE_0000_0000_0000;
-
-#[derive(Debug,PartialEq)]
-pub enum ValueType {
-    NoneType, 
-    BooleanType,
-    NumericType,
-    StringType,
-	PointerType,
-	ErrorType
-}
 
 #[cfg(target_os = "unknown")]
 extern {
@@ -81,35 +46,6 @@ pub extern "C" fn is_nan(f: f64) -> bool {
     return f != f
 }
 
-macro_rules! validate_type {
-	($v:expr, $t:expr) => ({
-		if __av_typeof($v) != $t {
-			return error::RUNTIME_ERR_INVALID_TYPE;
-		}
-	})
-}
-
-macro_rules! disallow_nan {
-	($f_a:expr, $f_b: expr) => {
-		if $f_a != $f_a || $f_b != $f_b {
-			return error::RUNTIME_ERR_TYPE_NAN;
-		}
-	}
-}
-
-macro_rules! valid_num {
-	($val:expr) => ({
-		if __av_typeof($val) != ValueType::NumericType {
-			return error::RUNTIME_ERR_EXPECTED_NUM
-		}
-		let f_val = f64::from_bits($val);
-		// Disallow nan
-		if f_val != f_val {
-			return error::RUNTIME_ERR_TYPE_NAN
-		}
-		f_val
-	})
-}
 
 #[no_mangle]
 pub extern "C" fn __av_typeof(value: u64) -> ValueType {
@@ -156,7 +92,7 @@ pub extern "C" fn __av_div(a: u64, b: u64) -> u64 {
 	let f_b: f64 = valid_num!(b);
 
 	if f_b == 0.0 {
-		return error::RUNTIME_ERR_DIV_Z;
+		return RUNTIME_ERR_DIV_Z;
 	}
 
 	return (f_a / f_b).to_bits()
@@ -297,11 +233,20 @@ pub extern "C" fn __av_save(results: &mut Vec<u64>, id: usize, value: u64) {
 	results[id] = value;
 }
 
+
+#[no_mangle]
+#[inline(never)]
+pub extern "C" fn __av_get(results: &mut Vec<u64>, id: usize) -> u64 { 
+	return results[id];
+}
+
 #[no_mangle]
 #[inline(never)]
 #[cfg(target_os = "unknown")]
 pub extern "C" fn __av_inject(results: &mut Vec<u64>) {
 	__av_save(results, 0, 0);
+
+	__av_get(results, 0);
 
 	unsafe {
 		__av_inject_placeholder();

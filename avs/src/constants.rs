@@ -1,3 +1,34 @@
+// Data format
+
+// 8 = 1000
+pub const SIGNALING_NAN: u64 = 0xFFF8_0000_0000_0000;
+pub const QUITE_NAN: u64 = 0xFFF0_0000_0000_0000;
+
+// Not of signaling nan. 
+pub const VALUE_TYPE_MASK: u64 = 0x000F_0000_0000_0000;
+// Clear all type bits, preserve. 
+// Mask with 0000 rather than 0007 for the nice letter codes.
+pub const VALUE_MASK: u64 = 0x0000_FFFF_FFFF_FFFF;
+
+// D,F Currenty unsed... 0-8 Invalid NaN (Do Not Use)
+pub const VALUE_TYPE_POINTER_MASK: u64 = 0x0009_0000_0000_0000;
+pub const VALUE_TYPE_NONE_MASK: u64 = 0x000A_0000_0000_0000;
+pub const VALUE_TYPE_BOOL_MASK: u64 = 0x000B_0000_0000_0000;
+pub const VALUE_TYPE_STR_MASK: u64 = 0x000C_0000_0000_0000;
+pub const VALUE_TYPE_ERR_MASK: u64 = 0x000E_0000_0000_0000;
+
+// NaN-boxed boolean. 0xFFFB = Boolean type header.
+pub const VALUE_TRUE: u64 = 0xFFFB_0000_0000_0001;
+pub const VALUE_FALSE: u64 = 0xFFFB_0000_0000_0000;
+pub const VALUE_NONE: u64 = 0xFFFA_0000_0000_0000;
+
+// Private - temprorary error code.
+// Future will contain payload of error region.
+pub const VALUE_ERR: u64 = 0xFFFE_0000_0000_0000;
+
+
+// ERRORS
+
 // Denotes types of errors. 
 // There's an error type when expressions fail or fails to parse.
 // The payload is a pointer to a memory region which will contain additional metadata
@@ -26,3 +57,5 @@ pub const RUNTIME_ERR_EXPECTED_BOOL: u64 = 0xFFFE_0400_0000_0000;
 
 // Arithmetic errors - 0x00
 pub const RUNTIME_ERR_DIV_Z: u64 = 0xFFFE_0002_0000_0000;
+
+

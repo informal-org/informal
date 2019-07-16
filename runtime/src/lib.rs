@@ -1,7 +1,16 @@
 #[macro_use]
 extern crate serde_derive;
 
-pub mod error;
+use std::result;
+
+pub type Result<T> = result::Result<T, u64>;
+
+use avs::constants::*;
+use constants::*;
+use structs::*;
+
+
+
 pub mod lexer;
 pub mod parser;
 pub mod generator;
@@ -9,4 +18,8 @@ pub mod repl;
 pub mod sharedmemory;
 pub mod interpreter;
 pub mod format;
-pub mod request;
+
+pub mod constants;
+pub mod structs;
+
+

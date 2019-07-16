@@ -16,7 +16,7 @@ const initialState = {
                 id: "id02",
                 type: "cell",
                 name: "Name",
-                input: "2 + 3"
+                input: "id01 + 3"
             },
             "id03": {
                 id: "id03",
