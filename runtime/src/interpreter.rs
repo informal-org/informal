@@ -6,15 +6,12 @@ with interop with separately compiled modules.
 */
 
 use super::parser;
-use super::generator;
 use super::lexer::*;
-use std::fs;
 use avs::*;
-use std::collections::HashMap;
+// use std::collections::HashMap;
 
 
 use avs::constants::*;
-use super::constants::*;
 use super::structs::*;
 
 
@@ -53,7 +50,7 @@ pub fn apply_operator(operator: KeywordType, stack: &mut Vec<u64>) {
 }
 
 
-pub fn interpret_expr(postfix: &mut Vec<TokenType>, id: i32) -> u64 {
+pub fn interpret_expr(postfix: &mut Vec<TokenType>, _id: i32) -> u64 {
     // TODO: Faster stack version of this without heap alloc.
     let mut expr_stack: Vec<u64> = Vec::with_capacity(postfix.len());
 
@@ -96,7 +93,7 @@ pub fn interpret_one(input: String) -> u64 {
 pub fn interpret_all(inputs: Vec<String>) -> Vec<u64> {
     let mut results: Vec<u64> = Vec::with_capacity(inputs.len());
     // let mut symbol_table: HashMap<u64> = Vec::with_capacity(inputs.len());
-    let mut symbol_table: HashMap<String, usize> = HashMap::new();
+    // let mut symbol_table: HashMap<String, usize> = HashMap::new();
     let mut index = 0;
 
     for input in inputs {

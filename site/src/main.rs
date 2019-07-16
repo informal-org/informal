@@ -1,15 +1,13 @@
-use std::path::PathBuf;
 use actix_files as fs;
 use actix_files::NamedFile;
 use actix_web::{web, App, HttpRequest, HttpServer, Responder};
-use runtime::repl::{read_eval, read_multi, eval};
 use runtime::format;
 use runtime::interpreter::{interpret_all};
-use runtime::request::{CellRequest, CellResponse, EvalRequest, EvalResponse};
+use runtime::structs::{CellResponse, EvalRequest, EvalResponse};
 
 
 
-fn home(req: HttpRequest) -> actix_web::Result<NamedFile> {
+fn home(_req: HttpRequest) -> actix_web::Result<NamedFile> {
     // let path: PathBuf = req.match_info().query("filename").parse().unwrap();
     return Ok(NamedFile::open("templates/index.html")?)
 }
@@ -40,10 +38,10 @@ fn evaluate(req: web::Json<EvalRequest>) -> impl Responder {
     return web::Json(EvalResponse{results: results} )
 }
 
-fn eval_expr(req: HttpRequest) -> impl Responder {
-    let q = req.uri().query().unwrap();
-    return read_eval(String::from(q))
-}
+// fn eval_expr(req: HttpRequest) -> impl Responder {
+//     let q = req.uri().query().unwrap();
+//     return read_eval(String::from(q))
+// }
 
 pub fn main() {
     HttpServer::new(|| {

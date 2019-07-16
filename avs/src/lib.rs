@@ -19,12 +19,10 @@ pub mod macros;
 use constants::*;
 use structs::*;
 
-#[macro_use]
-use macros::*;
+// #[macro_use]
+// use macros::*;
 
 use core::slice;
-use core::fmt::{Write, self};
-use core::panic::PanicInfo;
 
 extern crate alloc;
 use alloc::vec::Vec;

@@ -5,12 +5,6 @@ use std::result;
 
 pub type Result<T> = result::Result<T, u64>;
 
-use avs::constants::*;
-use constants::*;
-use structs::*;
-
-
-
 pub mod lexer;
 pub mod parser;
 pub mod generator;

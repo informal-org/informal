@@ -1,5 +1,3 @@
-use wasmer_runtime::memory::MemoryView;
-use wasmer_runtime::{Instance};
 
 #[macro_export]
 macro_rules! decode_values {
@@ -31,19 +29,3 @@ macro_rules! decode_values {
     });
 }
 
-
-#[macro_export]
-macro_rules! decode_deref {
-    ($memory_view:expr, $ptr:expr) => ({
-        // Reads from a boxed indirect of length, pointer
-        let boxed_pointer = decode_values!($memory_view, $ptr, 2);
-
-        let length = boxed_pointer[0].get();
-        let reference = boxed_pointer[1].get();
-        println!("Reference {:?} Length: {:?}", reference, length);
-
-        let result = decode_values!($memory_view, reference, length);
-        
-        result
-    })
-}

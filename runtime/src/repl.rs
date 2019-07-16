@@ -1,23 +1,13 @@
 use super::lexer;
 use super::parser;
 use super::generator;
-use super::interpreter;
 use super::format;
+use super::{decode_values};
 
-use wasmer_runtime::{func, Func, imports, compile, instantiate, Ctx, Value};
+use wasmer_runtime::{Func, imports, compile};
 use wabt::wat2wasm;
-
 use wasmer_runtime::memory::MemoryView;
-use wasmer_runtime::{Instance};
-
-#[macro_use]
-use super::{decode_values, decode_deref};
-
 use std::time::SystemTime;
-
-use avs::constants::*;
-use super::constants::*;
-use super::structs::*;
 
 
 
@@ -49,7 +39,7 @@ pub fn read_multi(inputs: Vec<String>) -> String {
 }
 
 pub fn eval_compiled(wasm_binary: Vec<u8>) -> Vec<u64> {
-    let CELL_COUNT = 2000;
+    let cell_count = 2000;
     let module = compile(&wasm_binary).unwrap();
     
     println!("WASM Compile: {:?}", SystemTime::now());
@@ -61,7 +51,7 @@ pub fn eval_compiled(wasm_binary: Vec<u8>) -> Vec<u64> {
     println!("WASM instantiate: {:?}", SystemTime::now());
 
     let main: Func<(u32),u32> = instance.func("__av_run").unwrap();
-    let value = main.call(CELL_COUNT).unwrap();
+    let value = main.call(cell_count).unwrap();
 
     println!("Arevel Run: {:?}", SystemTime::now());
     // let value = instance.call("_start", &[]);
@@ -69,9 +59,9 @@ pub fn eval_compiled(wasm_binary: Vec<u8>) -> Vec<u64> {
     // println!("Return value {:?}", value);
     let memory = instance.context().memory(0);
     let memory_view: MemoryView<u64> = memory.view();
-    let cell_results = decode_values!(memory_view, value, CELL_COUNT);
+    let cell_results = decode_values!(memory_view, value, cell_count);
 
-    let mut results: Vec<u64> = Vec::with_capacity(CELL_COUNT as usize);
+    let mut results: Vec<u64> = Vec::with_capacity(cell_count as usize);
 
     for cell in cell_results {
         results.push(cell.get());
@@ -86,7 +76,6 @@ pub fn eval_compiled(wasm_binary: Vec<u8>) -> Vec<u64> {
 
 pub fn eval(wat: String) -> Vec<u64> {
     let t0 = SystemTime::now();
-    let compiled = false;
 
     let wasm_binary = wat2wasm(wat).unwrap();
     let t1 = SystemTime::now();
@@ -124,6 +113,7 @@ pub fn read_eval(input: String) -> String {
 mod tests {
     use super::*;
     use avs::{VALUE_TRUE, VALUE_FALSE};
+    use super::interpreter;
 
     macro_rules! read_eval {
         ($e:expr) => ({

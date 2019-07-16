@@ -20,8 +20,9 @@ runtime = { path = "runtime" }
 
 
 # Allow us to catch panics in parsing, eval etc. without bringing down the system.
-[profile.debug]
+[profile.dev]
 panic = "unwind"
 
 [profile.release]
 panic = "unwind"
+

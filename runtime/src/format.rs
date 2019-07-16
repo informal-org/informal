@@ -2,10 +2,6 @@ use avs::{__av_typeof};
 use avs::structs::{ValueType};
 use avs::constants::*;
 
-use avs::constants::*;
-use super::constants::*;
-use super::structs::*;
-
 
 pub fn repr(result: u64) -> String {
     let result_type = __av_typeof(result);

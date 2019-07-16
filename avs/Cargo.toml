@@ -7,8 +7,8 @@ edition = "2018"
 #[build]
 # target = "wasm32-unknown-unknown"
 # Arevel: Targets unknown-emscripten because libc malloc & free is unsupported on unk-unk
-[build]
-target = "wasm32-unknown-emscripten"
+# [build]
+# target = "wasm32-unknown-emscripten"
 
 # rlib??
 [lib]
@@ -30,10 +30,6 @@ wee_alloc = "0.4.4"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.2"
-
-# Tell `rustc` to optimize for small code size.
-[profile.release]
-opt-level = "s"
 
 [dependencies.wasm-bindgen]
 version = "0.2.47"
