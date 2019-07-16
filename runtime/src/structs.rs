@@ -1,9 +1,11 @@
+use std::collections::HashMap;
+
 // Enum values are associated with their index for fast precedence lookup.
 #[derive(Debug,PartialEq)]
 pub enum TokenType {
     Keyword(KeywordType),
     Literal(LiteralValue),
-    Identifier(String),
+    Identifier(u64),
 }
 
 #[derive(Debug,PartialEq)]
@@ -39,28 +41,10 @@ pub enum KeywordType {
 }
 
 #[derive(Debug,PartialEq)]
-pub enum ASTNodeType {
-    BinaryExpression,
-    UnaryExpression,
-    Identifier,
-    Literal
-}
-
-#[derive(Debug,PartialEq)]
 pub enum Value {
     Literal(LiteralValue),
-    Identifier(String)
+    Identifier(u64)
 }
-
-#[derive(Debug,PartialEq)]
-pub struct ASTNode {
-    pub node_type: ASTNodeType,
-    pub operator: Option<KeywordType>,
-    pub left: Option<Box<ASTNode>>,
-    pub right: Option<Box<ASTNode>>,
-    pub value: Option<Value>
-}
-
 
 #[derive(Serialize)]
 pub struct CellResponse {
@@ -84,3 +68,36 @@ pub struct CellRequest {
 pub struct EvalRequest {
     pub body: Vec<CellRequest>
 }
+
+pub struct AST {
+    pub namespace: Namespace,
+
+}
+
+// Kind of a linked list structure
+// Pure functions are scoped to their parameters. i.e. null parent.
+// You can reference parent, but never child or sibiling data.
+pub struct Namespace {
+    pub parent: Box<Option<Namespace>>,
+    // identifier -> result?
+    pub values: HashMap<u64, u64>
+}
+
+// #[derive(Debug,PartialEq)]
+// pub struct ASTNode {
+//     pub node_type: ASTNodeType,
+//     pub operator: Option<KeywordType>,
+//     pub left: Option<Box<ASTNode>>,
+//     pub right: Option<Box<ASTNode>>,
+//     pub value: Option<Value>
+// }
+
+
+// #[derive(Debug,PartialEq)]
+// pub enum ASTNodeType {
+//     BinaryExpression,
+//     UnaryExpression,
+//     Identifier,
+//     Literal
+// }
+

@@ -259,9 +259,20 @@ pub fn lex(expr: &str) -> Result<Vec<TokenType>> {
                 let keyword = reserved_keyword(&token_str);
                 if keyword != None { 
                     keyword
+                } else {
+                    // TODO more specific error
+                    return Err(PARSE_ERR_UNKNOWN_TOKEN);
                 }
-                else {
-                    Some(TokenType::Identifier(String::from(token_str) ))
+            }
+            '@' => {
+                let mut token_str: String = String::from("");
+                gobble_digits(&mut token_str, &mut it);
+                // TODO: Better panic handling
+                if let Some(id) = token_str.parse::<u64>().ok() {
+                    Some(TokenType::Identifier(id))
+                } else {
+                    // TODO: Invalid identifier
+                    return Err(PARSE_ERR_UNKNOWN_TOKEN);
                 }
             },
             // Whitespace - ignore

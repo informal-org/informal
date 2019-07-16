@@ -5,14 +5,15 @@ There may be more of a hybrid version in the future,
 with interop with separately compiled modules.
 */
 
+use std::collections::HashMap;
 use super::parser;
 use super::lexer::*;
-use avs::*;
-// use std::collections::HashMap;
-
-
-use avs::constants::*;
 use super::structs::*;
+use super::format::*;
+use avs::*;
+use avs::constants::*;
+
+
 
 
 
@@ -90,18 +91,39 @@ pub fn interpret_one(input: String) -> u64 {
     return interpret_expr(&mut parsed, 0);
 }
 
-pub fn interpret_all(inputs: Vec<String>) -> Vec<u64> {
-    let mut results: Vec<u64> = Vec::with_capacity(inputs.len());
-    // let mut symbol_table: HashMap<u64> = Vec::with_capacity(inputs.len());
-    // let mut symbol_table: HashMap<String, usize> = HashMap::new();
+// pub fn build_ast(inputs: EvalRequest) {
+
+// }
+
+pub fn interpret_all(request: EvalRequest) -> EvalResponse {
+    let mut results: Vec<CellResponse> = Vec::with_capacity(request.body.len());
+    // External Global ID -> Internal ID
+    let mut _ast = AST {
+        namespace: Namespace {
+            parent: Box::new(None),
+            values: HashMap::new()
+        }
+    };
     let mut index = 0;
 
-    for input in inputs {
-        let mut lexed = lex(&input).unwrap();
+    for cell in request.body {
+        let mut lexed = lex(&cell.input).unwrap();
         // println!("Lex: {:?}", SystemTime::now().duration_since(t1));
         let mut parsed = parser::parse(&mut lexed).unwrap();
-        results.push(interpret_expr(&mut parsed, index));
+        let result = interpret_expr(&mut parsed, index);
+
+        // TODO: Split up the format if there's a different use-case that doesn't need the string format.
+
+        results.push(CellResponse {
+            id: cell.id,
+            output: repr(result),
+            error: String::from("")
+        });
         index += 1;
+
     }
-    return results;
+    return EvalResponse {
+        results: results
+    }
 }
+
