@@ -70,10 +70,10 @@ pub fn expr_to_wat(postfix: &mut Vec<TokenType>, id: i32) -> String {
 }
 
 pub fn link_avs(body: String) -> String {
-    let header = fs::read_to_string("/Users/feni/code/arevel/avs/header.wat")
+    let header = fs::read_to_string("../header.wat")
        .expect("Error reading header");
 
-    let footer = fs::read_to_string("/Users/feni/code/arevel/avs/footer.wat")
+    let footer = fs::read_to_string("../footer.wat")
        .expect("Error reading footer");
 
     return header + &body + ")" + &footer;

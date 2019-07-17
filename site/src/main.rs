@@ -48,13 +48,14 @@ pub fn main() {
     HttpServer::new(|| {
         App::new()
         .route("/", web::get().to(home))
-        .route("/evaluate", web::get().to(evaluate))
         .route("/api/evaluate", web::post().to(evaluate))
-        .service(fs::Files::new("/static", "static/dist/static").show_files_listing())
-        // .route("/eval", web::get().to(eval_expr))
+        .service(fs::Files::new("/static", "static/dist/static"))
     })
-    .bind("127.0.0.1:9000")
-    .expect("Can not bind to port 8000")
+    .bind("127.0.0.1:9080")
+    .expect("Can not bind to port 9080")
     .run()
     .unwrap();
 }
+// .route("/evaluate", web::get().to(evaluate))
+// .route("/eval", web::get().to(eval_expr))
+// .show_files_listing())
