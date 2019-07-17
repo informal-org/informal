@@ -3,6 +3,9 @@ use super::parser;
 use super::generator;
 use super::format;
 use super::{decode_values};
+use super::interpreter::*;
+use super::constants::*;
+
 
 use wasmer_runtime::{Func, imports, compile};
 use wabt::wat2wasm;
@@ -112,8 +115,8 @@ pub fn read_eval(input: String) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use avs::{VALUE_TRUE, VALUE_FALSE};
-    use super::interpreter;
+    use avs::constants::{VALUE_TRUE, VALUE_FALSE};
+    use crate::interpreter;
 
     macro_rules! read_eval {
         ($e:expr) => ({

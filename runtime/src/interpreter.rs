@@ -13,10 +13,6 @@ use super::format::*;
 use avs::*;
 use avs::constants::*;
 
-
-
-
-
 macro_rules! apply_bin_op {
     ($op:expr, $stack:expr) => ({
         // Pop b first since it's in postfix
@@ -51,7 +47,8 @@ pub fn apply_operator(operator: KeywordType, stack: &mut Vec<u64>) {
 }
 
 
-pub fn interpret_expr(postfix: &mut Vec<TokenType>, _id: i32) -> u64 {
+pub fn interpret_expr(postfix: &mut Vec<TokenType>, ast: &AST) -> u64 {
+    println!("Interpreting {:?}", postfix);
     // TODO: Faster stack version of this without heap alloc.
     let mut expr_stack: Vec<u64> = Vec::with_capacity(postfix.len());
 
@@ -71,8 +68,15 @@ pub fn interpret_expr(postfix: &mut Vec<TokenType>, _id: i32) -> u64 {
                     },
                     _ => {
                         // TODO
-
                     }
+                }
+            },
+            TokenType::Identifier(reference) => {
+                // TODO: Lookup rules
+                if let Some(val) = ast.namespace.values.get(&reference) {
+                    expr_stack.push(val.clone());
+                } else {
+                    println!("Could not find identifier! {:?}", reference);
                 }
             },
             _ => {
@@ -88,7 +92,15 @@ pub fn interpret_expr(postfix: &mut Vec<TokenType>, _id: i32) -> u64 {
 pub fn interpret_one(input: String) -> u64 {
     let mut lexed = lex(&input).unwrap();
     let mut parsed = parser::parse(&mut lexed).unwrap();
-    return interpret_expr(&mut parsed, 0);
+    // TODO: AST new.
+    // TODO: A base, shared global namespace.
+    let mut ast = AST {
+        namespace: Namespace {
+            parent: Box::new(None),
+            values: HashMap::new()
+        }
+    };
+    return interpret_expr(&mut parsed, &ast);
 }
 
 // pub fn build_ast(inputs: EvalRequest) {
@@ -98,7 +110,7 @@ pub fn interpret_one(input: String) -> u64 {
 pub fn interpret_all(request: EvalRequest) -> EvalResponse {
     let mut results: Vec<CellResponse> = Vec::with_capacity(request.body.len());
     // External Global ID -> Internal ID
-    let mut _ast = AST {
+    let mut ast = AST {
         namespace: Namespace {
             parent: Box::new(None),
             values: HashMap::new()
@@ -110,20 +122,23 @@ pub fn interpret_all(request: EvalRequest) -> EvalResponse {
         let mut lexed = lex(&cell.input).unwrap();
         // println!("Lex: {:?}", SystemTime::now().duration_since(t1));
         let mut parsed = parser::parse(&mut lexed).unwrap();
-        let result = interpret_expr(&mut parsed, index);
+        let result = interpret_expr(&mut parsed, &ast);
+
+        // Attempt to parse ID of cell and save result
+        if let Some(id64) = cell.id[1..].parse::<u64>().ok() {
+            ast.namespace.values.insert(id64, result);
+        }
 
         // TODO: Split up the format if there's a different use-case that doesn't need the string format.
-
         results.push(CellResponse {
             id: cell.id,
             output: repr(result),
             error: String::from("")
         });
         index += 1;
-
     }
+
     return EvalResponse {
         results: results
     }
 }
-

@@ -6,99 +6,53 @@ import { CELL_MAX_WIDTH, CELL_MAX_HEIGHT } from './utils.js'
 const initialState = {
     cells: {
         byId: {
-            "id01": {
-                id: "id01",
+            "@1": {
+                id: "@1",
                 type: "cell",
                 name: "Count",
                 input: "1 + 1"
             },
-            "id02": {
-                id: "id02",
+            "@2": {
+                id: "@2",
                 type: "cell",
                 name: "Name",
-                input: "id01 + 3"
+                input: "@1 + 3"
             },
-            "id03": {
-                id: "id03",
+            "@3": {
+                id: "@3",
                 type: "list",
                 name: "List",
                 length: 3,
-                values: ["id04", "id05", "id06"]
+                values: ["@4", "@5", "@6"]
             },
-            "id04": {
-                id: "id04",
+            "@4": {
+                id: "@4",
                 type: "listcell",
                 input: "1",
-                parent: "id03"
+                parent: "@3"
             },
-            "id05": {
-                id: "id05",
+            "@5": {
+                id: "@5",
                 type: "listcell",
                 input: "2",
-                parent: "id03"
+                parent: "3"
             },
-            "id06": {
-                id: "id06",
+            "@6": {
+                id: "@6",
                 type: "listcell",
                 input: "3",
-                parent: "id03"
-            },
-            
-            "id07": {
-                id: "id07",
-                type: "listcell",
-                input: "9",
-            },
-            "id08": {
-                id: "id08",
-                type: "listcell",
-                input: "9",
-            },            
-            "id09": {
-                id: "id09",
-                type: "listcell",
-                input: "9",
-            },
-            "id10": {
-                id: "id10",
-                type: "listcell",
-                input: "9",
-            },
-            "id11": {
-                id: "id11",
-                type: "listcell",
-                input: "9",
-            },
-            "id12": {
-                id: "id12",
-                type: "listcell",
-                input: "9",
-            },
-            "id13": {
-                id: "id13",
-                type: "listcell",
-                input: "9",
-            },
-            "id14": {
-                id: "id14",
-                type: "listcell",
-                input: "9",
-            },
-            "id15": {
-                id: "id15",
-                type: "listcell",
-                input: "9",
+                parent: "3"
             },
         },
-        allIds: ["id01", "id02", "id03", "id04", "id05", "id06", "id07", "id08", "id09", "id10", "id11", "id12", "id13", "id14", "id15",],
+        allIds: ["@1", "@2", "@3", "@4", "@5", "@6",],
         focus: null,  // ID of the element selected
         modified: true,  // Allow initial evaluation
     }
 }
 
 // 280
-for(var i = 16; i < 100; i++){
-    let id = "id";
+for(var i = 7; i < 100; i++){
+    let id = "@";
     if(i < 10) {
         id += "0";
     }

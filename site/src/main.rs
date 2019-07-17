@@ -23,19 +23,20 @@ fn evaluate(req: web::Json<EvalRequest>) -> impl Responder {
 
     // let program_wat = read_multi(inputs);
     // let eval_res = eval(program_wat);
-    let eval_res = interpret_all(inputs);
+    let eval_res = interpret_all(req.into_inner());
 
-    let size = req.body.len();
-    for i in 0..size {
-        let cell = &req.body[i];
-        let cell_result = eval_res[i];
-        results.push(CellResponse { id: cell.id.clone(), output: format::repr(cell_result), error: "".to_string() });
-    }
+    // let size = req.body.len();
+    // for i in 0..size {
+    //     let cell = &req.body[i];
+    //     let cell_result = eval_res[i];
+    //     results.push(CellResponse { id: cell.id.clone(), output: format::repr(cell_result), error: "".to_string() });
+    // }
     
     // results.push(CellResponse { id: "id02".to_string(), output: "1".to_string(), error: "".to_string() });
     // results.push(CellResponse { id: "id03".to_string(), output: "4".to_string(), error: "".to_string() });
 
-    return web::Json(EvalResponse{results: results} )
+    // return web::Json(EvalResponse{results: results} )
+    return web::Json(eval_res)
 }
 
 // fn eval_expr(req: HttpRequest) -> impl Responder {

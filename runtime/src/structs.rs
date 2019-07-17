@@ -71,7 +71,6 @@ pub struct EvalRequest {
 
 pub struct AST {
     pub namespace: Namespace,
-
 }
 
 // Kind of a linked list structure

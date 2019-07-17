@@ -102,6 +102,7 @@ pub fn parse(infix: &mut Vec<TokenType>) -> Result<Vec<TokenType>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::constants::*;
 
     #[test]
     fn test_parse_basic() {
