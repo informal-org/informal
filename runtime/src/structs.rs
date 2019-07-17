@@ -73,6 +73,14 @@ pub struct AST {
     pub namespace: Namespace,
 }
 
+#[derive(Debug,PartialEq)]
+pub struct ASTNode {
+    id: u64,
+    parsed: Option<Vec<TokenType>>,
+    depends_on: Vec<u64>,
+    used_by: Vec<u64>,
+}
+
 // Kind of a linked list structure
 // Pure functions are scoped to their parameters. i.e. null parent.
 // You can reference parent, but never child or sibiling data.
@@ -82,7 +90,7 @@ pub struct Namespace {
     pub values: HashMap<u64, u64>
 }
 
-// #[derive(Debug,PartialEq)]
+
 // pub struct ASTNode {
 //     pub node_type: ASTNodeType,
 //     pub operator: Option<KeywordType>,
