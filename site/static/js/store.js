@@ -51,7 +51,7 @@ const initialState = {
 }
 
 // 280
-for(var i = 7; i < 100; i++){
+for(var i = 7; i < 240; i++){
     let id = "@";
     if(i < 10) {
         id += "0";

@@ -11,7 +11,15 @@ COPY ./Cargo.toml ./Cargo.toml
 
 # this build step will cache your dependencies
 RUN cargo build --release
+# copy your source tree
+COPY ./src ./src
 
+# build for release
+RUN rm ./target/release/deps/arevel*
+RUN cargo build --release
 
-RUN cargo build
-ENV MIX_ENV=prod REPLACE_OS_VARS=true TERM=xterm
+#RUN cargo build
+#ENV MIX_ENV=prod REPLACE_OS_VARS=true TERM=xterm
+
+# set the startup command to run your binary
+CMD ["./target/release/site"]
