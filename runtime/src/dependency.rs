@@ -64,8 +64,67 @@ pub fn get_eval_order(cells: &mut Vec<ASTNode>) -> Vec<ASTNode> {
 mod tests {
     use super::*;
 
+
+    macro_rules! add_dep {
+        ($a:expr, $b:expr) => ({
+            $a.depends_on.push($b.id);
+            $b.used_by.push($a.id);
+        });
+    }
+
+    fn index_of(vec: &Vec<ASTNode>, target: &ASTNode) -> i32 {
+        let mut i = 0;
+        for node in vec {
+            if node.id == target.id {
+                return i
+            }
+            i += 1;
+        }
+
+        return i;
+        
+    }
+
+
     #[test]
     fn test_eval_order() {
-        
+
+        let mut a = ASTNode::new(1);
+        let mut b = ASTNode::new(2);
+        let mut c = ASTNode::new(3);
+        let mut d = ASTNode::new(4);
+        let mut e = ASTNode::new(5);
+        let mut f = ASTNode::new(6);
+
+    /*
+    // #       a
+    // #    b    c
+    // #         d
+    // #       e   f
+    */
+
+        add_dep!(a, b);
+        add_dep!(a, c);
+        add_dep!(c, d);
+        add_dep!(d, e);
+        add_dep!(d, f);
+
+        let mut cells = vec![a.clone(), b.clone(), c.clone(), d.clone(), e.clone(), f.clone()];
+        let count = cells.len();
+        let order = get_eval_order(&mut cells);
+
+        println!("{:?}", order);
+
+        // Assert everything returned
+        assert_eq!(order.len(), count);
+        // Expect ordered maintained. Doesn't matter if e is before or after f.
+
+        assert_eq!(index_of(&order, &e) < index_of(&order, &d), true);
+        assert_eq!(index_of(&order, &f) < index_of(&order, &d), true);
+        assert_eq!(index_of(&order, &d) < index_of(&order, &c), true);
+        assert_eq!(index_of(&order, &c) < index_of(&order, &a), true);
+        assert_eq!(index_of(&order, &b) < index_of(&order, &a), true);
+        // Node A should be evaluated last
+        assert_eq!(index_of(&order, &a) == (order.len() as i32) - 1, true);
     }
 }

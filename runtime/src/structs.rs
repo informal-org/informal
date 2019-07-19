@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 
 // Enum values are associated with their index for fast precedence lookup.
-#[derive(Debug,PartialEq)]
+#[derive(Debug,PartialEq,Clone)]
 pub enum TokenType {
     Keyword(KeywordType),
     Literal(LiteralValue),
     Identifier(u64),
 }
 
-#[derive(Debug,PartialEq)]
+#[derive(Debug,PartialEq,Clone)]
 pub enum LiteralValue {
     NoneValue,
     BooleanValue(u64), 
@@ -73,7 +73,7 @@ pub struct AST {
     pub namespace: Namespace,
 }
 
-#[derive(Debug,PartialEq)]
+#[derive(Debug,PartialEq,Clone)]
 pub struct ASTNode {
     pub id: u64,
     pub parsed: Option<Vec<TokenType>>,
@@ -82,6 +82,19 @@ pub struct ASTNode {
     // Internal dependency counter used during ordering.
     pub unmet_depend_count: i32
 }
+
+impl ASTNode {
+    pub fn new(id: u64) -> ASTNode {
+        return ASTNode {
+            id: id, 
+            parsed: None, 
+            depends_on: Vec::new(),
+            used_by: Vec::new(),
+            unmet_depend_count: 0
+        }
+    }
+}
+
 
 // Kind of a linked list structure
 // Pure functions are scoped to their parameters. i.e. null parent.
