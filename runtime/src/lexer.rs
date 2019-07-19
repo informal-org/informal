@@ -265,7 +265,7 @@ pub fn lex(expr: &str) -> Result<Vec<TokenType>> {
                 }
             }
             '@' => {
-                println!("Is id");
+//                println!("Is id");
                 let mut token_str: String = String::from("");
                 it.next();
                 gobble_digits(&mut token_str, &mut it);

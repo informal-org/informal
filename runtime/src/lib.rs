@@ -12,7 +12,7 @@ pub mod repl;
 pub mod sharedmemory;
 pub mod interpreter;
 pub mod format;
-
+pub mod dependency;
 pub mod constants;
 pub mod structs;
 

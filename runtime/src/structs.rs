@@ -75,10 +75,12 @@ pub struct AST {
 
 #[derive(Debug,PartialEq)]
 pub struct ASTNode {
-    id: u64,
-    parsed: Option<Vec<TokenType>>,
-    depends_on: Vec<u64>,
-    used_by: Vec<u64>,
+    pub id: u64,
+    pub parsed: Option<Vec<TokenType>>,
+    pub depends_on: Vec<u64>,
+    pub used_by: Vec<u64>,
+    // Internal dependency counter used during ordering.
+    pub unmet_depend_count: i32
 }
 
 // Kind of a linked list structure
