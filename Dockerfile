@@ -9,13 +9,14 @@ COPY ./Cargo.lock ./Cargo.lock
 COPY ./Cargo.toml ./Cargo.toml
 
 
-# this build step will cache your dependencies
-RUN cargo build --release
 # copy your source tree
-COPY ./src ./src
+COPY ./ ./
+
+
+FROM conanio/gcc49:1.17.0 as gcc
 
 # build for release
-RUN rm ./target/release/deps/arevel*
+# RUN rm ./target/release/deps/arevel*
 RUN cargo build --release
 
 #RUN cargo build
