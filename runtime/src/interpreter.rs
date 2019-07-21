@@ -5,7 +5,7 @@ There may be more of a hybrid version in the future,
 with interop with separately compiled modules.
 */
 
-use std::collections::HashMap;
+// use std::collections::HashMap;
 use super::parser;
 use super::lexer::*;
 use super::structs::*;
@@ -48,15 +48,15 @@ pub fn apply_operator(operator: KeywordType, stack: &mut Vec<u64>) {
 }
 
 
-pub fn interpret_expr(postfix: &mut Vec<TokenType>, ast: &AST) -> u64 {
+pub fn interpret_expr(postfix: &Vec<TokenType>, ast: &AST) -> u64 {
     println!("Interpreting {:?}", postfix);
     // TODO: Faster stack version of this without heap alloc.
     let mut expr_stack: Vec<u64> = Vec::with_capacity(postfix.len());
 
-    for token in postfix.drain(..) {
+    for token in postfix.iter() {
         match token {
             TokenType::Keyword(kw) => {
-                apply_operator(kw, &mut expr_stack);
+                apply_operator(*kw, &mut expr_stack);
             }, 
             TokenType::Literal(lit) => {
                 match lit {
@@ -65,7 +65,7 @@ pub fn interpret_expr(postfix: &mut Vec<TokenType>, ast: &AST) -> u64 {
                         expr_stack.push(num.to_bits());
                     },
                     LiteralValue::BooleanValue(val) => {    // val = 1 or 0
-                        expr_stack.push(val);
+                        expr_stack.push(*val);
                     },
                     _ => {
                         // TODO
@@ -75,16 +75,18 @@ pub fn interpret_expr(postfix: &mut Vec<TokenType>, ast: &AST) -> u64 {
             TokenType::Identifier(reference) => {
                 // TODO: Lookup rules
                 // TODO: FIX LOOKUP TO WORK WITH SYMBOL TABLE!!!
-                // if let Some(val) = ast.scope.values.get(&reference) {
-                //     expr_stack.push(val.clone());
-                // } else {
-                //     println!("Could not find identifier! {:?}", reference);
-                // }
-            },
-            _ => {
-                // TODO
-                // return String::from("")
+                if let Some(&symbol_index) = ast.scope.symbols.get(&reference) {
+                    let deref_value = *ast.scope.values.get(symbol_index).unwrap();
+                    println!("Deref identifier {:?} {:x} ({:?})", reference, deref_value, deref_value);
+                    expr_stack.push(deref_value);
+                } else {
+                    println!("Could not find identifier! {:?}", reference);
+                }
             }
+            // _ => {
+            //     // TODO
+            //     // return String::from("")
+            // }
         }
     }
     // Assert - only one value on expr stack
@@ -107,16 +109,14 @@ pub fn interpret_one(input: String) -> u64 {
 pub fn interpret_all(request: EvalRequest) -> EvalResponse {
     let mut results: Vec<CellResponse> = Vec::with_capacity(request.body.len());
     // External Global ID -> Internal ID
-    let mut ast = AST::new();
-    let mut ordered_nodes = construct_ast(request);
-    println!("Ordered: {:?}", ordered_nodes);
+    let mut ast = construct_ast(request);
+    // println!("Ordered: {:?}", ordered_nodes);
 
-    for node in ordered_nodes.iter_mut() {
-        let result = interpret_expr(&mut node.parsed, &ast);
+    for node in ast.body.iter() {
+        let result = interpret_expr(&node.parsed, &ast);
         
-        // let symbol_id = ast.scope.symbols.next_symbol_id;    // Assert - this exists
-        // ast.scope.symbols.next_symbol_id += 1;
-        // ast.scope.values.insert(symbol_id, result);
+        let symbol_id = ast.scope.symbols.get(&node.id).unwrap();
+        ast.scope.values[*symbol_id] = result; //.insert(symbol_id, result);
 
         // TODO: Split up the format if there's a different use-case that doesn't need the string format.
         results.push(CellResponse {

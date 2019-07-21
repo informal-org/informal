@@ -80,7 +80,7 @@ impl AST {
             scope: Scope {
                 parent: Box::new(None),
                 symbols: HashMap::with_capacity(0),
-                next_symbol_id: 1,
+                // next_symbol_id: 1,
                 values: Vec::with_capacity(0)
             }, 
             body: Vec::with_capacity(0)
@@ -127,7 +127,7 @@ pub struct Scope {
     
     // Mapping of public IDs to indexes where results will be stored
     pub symbols: HashMap<u64, usize>,
-    pub next_symbol_id: usize,
+    // pub next_symbol_id: usize,
 
     // symbol index -> result
     pub values: Vec<u64>

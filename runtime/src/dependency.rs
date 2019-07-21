@@ -28,7 +28,6 @@ pub fn get_eval_order(cells: &mut Vec<ASTNode>) -> Vec<ASTNode> {
                 depend_count.insert(cell.id, cell);
             }
         };
-
     }
 
     // Iterate over leafs repeatedly building up eval order
@@ -48,6 +47,7 @@ pub fn get_eval_order(cells: &mut Vec<ASTNode>) -> Vec<ASTNode> {
         eval_order.push(leaf);
     }
     // TODO unmet dependency
+    // Assert - depend_count.len() == 0. Else this method will be dropping items.
 
     return eval_order
 }
