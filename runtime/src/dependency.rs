@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::collections::VecDeque;
 
+use avs::constants::{RUNTIME_ERR_CIRCULAR_DEP};
 use super::constants::*;
 use super::structs::*;
 
@@ -46,9 +47,13 @@ pub fn get_eval_order(cells: &mut Vec<ASTNode>) -> Vec<ASTNode> {
 
         eval_order.push(leaf);
     }
-    // TODO unmet dependency
-    // Assert - depend_count.len() == 0. Else this method will be dropping items.
-
+    
+    // Mark any elements remaining with unmet dependencies as having circular dependencies.
+    for (dep_count, mut unmet_dep) in depend_count.drain() {
+        unmet_dep.set_result(RUNTIME_ERR_CIRCULAR_DEP);
+        eval_order.push(unmet_dep);
+    }
+    
     return eval_order
 }
 
@@ -79,7 +84,6 @@ mod tests {
 
     #[test]
     fn test_eval_order() {
-
         let mut a = ASTNode::new(1);
         let mut b = ASTNode::new(2);
         let mut c = ASTNode::new(3);

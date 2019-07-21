@@ -116,6 +116,13 @@ impl ASTNode {
         node.result = Some(error);
         return node;
     }
+
+    pub fn set_result(&mut self, result: u64) {
+        // Set result only if it wasn't previously set to avoid cloberring errors.
+        if self.result.is_none() {
+            self.result = Some(result);
+        }
+    }
 }
 
 
