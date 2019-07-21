@@ -40,11 +40,11 @@ pub enum KeywordType {
     KwEquals = 14,
 }
 
-#[derive(Debug,PartialEq)]
-pub enum Value {
-    Literal(LiteralValue),
-    Identifier(u64)
-}
+// #[derive(Debug,PartialEq)]
+// pub enum Value {
+//     Literal(LiteralValue),
+//     Identifier(u64)
+// }
 
 #[derive(Serialize)]
 pub struct CellResponse {
@@ -80,7 +80,8 @@ pub struct ASTNode {
     pub depends_on: Vec<u64>,
     pub used_by: Vec<u64>,
     // Internal dependency counter used during ordering.
-    pub unmet_depend_count: i32
+    pub unmet_depend_count: i32,
+//    pub error: u64
 }
 
 impl ASTNode {
@@ -90,7 +91,8 @@ impl ASTNode {
             parsed: None, 
             depends_on: Vec::new(),
             used_by: Vec::new(),
-            unmet_depend_count: 0
+            unmet_depend_count: 0,
+
         }
     }
 }

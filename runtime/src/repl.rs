@@ -18,7 +18,7 @@ use std::time::SystemTime;
 pub fn read(input: String) -> String {
     // Reads input expressions and returns WAT equivalent
     let mut lexed = lexer::lex(&input).unwrap();
-    let mut parsed = parser::parse(&mut lexed).unwrap();
+    let mut parsed = parser::apply_operator_precedence(&mut lexed).unwrap();
     // Retrieve shorter summary wat for display.
     let body = generator::expr_to_wat(&mut parsed, 0);
     
@@ -32,7 +32,7 @@ pub fn read_multi(inputs: Vec<String>) -> String {
     let mut index = 0;
     for input in inputs {
         let mut lexed = lexer::lex(&input).unwrap();
-        let mut parsed = parser::parse(&mut lexed).unwrap();
+        let mut parsed = parser::apply_operator_precedence(&mut lexed).unwrap();
 
         body += &generator::expr_to_wat(&mut parsed, index);
         index += 1;
@@ -132,9 +132,9 @@ mod tests {
             assert_eq!(i_result, $expected);
             
 
-            // let c_result = eval(read(String::from($e)))[0];
-            // println!("Checking compiled result");
-            // assert_eq!(c_result, $expected);
+            let c_result = eval(read(String::from($e)))[0];
+            println!("Checking compiled result");
+            assert_eq!(c_result, $expected);
         });
     }
 
@@ -210,6 +210,7 @@ mod tests {
     #[test]
     fn test_identifiers() {
         // Can't just have single value inputs anymore, need cells as inputs
+        
     }
 
 }

@@ -31,11 +31,7 @@ pub fn get_eval_order(cells: &mut Vec<ASTNode>) -> Vec<ASTNode> {
     // Iterate over leafs repeatedly building up eval order
     while let Some(leaf) = leafs.pop_front() {
         for cell_user_id in &leaf.used_by {
-            // if depend_count.contains_key(&cell_user) {
-            //     // Decrement and update count
-            //     // depend_count.insert()
-            // }
-
+            // See if this leaf was the last user for it and it's now a leaf.
             if let Some(cell_user_ref) = depend_count.get_mut(&cell_user_id) {
                 cell_user_ref.unmet_depend_count -= 1;
                 if cell_user_ref.unmet_depend_count <= 0 {
@@ -43,27 +39,18 @@ pub fn get_eval_order(cells: &mut Vec<ASTNode>) -> Vec<ASTNode> {
                     let cell_user_ref2 = depend_count.remove(&cell_user_id).unwrap();
                     leafs.push_back(cell_user_ref2);
                 }
-
-
-                // // TODO: This was moved inline. Verify if ok
-                // // This should not be turned into an else. 
-                // // The item may have been removed in previous branch.
-                // if !depend_count.contains_key(&cell_user_id) {
-
-                // }
-
             }
         }
         eval_order.push(leaf);
     }
     // TODO unmet dependency
+
     return eval_order
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
 
     macro_rules! add_dep {
         ($a:expr, $b:expr) => ({

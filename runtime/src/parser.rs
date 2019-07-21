@@ -22,13 +22,16 @@ fn get_op_precedence(keyword: KeywordType) -> u8 {
     return KEYWORD_PRECEDENCE[index];
 }
 
+
 // TODO: There may be additional edge cases for handling inline function calls within the expression
 // Current assumption is that all variable references are to a value.
-pub fn parse(infix: &mut Vec<TokenType>) -> Result<Vec<TokenType>> {
+pub fn apply_operator_precedence(infix: &mut Vec<TokenType>) -> Result<Vec<TokenType>> {
     // Parse the lexed infix input and construct a postfix version
     // Current implementation uses the shunting yard algorithm for operator precedence.
     let mut postfix: Vec<TokenType> = Vec::with_capacity(infix.len());
     let mut operator_stack: Vec<KeywordType> = Vec::with_capacity(infix.len());
+    // The callee will generate used_by from this.
+    let mut depends_on: Vec<u64> = Vec::new();
 
     for token in infix.drain(..) {
         match &token {
@@ -76,7 +79,10 @@ pub fn parse(infix: &mut Vec<TokenType>) -> Result<Vec<TokenType>> {
                 }
             },
             TokenType::Literal(_lit) => postfix.push(token),
-            TokenType::Identifier(_id) => postfix.push(token)
+            TokenType::Identifier(_id) => {
+                depends_on.push(*_id);
+                postfix.push(token)
+            }
         }
     }
 
@@ -110,7 +116,7 @@ mod tests {
         // 1 + 2
         let mut input: Vec<TokenType> = vec![TokenType::Literal(LiteralValue::NumericValue(1.0)), TOKEN_PLUS, TokenType::Literal(LiteralValue::NumericValue(2.0))];
         let output: Vec<TokenType> = vec![TokenType::Literal(LiteralValue::NumericValue(1.0)), TokenType::Literal(LiteralValue::NumericValue(2.0)), TOKEN_PLUS];
-        assert_eq!(parse(&mut input).unwrap(), output);
+        assert_eq!(apply_operator_precedence(&mut input).unwrap(), output);
     }
 
     #[test]
@@ -131,7 +137,7 @@ mod tests {
             TokenType::Literal(LiteralValue::NumericValue(3.0)),
             TOKEN_PLUS,
         ];
-        assert_eq!(parse(&mut input).unwrap(), output);
+        assert_eq!(apply_operator_precedence(&mut input).unwrap(), output);
 
         // above test with order reversed. 1 + 2 * 3 = 1 2 3 * +
         let mut input2: Vec<TokenType> = vec![
@@ -150,7 +156,7 @@ mod tests {
             TOKEN_PLUS,
         ];
 
-        assert_eq!(parse(&mut input2).unwrap(), output2);
+        assert_eq!(apply_operator_precedence(&mut input2).unwrap(), output2);
     }
 
     #[test]
@@ -173,7 +179,7 @@ mod tests {
             TOKEN_PLUS,
             TOKEN_MULTIPLY
         ];
-        assert_eq!(parse(&mut input).unwrap(), output);
+        assert_eq!(apply_operator_precedence(&mut input).unwrap(), output);
 
         // above test with order reversed. (1 + 2) * 3 = 1 2 + 3 *
         let mut input2: Vec<TokenType> = vec![
@@ -194,6 +200,6 @@ mod tests {
             TOKEN_MULTIPLY,
         ];
 
-        assert_eq!(parse(&mut input2).unwrap(), output2);
+        assert_eq!(apply_operator_precedence(&mut input2).unwrap(), output2);
     }
 }

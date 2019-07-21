@@ -91,7 +91,7 @@ pub fn interpret_expr(postfix: &mut Vec<TokenType>, ast: &AST) -> u64 {
 
 pub fn interpret_one(input: String) -> u64 {
     let mut lexed = lex(&input).unwrap();
-    let mut parsed = parser::parse(&mut lexed).unwrap();
+    let mut parsed = parser::apply_operator_precedence(&mut lexed).unwrap();
     // TODO: AST new.
     // TODO: A base, shared global namespace.
     let mut ast = AST {
@@ -121,7 +121,7 @@ pub fn interpret_all(request: EvalRequest) -> EvalResponse {
     for cell in request.body {
         let mut lexed = lex(&cell.input).unwrap();
         // println!("Lex: {:?}", SystemTime::now().duration_since(t1));
-        let mut parsed = parser::parse(&mut lexed).unwrap();
+        let mut parsed = parser::apply_operator_precedence(&mut lexed).unwrap();
         let result = interpret_expr(&mut parsed, &ast);
 
         // Attempt to parse ID of cell and save result
