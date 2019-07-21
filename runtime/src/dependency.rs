@@ -19,13 +19,14 @@ pub fn get_eval_order(cells: &mut Vec<ASTNode>) -> Vec<ASTNode> {
 
     // Find leafs
     for mut cell in cells.drain(..) {
-        match &cell.depends_on {
-            Some(deps) => {
-                cell.unmet_depend_count = deps.len() as i32;
-                depend_count.insert(cell.id.unwrap(), cell);
+        match cell.depends_on.len() {
+            0 => {
+                leafs.push_back(cell);
             },
             _ => {
-                leafs.push_back(cell);
+                cell.unmet_depend_count = cell.depends_on.len() as i32;
+                depend_count.insert(cell.id, cell);
+                
             }
         };
 
@@ -33,20 +34,18 @@ pub fn get_eval_order(cells: &mut Vec<ASTNode>) -> Vec<ASTNode> {
 
     // Iterate over leafs repeatedly building up eval order
     while let Some(leaf) = leafs.pop_front() {
-        if let Some(used_by) = &leaf.used_by {
-            for cell_user_id in used_by {
-                // See if this leaf was the last user for it and it's now a leaf.
-                if let Some(cell_user_ref) = depend_count.get_mut(&cell_user_id) {
-                    cell_user_ref.unmet_depend_count -= 1;
-                    if cell_user_ref.unmet_depend_count <= 0 {
-                        // Remove nodes without any dependents. 
-                        let cell_user_ref2 = depend_count.remove(&cell_user_id).unwrap();
-                        leafs.push_back(cell_user_ref2);
-                    }
+        for cell_user_id in &leaf.used_by {
+            // See if this leaf was the last user for it and it's now a leaf.
+            if let Some(cell_user_ref) = depend_count.get_mut(&cell_user_id) {
+                cell_user_ref.unmet_depend_count -= 1;
+                if cell_user_ref.unmet_depend_count <= 0 {
+                    // Remove nodes without any dependents. 
+                    let cell_user_ref2 = depend_count.remove(&cell_user_id).unwrap();
+                    leafs.push_back(cell_user_ref2);
                 }
             }
-
         }
+
         eval_order.push(leaf);
     }
     // TODO unmet dependency
@@ -60,26 +59,8 @@ mod tests {
 
     macro_rules! add_dep {
         ($a:expr, $b:expr) => ({
-            match $a.depends_on.as_mut() {
-                Some(a_dep) => {
-                    a_dep.push($b.id.unwrap());
-                },
-                _ => {
-                    let mut dep = Vec::new(); 
-                    dep.push($b.id.unwrap());
-                    $a.depends_on = Some(dep);
-                }
-            };
-
-            match $b.used_by.as_mut() {
-                Some(b_use) => b_use.push($a.id.unwrap()),
-                _ => {
-                    let mut used_by = Vec::new(); 
-                    used_by.push($a.id.unwrap());
-                    $b.used_by = Some(used_by);
-                }
-            };
-
+            $a.depends_on.push($b.id);
+            $b.used_by.push($a.id);
         });
     }
 

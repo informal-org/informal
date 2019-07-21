@@ -91,7 +91,7 @@ pub fn interpret_expr(postfix: &mut Vec<TokenType>, ast: &AST) -> u64 {
 
 pub fn interpret_one(input: String) -> u64 {
     let mut lexed = lex(&input).unwrap();
-    let mut parsed = parser::apply_operator_precedence(&mut lexed).parsed.unwrap();
+    let mut parsed = parser::apply_operator_precedence(0, &mut lexed).parsed;
     // TODO: AST new.
     // TODO: A base, shared global namespace.
     let mut ast = AST {
@@ -120,21 +120,24 @@ pub fn interpret_all(request: EvalRequest) -> EvalResponse {
 
     for cell in request.body {
         let mut lexed = lex(&cell.input).unwrap();
-        // println!("Lex: {:?}", SystemTime::now().duration_since(t1));
-        let mut ast_node = parser::apply_operator_precedence(&mut lexed);
-        let result = interpret_expr(&mut ast_node.parsed.unwrap(), &ast);
+        // println!("Lex: {:?}", SystemTime::now().duration_since(t1));        
 
         // Attempt to parse ID of cell and save result
         if let Some(id64) = cell.id[1..].parse::<u64>().ok() {
+
+            let mut ast_node = parser::apply_operator_precedence(id64, &mut lexed);
+            let result = interpret_expr(&mut ast_node.parsed, &ast);
+
             ast.namespace.values.insert(id64, result);
+
+            // TODO: Split up the format if there's a different use-case that doesn't need the string format.
+            results.push(CellResponse {
+                id: cell.id,
+                output: repr(result),
+                error: String::from("")
+            });
         }
 
-        // TODO: Split up the format if there's a different use-case that doesn't need the string format.
-        results.push(CellResponse {
-            id: cell.id,
-            output: repr(result),
-            error: String::from("")
-        });
         index += 1;
     }
 

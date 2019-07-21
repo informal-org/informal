@@ -24,7 +24,7 @@ fn get_op_precedence(keyword: KeywordType) -> u8 {
 
 // TODO: There may be additional edge cases for handling inline function calls within the expression
 // Current assumption is that all variable references are to a value.
-pub fn apply_operator_precedence(infix: &mut Vec<TokenType>) -> ASTNode {
+pub fn apply_operator_precedence(id: u64, infix: &mut Vec<TokenType>) -> ASTNode {
     // Parse the lexed infix input and construct a postfix version
     // Current implementation uses the shunting yard algorithm for operator precedence.
     let mut postfix: Vec<TokenType> = Vec::with_capacity(infix.len());
@@ -52,7 +52,7 @@ pub fn apply_operator_precedence(infix: &mut Vec<TokenType>) -> ASTNode {
                         }
                         if found == false {
                             // return Err(PARSE_ERR_UNMATCHED_PARENS)
-                            return ASTNode::err(PARSE_ERR_UNMATCHED_PARENS)
+                            return ASTNode::err(id, PARSE_ERR_UNMATCHED_PARENS)
                         }
                     },
                     _ => {
@@ -95,15 +95,15 @@ pub fn apply_operator_precedence(infix: &mut Vec<TokenType>) -> ASTNode {
             KeywordType::KwOpenParen => {
                 println!("Invalid paren in drain operator stack");
                 // return Err(PARSE_ERR_UNMATCHED_PARENS)
-                return ASTNode::err(PARSE_ERR_UNMATCHED_PARENS)
+                return ASTNode::err(id, PARSE_ERR_UNMATCHED_PARENS)
             }
             _ => {}
         }
         postfix.push(TokenType::Keyword(op_kw));
     }
-    let mut node = ASTNode::bare();
-    node.parsed = Some(postfix);
-    node.depends_on = Some(depends_on);
+    let mut node = ASTNode::new(id);
+    node.parsed = postfix;
+    node.depends_on = depends_on;
     return node;
 }
 
@@ -119,7 +119,7 @@ mod tests {
         // 1 + 2
         let mut input: Vec<TokenType> = vec![TokenType::Literal(LiteralValue::NumericValue(1.0)), TOKEN_PLUS, TokenType::Literal(LiteralValue::NumericValue(2.0))];
         let output: Vec<TokenType> = vec![TokenType::Literal(LiteralValue::NumericValue(1.0)), TokenType::Literal(LiteralValue::NumericValue(2.0)), TOKEN_PLUS];
-        assert_eq!(apply_operator_precedence(&mut input).parsed.unwrap(), output);
+        assert_eq!(apply_operator_precedence(0, &mut input).parsed, output);
     }
 
     #[test]
@@ -140,7 +140,7 @@ mod tests {
             TokenType::Literal(LiteralValue::NumericValue(3.0)),
             TOKEN_PLUS,
         ];
-        assert_eq!(apply_operator_precedence(&mut input).parsed.unwrap(), output);
+        assert_eq!(apply_operator_precedence(0, &mut input).parsed, output);
 
         // above test with order reversed. 1 + 2 * 3 = 1 2 3 * +
         let mut input2: Vec<TokenType> = vec![
@@ -159,7 +159,7 @@ mod tests {
             TOKEN_PLUS,
         ];
 
-        assert_eq!(apply_operator_precedence(&mut input2).parsed.unwrap(), output2);
+        assert_eq!(apply_operator_precedence(0, &mut input2).parsed, output2);
     }
 
     #[test]
@@ -182,7 +182,7 @@ mod tests {
             TOKEN_PLUS,
             TOKEN_MULTIPLY
         ];
-        assert_eq!(apply_operator_precedence(&mut input).parsed.unwrap(), output);
+        assert_eq!(apply_operator_precedence(0, &mut input).parsed, output);
 
         // above test with order reversed. (1 + 2) * 3 = 1 2 + 3 *
         let mut input2: Vec<TokenType> = vec![
@@ -203,6 +203,6 @@ mod tests {
             TOKEN_MULTIPLY,
         ];
 
-        assert_eq!(apply_operator_precedence(&mut input2).parsed.unwrap(), output2);
+        assert_eq!(apply_operator_precedence(0, &mut input2).parsed, output2);
     }
 }
