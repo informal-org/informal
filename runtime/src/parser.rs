@@ -119,7 +119,7 @@ mod tests {
         // 1 + 2
         let mut input: Vec<TokenType> = vec![TokenType::Literal(LiteralValue::NumericValue(1.0)), TOKEN_PLUS, TokenType::Literal(LiteralValue::NumericValue(2.0))];
         let output: Vec<TokenType> = vec![TokenType::Literal(LiteralValue::NumericValue(1.0)), TokenType::Literal(LiteralValue::NumericValue(2.0)), TOKEN_PLUS];
-        assert_eq!(apply_operator_precedence(&mut input).parsed, output);
+        assert_eq!(apply_operator_precedence(&mut input).parsed.unwrap(), output);
     }
 
     #[test]
@@ -140,7 +140,7 @@ mod tests {
             TokenType::Literal(LiteralValue::NumericValue(3.0)),
             TOKEN_PLUS,
         ];
-        assert_eq!(apply_operator_precedence(&mut input).parsed, output);
+        assert_eq!(apply_operator_precedence(&mut input).parsed.unwrap(), output);
 
         // above test with order reversed. 1 + 2 * 3 = 1 2 3 * +
         let mut input2: Vec<TokenType> = vec![
@@ -159,7 +159,7 @@ mod tests {
             TOKEN_PLUS,
         ];
 
-        assert_eq!(apply_operator_precedence(&mut input2).parsed, output2);
+        assert_eq!(apply_operator_precedence(&mut input2).parsed.unwrap(), output2);
     }
 
     #[test]
@@ -182,7 +182,7 @@ mod tests {
             TOKEN_PLUS,
             TOKEN_MULTIPLY
         ];
-        assert_eq!(apply_operator_precedence(&mut input).parsed, output);
+        assert_eq!(apply_operator_precedence(&mut input).parsed.unwrap(), output);
 
         // above test with order reversed. (1 + 2) * 3 = 1 2 + 3 *
         let mut input2: Vec<TokenType> = vec![
@@ -203,6 +203,6 @@ mod tests {
             TOKEN_MULTIPLY,
         ];
 
-        assert_eq!(apply_operator_precedence(&mut input2).parsed, output2);
+        assert_eq!(apply_operator_precedence(&mut input2).parsed.unwrap(), output2);
     }
 }

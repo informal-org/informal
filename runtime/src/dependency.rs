@@ -60,8 +60,26 @@ mod tests {
 
     macro_rules! add_dep {
         ($a:expr, $b:expr) => ({
-            $a.depends_on.push($b.id);
-            $b.used_by.push($a.id);
+            match $a.depends_on.as_mut() {
+                Some(a_dep) => {
+                    a_dep.push($b.id.unwrap());
+                },
+                _ => {
+                    let mut dep = Vec::new(); 
+                    dep.push($b.id.unwrap());
+                    $a.depends_on = Some(dep);
+                }
+            };
+
+            match $b.used_by.as_mut() {
+                Some(b_use) => b_use.push($a.id.unwrap()),
+                _ => {
+                    let mut used_by = Vec::new(); 
+                    used_by.push($a.id.unwrap());
+                    $b.used_by = Some(used_by);
+                }
+            };
+
         });
     }
 
