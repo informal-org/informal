@@ -117,6 +117,9 @@ mod tests {
     use super::*;
     use avs::constants::{VALUE_TRUE, VALUE_FALSE};
     use crate::interpreter;
+    use crate::structs::*;
+    use serde_json::json;
+
 
     macro_rules! read_eval {
         ($e:expr) => ({
@@ -208,9 +211,71 @@ mod tests {
 
 
     #[test]
-    fn test_identifiers() {
+    fn test_program_eval() {
+        let cell_a = CellRequest {id: String::from("@1"), input: String::from("1 + 1")};
+        let cell_b = CellRequest {id: String::from("@2"), input: String::from("2 + 1")};
+
         // Can't just have single value inputs anymore, need cells as inputs
-        
+        let mut program = EvalRequest {
+            body: Vec::new()
+        };
+        program.body.push(cell_a);
+        program.body.push(cell_b);
+
+        let i_result = interpreter::interpret_all(program);
+
+        let expected_a = CellResponse {
+            id: String::from("@1"), 
+            output: String::from("2"),
+            error: String::from("")
+        };
+
+        let expected_b = CellResponse {
+            id: String::from("@2"), 
+            output: String::from("3"),
+            error: String::from("")
+        };
+
+        let mut expected_results = Vec::new();
+        expected_results.push(expected_a);
+        expected_results.push(expected_b);
+
+        assert_eq!(i_result.results, expected_results);
+    }
+
+
+    #[test]
+    fn test_identifiers() {
+        let cell_a = CellRequest {id: String::from("@1"), input: String::from("1 + 1")};
+        let cell_b = CellRequest {id: String::from("@2"), input: String::from("@1 + 2")};
+
+        // Can't just have single value inputs anymore, need cells as inputs
+        let mut program = EvalRequest {
+            body: Vec::new()
+        };
+        program.body.push(cell_a);
+        program.body.push(cell_b);
+
+        let i_result = interpreter::interpret_all(program);
+
+
+        let expected_a = CellResponse {
+            id: String::from("@1"), 
+            output: String::from("2"),
+            error: String::from("")
+        };
+
+        let expected_b = CellResponse {
+            id: String::from("@2"), 
+            output: String::from("4"),
+            error: String::from("")
+        };
+
+        let mut expected_results = Vec::new();
+        expected_results.push(expected_a);
+        expected_results.push(expected_b);
+
+        assert_eq!(i_result.results, expected_results);    
     }
 
 }

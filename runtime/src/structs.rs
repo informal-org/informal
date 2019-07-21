@@ -46,14 +46,14 @@ pub enum KeywordType {
 //     Identifier(u64)
 // }
 
-#[derive(Serialize)]
+#[derive(Serialize, PartialEq, Debug)]
 pub struct CellResponse {
     pub id: String,
     pub output: String,
     pub error: String
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, PartialEq, Debug)]
 pub struct EvalResponse {
     pub results: Vec<CellResponse>
 }
