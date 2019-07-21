@@ -18,9 +18,9 @@ use std::time::SystemTime;
 pub fn read(input: String) -> String {
     // Reads input expressions and returns WAT equivalent
     let mut lexed = lexer::lex(&input).unwrap();
-    let mut parsed = parser::apply_operator_precedence(&mut lexed).unwrap();
+    let mut ast_node = parser::apply_operator_precedence(&mut lexed);
     // Retrieve shorter summary wat for display.
-    let body = generator::expr_to_wat(&mut parsed, 0);
+    let body = generator::expr_to_wat(&mut ast_node.parsed.unwrap(), 0);
     
     // Evaluate full wat with std lib linked.
     let full_wat = generator::link_avs(body);
@@ -32,9 +32,9 @@ pub fn read_multi(inputs: Vec<String>) -> String {
     let mut index = 0;
     for input in inputs {
         let mut lexed = lexer::lex(&input).unwrap();
-        let mut parsed = parser::apply_operator_precedence(&mut lexed).unwrap();
+        let mut ast_node = parser::apply_operator_precedence(&mut lexed);
 
-        body += &generator::expr_to_wat(&mut parsed, index);
+        body += &generator::expr_to_wat(&mut ast_node.parsed.unwrap(), index);
         index += 1;
     }
     let full_wat = generator::link_avs(body);

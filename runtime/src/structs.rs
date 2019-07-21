@@ -75,25 +75,37 @@ pub struct AST {
 
 #[derive(Debug,PartialEq,Clone)]
 pub struct ASTNode {
-    pub id: u64,
+    pub id: Option<u64>,
     pub parsed: Option<Vec<TokenType>>,
-    pub depends_on: Vec<u64>,
-    pub used_by: Vec<u64>,
+    pub depends_on: Option<Vec<u64>>,
+    pub used_by: Option<Vec<u64>>,
     // Internal dependency counter used during ordering.
     pub unmet_depend_count: i32,
-//    pub error: u64
+    pub result: Option<u64>
 }
 
 impl ASTNode {
     pub fn new(id: u64) -> ASTNode {
-        return ASTNode {
-            id: id, 
-            parsed: None, 
-            depends_on: Vec::new(),
-            used_by: Vec::new(),
-            unmet_depend_count: 0,
+        let mut node = ASTNode::bare();
+        node.id = Some(id);
+        return node;
+    }
 
+    pub fn bare() -> ASTNode {
+        return ASTNode {
+            id: None,
+            parsed: None, 
+            depends_on: None,
+            used_by: None,
+            unmet_depend_count: 0,
+            result: None
         }
+    }
+
+    pub fn err(error: u64) -> ASTNode {
+        let mut node = ASTNode::bare();
+        node.result = Some(error);
+        return node;
     }
 }
 
