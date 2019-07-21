@@ -26,7 +26,6 @@ pub fn get_eval_order(cells: &mut Vec<ASTNode>) -> Vec<ASTNode> {
             _ => {
                 cell.unmet_depend_count = cell.depends_on.len() as i32;
                 depend_count.insert(cell.id, cell);
-                
             }
         };
 

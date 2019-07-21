@@ -254,6 +254,7 @@ pub fn lex(expr: &str) -> Result<Vec<TokenType>> {
             // Interchangable single/double quoted strings grouped as single token.
             '"' | '\'' => Some(TokenType::Literal(parse_string(&mut it)?)),
             // Identifiers and reserved keywords
+            // TODO: Benchmark if a..z vs looking at char code range.
             'a'..='z' | 'A'..='Z' | '_' => {
                 let token_str: String = parse_identifier(&mut it);
                 let keyword = reserved_keyword(&token_str);

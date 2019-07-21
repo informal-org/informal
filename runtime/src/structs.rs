@@ -70,7 +70,22 @@ pub struct EvalRequest {
 }
 
 pub struct AST {
-    pub namespace: Namespace,
+    pub scope: Scope,
+    pub body: Vec<ASTNode>
+}
+
+impl AST {
+    pub fn new() -> AST {
+        return AST {
+            scope: Scope {
+                parent: Box::new(None),
+                symbols: HashMap::with_capacity(0),
+                next_symbol_id: 1,
+                values: Vec::with_capacity(0)
+            }, 
+            body: Vec::with_capacity(0)
+        }
+    }
 }
 
 #[derive(Debug,PartialEq,Clone)]
@@ -107,10 +122,15 @@ impl ASTNode {
 // Kind of a linked list structure
 // Pure functions are scoped to their parameters. i.e. null parent.
 // You can reference parent, but never child or sibiling data.
-pub struct Namespace {
-    pub parent: Box<Option<Namespace>>,
-    // identifier -> result?
-    pub values: HashMap<u64, u64>
+pub struct Scope {
+    pub parent: Box<Option<Scope>>,
+    
+    // Mapping of public IDs to indexes where results will be stored
+    pub symbols: HashMap<u64, usize>,
+    pub next_symbol_id: usize,
+
+    // symbol index -> result
+    pub values: Vec<u64>
 }
 
 

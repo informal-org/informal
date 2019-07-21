@@ -13,6 +13,7 @@ pub mod sharedmemory;
 pub mod interpreter;
 pub mod format;
 pub mod dependency;
+pub mod ast;
 pub mod constants;
 pub mod structs;
 
