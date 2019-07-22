@@ -16,6 +16,12 @@ pub mod constants;
 pub mod structs;
 pub mod macros;
 
+
+#[allow(non_snake_case)]
+pub mod avobj_generated;
+
+
+
 use constants::*;
 use structs::*;
 

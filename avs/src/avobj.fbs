@@ -1,8 +1,9 @@
-namespace Arevel;
+namespace Avsio;
 
 table AVObj {
-  id: uint64;
-  name:string;
+  id:ulong;   // TODO smaller int
+  name:string; 
+  value:ulong;
 }
 
 // AV List Obj

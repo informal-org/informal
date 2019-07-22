@@ -3,9 +3,10 @@ name = "arevel"
 version = "0.1.0"
 authors = ["Feni Varughese <feni727@gmail.com>"]
 edition = "2018"
-#include = [
-#  "runtime/**/*",
-#]
+include = [
+  "avs/**/*",
+]
+
 
 
 [workspace]
@@ -17,6 +18,8 @@ members = [
 
 [dependencies]
 runtime = { path = "runtime" }
+avs = { path = "avs" }
+flatbuffers = "0.6.0"
 
 
 # Allow us to catch panics in parsing, eval etc. without bringing down the system.
