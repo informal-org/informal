@@ -17,6 +17,66 @@ pub mod avsio {
   extern crate flatbuffers;
   use self::flatbuffers::EndianScalar;
 
+#[allow(non_camel_case_types)]
+#[repr(i8)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub enum AVObjType {
+  Obj = 0,
+  Str = 1,
+
+}
+
+const ENUM_MIN_AVOBJ_TYPE: i8 = 0;
+const ENUM_MAX_AVOBJ_TYPE: i8 = 1;
+
+impl<'a> flatbuffers::Follow<'a> for AVObjType {
+  type Inner = Self;
+  #[inline]
+  fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+    flatbuffers::read_scalar_at::<Self>(buf, loc)
+  }
+}
+
+impl flatbuffers::EndianScalar for AVObjType {
+  #[inline]
+  fn to_little_endian(self) -> Self {
+    let n = i8::to_le(self as i8);
+    let p = &n as *const i8 as *const AVObjType;
+    unsafe { *p }
+  }
+  #[inline]
+  fn from_little_endian(self) -> Self {
+    let n = i8::from_le(self as i8);
+    let p = &n as *const i8 as *const AVObjType;
+    unsafe { *p }
+  }
+}
+
+impl flatbuffers::Push for AVObjType {
+    type Output = AVObjType;
+    #[inline]
+    fn push(&self, dst: &mut [u8], _rest: &[u8]) {
+        flatbuffers::emplace_scalar::<AVObjType>(dst, *self);
+    }
+}
+
+#[allow(non_camel_case_types)]
+const ENUM_VALUES_AVOBJ_TYPE:[AVObjType; 2] = [
+  AVObjType::Obj,
+  AVObjType::Str
+];
+
+#[allow(non_camel_case_types)]
+const ENUM_NAMES_AVOBJ_TYPE:[&'static str; 2] = [
+    "Obj",
+    "Str"
+];
+
+pub fn enum_name_avobj_type(e: AVObjType) -> &'static str {
+  let index = e as i8;
+  ENUM_NAMES_AVOBJ_TYPE[index as usize]
+}
+
 pub enum AVObjOffset {}
 #[derive(Copy, Clone, Debug, PartialEq)]
 
@@ -46,42 +106,74 @@ impl<'a> AVObj<'a> {
         _fbb: &'mut_bldr mut flatbuffers::FlatBufferBuilder<'bldr>,
         args: &'args AVObjArgs<'args>) -> flatbuffers::WIPOffset<AVObj<'bldr>> {
       let mut builder = AVObjBuilder::new(_fbb);
-      builder.add_value(args.value);
-      builder.add_id(args.id);
-      if let Some(x) = args.name { builder.add_name(x); }
+      builder.add_hash(args.hash);
+      if let Some(x) = args.bytes { builder.add_bytes(x); }
+      builder.add_length(args.length);
+      if let Some(x) = args.str { builder.add_str(x); }
+      if let Some(x) = args.fields { builder.add_fields(x); }
+      builder.add_avclass(args.avclass);
+      builder.add_obj_type(args.obj_type);
       builder.finish()
     }
 
-    pub const VT_ID: flatbuffers::VOffsetT = 4;
-    pub const VT_NAME: flatbuffers::VOffsetT = 6;
-    pub const VT_VALUE: flatbuffers::VOffsetT = 8;
+    pub const VT_OBJ_TYPE: flatbuffers::VOffsetT = 4;
+    pub const VT_AVCLASS: flatbuffers::VOffsetT = 6;
+    pub const VT_HASH: flatbuffers::VOffsetT = 8;
+    pub const VT_FIELDS: flatbuffers::VOffsetT = 10;
+    pub const VT_STR: flatbuffers::VOffsetT = 12;
+    pub const VT_LENGTH: flatbuffers::VOffsetT = 14;
+    pub const VT_BYTES: flatbuffers::VOffsetT = 16;
 
   #[inline]
-  pub fn id(&self) -> u64 {
-    self._tab.get::<u64>(AVObj::VT_ID, Some(0)).unwrap()
+  pub fn obj_type(&self) -> AVObjType {
+    self._tab.get::<AVObjType>(AVObj::VT_OBJ_TYPE, Some(AVObjType::Obj)).unwrap()
   }
   #[inline]
-  pub fn name(&self) -> Option<&'a str> {
-    self._tab.get::<flatbuffers::ForwardsUOffset<&str>>(AVObj::VT_NAME, None)
+  pub fn avclass(&self) -> u32 {
+    self._tab.get::<u32>(AVObj::VT_AVCLASS, Some(0)).unwrap()
   }
   #[inline]
-  pub fn value(&self) -> u64 {
-    self._tab.get::<u64>(AVObj::VT_VALUE, Some(0)).unwrap()
+  pub fn hash(&self) -> u64 {
+    self._tab.get::<u64>(AVObj::VT_HASH, Some(0)).unwrap()
+  }
+  #[inline]
+  pub fn fields(&self) -> Option<flatbuffers::Vector<'a, u64>> {
+    self._tab.get::<flatbuffers::ForwardsUOffset<flatbuffers::Vector<'a, u64>>>(AVObj::VT_FIELDS, None)
+  }
+  #[inline]
+  pub fn str(&self) -> Option<&'a str> {
+    self._tab.get::<flatbuffers::ForwardsUOffset<&str>>(AVObj::VT_STR, None)
+  }
+  #[inline]
+  pub fn length(&self) -> u32 {
+    self._tab.get::<u32>(AVObj::VT_LENGTH, Some(0)).unwrap()
+  }
+  #[inline]
+  pub fn bytes(&self) -> Option<&'a [u8]> {
+    self._tab.get::<flatbuffers::ForwardsUOffset<flatbuffers::Vector<'a, u8>>>(AVObj::VT_BYTES, None).map(|v| v.safe_slice())
   }
 }
 
 pub struct AVObjArgs<'a> {
-    pub id: u64,
-    pub name: Option<flatbuffers::WIPOffset<&'a  str>>,
-    pub value: u64,
+    pub obj_type: AVObjType,
+    pub avclass: u32,
+    pub hash: u64,
+    pub fields: Option<flatbuffers::WIPOffset<flatbuffers::Vector<'a ,  u64>>>,
+    pub str: Option<flatbuffers::WIPOffset<&'a  str>>,
+    pub length: u32,
+    pub bytes: Option<flatbuffers::WIPOffset<flatbuffers::Vector<'a ,  u8>>>,
 }
 impl<'a> Default for AVObjArgs<'a> {
     #[inline]
     fn default() -> Self {
         AVObjArgs {
-            id: 0,
-            name: None,
-            value: 0,
+            obj_type: AVObjType::Obj,
+            avclass: 0,
+            hash: 0,
+            fields: None,
+            str: None,
+            length: 0,
+            bytes: None,
         }
     }
 }
@@ -91,16 +183,32 @@ pub struct AVObjBuilder<'a: 'b, 'b> {
 }
 impl<'a: 'b, 'b> AVObjBuilder<'a, 'b> {
   #[inline]
-  pub fn add_id(&mut self, id: u64) {
-    self.fbb_.push_slot::<u64>(AVObj::VT_ID, id, 0);
+  pub fn add_obj_type(&mut self, obj_type: AVObjType) {
+    self.fbb_.push_slot::<AVObjType>(AVObj::VT_OBJ_TYPE, obj_type, AVObjType::Obj);
   }
   #[inline]
-  pub fn add_name(&mut self, name: flatbuffers::WIPOffset<&'b  str>) {
-    self.fbb_.push_slot_always::<flatbuffers::WIPOffset<_>>(AVObj::VT_NAME, name);
+  pub fn add_avclass(&mut self, avclass: u32) {
+    self.fbb_.push_slot::<u32>(AVObj::VT_AVCLASS, avclass, 0);
   }
   #[inline]
-  pub fn add_value(&mut self, value: u64) {
-    self.fbb_.push_slot::<u64>(AVObj::VT_VALUE, value, 0);
+  pub fn add_hash(&mut self, hash: u64) {
+    self.fbb_.push_slot::<u64>(AVObj::VT_HASH, hash, 0);
+  }
+  #[inline]
+  pub fn add_fields(&mut self, fields: flatbuffers::WIPOffset<flatbuffers::Vector<'b , u64>>) {
+    self.fbb_.push_slot_always::<flatbuffers::WIPOffset<_>>(AVObj::VT_FIELDS, fields);
+  }
+  #[inline]
+  pub fn add_str(&mut self, str: flatbuffers::WIPOffset<&'b  str>) {
+    self.fbb_.push_slot_always::<flatbuffers::WIPOffset<_>>(AVObj::VT_STR, str);
+  }
+  #[inline]
+  pub fn add_length(&mut self, length: u32) {
+    self.fbb_.push_slot::<u32>(AVObj::VT_LENGTH, length, 0);
+  }
+  #[inline]
+  pub fn add_bytes(&mut self, bytes: flatbuffers::WIPOffset<flatbuffers::Vector<'b , u8>>) {
+    self.fbb_.push_slot_always::<flatbuffers::WIPOffset<_>>(AVObj::VT_BYTES, bytes);
   }
   #[inline]
   pub fn new(_fbb: &'b mut flatbuffers::FlatBufferBuilder<'a>) -> AVObjBuilder<'a, 'b> {

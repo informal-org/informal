@@ -1,9 +1,44 @@
 namespace Avsio;
 
+enum AVObjType:byte {
+    Obj = 0,
+    Str = 1,
+//    AVClass = 2,
+//    AVByteArray = 4,
+}
+
+
+// table AVClass {
+//     id: uint;
+//     superclass: AVClass;
+// }
+
+// table AVStr {
+//     // TODO: obj
+//     length:uint; // TODO: Is this needed?
+//     str:string;
+// }
+
+// table AVByteArray {
+//     length:uint;
+//     arr:[ubyte];
+// }
+
+// table AVFunc {
+//
+//}
+
+// Flatbuffers encourage optional fields packed into a table
+// obj_type is always present. The presence of the other fields depend on type.
 table AVObj {
-  id:ulong;   // TODO smaller int
-  name:string; 
-  value:ulong;
+  // id: uint;   // TODO smaller int
+  obj_type: AVObjType;
+  avclass: uint;    // For objects of obj_type = Obj
+  hash: ulong;
+  fields: [ulong];   // Primitive types or boxed refs to other objects.
+  str: string;
+  length: uint;
+  bytes: [ubyte];
 }
 
 // AV List Obj
