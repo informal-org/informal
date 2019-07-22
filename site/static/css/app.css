@@ -101,6 +101,7 @@ a {
 
 .Cell.Cell--error {
   @apply border-2 border-red-500;
+  white-space: normal;
 }
 .Cell-cellError {
   @apply text-red-500;

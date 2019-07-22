@@ -79,8 +79,7 @@ pub fn interpret_expr(node: &ASTNode, ast: &AST) -> u64 {
                 }
             },
             TokenType::Identifier(reference) => {
-                // TODO: Lookup rules
-                // TODO: FIX LOOKUP TO WORK WITH SYMBOL TABLE!!!
+                // TODO: Lookup scoping rules
                 if let Some(&symbol_index) = ast.scope.symbols.get(&reference) {
                     let deref_value = *ast.scope.values.get(symbol_index).unwrap();
                     expr_stack.push(deref_value);
@@ -101,7 +100,6 @@ pub fn interpret_expr(node: &ASTNode, ast: &AST) -> u64 {
 pub fn interpret_one(input: String) -> u64 {
     let mut lexed = lex(&input).unwrap();
     let mut parsed = parser::apply_operator_precedence(0, &mut lexed).parsed;
-    // TODO: AST new.
     // TODO: A base, shared global namespace.
     let mut ast = AST::new();
     let mut node = ASTNode::new(0);
@@ -117,7 +115,6 @@ pub fn interpret_all(request: EvalRequest) -> EvalResponse {
     let mut results: Vec<CellResponse> = Vec::with_capacity(request.body.len());
     // External Global ID -> Internal ID
     let mut ast = construct_ast(request);
-    // println!("Ordered: {:?}", ordered_nodes);
 
     for node in ast.body.iter() {
         let result = interpret_expr(&node, &ast);

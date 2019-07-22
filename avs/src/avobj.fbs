@@ -1,0 +1,10 @@
+namespace Arevel;
+
+table AVObj {
+  id: uint64;
+  name:string;
+}
+
+// AV List Obj
+
+root_type AVObj;
