@@ -289,6 +289,25 @@ pub extern "C" fn __av_run(size: u32) -> u32 {
     let hello = builder.create_string("Hello Arevel");
 	let results_vec = builder.create_vector(&results);
 
+	let spring = builder.create_string("Spring");
+
+	let obj2 = AVObj::create(&mut builder, &AVObjArgs{
+		avtype: AVObjType::Obj,
+		avclass: 0,
+		avhash: 0,
+		values: None,
+        avstr: Some(spring),
+		length: 0,
+		avbytes: None,
+		avobjs: None
+    });
+
+	let mut obj_vector: Vec<flatbuffers::WIPOffset<AVObj>> = Vec::new();
+	obj_vector.push(obj2);
+	let avobjs = builder.create_vector(&obj_vector);
+	// let avobjs = builder.create_vector(&obj_vector);
+
+
     let obj = AVObj::create(&mut builder, &AVObjArgs{
 		avtype: AVObjType::Obj,
 		avclass: 0,
@@ -297,22 +316,16 @@ pub extern "C" fn __av_run(size: u32) -> u32 {
         avstr: Some(hello),
 		length: 0,
 		avbytes: None,
-		avobjs: None
+		avobjs: Some(avobjs)
     });
 
 	builder.finish(obj, None);
 
 	let buf = builder.finished_data(); 		// Of type `&[u8]`
 
-	// return Box::into_raw(Box::new(out)) as u32;
-	// return Box::into_raw(Box::new(env.cells.into_boxed_slice())) as u32;
-	// return (&results[0] as *const u64) as u32;
-	// return ;
 
 	let ptr = (&buf[0] as *const u8) as u32;
 	let size = buf.len() as u32;
-
-	// let mut reference: [u32; 2] = [ptr, size];
 	return __av_sized_ptr(ptr, size) as u32
 }
 

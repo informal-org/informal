@@ -69,13 +69,14 @@ pub fn eval_compiled(wasm_binary: Vec<u8>) -> Vec<u64> {
     let results = decode_flatbuf!(memory, value, cell_count);
 
     // let cell_results = decode_values!(memory_view, value, cell_count);
-    // let mut results: Vec<u64> = Vec::with_capacity(cell_count as usize);
+    let mut results2: Vec<u64> = Vec::with_capacity(cell_count as usize);
 
     println!("Result : {:?} ", results);
     println!("Result decode: {:?}", SystemTime::now());
 
     // println!("At value {:?}", results);
-    return results;
+    // return results;
+    return results2;
 }
 
 

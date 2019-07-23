@@ -75,11 +75,14 @@ macro_rules! decode_flatbuf {
         // println!("{:?}", fb_bytes);
         let fb = get_root_as_avobj(&fb_bytes);
 
-        // println!("Flatbuffer {:?}", fb);
+        println!("Flatbuffer {:?}", fb);
 
         // let result: Vec<u8> = Vec::new();
         // result
         // fb
+        let objects = fb.avobjs().unwrap();
+        println!("objs: {:?}", objects.get(0));
+        println!("obj str: {:?}", objects.get(0).avstr());
 
         let values = fb.values().unwrap();
         // Perform another copy of the data - due to ownership rules
