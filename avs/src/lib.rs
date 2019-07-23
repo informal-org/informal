@@ -1,26 +1,20 @@
 pub mod constants;
 pub mod structs;
 pub mod macros;
-
 #[allow(non_snake_case)]
-pub mod avobj_generated;
-
-extern crate flatbuffers;
-pub use crate::avobj_generated::avsio::{AVObj, AVObjArgs, get_root_as_avobj, AVObjType};
-
-
+pub mod avfb_generated;
 
 use constants::*;
 use structs::*;
+#[allow(non_snake_case)]
+pub use crate::avfb_generated::avfb::{AvFbObj, AvFbObjArgs, get_root_as_av_fb_obj, AvFbObjType};
 
-// #[macro_use]
-// use macros::*;
-
-use core::slice;
-
+extern crate flatbuffers;
 extern crate alloc;
 use alloc::vec::Vec;
 use alloc::boxed::Box;
+
+use core::slice;
 
 #[cfg(target_os = "unknown")]
 extern {
@@ -196,10 +190,9 @@ pub extern "C" fn __av_malloc(size: u32) -> *const u64 {
     	arr.push(0);
 	}
 
-	// return Box::into_raw(Box::new(contiguous_mem)) as u32
 	let mut contiguous_mem = arr.into_boxed_slice();
-	contiguous_mem[0] = 23;
-	contiguous_mem[1] = 42;
+	// contiguous_mem[0] = 23;
+	// contiguous_mem[1] = 42;
 
 	// NOTE: This MUST be freed explicitly by the caller.
 	let contiguous_mem_ptr = Box::leak(contiguous_mem);
@@ -219,7 +212,6 @@ pub extern "C" fn __av_sized_ptr(ptr: u32, size: u32) -> *const u32 {
 	arr.push(ptr);
 	arr.push(size);
 
-	// return Box::into_raw(Box::new(contiguous_mem)) as u32
 	let mut contiguous_mem = arr.into_boxed_slice();
 	contiguous_mem[0] = ptr;
 	contiguous_mem[1] = size;
@@ -230,8 +222,6 @@ pub extern "C" fn __av_sized_ptr(ptr: u32, size: u32) -> *const u32 {
 }
 
 
-// #[no_mangle]
-// // pub extern "C" fn __av_free(ptr: *mut u32) {
 #[no_mangle]
 #[inline(never)]
 pub extern "C" fn __av_free(ptr: *const u64, size: usize) {
@@ -261,13 +251,11 @@ pub extern "C" fn __av_get(results: &mut Vec<u64>, id: usize) -> u64 {
 #[cfg(target_os = "unknown")]
 pub extern "C" fn __av_inject(results: &mut Vec<u64>) {
 	__av_save(results, 0, 0);
-
 	__av_get(results, 0);
 
 	unsafe {
 		__av_inject_placeholder();
 	}
-
 }
 
 #[no_mangle]
@@ -291,8 +279,8 @@ pub extern "C" fn __av_run(size: u32) -> u32 {
 
 	let spring = builder.create_string("Spring");
 
-	let obj2 = AVObj::create(&mut builder, &AVObjArgs{
-		avtype: AVObjType::Obj,
+	let obj2 = AvFbObj::create(&mut builder, &AvFbObjArgs{
+		avtype: AvFbObjType::Obj,
 		avclass: 0,
 		avhash: 0,
 		values: None,
@@ -302,14 +290,14 @@ pub extern "C" fn __av_run(size: u32) -> u32 {
 		avobjs: None
     });
 
-	let mut obj_vector: Vec<flatbuffers::WIPOffset<AVObj>> = Vec::new();
+	let mut obj_vector: Vec<flatbuffers::WIPOffset<AvFbObj>> = Vec::new();
 	obj_vector.push(obj2);
 	let avobjs = builder.create_vector(&obj_vector);
 	// let avobjs = builder.create_vector(&obj_vector);
 
 
-    let obj = AVObj::create(&mut builder, &AVObjArgs{
-		avtype: AVObjType::Obj,
+    let obj = AvFbObj::create(&mut builder, &AvFbObjArgs{
+		avtype: AvFbObjType::Obj,
 		avclass: 0,
 		avhash: 0,
 		values: Some(results_vec),

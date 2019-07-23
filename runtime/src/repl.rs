@@ -2,13 +2,12 @@ use super::lexer;
 use super::parser;
 use super::generator;
 use super::format;
-use super::{decode_values, decode_flatbuf};
-use super::sharedmemory::as_u32;
+use super::{decode_flatbuf};
 use super::interpreter::*;
 use super::constants::*;
 
 
-pub use avs::avobj_generated::avsio::{get_root_as_avobj};
+pub use avs::avfb_generated::avfb::{get_root_as_av_fb_obj};
 
 use wasmer_runtime::{Func, imports, compile};
 use wabt::wat2wasm;

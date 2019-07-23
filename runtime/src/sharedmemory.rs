@@ -1,58 +1,5 @@
 
 
-pub fn as_u32(array: &[u8; 4]) -> u32 {
-    // WASM is always little endian.
-    ((array[0] as u32) <<  0) |
-    ((array[1] as u32) <<  8) |
-    ((array[2] as u32) << 16) |
-    ((array[3] as u32) << 24)
-}
-
-
-
-#[macro_export]
-macro_rules! decode_values {
-    // Defined as a macro so it's all within the same lifetime of caller
-    ($memory_view:expr, $ptr:expr, $length:expr) => ({
-        // Decode N values from memory. 
-        // Assume they're all 64 bytes long and memory is aligned.
-
-        // let index = $ptr / 8;
-        // let byte_alignment = $ptr % 8;
-        // if byte_alignment != 0 {
-        //     // TODO: Raise error
-        //     panic!("Unexpected, Arevel WASM unaligned memory access!");
-        //     // return 0;
-        // }
-        // println!("index: {:?} Remainder: {:?}", index, byte_alignment);
-
-        // let ref_start = $ptr as usize;
-        // let ref_end = ($ptr + 4);
-        
-        // // Return decoded values to macro caller
-        // let ref_bytes = $memory_view.get(ref_start..ref_end).unwrap();
-        
-        // let mut a: [u8; 4] = Default::default();
-        // a.copy_from_slice(&ref_bytes[0..4]);
-        // let ref_ptr = as_u32(a);
-
-        // println!("ref ptr {:X}", ref_ptr);
-        // let mut b: [u8; 4] = Default::default();
-        // b.copy_from_slice(&ref_bytes[4..8]);
-        // let ref_size = as_u32(b);
-        // println!("ref size {:X}", ref_size);
-
-        // // for i in start..end {
-        // //     println!("Values {:?}", mem_view.get(i));
-        // // }
-
-
-        // // println!("Values {:?}", result);
-        // result
-    });
-}
-
-
 #[macro_export]
 macro_rules! decode_flatbuf {
     // Defined as a macro so it's all within the same lifetime of caller
@@ -73,7 +20,7 @@ macro_rules! decode_flatbuf {
         let fb_bytes: Vec<u8> = fb_ref.iter().map(|cell| cell.get()).collect();
 
         // println!("{:?}", fb_bytes);
-        let fb = get_root_as_avobj(&fb_bytes);
+        let fb = get_root_as_av_fb_obj(&fb_bytes);
 
         println!("Flatbuffer {:?}", fb);
 

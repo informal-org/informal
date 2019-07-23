@@ -9,7 +9,7 @@ use avs::constants::{VALUE_TYPE_POINTER_MASK};
 
 
 extern crate flatbuffers;
-pub use avs::avobj_generated::avsio::{AVObj, AVObjArgs, get_root_as_avobj, AVObjType};
+pub use avs::avfb_generated::avfb::{AvFbObj, AvFbObjArgs, get_root_as_av_fb_obj, AvFbObjType};
 
 
 fn repl_it() {
@@ -43,8 +43,8 @@ fn main() {
 	let mut builder = flatbuffers::FlatBufferBuilder::new_with_capacity(1024);
     let hello = builder.create_string("Hello Arevel");
 
-    let obj = AVObj::create(&mut builder, &AVObjArgs{
-		avtype: AVObjType::Obj,
+    let obj = AvFbObj::create(&mut builder, &AvFbObjArgs{
+		avtype: AvFbObjType::Obj,
 		avclass: 0,
 		avhash: 0,
 		values: None,
@@ -53,6 +53,9 @@ fn main() {
 		avbytes: None,
         avobjs: None
     });
+
+    println!("{:?}", obj);
+    // println!("raw str data {:?}", obj.1.avstr());
 
 	builder.finish(obj, None);
 
