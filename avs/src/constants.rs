@@ -1,3 +1,13 @@
+/* 
+Values in Arevel are nan-boxed. 
+Floating point representation of NaN leaves a lot of bits unused. 
+We pack a type and value into this space, for basic types and pointers.
+
+0 00000001010 0000000000000000000000000000000000000000000000000000 = 64
+1 11111111111 1000000000000000000000000000000000000000000000000000 = nan
+Type (3 bits). Value 48 bits.
+*/
+
 // Data format
 
 // 8 = 1000

@@ -1,24 +1,12 @@
-/* 
-Values in Arevel are nan-boxed. 
-Floating point representation of NaN leaves a lot of bits unused. 
-We pack a type and value into this space, for basic types and pointers.
-
-0 00000001010 0000000000000000000000000000000000000000000000000000 = 64
-1 11111111111 1000000000000000000000000000000000000000000000000000 = nan
-Type (3 bits). Value 48 bits.
-*/
-
-// #![feature(lang_items)]
-// #![no_std]
-// #![feature(alloc)]
-
 pub mod constants;
 pub mod structs;
 pub mod macros;
 
-
 #[allow(non_snake_case)]
 pub mod avobj_generated;
+
+extern crate flatbuffers;
+pub use crate::avobj_generated::avsio::{AVObj, AVObjArgs, get_root_as_avobj, AVObjType};
 
 
 
@@ -218,6 +206,30 @@ pub extern "C" fn __av_malloc(size: u32) -> *const u64 {
 	return &(contiguous_mem_ptr[0]) as *const u64
 }
 
+
+
+#[no_mangle]
+#[inline(never)]
+pub extern "C" fn __av_sized_ptr(ptr: u32, size: u32) -> *const u32 {
+	// Size in # of u64 values to store.
+	// This function should be called by the host system to allocate a region of memory
+	// before passing in any data to the WASM instance. 
+	// Otherwise, we risk data clobbering each other and exposing regions of memory.
+	let mut arr: Vec<u32> = Vec::with_capacity( 4 as usize );
+	arr.push(ptr);
+	arr.push(size);
+
+	// return Box::into_raw(Box::new(contiguous_mem)) as u32
+	let mut contiguous_mem = arr.into_boxed_slice();
+	contiguous_mem[0] = ptr;
+	contiguous_mem[1] = size;
+
+	// NOTE: This MUST be freed explicitly by the caller.
+	let contiguous_mem_ptr = Box::leak(contiguous_mem);
+	return &(contiguous_mem_ptr[0]) as *const u32
+}
+
+
 // #[no_mangle]
 // // pub extern "C" fn __av_free(ptr: *mut u32) {
 #[no_mangle]
@@ -272,9 +284,35 @@ pub extern "C" fn __av_run(size: u32) -> u32 {
 	// multiple times with allocations
 	__av_inject(&mut results);
 
+
+	let mut builder = flatbuffers::FlatBufferBuilder::new_with_capacity(1024);
+    let hello = builder.create_string("Hello Arevel");
+
+    let obj = AVObj::create(&mut builder, &AVObjArgs{
+		avtype: AVObjType::Obj,
+		avclass: 0,
+		avhash: 0,
+		values: None,
+        avstr: Some(hello),
+		length: 0,
+		avbytes: None,
+		avobjs: None
+    });
+
+	builder.finish(obj, None);
+
+	let buf = builder.finished_data(); 		// Of type `&[u8]`
+
 	// return Box::into_raw(Box::new(out)) as u32;
 	// return Box::into_raw(Box::new(env.cells.into_boxed_slice())) as u32;
-	return (&results[0] as *const u64) as u32;
+	// return (&results[0] as *const u64) as u32;
+	// return ;
+
+	let ptr = (&buf[0] as *const u8) as u32;
+	let size = buf.len() as u32;
+
+	// let mut reference: [u32; 2] = [ptr, size];
+	return __av_sized_ptr(ptr, size) as u32
 }
 
 

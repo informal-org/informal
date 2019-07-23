@@ -2,10 +2,13 @@ use super::lexer;
 use super::parser;
 use super::generator;
 use super::format;
-use super::{decode_values};
+use super::{decode_values, decode_flatbuf};
+use super::sharedmemory::as_u32;
 use super::interpreter::*;
 use super::constants::*;
 
+
+pub use avs::avobj_generated::avsio::{get_root_as_avobj};
 
 use wasmer_runtime::{Func, imports, compile};
 use wabt::wat2wasm;
@@ -61,14 +64,17 @@ pub fn eval_compiled(wasm_binary: Vec<u8>) -> Vec<u64> {
 
     // println!("Return value {:?}", value);
     let memory = instance.context().memory(0);
-    let memory_view: MemoryView<u64> = memory.view();
-    let cell_results = decode_values!(memory_view, value, cell_count);
+    // let memory_view: MemoryView<u64> = memory.view();
+    // let memory_view: MemoryView<u8> = memory.view();
+    let cell_results = decode_flatbuf!(memory, value, cell_count);
 
+    // let cell_results = decode_values!(memory_view, value, cell_count);
+    // let mut results: Vec<u64> = Vec::with_capacity(cell_count as usize);
     let mut results: Vec<u64> = Vec::with_capacity(cell_count as usize);
 
-    for cell in cell_results {
-        results.push(cell.get());
-    }
+    // for cell in cell_results {
+    //     results.push(cell.get());
+    // }
 
     println!("Result decode: {:?}", SystemTime::now());
 

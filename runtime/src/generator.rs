@@ -76,5 +76,7 @@ pub fn link_avs(body: String) -> String {
     let footer = fs::read_to_string("../avs/footer.wat")
        .expect("Error reading footer");
 
+    // TODO: Have this remove all the internal export functions as well.
+
     return header + &body + ")" + &footer;
 }

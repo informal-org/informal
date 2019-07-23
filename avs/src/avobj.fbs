@@ -28,17 +28,23 @@ enum AVObjType:byte {
 //
 //}
 
+// Used for return type back to system
+struct SizedPtr {
+    length: uint;
+    ptr: uint;
+}
+
 // Flatbuffers encourage optional fields packed into a table
 // obj_type is always present. The presence of the other fields depend on type.
 table AVObj {
-  // id: uint;   // TODO smaller int
-  obj_type: AVObjType;
-  avclass: uint;    // For objects of obj_type = Obj
-  hash: ulong;
-  fields: [ulong];   // Primitive types or boxed refs to other objects.
-  str: string;
+  avtype: AVObjType;
+  avclass: uint;     // For objects of obj_type = Obj
+  avhash: ulong;
   length: uint;
-  bytes: [ubyte];
+  values: [ulong];   // Primitive types or boxed refs to other objects.
+  avstr: string;
+  avbytes: [ubyte];
+  avobjs: [AVObj];   // Used for the root heap
 }
 
 // AV List Obj

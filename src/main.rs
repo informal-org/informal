@@ -9,7 +9,7 @@ use avs::constants::{VALUE_TYPE_POINTER_MASK};
 
 
 extern crate flatbuffers;
-pub use avs::avobj_generated::avsio::{AVObj, AVObjArgs, get_root_as_avobj};
+pub use avs::avobj_generated::avsio::{AVObj, AVObjArgs, get_root_as_avobj, AVObjType};
 
 
 fn repl_it() {
@@ -30,32 +30,44 @@ fn main() {
     // repl_it();
     // eval_wat();
 
-    let mut builder = flatbuffers::FlatBufferBuilder::new_with_capacity(1024);
+    // let mut builder = flatbuffers::FlatBufferBuilder::new_with_capacity(1024);
+    // let hello = builder.create_string("Hello Arevel");
+
+    // let obj = AVObj::create(&mut builder, &AVObjArgs{
+    //     id: 9,
+    //     name: Some(hello), 
+    //     value: 42
+    // });
+
+
+	let mut builder = flatbuffers::FlatBufferBuilder::new_with_capacity(1024);
     let hello = builder.create_string("Hello Arevel");
 
     let obj = AVObj::create(&mut builder, &AVObjArgs{
-        id: 9,
-        name: Some(hello), 
-        value: 42
+		avtype: AVObjType::Obj,
+		avclass: 0,
+		avhash: 0,
+		values: None,
+        avstr: Some(hello),
+		length: 0,
+		avbytes: None,
+        avobjs: None
     });
 
-    println!("{:?}", obj);
+	builder.finish(obj, None);
 
-    builder.finish(obj, None);
+	let buf = builder.finished_data(); 		// Of type `&[u8]`    
 
-    println!("{:?}", obj);
+    println!("OBJ {:?}", obj);
+    println!("BUF {:?}", buf);
 
-    let buf = builder.finished_data(); // Of type `&[u8]`
+    // let input = get_root_as_avobj(buf);
 
-    println!("{:?}", buf);
-
-    let input = get_root_as_avobj(buf);
-
-    println!("INput: {:?}", input);
-    println!("id: {:?}", input.id());
-    println!("name: {:?}", input.name());
-    println!("value: {:?}", input.value());
+    // println!("INput: {:?}", input);
+    // println!("id: {:?}", input.id());
+    // println!("name: {:?}", input.name());
+    // println!("value: {:?}", input.value());
 
 
-    println!("{:X}", VALUE_TYPE_POINTER_MASK);
+    // println!("{:X}", VALUE_TYPE_POINTER_MASK);
 }
