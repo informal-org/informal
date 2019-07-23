@@ -56,22 +56,14 @@ macro_rules! decode_values {
 #[macro_export]
 macro_rules! decode_flatbuf {
     // Defined as a macro so it's all within the same lifetime of caller
-    ($memory:expr, $ptr:expr, $length:expr) => ({
+    ($memory:expr, $ptr:expr, $length:expr) => {{
+        // We need to read the flatbuffer contents, but since web assembly only supports
+        // returning one value, we first send back the pointer, size pair and then decode the buffer
         let memory_view32: MemoryView<u32> = $memory.view();
-        let index = ($ptr / 4);
+        let sized_ptr_index = ($ptr / 4);
         
-        let start = index as usize;
-        let end = (index + 2) as usize;
-        
-        // Return decoded values to macro caller
-        // let ref_bytes = .unwrap() as &[u8];
-
-        // let ref_bytes: Vec<_> = memory_view32.get((ref_start as usize)..(ref_end as usize)).unwrap().to_vec();
-
-        let ref_ptr = memory_view32.get(start).unwrap().get() as usize;
-        let ref_size = memory_view32.get(start + 1).unwrap().get() as usize;
-        println!("{:?} size {:?}", ref_ptr, ref_size);
-
+        let ref_ptr = memory_view32.get(sized_ptr_index as usize).unwrap().get() as usize;
+        let ref_size = memory_view32.get( (sized_ptr_index + 1) as usize).unwrap().get() as usize;
 
         let memory_view8: MemoryView<u8> = $memory.view();
         let fb_ref = memory_view8.get(ref_ptr..(ref_ptr + ref_size)).unwrap();
@@ -80,43 +72,25 @@ macro_rules! decode_flatbuf {
         // We can look at an unsafe pointer version later on with additional verification.
         let fb_bytes: Vec<u8> = fb_ref.iter().map(|cell| cell.get()).collect();
 
-        println!("{:?}", fb_bytes);
-
+        // println!("{:?}", fb_bytes);
         let fb = get_root_as_avobj(&fb_bytes);
 
-        println!("Flatbuffer {:?}", fb);
+        // println!("Flatbuffer {:?}", fb);
 
-        println!("Str: {:?}", fb.avstr());
+        // let result: Vec<u8> = Vec::new();
+        // result
+        // fb
 
-        // let ref_ptr = memory_view32.get( ($ptr / 4) as usize );
-        // println!("ref ptr {:?}", ref_ptr);
-        // println!("ref start {:?}", ref_start);
+        let values = fb.values().unwrap();
+        // Perform another copy of the data - due to ownership rules
+        let mut results: Vec<u64> = Vec::with_capacity(values.len() as usize);
+        for cell_idx in 0..values.len() {
+            results.push(values.get(cell_idx));
+        }
 
-        // let ref_size = memory_view32.get( (($ptr / 4) + 1) as usize );
-        // println!("ref size {:?}", ref_size);
-
-        
-
-
-        // for i in start..end {
-        //     println!("Values {:?}", mem_view.get(i));
-        // }
-
-
-        // println!("Values {:?}", result);
-        //let start = ref_ptr as usize;
-        //let end = (ref_ptr + ref_size) as usize;
-
-
-        // let result = $memory_view.get(start..end).unwrap();
-        // for i in start..end {
-        //     println!("Values {:?}", $memory_view.get(i));
-        // }
-        let result: Vec<u8> = Vec::new();
-
-        result
-
-    })
+        results
+        // values.clone();
+    }}
 }
 
 // BUF [20, 0, 0, 0, 16, 0, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 16, 0, 0, 0, 4, 0, 0, 0, 12, 0, 0, 0, 72, 101, 108, 108, 111, 32, 65, 114, 101, 118, 101, 108, 0, 0, 0, 0]

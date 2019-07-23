@@ -45,7 +45,7 @@ pub fn read_multi(inputs: Vec<String>) -> String {
 }
 
 pub fn eval_compiled(wasm_binary: Vec<u8>) -> Vec<u64> {
-    let cell_count = 2000;
+    let cell_count = 20;
     let module = compile(&wasm_binary).unwrap();
     
     println!("WASM Compile: {:?}", SystemTime::now());
@@ -66,16 +66,12 @@ pub fn eval_compiled(wasm_binary: Vec<u8>) -> Vec<u64> {
     let memory = instance.context().memory(0);
     // let memory_view: MemoryView<u64> = memory.view();
     // let memory_view: MemoryView<u8> = memory.view();
-    let cell_results = decode_flatbuf!(memory, value, cell_count);
+    let results = decode_flatbuf!(memory, value, cell_count);
 
     // let cell_results = decode_values!(memory_view, value, cell_count);
     // let mut results: Vec<u64> = Vec::with_capacity(cell_count as usize);
-    let mut results: Vec<u64> = Vec::with_capacity(cell_count as usize);
 
-    // for cell in cell_results {
-    //     results.push(cell.get());
-    // }
-
+    println!("Result : {:?} ", results);
     println!("Result decode: {:?}", SystemTime::now());
 
     // println!("At value {:?}", results);

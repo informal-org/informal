@@ -287,12 +287,13 @@ pub extern "C" fn __av_run(size: u32) -> u32 {
 
 	let mut builder = flatbuffers::FlatBufferBuilder::new_with_capacity(1024);
     let hello = builder.create_string("Hello Arevel");
+	let results_vec = builder.create_vector(&results);
 
     let obj = AVObj::create(&mut builder, &AVObjArgs{
 		avtype: AVObjType::Obj,
 		avclass: 0,
 		avhash: 0,
-		values: None,
+		values: Some(results_vec),
         avstr: Some(hello),
 		length: 0,
 		avbytes: None,
