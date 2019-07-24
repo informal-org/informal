@@ -73,8 +73,15 @@ pub fn interpret_expr(mut env: &mut AvObject, node: &ASTNode, ast: &AST) -> u64 
                     LiteralValue::BooleanValue(val) => {    // val = 1 or 0
                         expr_stack.push(*val);
                     },
-                    _ => {
-                        // TODO
+                    LiteralValue::StringValue(val) => {
+                        // Save object to heap and return pointer
+                        // Note: String copy likely occurs here
+                        let str_obj = AvObject::new_string(val.to_string());
+                        let heap_ptr = env.save_object(str_obj);
+                        expr_stack.push(heap_ptr);
+                    },
+                    LiteralValue::NoneValue => {
+                        expr_stack.push(VALUE_NONE);
                     }
                 }
             },
@@ -99,9 +106,9 @@ pub fn interpret_expr(mut env: &mut AvObject, node: &ASTNode, ast: &AST) -> u64 
 
 pub fn interpret_one(input: String) -> u64 {
     let mut lexed = lex(&input).unwrap();
-    let mut parsed = parser::apply_operator_precedence(0, &mut lexed).parsed;
+    let parsed = parser::apply_operator_precedence(0, &mut lexed).parsed;
     // TODO: A base, shared global namespace.
-    let mut ast = AST::new();
+    let ast = AST::new();
     let mut node = ASTNode::new(0);
     node.parsed = parsed;
     let mut env = AvObject::new_env();

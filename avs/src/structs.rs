@@ -1,4 +1,6 @@
 use core::cell::RefCell;
+use crate::{__repr_pointer};
+use crate::constants::*;
 
 #[derive(Debug,PartialEq)]
 pub enum ValueType {
@@ -43,7 +45,20 @@ impl AvObject {
             avstr: None, 
             avbytes: RefCell::new(None), 
             avobjs: RefCell::new(Some(obj_vec))
-        };        
+        };
+    }
+
+    pub fn new_string(value: String) -> AvObject {
+        return AvObject {
+            avtype: AvObjectType::AvString,
+            avclass: 0,
+            avhash: 0,
+            length: 0,
+            values: RefCell::new(None),
+            avstr: Some(value),
+            avbytes: RefCell::new(None), 
+            avobjs: RefCell::new(None)
+        };
     }
 
     pub fn save_value(&mut self, index: usize, value: u64) {
@@ -58,4 +73,18 @@ impl AvObject {
         let values = self.values.borrow();
         return values.as_ref().unwrap()[index];
     }
+
+    pub fn save_object(&mut self, obj: AvObject) -> u64 {
+        // Save an object into this object's "heap" and return pointer to index.
+        let mut objects = self.avobjs.borrow_mut();
+        // Assertion - this has a heap. TODO: some check and return err value
+        if objects.is_some() {
+            let obj_arr = objects.as_mut().unwrap();
+            obj_arr.push(obj);
+            let index = obj_arr.len();
+            return __repr_pointer(index);
+        }
+        return RUNTIME_ERR_MEMORY_ACCESS;
+    }
+    
 }

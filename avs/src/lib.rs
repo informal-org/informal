@@ -122,6 +122,12 @@ pub extern "C" fn __repr_bool(a: bool) -> u64 {
 	}
 }
 
+#[inline(always)]
+pub extern "C" fn __repr_pointer(ptr: usize) -> u64 {
+	let masked_ptr: u64 = VALUE_TYPE_POINTER_MASK | (ptr as u64);
+	return masked_ptr;
+}
+
 #[no_mangle]
 pub extern "C" fn __av_and(env: &mut AvObject, a: u64, b: u64) -> u64 {
 	let a_bool: bool = __av_as_bool(a);
