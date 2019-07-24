@@ -124,9 +124,18 @@ pub extern "C" fn __repr_bool(a: bool) -> u64 {
 
 #[inline(always)]
 pub extern "C" fn __repr_pointer(ptr: usize) -> u64 {
-	let masked_ptr: u64 = VALUE_TYPE_POINTER_MASK | (ptr as u64);
-	return masked_ptr;
+	let masked_ptr: u64 = SIGNALING_NAN | VALUE_TYPE_POINTER_MASK | (ptr as u64);
+	return masked_ptr
 }
+
+#[inline(always)]
+pub extern "C" fn __unwrap_pointer(masked_ptr: u64) -> usize {
+	// Clear NaN bits & pointer mask to extract pointer values
+	let ptr: u64 = masked_ptr & VALUE_MASK;
+	println!("Returning unwraped pointer to {:?} = {:?}", ptr, masked_ptr);
+	return ptr as usize;
+}
+
 
 #[no_mangle]
 pub extern "C" fn __av_and(env: &mut AvObject, a: u64, b: u64) -> u64 {

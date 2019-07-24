@@ -280,4 +280,19 @@ mod tests {
         assert_eq!(i_result.results, expected_results);    
     }
 
+
+    #[test]
+    fn test_reval_string_literals() {
+        let cell_a = CellRequest {id: String::from("@1"), input: String::from("\"hello\"")};
+        // Can't just have single value inputs anymore, need cells as inputs
+        let mut program = EvalRequest {
+            body: vec![cell_a]
+        };
+        let i_result = interpreter::interpret_all(program);
+        println!("{:?}", i_result);
+        assert_eq!(true, false);
+
+    }
+
+
 }

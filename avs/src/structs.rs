@@ -61,6 +61,14 @@ impl AvObject {
         };
     }
 
+    pub fn resize_values(&mut self, new_len: usize) {
+        // Since results are often saved out of order, pre-reserve space
+        let mut values = self.values.borrow_mut();
+        if values.is_some() {
+            values.as_mut().unwrap().resize(new_len, 0);
+        }
+    }
+
     pub fn save_value(&mut self, index: usize, value: u64) {
         let mut values = self.values.borrow_mut();
         if values.is_some() {

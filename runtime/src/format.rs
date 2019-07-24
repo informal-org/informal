@@ -1,4 +1,4 @@
-use avs::{__av_typeof};
+use avs::{__av_typeof, __unwrap_pointer};
 use avs::structs::{ValueType};
 use avs::constants::*;
 
@@ -24,6 +24,9 @@ pub fn repr(result: u64) -> String {
         },
         ValueType::ErrorType => {
             repr_error(result)
+        },
+        ValueType::PointerType => {
+            format!("Pointer {:?} -> {:?}", result, __unwrap_pointer(result))
         },
         _ => {
             format!("{:?}: {:?}", result_type, result)
