@@ -75,7 +75,7 @@ pub fn eval_compiled(wasm_binary: Vec<u8>) -> Vec<u64> {
 
     // println!("At value {:?}", results);
     // return results;
-    return results2;
+    return results;
 }
 
 

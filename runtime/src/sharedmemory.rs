@@ -28,7 +28,6 @@ macro_rules! decode_flatbuf {
         // result
         // fb
         let objects = fb.avobjs().unwrap();
-        println!("objs: {:?}", objects.get(0));
         println!("obj str: {:?}", objects.get(0).avstr());
 
         let values = fb.values().unwrap();

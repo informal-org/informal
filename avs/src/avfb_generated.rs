@@ -21,8 +21,8 @@ pub mod avfb {
 #[repr(i8)]
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum AvFbObjType {
-  Obj = 0,
-  Str = 1,
+  AvObject = 0,
+  AvString = 1,
 
 }
 
@@ -62,14 +62,14 @@ impl flatbuffers::Push for AvFbObjType {
 
 #[allow(non_camel_case_types)]
 const ENUM_VALUES_AV_FB_OBJ_TYPE:[AvFbObjType; 2] = [
-  AvFbObjType::Obj,
-  AvFbObjType::Str
+  AvFbObjType::AvObject,
+  AvFbObjType::AvString
 ];
 
 #[allow(non_camel_case_types)]
 const ENUM_NAMES_AV_FB_OBJ_TYPE:[&'static str; 2] = [
-    "Obj",
-    "Str"
+    "AvObject",
+    "AvString"
 ];
 
 pub fn enum_name_av_fb_obj_type(e: AvFbObjType) -> &'static str {
@@ -128,7 +128,7 @@ impl<'a> AvFbObj<'a> {
 
   #[inline]
   pub fn avtype(&self) -> AvFbObjType {
-    self._tab.get::<AvFbObjType>(AvFbObj::VT_AVTYPE, Some(AvFbObjType::Obj)).unwrap()
+    self._tab.get::<AvFbObjType>(AvFbObj::VT_AVTYPE, Some(AvFbObjType::AvObject)).unwrap()
   }
   #[inline]
   pub fn avclass(&self) -> u32 {
@@ -174,7 +174,7 @@ impl<'a> Default for AvFbObjArgs<'a> {
     #[inline]
     fn default() -> Self {
         AvFbObjArgs {
-            avtype: AvFbObjType::Obj,
+            avtype: AvFbObjType::AvObject,
             avclass: 0,
             avhash: 0,
             length: 0,
@@ -192,7 +192,7 @@ pub struct AvFbObjBuilder<'a: 'b, 'b> {
 impl<'a: 'b, 'b> AvFbObjBuilder<'a, 'b> {
   #[inline]
   pub fn add_avtype(&mut self, avtype: AvFbObjType) {
-    self.fbb_.push_slot::<AvFbObjType>(AvFbObj::VT_AVTYPE, avtype, AvFbObjType::Obj);
+    self.fbb_.push_slot::<AvFbObjType>(AvFbObj::VT_AVTYPE, avtype, AvFbObjType::AvObject);
   }
   #[inline]
   pub fn add_avclass(&mut self, avclass: u32) {

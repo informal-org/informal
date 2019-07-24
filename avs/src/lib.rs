@@ -179,6 +179,14 @@ pub extern "C" fn __av_lte(a: u64, b: u64) -> u64 {
 }
 
 #[no_mangle]
+pub extern "C" fn __av_read_obj(ptr: u32, size: u32) -> String {
+	// The host system will call malloc and write to this memory location
+	// Then inject in a call to read from it. 
+	// Problem - how do we do that at link-time?
+	return String::from("hello")
+}
+
+#[no_mangle]
 #[inline(never)]
 pub extern "C" fn __av_malloc(size: u32) -> *const u64 {
 	// Size in # of u64 values to store.
@@ -274,13 +282,13 @@ pub extern "C" fn __av_run(size: u32) -> u32 {
 
 
 	let mut builder = flatbuffers::FlatBufferBuilder::new_with_capacity(1024);
-    let hello = builder.create_string("Hello Arevel");
+    let hello = builder.create_string("Hello Arevellllllllllllllllll were werwerw ");
 	let results_vec = builder.create_vector(&results);
 
 	let spring = builder.create_string("Spring");
 
 	let obj2 = AvFbObj::create(&mut builder, &AvFbObjArgs{
-		avtype: AvFbObjType::Obj,
+		avtype: AvFbObjType::AvObject,
 		avclass: 0,
 		avhash: 0,
 		values: None,
@@ -297,7 +305,7 @@ pub extern "C" fn __av_run(size: u32) -> u32 {
 
 
     let obj = AvFbObj::create(&mut builder, &AvFbObjArgs{
-		avtype: AvFbObjType::Obj,
+		avtype: AvFbObjType::AvObject,
 		avclass: 0,
 		avhash: 0,
 		values: Some(results_vec),

@@ -1,8 +1,8 @@
 namespace Avfb;
 
 enum AvFbObjType:byte {
-    Obj = 0,
-    Str = 1,
+    AvObject = 0,
+    AvString = 1,
 //    AVClass = 2,
 //    AVByteArray = 4,
 }
