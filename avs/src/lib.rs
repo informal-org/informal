@@ -13,7 +13,7 @@ extern crate flatbuffers;
 extern crate alloc;
 use alloc::vec::Vec;
 use alloc::boxed::Box;
-
+use core::cell::RefCell;
 use core::slice;
 
 #[cfg(target_os = "unknown")]
@@ -52,28 +52,28 @@ pub extern "C" fn __av_typeof(value: u64) -> ValueType {
 }
 
 #[no_mangle]
-pub extern "C" fn __av_add(a: u64, b: u64) -> u64 {
+pub extern "C" fn __av_add(env: &mut AvObject, a: u64, b: u64) -> u64 {
 	let f_a: f64 = valid_num!(a);
 	let f_b: f64 = valid_num!(b);
 	return (f_a + f_b).to_bits()
 }
 
 #[no_mangle]
-pub extern "C" fn __av_sub(a: u64, b: u64) -> u64 {
+pub extern "C" fn __av_sub(env: &mut AvObject, a: u64, b: u64) -> u64 {
 	let f_a: f64 = valid_num!(a);
 	let f_b: f64 = valid_num!(b);
 	return (f_a - f_b).to_bits()
 }
 
 #[no_mangle]
-pub extern "C" fn __av_mul(a: u64, b: u64) -> u64 {
+pub extern "C" fn __av_mul(env: &mut AvObject, a: u64, b: u64) -> u64 {
 	let f_a: f64 = valid_num!(a);
 	let f_b: f64 = valid_num!(b);
 	return (f_a * f_b).to_bits()
 }
 
 #[no_mangle]
-pub extern "C" fn __av_div(a: u64, b: u64) -> u64 {
+pub extern "C" fn __av_div(env: &mut AvObject, a: u64, b: u64) -> u64 {
 	let f_a: f64 = valid_num!(a);
 	let f_b: f64 = valid_num!(b);
 
@@ -123,7 +123,7 @@ pub extern "C" fn __repr_bool(a: bool) -> u64 {
 }
 
 #[no_mangle]
-pub extern "C" fn __av_and(a: u64, b: u64) -> u64 {
+pub extern "C" fn __av_and(env: &mut AvObject, a: u64, b: u64) -> u64 {
 	let a_bool: bool = __av_as_bool(a);
 	let b_bool: bool = __av_as_bool(b);
 	let result: bool = a_bool && b_bool;
@@ -131,7 +131,7 @@ pub extern "C" fn __av_and(a: u64, b: u64) -> u64 {
 }
 
 #[no_mangle]
-pub extern "C" fn __av_or(a: u64, b: u64) -> u64 {
+pub extern "C" fn __av_or(env: &mut AvObject, a: u64, b: u64) -> u64 {
 	let a_bool: bool = __av_as_bool(a);
 	let b_bool: bool = __av_as_bool(b);
 	let result: bool = a_bool || b_bool;
@@ -139,14 +139,14 @@ pub extern "C" fn __av_or(a: u64, b: u64) -> u64 {
 }
 
 #[no_mangle]
-pub extern "C" fn __av_not(a: u64) -> u64 {
+pub extern "C" fn __av_not(env: &mut AvObject, a: u64) -> u64 {
 	let a_bool: bool = __av_as_bool(a);
 	let result: bool = !a_bool;
 	return __repr_bool(result);
 }
 
 #[no_mangle]
-pub extern "C" fn __av_gt(a: u64, b: u64) -> u64 {
+pub extern "C" fn __av_gt(env: &mut AvObject, a: u64, b: u64) -> u64 {
 	let f_a: f64 = valid_num!(a);
 	let f_b: f64 = valid_num!(b);
 	let result = f_a > f_b;
@@ -154,7 +154,7 @@ pub extern "C" fn __av_gt(a: u64, b: u64) -> u64 {
 }
 
 #[no_mangle]
-pub extern "C" fn __av_gte(a: u64, b: u64) -> u64 {
+pub extern "C" fn __av_gte(env: &mut AvObject, a: u64, b: u64) -> u64 {
 	let f_a: f64 = valid_num!(a);
 	let f_b: f64 = valid_num!(b);
 	let result = f_a >= f_b;
@@ -163,7 +163,7 @@ pub extern "C" fn __av_gte(a: u64, b: u64) -> u64 {
 
 
 #[no_mangle]
-pub extern "C" fn __av_lt(a: u64, b: u64) -> u64 {
+pub extern "C" fn __av_lt(env: &mut AvObject, a: u64, b: u64) -> u64 {
 	let f_a: f64 = valid_num!(a);
 	let f_b: f64 = valid_num!(b);
 	let result = f_a < f_b;
@@ -171,7 +171,7 @@ pub extern "C" fn __av_lt(a: u64, b: u64) -> u64 {
 }
 
 #[no_mangle]
-pub extern "C" fn __av_lte(a: u64, b: u64) -> u64 {
+pub extern "C" fn __av_lte(env: &mut AvObject, a: u64, b: u64) -> u64 {
 	let f_a: f64 = valid_num!(a);
 	let f_b: f64 = valid_num!(b);
 	let result = f_a <= f_b;
@@ -241,25 +241,40 @@ pub extern "C" fn __av_free(ptr: *const u64, size: usize) {
 	};
 }
 
+// TODO init function for values since we save stuff in random order.
+// pub extern "C" fn __av_init(env: &mut AvObject, size: usize) {
+// 	let results = env.
+// 	for i in 0..size {
+		
+// 	}
+// }
+
 #[no_mangle]
 #[inline(never)]
-pub extern "C" fn __av_save(results: &mut Vec<u64>, id: usize, value: u64) { 
-	results[id] = value;
+// pub extern "C" fn __av_save(results: &mut Vec<u64>, id: usize, value: u64) { 
+pub extern "C" fn __av_save(env: &mut AvObject, id: usize, value: u64) { 
+	env.save_value(id, value);
 }
 
 
 #[no_mangle]
 #[inline(never)]
-pub extern "C" fn __av_get(results: &mut Vec<u64>, id: usize) -> u64 { 
-	return results[id];
+pub extern "C" fn __av_get(env: &mut AvObject, id: usize) -> u64 { 
+	return env.get_value(id);
 }
+
+// #[no_mangle]
+// #[inline(never)]
+// pub extern "C" fn __av_get_obj(env: &mut AvObject, id: usize) -> u64 { 
+// 	return env.save_value;
+// }
 
 #[no_mangle]
 #[inline(never)]
 #[cfg(target_os = "unknown")]
-pub extern "C" fn __av_inject(results: &mut Vec<u64>) {
-	__av_save(results, 0, 0);
-	__av_get(results, 0);
+pub extern "C" fn __av_inject(env: &mut AvObject) {
+	// __av_save(results, 0, 0);
+	// __av_get(results, 0);
 
 	unsafe {
 		__av_inject_placeholder();
@@ -269,21 +284,19 @@ pub extern "C" fn __av_inject(results: &mut Vec<u64>) {
 #[no_mangle]
 #[inline(never)]
 #[cfg(target_os = "unknown")]
-pub extern "C" fn __av_run(size: u32) -> u32 {
+pub extern "C" fn __av_run() -> u32 {
 	// Note: This is tied to the generated symbol in the linker.
-	let mut results: Vec<u64> = Vec::with_capacity(size as usize);
-	for _i in 0..size {
-		results.push(0)
-	}
+	let mut env = AvObject::new_env();
 
 	// Done this way to prevent the compiler from inlining the injection point 
 	// multiple times with allocations
-	__av_inject(&mut results);
+	__av_inject(&mut env);
 
 
 	let mut builder = flatbuffers::FlatBufferBuilder::new_with_capacity(1024);
     let hello = builder.create_string("Hello Arevellllllllllllllllll were werwerw ");
-	let results_vec = builder.create_vector(&results);
+	let shared_vec: Vec<u64> = Vec::new();
+	let results_vec = builder.create_vector(&shared_vec);
 
 	let spring = builder.create_string("Spring");
 

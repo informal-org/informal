@@ -13,35 +13,35 @@ use super::format::*;
 use super::ast::*;
 use avs::*;
 use avs::constants::*;
-use avs::structs::{ValueType};
+use avs::structs::{ValueType, AvObject};
 
 macro_rules! apply_bin_op {
-    ($op:expr, $stack:expr) => ({
+    ($env:expr, $op:expr, $stack:expr) => ({
         // Pop b first since it's in postfix
         let b = $stack.pop().unwrap();
         let a = $stack.pop().unwrap();
-        $op(a, b)
+        $op(&mut $env, a, b)
     });
 }
 
 
-pub fn apply_operator(operator: KeywordType, stack: &mut Vec<u64>) {
+pub fn apply_operator(mut env: &mut AvObject, operator: KeywordType, stack: &mut Vec<u64>) {
     let result = match operator {
-        KeywordType::KwPlus => apply_bin_op!(__av_add, stack),
-        KeywordType::KwMinus => apply_bin_op!(__av_sub, stack),
-        KeywordType::KwMultiply => apply_bin_op!(__av_mul, stack),
-        KeywordType::KwDivide => apply_bin_op!(__av_div, stack),
+        KeywordType::KwPlus => apply_bin_op!(env, __av_add, stack),
+        KeywordType::KwMinus => apply_bin_op!(env, __av_sub, stack),
+        KeywordType::KwMultiply => apply_bin_op!(env, __av_mul, stack),
+        KeywordType::KwDivide => apply_bin_op!(env, __av_div, stack),
         
-        KeywordType::KwAnd => apply_bin_op!(__av_and, stack),
-        KeywordType::KwOr => apply_bin_op!(__av_or, stack),
+        KeywordType::KwAnd => apply_bin_op!(env, __av_and, stack),
+        KeywordType::KwOr => apply_bin_op!(env, __av_or, stack),
         KeywordType::KwNot => {
-            __av_not(stack.pop().unwrap())
+            __av_not(&mut env, stack.pop().unwrap())
         },
 
-        KeywordType::KwLt => apply_bin_op!(__av_lt, stack),
-        KeywordType::KwLte => apply_bin_op!(__av_lte, stack),
-        KeywordType::KwGt => apply_bin_op!(__av_gt, stack),
-        KeywordType::KwGte => apply_bin_op!(__av_gte, stack),
+        KeywordType::KwLt => apply_bin_op!(env, __av_lt, stack),
+        KeywordType::KwLte => apply_bin_op!(env, __av_lte, stack),
+        KeywordType::KwGt => apply_bin_op!(env, __av_gt, stack),
+        KeywordType::KwGte => apply_bin_op!(env, __av_gte, stack),
         _ => {INTERPRETER_ERR}              // TODO
     };
 
@@ -49,7 +49,7 @@ pub fn apply_operator(operator: KeywordType, stack: &mut Vec<u64>) {
 }
 
 
-pub fn interpret_expr(node: &ASTNode, ast: &AST) -> u64 {
+pub fn interpret_expr(mut env: &mut AvObject, node: &ASTNode, ast: &AST) -> u64 {
     // Propagate prior errors up.
     // TODO: Implement this in the compiler
     if node.result.is_some() {
@@ -62,7 +62,7 @@ pub fn interpret_expr(node: &ASTNode, ast: &AST) -> u64 {
     for token in node.parsed.iter() {
         match token {
             TokenType::Keyword(kw) => {
-                apply_operator(*kw, &mut expr_stack);
+                apply_operator(&mut env, *kw, &mut expr_stack);
             }, 
             TokenType::Literal(lit) => {
                 match lit {
@@ -104,7 +104,8 @@ pub fn interpret_one(input: String) -> u64 {
     let mut ast = AST::new();
     let mut node = ASTNode::new(0);
     node.parsed = parsed;
-    return interpret_expr(&node, &ast);
+    let mut env = AvObject::new_env();
+    return interpret_expr(&mut env, &node, &ast);
 }
 
 // pub fn build_ast(inputs: EvalRequest) {
@@ -115,9 +116,10 @@ pub fn interpret_all(request: EvalRequest) -> EvalResponse {
     let mut results: Vec<CellResponse> = Vec::with_capacity(request.body.len());
     // External Global ID -> Internal ID
     let mut ast = construct_ast(request);
+    let mut global_env = AvObject::new_env();
 
     for node in ast.body.iter() {
-        let result = interpret_expr(&node, &ast);
+        let result = interpret_expr(&mut global_env, &node, &ast);
         
         let symbol_id = ast.scope.symbols.get(&node.id).unwrap();
         ast.scope.values[*symbol_id] = result; //.insert(symbol_id, result);
