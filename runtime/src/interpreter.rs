@@ -136,7 +136,7 @@ pub fn interpret_all(request: EvalRequest) -> EvalResponse {
         let mut err = String::from("");
         
         if __av_typeof(result) != ValueType::ErrorType {
-            output = repr(result);
+            output = repr(&global_env, result);
         } else {
             err = repr_error(result);
         }

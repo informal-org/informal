@@ -8,6 +8,7 @@ use super::constants::*;
 
 
 pub use avs::avfb_generated::avfb::{get_root_as_av_fb_obj};
+pub use avs::structs::{AvObject};
 
 use wasmer_runtime::{Func, imports, compile};
 use wabt::wat2wasm;
@@ -99,7 +100,8 @@ pub fn eval(wat: String) -> Vec<u64> {
 
 
 fn print(result: u64) {
-    println!("{:?}", format::repr(result));
+    // TODO
+    println!("{:?}", format::repr(&AvObject::new(), result));
 }
 
 pub fn read_eval_print(input: String) {
@@ -111,7 +113,7 @@ pub fn read_eval_print(input: String) {
 pub fn read_eval(input: String) -> String {
     let wat = read(input);
     let result = eval(wat)[0];
-    return format::repr(result)
+    return format::repr(&AvObject::new(), result)
 }
 
 #[cfg(test)]
@@ -133,7 +135,8 @@ mod tests {
         ($e:expr, $expected:expr) => ({
             // Execute both a compiled and interpreted version
             let i_result = interpreter::interpret_one(String::from($e));
-            println!("Checking interpreted result {:?} expected {:?}", format::repr(i_result), format::repr($expected));
+            // TODO: correct avobject
+            println!("Checking interpreted result {:?} expected {:?}", format::repr(&AvObject::new(), i_result), format::repr(&AvObject::new(), $expected));
             assert_eq!(i_result, $expected);
             
 

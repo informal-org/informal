@@ -1,9 +1,8 @@
 use avs::{__av_typeof, __unwrap_pointer};
-use avs::structs::{ValueType};
+use avs::structs::{ValueType, AvObject, AvObjectType};
 use avs::constants::*;
 
-
-pub fn repr(result: u64) -> String {
+pub fn repr(env: &AvObject, result: u64) -> String {
     let result_type = __av_typeof(result);
     match result_type {
         ValueType::NumericType => {
@@ -26,10 +25,27 @@ pub fn repr(result: u64) -> String {
             repr_error(result)
         },
         ValueType::PointerType => {
-            format!("Pointer {:?} -> {:?}", result, __unwrap_pointer(result))
+            let index = __unwrap_pointer(result);
+            let objects = env.avobjs.borrow();
+            
+            let value = &objects.as_ref().unwrap()[index];
+            // format!("Pointer {:?} -> {:?} : {:?} ", result, __unwrap_pointer(result), value)
+            repr_object(value)
         },
         _ => {
             format!("{:?}: {:?}", result_type, result)
+        }
+    }
+}
+
+pub fn repr_object(obj: &AvObject) -> String {
+    match obj.avtype {
+        AvObjectType::AvString => {
+            format!("{:?}", obj.avstr.as_ref().unwrap())
+        },
+        _ => {
+            // TODO
+            format!("(Object)")
         }
     }
 }
