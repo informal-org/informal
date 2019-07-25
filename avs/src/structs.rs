@@ -1,4 +1,5 @@
 use core::cell::RefCell;
+use alloc::rc::Rc;
 use crate::{__repr_pointer, __unwrap_pointer};
 use crate::constants::*;
 
@@ -29,13 +30,15 @@ pub struct AvObject {
     pub values: RefCell<Option<Vec<u64>>>,
     pub avstr: Option<String>,     // TOXO: &str vs str vs String
     pub avbytes: RefCell<Option<Vec<u8>>>,
-    pub avobjs: RefCell<Option<Vec<AvObject>>>
+    // Immutable list of reference counted interior mutable cells
+    // RC was required for get_object.
+    pub avobjs: RefCell<Option<Vec<Rc<AvObject>>>>
 }
 
 impl AvObject {
     pub fn new_env() -> AvObject {
         let mut results: Vec<u64> = Vec::new();
-        let mut obj_vec: Vec<AvObject> = Vec::new();
+        let mut obj_vec: Vec<Rc<AvObject>> = Vec::new();
 
         return AvObject {
             avtype: AvObjectType::AvEnvironment,
@@ -103,7 +106,7 @@ impl AvObject {
         // Assertion - this has a heap.
         if objects.is_some() {
             let obj_arr = objects.as_mut().unwrap();
-            obj_arr.push(obj);
+            obj_arr.push(Rc::new(obj));
             let index = obj_arr.len() - 1;
             return __repr_pointer(index);
         }
@@ -111,11 +114,12 @@ impl AvObject {
         return RUNTIME_ERR_MEMORY_ACCESS;
     }
     
-    // pub fn get_object<'a>(&'a mut self, ptr: u64) -> &'a AvObject {
-    //     let index = __unwrap_pointer(ptr);
+    pub fn get_object(&self, ptr: u64) -> Rc<AvObject> {
+        let index = __unwrap_pointer(ptr);
 
-    //     let objects = self.avobjs.borrow();
-    //     let obj_arr = objects.as_ref().unwrap();
-    //     return &obj_arr[index];
-    // }
+        let objects = self.avobjs.borrow();
+        let obj_arr = objects.as_ref().unwrap();
+        return Rc::clone(&obj_arr[index])
+    }
+
 }

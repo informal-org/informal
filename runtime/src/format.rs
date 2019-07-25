@@ -25,12 +25,12 @@ pub fn repr(env: &AvObject, result: u64) -> String {
             repr_error(result)
         },
         ValueType::PointerType => {
-            let index = __unwrap_pointer(result);
-            let objects = env.avobjs.borrow();
-            
-            let value = &objects.as_ref().unwrap()[index];
+            // let index = __unwrap_pointer(result);
+            // let objects = env.avobjs.borrow();
+            // let value = &objects.as_ref().unwrap()[index];
             // format!("Pointer {:?} -> {:?} : {:?} ", result, __unwrap_pointer(result), value)
-            repr_object(value)
+            let obj = env.get_object(result);
+            repr_object(&obj)
         },
         _ => {
             format!("{:?}: {:?}", result_type, result)
