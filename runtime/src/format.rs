@@ -91,6 +91,8 @@ pub fn repr_error(result: u64) -> String {
     } else if result == RUNTIME_ERR_CIRCULAR_DEP {
         // TODO: Specify which cells?
         String::from("There's a circular reference between these cells.")
+    } else if result == RUNTIME_ERR_EXPECTED_STR {
+        String::from("Arevel expects some text value here.")
     } else if result == RUNTIME_ERR_DIV_Z {
         String::from("Dividing by zero is undefined. Make sure the denominator is not a zero before dividing.")
     } else {

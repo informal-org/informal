@@ -53,9 +53,42 @@ pub extern "C" fn __av_typeof(value: u64) -> ValueType {
 
 #[no_mangle]
 pub extern "C" fn __av_add(env: &mut AvObject, a: u64, b: u64) -> u64 {
-	let f_a: f64 = valid_num!(a);
-	let f_b: f64 = valid_num!(b);
-	return (f_a + f_b).to_bits()
+	// Add supports adding two numbers (priority) or concat strings
+	match __av_typeof(a) {
+		ValueType::NumericType => {
+			let f_a: f64 = f64::from_bits(a);
+			if f_a != f_a {
+				return RUNTIME_ERR_TYPE_NAN
+			}
+			let f_b: f64 = valid_num!(b);
+			return (f_a + f_b).to_bits()
+		},
+		ValueType::PointerType => {
+			if __av_typeof(b) != ValueType::PointerType {
+				return RUNTIME_ERR_EXPECTED_STR;
+			}
+			// Verify if both are pointers to strings
+			// TODO: Support for a to-string method on structs
+			let obj_a = env.get_object(a);
+			if obj_a.avtype != AvObjectType::AvString {
+				return RUNTIME_ERR_EXPECTED_STR;
+			}
+			let obj_b = env.get_object(b);
+			if obj_b.avtype != AvObjectType::AvString {
+				return RUNTIME_ERR_EXPECTED_STR;
+			}
+
+			let result_str = [obj_a.avstr.as_ref().unwrap().to_string(), 
+							  obj_b.avstr.as_ref().unwrap().to_string()].join("");
+			let result_obj = AvObject::new_string(result_str);
+			let result_ptr = env.save_object(result_obj);
+
+			return result_ptr
+		},
+		_ => {
+			return RUNTIME_ERR_EXPECTED_NUM
+		}
+	}
 }
 
 #[no_mangle]
