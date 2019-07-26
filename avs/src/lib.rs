@@ -64,6 +64,7 @@ pub extern "C" fn __av_add(env: &mut AvObject, a: u64, b: u64) -> u64 {
 			return (f_a + f_b).to_bits()
 		},
 		ValueType::PointerType => {
+			// TODO: String concantanation and mixed mode unit tests.
 			if __av_typeof(b) != ValueType::PointerType {
 				return RUNTIME_ERR_EXPECTED_STR;
 			}

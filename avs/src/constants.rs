@@ -74,5 +74,19 @@ pub const RUNTIME_ERR_EXPECTED_STR: u64 = 0xFFFE_0800_0000_0000;
 pub const RUNTIME_ERR_DIV_Z: u64 = 0xFFFE_0002_0000_0000;
 
 
+// Pointer types
+// 0xFFF9_0000_0000_0000
+// 16 byte pointer header
+//    > Pointer type. For fast type checking without deref.
+//    > Small sized pointers?
+//    > Direct obj field access pointers (for small index)
+// 32 lower bits - Relative pointer location.
 
+
+// Object class constants for built-in types.
+pub const AV_CLASS_OBJECT: u32 = 0;
+pub const AV_CLASS_CLASS: u32 = 1;
+pub const AV_CLASS_FUNCTION: u32 = 2;
+pub const AV_CLASS_ENVIRONMENT: u32 = 3;
+pub const AV_CLASS_STRING: u32 = 4;
 
