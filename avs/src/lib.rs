@@ -42,7 +42,7 @@ pub extern "C" fn __av_typeof(value: u64) -> ValueType {
 			VALUE_TYPE_POINTER_MASK => ValueType::PointerType,
 			VALUE_TYPE_NONE_MASK => ValueType::NoneType,
 			VALUE_TYPE_BOOL_MASK => ValueType::BooleanType,
-			VALUE_TYPE_STR_MASK => ValueType::StringType,
+//			VALUE_TYPE_STR_MASK => ValueType::StringType,
 			VALUE_TYPE_ERR_MASK => ValueType::ErrorType,
 			_ => ValueType::NumericType  		// Treat as NaN
 		}

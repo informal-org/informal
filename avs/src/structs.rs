@@ -21,11 +21,10 @@ pub enum ValueType {
 //     // AvClass, AvFunction
 // }
 
-// 12 bytes. 
-// We opt for longer hash for lower collisions at a per-obj memory cost.
+// 4 byte class ID.
+// No other hash or ID fields for now.
 pub struct AvObjectBasic {
-    pub avclass: u32,
-    pub hash: u64
+    pub avclass: u32
     // ID: u32? 
 }
 
