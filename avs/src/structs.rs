@@ -12,13 +12,47 @@ pub enum ValueType {
 	PointerType,
 	ErrorType
 }
-#[derive(Debug,PartialEq)]
-pub enum AvObjectType {
-    AvObject,
-    AvString,
-    AvEnvironment,
-    // AvClass, AvFunction
+
+// #[derive(Debug,PartialEq)]
+// pub enum AvObjectType {
+//     AvObject,
+//     AvString,
+//     AvEnvironment,
+//     // AvClass, AvFunction
+// }
+
+// 12 bytes. 
+// We opt for longer hash for lower collisions at a per-obj memory cost.
+pub struct AvObjectBasic {
+    pub avclass: u32,
+    pub hash: u64
+    // ID: u32? 
 }
+
+pub struct AvClass {
+    pub object: AvObjectBasic,
+    pub values_size: u32,
+    pub objs_size: u32,
+    // TODO: Methods stored in class
+}
+
+pub struct AvObject {
+    pub object: AvObjectBasic,
+    // Values are required. Objects are optional. (unallocated for primitive arrays)
+    pub values: RefCell<Vec<u64>>,
+    pub avobjs: RefCell<Option<Vec<Rc<AvObject>>>>
+}
+
+pub struct AvObjectString {
+    pub object: AvObjectBasic,
+    pub avstr: str   // ToDo String vs str
+}
+
+pub struct AvObjectArray {
+    pub object: AvObject,
+}
+
+// TODO: AvBytes
 
 // Matches with the IO object format. The fields present vary based on object type.
 #[derive(Debug,PartialEq)]
