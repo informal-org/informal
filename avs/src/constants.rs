@@ -6,11 +6,21 @@ We pack a type and value into this space, for basic types and pointers.
 0 00000001010 0000000000000000000000000000000000000000000000000000 = 64
 1 11111111111 1000000000000000000000000000000000000000000000000000 = nan
 Type (3 bits). Value 48 bits.
+
+This space is sub-divided into various types of pointers and constants. 
+There's dedicated pointer types for common types (String, functions, objects) 
+allowing type checking without dereferencing. String and array pointers also encode
+their length in a 16 bit space if it fits, for faster inequality checking and length
+retrieval for small values. 
+
+The constant value space for referencing common values, like true, false, nil. 
+It's arranged based on truthiness so you can easily detect falsey values (like empty arrays).
+All strings of length < 5 bytes can be represented within this same compact value type.
 */
 
 // Data format
 
-// 8 = 1000
+// 8 = 1000 in binary
 pub const SIGNALING_NAN: u64 = 0xFFF8_0000_0000_0000;
 pub const QUITE_NAN: u64 = 0xFFF0_0000_0000_0000;
 
@@ -24,15 +34,16 @@ pub const VALUE_MASK: u64 = 0x0000_FFFF_FFFF_FFFF;
 // Reserved space for built-in constant values
 pub const VALUE_TYPE_CONSTANT_MASK: u64 = 0x0009_0000_0000_0000;
 
-// Array. Payload = length (up to 2^16). 0 if greater (empty arr represented separately)
-pub const VALUE_TYPE_ARR_MASK: u64 = 0x000A_0000_0000_0000;
+// Array or objects. Payload = length (up to 2^16). 0 if greater (empty arr represented separately)
+pub const VALUE_TYPE_OBJ_RANGE_MASK: u64 = 0x000A_0000_0000_0000;
+// Payload = field index. Reference a field within an object/arr directly.
+pub const VALUE_TYPE_OBJ_INDEX_MASK: u64 = 0x000B_0000_0000_0000;
 
 
 // VALUE_TYPE_NONE_MASK
 // pub const VALUE_TYPE_BOOL_MASK: u64 = 0x000B_0000_0000_0000;
 
-
-
+// Might not be useful
 pub const VALUE_TYPE_CLASS_MASK: u64 = 0x000C_0000_0000_0000;
 
 // Don't stuff additional payload into pointer values to preserve full range for future.
@@ -54,7 +65,7 @@ pub const CONST_EMPTY_ARR: u64 = 0xFFF9_2000_0000_0000;
 
 
 
-// ERRORS
+//                           ERRORS
 // Private - temprorary error code.
 // Future will contain payload of error region.
 pub const VALUE_ERR: u64 = 0xFFF9_D000_0000_0000;
@@ -95,6 +106,9 @@ pub const RUNTIME_ERR_EXPECTED_STR: u64     = 0xFFF9_D008_0000_0000;
 pub const RUNTIME_ERR_DIV_Z: u64            = 0xFFF9_D009_0000_0000;
 
 
+
+
+// String constants
 pub const CONST_EMPTY_STR: u64 = 0xFFF9_E000_0000_0000;
 // All values after this are Truthy
 // String constants from E1[00]_[00][00]_[00][00] -> Upto 5 characters inline!
