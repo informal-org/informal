@@ -124,7 +124,6 @@ mod tests {
     use crate::structs::*;
     use serde_json::json;
 
-
     macro_rules! read_eval {
         ($e:expr) => ({
             eval(read(String::from($e)))[0]
@@ -154,10 +153,10 @@ mod tests {
             println!("Checking interpreted result: {:?} {:?}", i_result, i_result_f);
             assert_eq!(i_result_f, $expected);
             
-            // let c_result = eval(read(String::from($e)))[0];
-            // let c_result_f = f64::from_bits(c_result);
-            // println!("Checking compiled result: {:?} {:?}", c_result, c_result_f);
-            // assert_eq!(c_result_f, $expected);
+            let c_result = eval(read(String::from($e)))[0];
+            let c_result_f = f64::from_bits(c_result);
+            println!("Checking compiled result: {:?} {:?}", c_result, c_result_f);
+            assert_eq!(c_result_f, $expected);
         });
     }
 
@@ -293,7 +292,7 @@ mod tests {
         };
         let i_result = interpreter::interpret_all(program);
         println!("{:?}", i_result);
-        assert_eq!(true, false);
+        // assert_eq!(true, false);
 
     }
 

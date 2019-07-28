@@ -1,4 +1,4 @@
-import React from "React";
+import React from "react";
 import ReactDOM from "react-dom";
 import AbstractBaseCell from "./AbstractBaseCell.js"
 import { cellGet, formatCellOutput } from "../utils.js"

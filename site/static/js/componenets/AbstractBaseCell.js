@@ -1,4 +1,4 @@
-import React from "React";
+import React from "react";
 import ReactDOM from "react-dom";
 import { cellGet, formatCellOutput } from "../utils.js"
 

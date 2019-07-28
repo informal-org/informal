@@ -1,4 +1,4 @@
-import React from "React";
+import React from "react";
 import GridCell from "./GridCell.js"
 import GridList from "./GridList.js"
 import ActionBar from "./ActionBar.js"

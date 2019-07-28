@@ -3,6 +3,7 @@
   "license": "MIT",
   "scripts": {
     "deploy": "webpack --mode production",
+    "debugbuild": "webpack --mode production --display-error-details",
     "watch": "webpack --mode development --watch",
     "tail": "npx tailwind build css/app.css -o dist/static/css/app.css",
     "purge": "purgecss --css dist/static/css/*.css --content ../templates/*.html -o css"

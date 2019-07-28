@@ -4,7 +4,7 @@ import { connect } from 'react-redux'
 import { Provider } from 'react-redux'
 import { mapStateToProps, mapDispatchToProps } from './store.js'
 import Grid from './componenets/Grid.js'
-import React from "React";
+import React from "react";
 import ReactDOM from "react-dom";
 
 

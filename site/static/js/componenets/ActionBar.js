@@ -1,4 +1,4 @@
-import React from "React";
+import React from "react";
 import ReactDOM from "react-dom";
 
 export default class ActionBar extends React.Component {
