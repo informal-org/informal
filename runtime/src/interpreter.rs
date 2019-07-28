@@ -141,6 +141,8 @@ pub fn interpret_all(request: EvalRequest) -> EvalResponse {
             },
             ValueType::ObjectType => {
                 if is_error(result) {
+                    println!("Interpreter return returned true");
+                    println!("{:X}, {:X}", result, result & VALUE_F_PTR_OBJ);
                     // Errors returned in different field.
                     err = repr_error(result);
                 } else {

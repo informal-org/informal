@@ -1,4 +1,4 @@
-use crate::constants::{VALUE_T_SYM_OBJ, LOW32_MASK};
+use crate::constants::{VALUE_T_SYM_OBJ, VALUE_T_PTR_OBJ, LOW32_MASK};
 
 // Unwrap pointer
 #[inline(always)]
@@ -13,3 +13,15 @@ pub fn extend_value_symbol(truncated: u32) -> u64 {
     // Assertion - this was originally a "Value" symbol.
     return (truncated as u64) | VALUE_T_SYM_OBJ;
 }
+
+#[inline(always)]
+pub fn extend_value_object(truncated: u32) -> u64 {
+    
+    // Assertion - this was originally a "Value" symbol.
+    let result = (truncated as u64) | VALUE_T_PTR_OBJ;
+    println!("{:X} -> {:X}", truncated, result);
+
+    return result;
+
+}
+

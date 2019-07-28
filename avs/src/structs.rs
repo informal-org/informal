@@ -3,29 +3,17 @@ use alloc::rc::Rc;
 use alloc::string::String;
 use alloc::vec::Vec;
 use alloc::boxed::Box;
-use crate::utils::{truncate_symbol, extend_value_symbol};
+use crate::utils::{truncate_symbol, extend_value_symbol, extend_value_object};
 use crate::constants::*;
 
 #[derive(Debug,PartialEq)]
 pub enum ValueType {
-//    NoneType, 
-//    BooleanType,
-    
     NumericType,
     StringType,
 	ObjectType,
     SymbolType
-
-//	ErrorType,
 }
 
-// #[derive(Debug,PartialEq)]
-// pub enum AvObjectType {
-//     AvObject,
-//     AvString,
-//     AvEnvironment,
-//     // AvClass, AvFunction
-// }
 
 // For classes, there's symbols for value_size and objs_size
 // Hash capacity should be rounded up to the nearest prime number 
@@ -114,7 +102,8 @@ impl AvObject {
             let obj_arr = objects.as_mut().unwrap();
             obj_arr.push(Rc::new(obj));
             let index = obj_arr.len() - 1;
-            return extend_value_symbol(index as u32);
+            // return extend_value_symbol(index as u32);
+            return extend_value_object(index as u32);
         }
         // TODO: stack trace for this
         return RUNTIME_ERR_MEMORY_ACCESS;

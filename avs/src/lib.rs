@@ -1,5 +1,5 @@
-#![no_main]
-#![no_std]
+// #![no_main]
+// #![no_std]
 
 pub mod constants;
 pub mod structs;
@@ -17,8 +17,8 @@ pub use crate::avfb_generated::avfb::{AvFbObj, AvFbObjArgs, get_root_as_av_fb_ob
 extern crate wee_alloc;
 
 // Use `wee_alloc` as the global allocator.
-#[global_allocator]
-static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
+// #[global_allocator]
+// static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 
 
@@ -101,6 +101,7 @@ pub extern "C" fn is_error(value: u64) -> bool {
 // Use this only returning type info.
 // Use the dedicated is_* function to check type more efficiently.
 pub extern "C" fn __av_typeof(value: u64) -> ValueType {
+	println!("{:x}", value);
 	if (value & SIGNALING_NAN) == SIGNALING_NAN {
 		if (value & VALHEAD_OBJTYPE_MASK) != VALHEAD_OBJTYPE_MASK {
 			return ValueType::StringType;
@@ -422,42 +423,83 @@ pub extern "C" fn __av_run() -> u32 {
 }
 
 
-// #[cfg(test)]
-// mod tests {
-// 	use super::*;
+#[cfg(test)]
+mod tests {
+	use super::*;
 
-// 	unsafe fn get_slice<'a>(ptr: *const u64, size: usize) -> &'a [u64] {
-// 		let slice: [usize; 2] = [ptr as usize, size];
-// 		let slice_ptr = &slice as * const _ as *const () as *const &[u64];
-// 		*slice_ptr
-// 	}
+	#[test]
+    fn test_as_bool() {
+		// Verifies is_truthy as well
+		assert_eq!(__av_as_bool(SYMBOL_TRUE), true);
+		assert_eq!(__av_as_bool(SYMBOL_FALSE), false);
+		assert_eq!(__av_as_bool(SYMBOL_NONE), false);
+		assert_eq!(__av_as_bool(VALUE_ERR), false);
+		assert_eq!(__av_as_bool(f64::to_bits(1.0)), true);
+		assert_eq!(__av_as_bool(f64::to_bits(3.0)), true);
+		assert_eq!(__av_as_bool(f64::to_bits(0.0)), false);
+		assert_eq!(__av_as_bool(f64::to_bits(-0.0)), false);
+		// ToDo Nan = false
+	}
 
-// 	#[test]
-//     fn test_as_bool() {
-// 		assert_eq!(__av_as_bool(SYMBOL_TRUE), true);
-// 		assert_eq!(__av_as_bool(SYMBOL_FALSE), false);
-// 		assert_eq!(__av_as_bool(VALUE_NONE), false);
-// 		assert_eq!(__av_as_bool(VALUE_ERR), false);
-// 		assert_eq!(__av_as_bool(f64::to_bits(1.0)), true);
-// 		assert_eq!(__av_as_bool(f64::to_bits(3.0)), true);
-// 		assert_eq!(__av_as_bool(f64::to_bits(0.0)), false);
-// 		assert_eq!(__av_as_bool(f64::to_bits(-0.0)), false);
-// 	}
 
-// 	#[test]
-//     fn test_mem() {
-// 		// Verify no panic on any of these operations
-// 		let ptr = __av_malloc(4);
-// 		println!("Memory address: {:?}", ptr);
-// 		let points_at = unsafe {
-// 			println!("Value at: {:?}", *ptr);
-// 			println!("Values: {:?}", slice::from_raw_parts(ptr, 4));
-// 			*ptr
-// 		};
+	#[test]
+	fn test_is_object() {
+		assert_eq!(is_object(VALUE_F_PTR_OBJ), true);
+		assert_eq!(is_object(VALUE_F_SYM_STR), false);
+		assert_eq!(is_object(VALUE_F_SYM_OBJ), true);
+		assert_eq!(is_object(VALUE_T_PTR_STR), false);
+		assert_eq!(is_object(VALUE_T_PTR_OBJ), true);
+		assert_eq!(is_object(VALUE_T_SYM_STR), false);
+		assert_eq!(is_object(VALUE_T_SYM_OBJ), true);
+	}
 
-// 		unsafe {
-// 			println!("out: {:?}", get_slice(ptr, 2));
-// 		}
-// 		__av_free(ptr, 4);
-// 	}
-// }
+
+	#[test]
+	fn test_is_string() {
+		assert_eq!(is_string(VALUE_F_PTR_OBJ), false);
+		assert_eq!(is_string(VALUE_F_SYM_STR), true);
+		assert_eq!(is_string(VALUE_F_SYM_OBJ), false);
+		assert_eq!(is_string(VALUE_T_PTR_STR), true);
+		assert_eq!(is_string(VALUE_T_PTR_OBJ), false);
+		assert_eq!(is_string(VALUE_T_SYM_STR), true);
+		assert_eq!(is_string(VALUE_T_SYM_OBJ), false);
+	}
+
+
+	#[test]
+	fn test_is_symbol() {
+		assert_eq!(is_string(VALUE_F_PTR_OBJ), false);
+		assert_eq!(is_string(VALUE_F_SYM_STR), true);
+		assert_eq!(is_string(VALUE_F_SYM_OBJ), true);
+		assert_eq!(is_string(VALUE_T_PTR_STR), false);
+		assert_eq!(is_string(VALUE_T_PTR_OBJ), false);
+		assert_eq!(is_string(VALUE_T_SYM_STR), true);
+		assert_eq!(is_string(VALUE_T_SYM_OBJ), true);
+	}
+
+
+	#[test]
+	fn test_is_pointer() {
+		assert_eq!(is_string(VALUE_F_PTR_OBJ), true);
+		assert_eq!(is_string(VALUE_F_SYM_STR), false);
+		assert_eq!(is_string(VALUE_F_SYM_OBJ), false);
+		assert_eq!(is_string(VALUE_T_PTR_STR), true);
+		assert_eq!(is_string(VALUE_T_PTR_OBJ), true);
+		assert_eq!(is_string(VALUE_T_SYM_STR), false);
+		assert_eq!(is_string(VALUE_T_SYM_OBJ), false);
+	}
+
+
+	#[test]
+	fn test_is_error() {
+		assert_eq!(is_string(VALUE_F_PTR_OBJ), true);
+		assert_eq!(is_string(VALUE_F_SYM_STR), false);
+		assert_eq!(is_string(VALUE_F_SYM_OBJ), false);
+		assert_eq!(is_string(VALUE_T_PTR_STR), false);
+		assert_eq!(is_string(VALUE_T_PTR_OBJ), false);
+		assert_eq!(is_string(VALUE_T_SYM_STR), false);
+		assert_eq!(is_string(VALUE_T_SYM_OBJ), false);
+	}	
+
+
+}

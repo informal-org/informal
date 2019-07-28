@@ -19,22 +19,27 @@ pub fn repr(env: &AvObject, result: u64) -> String {
             if result == SYMBOL_TRUE {
                 format!("TRUE")
             } else {
+                // let obj = env.get_object(result);
+                // repr_object(&obj)
+
                 // TODO: Handle all the other symbols (None, etc.)
-                format!("unknown FALSE")
+                format!("{:X} ", result)
             }
         },
         ValueType::ObjectType | ValueType::StringType => {
             if is_error(result) {
+                println!("Is return returned true");
+                println!("{:X}, {:X}", result, result & VALUE_F_PTR_OBJ);
                 repr_error(result)
             } else {
                 // TODO: Split up string type into separate one to handle small strings
                 let obj = env.get_object(result);
                 repr_object(&obj)
             }
-        },
-        _ => {
-            format!("{:?}: {:?}", result_type, result)
         }
+        // _ => {
+        //     format!("{:?}: {:?}", result_type, result)
+        // }
     }
 }
 
@@ -96,6 +101,6 @@ pub fn repr_error(result: u64) -> String {
     } else if result == RUNTIME_ERR_DIV_Z {
         String::from("Dividing by zero is undefined. Make sure the denominator is not a zero before dividing.")
     } else {
-        format!("Sorry, Arevel encountered a completely unknown error: {:?}", result)
+        format!("Sorry, Arevel encountered a completely unknown error: {:X}", result)
     }
 }

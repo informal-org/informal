@@ -48,7 +48,6 @@ pub fn construct_ast(request: EvalRequest) -> AST {
         let mut lexed = lex(&cell.input).unwrap();
         // Attempt to parse ID of cell and save result "@42" -> 42
         if let Some(id64) = cell.id[1..].parse::<u64>().ok() {
-            println!("Ok parsing id {:?}", id64);
             let mut ast_node = apply_operator_precedence(id64, &mut lexed);
             update_used_by(&id64, &mut ast_node, &mut node_list, &mut node_map, &mut used_by_buffer);
 
@@ -60,7 +59,6 @@ pub fn construct_ast(request: EvalRequest) -> AST {
         // TODO: ID Parsing failure? Or change the input format in a way that disallows failures
         // Or save an error node.
     }
-    println!("nodes: {:?}", node_map);
     // Do a pass over all the nodes to resolve used_by. You could partially do this inline using a hashmap
 
     // Assert - used_by_buffer empty by now.

@@ -266,14 +266,11 @@ pub fn lex(expr: &str) -> Result<Vec<TokenType>> {
                 }
             }
             '@' => {
-//                println!("Is id");
                 let mut token_str: String = String::from("");
                 it.next();
                 gobble_digits(&mut token_str, &mut it);
-                println!("digits {:?}", token_str);
                 // TODO: Better panic handling
                 if let Some(id) = token_str.parse::<u64>().ok() {
-                    println!("id {:?}", id);
                     Some(TokenType::Identifier(id))
                 } else {
                     // TODO: Invalid identifier
