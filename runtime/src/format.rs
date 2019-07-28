@@ -1,5 +1,4 @@
-use avs::{__av_typeof, is_error};
-use avs::utils::{extend_value_symbol, truncate_symbol};
+use avs::types::{__av_typeof, is_error};
 use avs::structs::{ValueType, AvObject};
 use avs::constants::*;
 
@@ -19,17 +18,12 @@ pub fn repr(env: &AvObject, result: u64) -> String {
             if result == SYMBOL_TRUE {
                 format!("TRUE")
             } else {
-                // let obj = env.get_object(result);
-                // repr_object(&obj)
-
                 // TODO: Handle all the other symbols (None, etc.)
-                format!("{:X} ", result)
+                format!("Not true {:X} ", result)
             }
         },
         ValueType::ObjectType | ValueType::StringType => {
             if is_error(result) {
-                println!("Is return returned true");
-                println!("{:X}, {:X}", result, result & VALUE_F_PTR_OBJ);
                 repr_error(result)
             } else {
                 // TODO: Split up string type into separate one to handle small strings

@@ -63,7 +63,6 @@ pub extern "C" fn is_error(value: u64) -> bool {
 // Use this only returning type info.
 // Use the dedicated is_* function to check type more efficiently.
 pub extern "C" fn __av_typeof(value: u64) -> ValueType {
-	println!("{:x}", value);
 	if (value & SIGNALING_NAN) == SIGNALING_NAN {
 		if (value & VALHEAD_OBJTYPE_MASK) != VALHEAD_OBJTYPE_MASK {
 			return ValueType::StringType;

@@ -1,5 +1,5 @@
-// #![no_main]
-// #![no_std]
+#![no_main]
+#![no_std]
 
 pub mod constants;
 pub mod structs;
@@ -12,14 +12,10 @@ pub mod operators;
 #[allow(non_snake_case)]
 pub mod avfb_generated;
 
-// use constants::*;
 use structs::*;
+
 #[cfg(target_os = "unknown")]
 use memory::{__av_sized_ptr};
-// use types::*;
-// use operators::*;
-
-// use utils::*;
 
 extern crate alloc;
 extern crate wee_alloc;
@@ -33,8 +29,6 @@ pub use crate::avfb_generated::avfb::{AvFbObj, AvFbObjArgs, get_root_as_av_fb_ob
 // static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 
-
-
 #[cfg(target_os = "unknown")]
 extern {
 	// Injection point for Arevel code. 
@@ -42,15 +36,6 @@ extern {
 	#[inline(never)]
     fn __av_inject_placeholder();
 }
-
-
-// TODO init function for values since we save stuff in random order.
-// pub extern "C" fn __av_init(env: &mut AvObject, size: usize) {
-// 	let results = env.
-// 	for i in 0..size {
-		
-// 	}
-// }
 
 #[no_mangle]
 #[inline(never)]
@@ -66,11 +51,6 @@ pub extern "C" fn __av_get(env: &mut AvObject, id: usize) -> u64 {
 	return env.get_value(id);
 }
 
-// #[no_mangle]
-// #[inline(never)]
-// pub extern "C" fn __av_get_obj(env: &mut AvObject, id: usize) -> u64 { 
-// 	return env.save_value;
-// }
 
 #[no_mangle]
 #[inline(never)]

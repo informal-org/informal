@@ -19,8 +19,6 @@ pub fn extend_value_object(truncated: u32) -> u64 {
     
     // Assertion - this was originally a "Value" symbol.
     let result = (truncated as u64) | VALUE_T_PTR_OBJ;
-    println!("{:X} -> {:X}", truncated, result);
-
     return result;
 
 }

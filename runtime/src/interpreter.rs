@@ -11,7 +11,8 @@ use super::lexer::*;
 use super::structs::*;
 use super::format::*;
 use super::ast::*;
-use avs::*;
+use avs::operators::*;
+use avs::types::*;
 use avs::constants::*;
 use avs::structs::{ValueType, AvObject};
 
