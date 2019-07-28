@@ -139,22 +139,3 @@ pub struct Scope {
     // symbol index -> result
     pub values: Vec<u64>
 }
-
-
-// pub struct ASTNode {
-//     pub node_type: ASTNodeType,
-//     pub operator: Option<KeywordType>,
-//     pub left: Option<Box<ASTNode>>,
-//     pub right: Option<Box<ASTNode>>,
-//     pub value: Option<Value>
-// }
-
-
-// #[derive(Debug,PartialEq)]
-// pub enum ASTNodeType {
-//     BinaryExpression,
-//     UnaryExpression,
-//     Identifier,
-//     Literal
-// }
-

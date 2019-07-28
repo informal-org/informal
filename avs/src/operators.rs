@@ -2,6 +2,7 @@ use crate::types::*;
 use crate::structs::*;
 use crate::constants::*;
 use crate::macros::*;
+use alloc::string::String;
 
 
 #[no_mangle]

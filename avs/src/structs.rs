@@ -15,6 +15,14 @@ pub enum ValueType {
 }
 
 
+#[derive(Debug,PartialEq)]
+pub enum Atom {
+    NumericValue(u64),
+    StringValue(String),
+    SymbolValue(u64)
+    // Object Value?
+}
+
 // For classes, there's symbols for value_size and objs_size
 // Hash capacity should be rounded up to the nearest prime number 
 // to minimize hash collisions

@@ -99,7 +99,7 @@ fn parse_string(it: &mut Peekable<std::str::Chars<'_>>) -> Result<LiteralValue> 
                         'n' => token.push('\n'),
                         'r' => token.push('\r'),
                         't' => token.push('\t'),
-                        '0' => token.push('\0'),
+                        //'0' => token.push('\0'),
                         _ => {
                             // Push other sequences as-is
                             token.push('\\');
