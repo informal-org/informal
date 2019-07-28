@@ -24,20 +24,27 @@ pub enum ValueType {
 // 4 byte class ID.
 // No other hash or ID fields for now.
 pub struct AvObjectBasic {
-    pub avclass: u32
-    // ID: u32? 
+    pub avclass: u32,
+    // Symbol ID for this item. Used for hashed field access.
+    pub id: u64
+    // ID: u32?
 }
 
 pub struct AvClass {
     pub object: AvObjectBasic,
-    pub values_size: u32,
+    
+    // Capacity should be rounded up to the nearest prime number 
+    // to minimize hash collisions
+    pub values_size: u32,       // For fixed memory allocation
     pub objs_size: u32,
+
     // TODO: Methods stored in class
 }
 
 pub struct AvObject {
     pub object: AvObjectBasic,
     // Values are required. Objects are optional. (unallocated for primitive arrays)
+    // This can be used as a list or a hash table for field access.
     pub values: RefCell<Vec<u64>>,
     pub avobjs: RefCell<Option<Vec<Rc<AvObject>>>>
 }
@@ -47,6 +54,7 @@ pub struct AvObjectString {
     pub avstr: str   // ToDo String vs str
 }
 
+// Equivalent to an object, just separate for methods.
 pub struct AvObjectArray {
     pub object: AvObject,
 }
