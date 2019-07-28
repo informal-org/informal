@@ -8,7 +8,7 @@ use std::io::{stdin,stdout,Write};
 use avs::constants::*;
 
 extern crate flatbuffers;
-pub use avs::avfb_generated::avfb::{AvFbObj, AvFbObjArgs, get_root_as_av_fb_obj, AvFbObjType};
+pub use avs::avfb_generated::avfb::{AvFbObj, AvFbObjArgs, get_root_as_av_fb_obj};
 
 
 fn repl_it() {
@@ -43,14 +43,11 @@ fn main() {
     let hello = builder.create_string("Hello Arevel");
 
     let obj = AvFbObj::create(&mut builder, &AvFbObjArgs{
-		avtype: AV_CLASS_STRING,
-		avclass: 0,
-		avhash: 0,
-		values: None,
-        avstr: Some(hello),
-		length: 0,
-		avbytes: None,
-        avobjs: None
+        id: 0,
+		av_class: AV_CLASS_STRING,
+		av_values: None,
+        av_objects: None,
+        av_string: Some(hello)
     });
 
     println!("{:?}", obj);

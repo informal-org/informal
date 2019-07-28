@@ -27,10 +27,10 @@ macro_rules! decode_flatbuf {
         // let result: Vec<u8> = Vec::new();
         // result
         // fb
-        let objects = fb.avobjs().unwrap();
-        println!("obj str: {:?}", objects.get(0).avstr());
+        let objects = fb.av_objects().unwrap();
+        println!("obj str: {:?}", objects.get(0).av_string());
 
-        let values = fb.values().unwrap();
+        let values = fb.av_values().unwrap();
         // Perform another copy of the data - due to ownership rules
         let mut results: Vec<u64> = Vec::with_capacity(values.len() as usize);
         for cell_idx in 0..values.len() {
