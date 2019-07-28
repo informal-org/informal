@@ -96,7 +96,7 @@ pub const AV_CLASS_ENVIRONMENT: u32 = 1028;
 pub const AV_CLASS_STRING: u32 = 1029;
 
 
-
+// Reserve up to 65k symbols for standard library usage. (Classes, functions, etc.)
 
 
 //////////////////////////////////////////////////////////////////////////////////

@@ -14,8 +14,6 @@ use structs::*;
 #[allow(non_snake_case)]
 pub use crate::avfb_generated::avfb::{AvFbObj, AvFbObjArgs, get_root_as_av_fb_obj};
 
-
-
 extern crate wee_alloc;
 
 // Use `wee_alloc` as the global allocator.
@@ -92,6 +90,14 @@ pub extern "C" fn is_pointer(value: u64) -> bool {
 
 
 #[no_mangle]
+#[inline(always)]
+pub extern "C" fn is_error(value: u64) -> bool {
+	// False pointers = Errors
+    return (value & VALUE_F_PTR_OBJ) == VALUE_F_PTR_OBJ;
+}
+
+
+#[no_mangle]
 // Use this only returning type info.
 // Use the dedicated is_* function to check type more efficiently.
 pub extern "C" fn __av_typeof(value: u64) -> ValueType {
@@ -100,14 +106,11 @@ pub extern "C" fn __av_typeof(value: u64) -> ValueType {
 			return ValueType::StringType;
 		} else {
 			let valhead = value & VALHEAD_MASK;
-
 			match valhead {
-				// Symbol to something truthy
-				// TODO: Remove None & Bool from type options
 				VALUE_T_SYM_OBJ => return ValueType::SymbolType,
-				VALUE_T_PTR_OBJ => return ValueType::PointerType, 
+				VALUE_T_PTR_OBJ => return ValueType::ObjectType, 
 				VALUE_F_SYM_OBJ => return ValueType::SymbolType,
-				VALUE_F_PTR_OBJ => return ValueType::ErrorType,
+				VALUE_F_PTR_OBJ => return ValueType::ObjectType,
 				_ => return ValueType::NumericType  // Treat other values as NaN
 			}
 		}
@@ -130,9 +133,9 @@ pub extern "C" fn __av_add(env: &mut AvObject, a: u64, b: u64) -> u64 {
 			let f_b: f64 = valid_num!(b);
 			return (f_a + f_b).to_bits()
 		},
-		ValueType::PointerType => {
+		ValueType::ObjectType => {
 			// TODO: String concantanation and mixed mode unit tests.
-			if __av_typeof(b) != ValueType::PointerType {
+			if __av_typeof(b) != ValueType::ObjectType {
 				return RUNTIME_ERR_EXPECTED_STR;
 			}
 			// Verify if both are pointers to strings
@@ -194,32 +197,8 @@ pub extern "C" fn __av_div(env: &mut AvObject, a: u64, b: u64) -> u64 {
 
 #[no_mangle]
 pub extern "C" fn __av_as_bool(a: u64) -> bool {
-	// TODO: More advanced type checking.
-	
-	// TODO: Use truthyness bit instead
-	if a == SYMBOL_TRUE {
-		return true
-	}
-	if a == SYMBOL_FALSE || a == SYMBOL_NONE {
-		return false;
-	}
-	// Truthiness for other empty types and errors.
-	let a_type = __av_typeof(a);
-	match a_type {
-		ValueType::NumericType => {
-			let f_a = f64::from_bits(a);
-			return f_a != 0.0;
-		} 
-		ValueType::ErrorType => {
-			// Does treating error as false have other consequences?
-			// What about not (1 / 0) being treated as true
-			return false;
-		}
-		_ => {
-			// TODO
-			return false
-		}
-	}
+	// TODO: 'bool' fields for objects
+	return is_truthy(a);
 }
 
 #[inline(always)]
@@ -405,7 +384,7 @@ pub extern "C" fn __av_run() -> u32 {
 
 
 	let mut builder = flatbuffers::FlatBufferBuilder::new_with_capacity(1024);
-    let hello = builder.create_string("Hello Arevellllllllllllllllll were werwerw ");
+    let hello = builder.create_string("Hello Arevel");
 	let shared_vec: Vec<u64> = Vec::new();
 	let results_vec = builder.create_vector(&shared_vec);
 

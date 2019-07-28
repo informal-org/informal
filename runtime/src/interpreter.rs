@@ -135,10 +135,18 @@ pub fn interpret_all(request: EvalRequest) -> EvalResponse {
         let mut output = String::from("");
         let mut err = String::from("");
         
-        if __av_typeof(result) != ValueType::ErrorType {
-            output = repr(&global_env, result);
-        } else {
-            err = repr_error(result);
+        match __av_typeof(result){
+            ValueType::NumericType | ValueType::StringType | ValueType::SymbolType => {
+                output = repr(&global_env, result);
+            },
+            ValueType::ObjectType => {
+                if is_error(result) {
+                    // Errors returned in different field.
+                    err = repr_error(result);
+                } else {
+                    output = repr(&global_env, result);
+                }
+            }
         }
 
         results.push(CellResponse {

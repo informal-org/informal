@@ -8,13 +8,15 @@ use crate::constants::*;
 
 #[derive(Debug,PartialEq)]
 pub enum ValueType {
-    NoneType, 
-    BooleanType,
+//    NoneType, 
+//    BooleanType,
+    
     NumericType,
     StringType,
-	PointerType,
-	ErrorType,
+	ObjectType,
     SymbolType
+
+//	ErrorType,
 }
 
 // #[derive(Debug,PartialEq)]
