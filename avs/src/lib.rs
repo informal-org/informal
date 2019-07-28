@@ -468,37 +468,37 @@ mod tests {
 
 	#[test]
 	fn test_is_symbol() {
-		assert_eq!(is_string(VALUE_F_PTR_OBJ), false);
-		assert_eq!(is_string(VALUE_F_SYM_STR), true);
-		assert_eq!(is_string(VALUE_F_SYM_OBJ), true);
-		assert_eq!(is_string(VALUE_T_PTR_STR), false);
-		assert_eq!(is_string(VALUE_T_PTR_OBJ), false);
-		assert_eq!(is_string(VALUE_T_SYM_STR), true);
-		assert_eq!(is_string(VALUE_T_SYM_OBJ), true);
+		assert_eq!(is_symbol(VALUE_F_PTR_OBJ), false);
+		assert_eq!(is_symbol(VALUE_F_SYM_STR), true);
+		assert_eq!(is_symbol(VALUE_F_SYM_OBJ), true);
+		assert_eq!(is_symbol(VALUE_T_PTR_STR), false);
+		assert_eq!(is_symbol(VALUE_T_PTR_OBJ), false);
+		assert_eq!(is_symbol(VALUE_T_SYM_STR), true);
+		assert_eq!(is_symbol(VALUE_T_SYM_OBJ), true);
 	}
 
 
 	#[test]
 	fn test_is_pointer() {
-		assert_eq!(is_string(VALUE_F_PTR_OBJ), true);
-		assert_eq!(is_string(VALUE_F_SYM_STR), false);
-		assert_eq!(is_string(VALUE_F_SYM_OBJ), false);
-		assert_eq!(is_string(VALUE_T_PTR_STR), true);
-		assert_eq!(is_string(VALUE_T_PTR_OBJ), true);
-		assert_eq!(is_string(VALUE_T_SYM_STR), false);
-		assert_eq!(is_string(VALUE_T_SYM_OBJ), false);
+		assert_eq!(is_pointer(VALUE_F_PTR_OBJ), true);
+		assert_eq!(is_pointer(VALUE_F_SYM_STR), false);
+		assert_eq!(is_pointer(VALUE_F_SYM_OBJ), false);
+		assert_eq!(is_pointer(VALUE_T_PTR_STR), true);
+		assert_eq!(is_pointer(VALUE_T_PTR_OBJ), true);
+		assert_eq!(is_pointer(VALUE_T_SYM_STR), false);
+		assert_eq!(is_pointer(VALUE_T_SYM_OBJ), false);
 	}
 
 
 	#[test]
 	fn test_is_error() {
-		assert_eq!(is_string(VALUE_F_PTR_OBJ), true);
-		assert_eq!(is_string(VALUE_F_SYM_STR), false);
-		assert_eq!(is_string(VALUE_F_SYM_OBJ), false);
-		assert_eq!(is_string(VALUE_T_PTR_STR), false);
-		assert_eq!(is_string(VALUE_T_PTR_OBJ), false);
-		assert_eq!(is_string(VALUE_T_SYM_STR), false);
-		assert_eq!(is_string(VALUE_T_SYM_OBJ), false);
+		assert_eq!(is_error(VALUE_F_PTR_OBJ), true);
+		assert_eq!(is_error(VALUE_F_SYM_STR), false);
+		assert_eq!(is_error(VALUE_F_SYM_OBJ), false);
+		assert_eq!(is_error(VALUE_T_PTR_STR), false);
+		assert_eq!(is_error(VALUE_T_PTR_OBJ), false);
+		assert_eq!(is_error(VALUE_T_SYM_STR), false);
+		assert_eq!(is_error(VALUE_T_SYM_OBJ), false);
 	}	
 
 
