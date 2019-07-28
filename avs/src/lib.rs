@@ -93,7 +93,7 @@ pub extern "C" fn is_pointer(value: u64) -> bool {
 #[inline(always)]
 pub extern "C" fn is_error(value: u64) -> bool {
 	// False pointers = Errors
-    return (value & VALUE_F_PTR_OBJ) == VALUE_F_PTR_OBJ;
+    return (value & VALHEAD_MASK) == VALUE_F_PTR_OBJ;
 }
 
 
