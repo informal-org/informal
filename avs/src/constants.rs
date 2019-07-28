@@ -14,7 +14,7 @@ Small strings up to 6 bytes are stored directly as constant symbols without obje
 Further optimization - huffman coding of common bytes. Could get us another 50% (Future)
 
 String pointer payloads additionally store length (up to 65k) for fast length access and
-inequality check without dereferencing.
+length-based inequality check without dereferencing.
 Pointer types can have payloads for ranged pointers or direct access into an object's field.
 
 There's a large Symbol space used to store all keywords, functions & user-defined symbols.
@@ -35,12 +35,13 @@ pub const HIGH32_MASK: u64 = 0xFFFF_FFFF_0000_0000;
 // Clear all type bits. Preserve value bits.
 pub const PAYLOAD_MASK: u64 = 0x0000_FFFF_FFFF_FFFF;
 
+pub const VALHEAD_MASK: u64 = 0xFFFF_0000_0000_0000;
 // 0 False. 1 True.
-pub const VALHEAD_TRUTHY_MASK: u64 = 0x0004_0000_0000_0000;
+pub const VALHEAD_TRUTHY_MASK: u64  = 0xFFF4_0000_0000_0000;
 // 0 = Pointer. 1 = Symbol.
-pub const VALHEAD_REFTYPE_MASK: u64 = 0x0002_0000_0000_0000;
+pub const VALHEAD_REFTYPE_MASK: u64 = 0xFFF2_0000_0000_0000;
 // 0 = String. 1 = Object.
-pub const VALHEAD_OBJTYPE_MASK: u64 = 0x0001_0000_0000_0000;
+pub const VALHEAD_OBJTYPE_MASK: u64 = 0xFFF1_0000_0000_0000;
 
 
 // 0-8 Invalid NaN (Do Not Use). 7 valid values total.
@@ -98,16 +99,15 @@ pub const AV_CLASS_STRING: u32 = 1029;
 
 
 
-//////////////////////////////////////////////////////////////
-//                      Error Objects                       //
-//////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////
+//                               Error Objects                                  //
+//////////////////////////////////////////////////////////////////////////////////
 // Top 16 bits = Error code. Bottom 16 = Pointer to obj with metadata.
+// Convention: Higher bits for earlier stages. parsing stage -> execution stage.
+// Important! Ensure that constants are not re-used!
 
 pub const VALUE_ERR: u64 = 0xFFF9_0000_0000_0000;
 
-
-// Convention: Higher bits for earlier stages. parsing stage -> execution stage.
-// Important! Ensure that constants are not re-used!
 pub const PARSE_ERR: u64                    = 0xFFF9_0100_0000_0000;
 pub const INTERPRETER_ERR: u64              = 0xFFF9_0010_0000_0000;
 pub const RUNTIME_ERR: u64                  = 0xFFF9_0001_0000_0000;

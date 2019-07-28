@@ -10,7 +10,8 @@ pub enum ValueType {
     NumericType,
     StringType,
 	PointerType,
-	ErrorType
+	ErrorType,
+    SymbolType
 }
 
 // #[derive(Debug,PartialEq)]
