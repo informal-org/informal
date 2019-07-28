@@ -404,43 +404,42 @@ pub extern "C" fn __av_run() -> u32 {
 	__av_inject(&mut env);
 
 
-	// let mut builder = flatbuffers::FlatBufferBuilder::new_with_capacity(1024);
-    // let hello = builder.create_string("Hello Arevellllllllllllllllll were werwerw ");
-	// let shared_vec: Vec<u64> = Vec::new();
-	// let results_vec = builder.create_vector(&shared_vec);
+	let mut builder = flatbuffers::FlatBufferBuilder::new_with_capacity(1024);
+    let hello = builder.create_string("Hello Arevellllllllllllllllll were werwerw ");
+	let shared_vec: Vec<u64> = Vec::new();
+	let results_vec = builder.create_vector(&shared_vec);
 
-	// let spring = builder.create_string("Spring");
+	let spring = builder.create_string("Spring");
 
-	// let obj2 = AvFbObj::create(&mut builder, &AvFbObjArgs{
-	// 	id: 0,
-	// 	av_class: 0,
-	// 	av_values: None,
-	// 	av_objects: None,
-	// 	av_string: Some(spring)
-    // });
+	let obj2 = AvFbObj::create(&mut builder, &AvFbObjArgs{
+		id: 0,
+		av_class: 0,
+		av_values: None,
+		av_objects: None,
+		av_string: Some(spring)
+    });
 
-	// let mut obj_vector: Vec<flatbuffers::WIPOffset<AvFbObj>> = Vec::new();
-	// obj_vector.push(obj2);
+	let mut obj_vector: Vec<flatbuffers::WIPOffset<AvFbObj>> = Vec::new();
+	obj_vector.push(obj2);
+	let avobjs = builder.create_vector(&obj_vector);
 	// let avobjs = builder.create_vector(&obj_vector);
-	// // let avobjs = builder.create_vector(&obj_vector);
 
-    // let obj = AvFbObj::create(&mut builder, &AvFbObjArgs{
-	// 	id: 0,
-	// 	av_class: 0,
-	// 	av_values: Some(results_vec),
-	// 	av_objects: Some(avobjs),
-    //     av_string: Some(hello)
-    // });
+    let obj = AvFbObj::create(&mut builder, &AvFbObjArgs{
+		id: 0,
+		av_class: 0,
+		av_values: Some(results_vec),
+		av_objects: Some(avobjs),
+        av_string: Some(hello)
+    });
 
-	// builder.finish(obj, None);
+	builder.finish(obj, None);
 
-	// let buf = builder.finished_data(); 		// Of type `&[u8]`
+	let buf = builder.finished_data(); 		// Of type `&[u8]`
 
 
-	// let ptr = (&buf[0] as *const u8) as u32;
-	// let size = buf.len() as u32;
-	// return __av_sized_ptr(ptr, size) as u32
-	return 0;
+	let ptr = (&buf[0] as *const u8) as u32;
+	let size = buf.len() as u32;
+	return __av_sized_ptr(ptr, size) as u32
 }
 
 
