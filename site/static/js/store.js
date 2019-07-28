@@ -1,7 +1,7 @@
 import { configureStore, createSlice } from 'redux-starter-kit'
 import { modifySize, parseEverything } from './controller.js'
-import { apiPost, cellGet, formatCellOutput } from './utils.js'
-import { CELL_MAX_WIDTH, CELL_MAX_HEIGHT } from './utils.js'
+import { apiPost } from './utils.js'
+import { CELL_MAX_WIDTH, CELL_MAX_HEIGHT } from './constants.js'
 
 const initialState = {
     cells: {
