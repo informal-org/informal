@@ -1,6 +1,7 @@
 pub mod constants;
 pub mod structs;
 pub mod macros;
+pub mod utils;
 #[allow(non_snake_case)]
 pub mod avfb_generated;
 
@@ -120,17 +121,19 @@ pub extern "C" fn __av_add(env: &mut AvObject, a: u64, b: u64) -> u64 {
 			}
 			// Verify if both are pointers to strings
 			// TODO: Support for a to-string method on structs
+
+			// TODO: Support small string constants.
 			let obj_a = env.get_object(a);
-			if obj_a.avtype != AvObjectType::AvString {
+			if obj_a.av_class != AV_CLASS_STRING {
 				return RUNTIME_ERR_EXPECTED_STR;
 			}
 			let obj_b = env.get_object(b);
-			if obj_b.avtype != AvObjectType::AvString {
+			if obj_b.av_class != AV_CLASS_STRING {
 				return RUNTIME_ERR_EXPECTED_STR;
 			}
 
-			let result_str = [obj_a.avstr.as_ref().unwrap().to_string(), 
-							  obj_b.avstr.as_ref().unwrap().to_string()].join("");
+			let result_str = [obj_a.av_string.as_ref().unwrap().to_string(), 
+							  obj_b.av_string.as_ref().unwrap().to_string()].join("");
 			let result_obj = AvObject::new_string(result_str);
 			let result_ptr = env.save_object(result_obj);
 
@@ -171,10 +174,12 @@ pub extern "C" fn __av_div(env: &mut AvObject, a: u64, b: u64) -> u64 {
 #[no_mangle]
 pub extern "C" fn __av_as_bool(a: u64) -> bool {
 	// TODO: More advanced type checking.
-	if a == VALUE_TRUE {
+	
+	// TODO: Use truthyness bit instead
+	if a == SYMBOL_TRUE {
 		return true
 	}
-	if a == VALUE_FALSE || a == VALUE_NONE {
+	if a == SYMBOL_FALSE || a == SYMBOL_NONE {
 		return false;
 	}
 	// Truthiness for other empty types and errors.
@@ -199,25 +204,11 @@ pub extern "C" fn __av_as_bool(a: u64) -> bool {
 #[inline(always)]
 pub extern "C" fn __repr_bool(a: bool) -> u64 {
 	if a {
-		return VALUE_TRUE
+		return SYMBOL_TRUE
 	} 
 	else {
-		return VALUE_FALSE
+		return SYMBOL_FALSE
 	}
-}
-
-#[inline(always)]
-pub extern "C" fn __repr_pointer(ptr: usize) -> u64 {
-	let masked_ptr: u64 = SIGNALING_NAN | VALUE_TYPE_POINTER_MASK | (ptr as u64);
-	return masked_ptr
-}
-
-#[inline(always)]
-pub extern "C" fn __unwrap_pointer(masked_ptr: u64) -> usize {
-	// Clear NaN bits & pointer mask to extract pointer values
-	let ptr: u64 = masked_ptr & VALUE_MASK;
-	println!("Returning unwraped pointer to {:?} = {:?}", ptr, masked_ptr);
-	return ptr as usize;
 }
 
 
@@ -450,8 +441,8 @@ pub extern "C" fn __av_run() -> u32 {
 
 // 	#[test]
 //     fn test_as_bool() {
-// 		assert_eq!(__av_as_bool(VALUE_TRUE), true);
-// 		assert_eq!(__av_as_bool(VALUE_FALSE), false);
+// 		assert_eq!(__av_as_bool(SYMBOL_TRUE), true);
+// 		assert_eq!(__av_as_bool(SYMBOL_FALSE), false);
 // 		assert_eq!(__av_as_bool(VALUE_NONE), false);
 // 		assert_eq!(__av_as_bool(VALUE_ERR), false);
 // 		assert_eq!(__av_as_bool(f64::to_bits(1.0)), true);

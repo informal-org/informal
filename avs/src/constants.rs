@@ -135,6 +135,3 @@ pub const RUNTIME_ERR_EXPECTED_STR: u64     = 0xFFF9_0008_0000_0000;
 
 // Arithmetic errors - 0x00
 pub const RUNTIME_ERR_DIV_Z: u64            = 0xFFF9_0009_0000_0000;
-
-
-
