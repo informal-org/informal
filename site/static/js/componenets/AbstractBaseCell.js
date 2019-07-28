@@ -1,6 +1,5 @@
 import React from "react";
-import ReactDOM from "react-dom";
-import { cellGet, formatCellOutput } from "../utils.js"
+import { formatCellOutput } from "../utils.js"
 
 // Abstract base cell that all other cell types inherit from
 // Contains common functionality.

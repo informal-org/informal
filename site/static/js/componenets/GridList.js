@@ -1,5 +1,4 @@
 import React from "react";
-import ReactDOM from "react-dom";
 import AbstractBaseCell from "./AbstractBaseCell.js"
 import GridCell from "./GridCell.js"
 import { cellGet, formatCellOutput } from "../utils.js"
