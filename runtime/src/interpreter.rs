@@ -81,7 +81,7 @@ pub fn interpret_expr(mut env: &mut AvObject, node: &ASTNode, ast: &AST) -> u64 
                         expr_stack.push(heap_ptr);
                     },
                     LiteralValue::NoneValue => {
-                        expr_stack.push(VALUE_NONE);
+                        expr_stack.push(SYMBOL_NONE);
                     }
                 }
             },

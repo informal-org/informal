@@ -26,8 +26,8 @@ pub const WASM_F64_AS_I64: &'static str = "(i64.reinterpret_f64)\n";
 
 
 // Constants for basic literals
-pub const TRUE_LIT: LiteralValue = LiteralValue::BooleanValue(VALUE_TRUE);
-pub const FALSE_LIT: LiteralValue = LiteralValue::BooleanValue(VALUE_FALSE);
+pub const TRUE_LIT: LiteralValue = LiteralValue::BooleanValue(SYMBOL_TRUE);
+pub const FALSE_LIT: LiteralValue = LiteralValue::BooleanValue(SYMBOL_FALSE);
 pub const NONE_LIT: LiteralValue = LiteralValue::NoneValue;
 
 // Constants for each token type

@@ -5,8 +5,7 @@ use runtime::repl;
 // use std::str;
 use std::io::{stdin,stdout,Write};
 
-use avs::constants::{VALUE_TYPE_POINTER_MASK};
-
+use avs::constants::*;
 
 extern crate flatbuffers;
 pub use avs::avfb_generated::avfb::{AvFbObj, AvFbObjArgs, get_root_as_av_fb_obj, AvFbObjType};
@@ -44,7 +43,7 @@ fn main() {
     let hello = builder.create_string("Hello Arevel");
 
     let obj = AvFbObj::create(&mut builder, &AvFbObjArgs{
-		avtype: AvFbObjType::Obj,
+		avtype: AV_CLASS_STRING,
 		avclass: 0,
 		avhash: 0,
 		values: None,
@@ -72,5 +71,4 @@ fn main() {
     // println!("value: {:?}", input.value());
 
 
-    // println!("{:X}", VALUE_TYPE_POINTER_MASK);
 }

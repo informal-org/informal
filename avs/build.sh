@@ -8,7 +8,7 @@
 ##########
 
 cd avs
-wasm-pack build -t no-modules --release
+wasm-pack build -t no-modules --release -m force
 # cargo build --target wasm32-unknown-emscripten --release
 
 

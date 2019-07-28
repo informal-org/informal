@@ -1,5 +1,6 @@
-use avs::{__av_typeof, __unwrap_pointer};
-use avs::structs::{ValueType, AvObject, AvObjectType};
+use avs::{__av_typeof};
+use avs::utils::{extend_value_symbol, truncate_symbol};
+use avs::structs::{ValueType, AvObject};
 use avs::constants::*;
 
 pub fn repr(env: &AvObject, result: u64) -> String {
@@ -15,7 +16,7 @@ pub fn repr(env: &AvObject, result: u64) -> String {
             }
         },
         ValueType::BooleanType => {
-            if result == VALUE_TRUE {
+            if result == SYMBOL_TRUE {
                 format!("TRUE")
             } else {
                 format!("FALSE")
@@ -25,10 +26,6 @@ pub fn repr(env: &AvObject, result: u64) -> String {
             repr_error(result)
         },
         ValueType::PointerType => {
-            // let index = __unwrap_pointer(result);
-            // let objects = env.avobjs.borrow();
-            // let value = &objects.as_ref().unwrap()[index];
-            // format!("Pointer {:?} -> {:?} : {:?} ", result, __unwrap_pointer(result), value)
             let obj = env.get_object(result);
             repr_object(&obj)
         },
@@ -39,9 +36,9 @@ pub fn repr(env: &AvObject, result: u64) -> String {
 }
 
 pub fn repr_object(obj: &AvObject) -> String {
-    match obj.avtype {
-        AvObjectType::AvString => {
-            format!("{:?}", obj.avstr.as_ref().unwrap())
+    match obj.av_class {
+        AV_CLASS_STRING => {
+            format!("{:?}", obj.av_string.as_ref().unwrap())
         },
         _ => {
             // TODO

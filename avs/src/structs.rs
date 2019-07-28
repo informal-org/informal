@@ -1,5 +1,8 @@
 use core::cell::RefCell;
 use alloc::rc::Rc;
+use alloc::string::String;
+use alloc::vec::Vec;
+use alloc::boxed::Box;
 use crate::utils::{truncate_symbol, extend_value_symbol};
 use crate::constants::*;
 

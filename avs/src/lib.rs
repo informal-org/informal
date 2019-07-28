@@ -1,3 +1,6 @@
+#![no_main]
+#![no_std]
+
 pub mod constants;
 pub mod structs;
 pub mod macros;
@@ -7,15 +10,28 @@ pub mod avfb_generated;
 
 use constants::*;
 use structs::*;
+
 #[allow(non_snake_case)]
-pub use crate::avfb_generated::avfb::{AvFbObj, AvFbObjArgs, get_root_as_av_fb_obj, AvFbObjType};
+pub use crate::avfb_generated::avfb::{AvFbObj, AvFbObjArgs, get_root_as_av_fb_obj};
+
+
+
+extern crate wee_alloc;
+
+// Use `wee_alloc` as the global allocator.
+#[global_allocator]
+static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
+
+
 
 extern crate flatbuffers;
 extern crate alloc;
 use alloc::vec::Vec;
 use alloc::boxed::Box;
+use alloc::string::String;
 use core::cell::RefCell;
 use core::slice;
+
 
 #[cfg(target_os = "unknown")]
 extern {
@@ -131,9 +147,14 @@ pub extern "C" fn __av_add(env: &mut AvObject, a: u64, b: u64) -> u64 {
 			if obj_b.av_class != AV_CLASS_STRING {
 				return RUNTIME_ERR_EXPECTED_STR;
 			}
+			let str_a = obj_a.av_string.as_ref().unwrap();
+			let str_b = obj_b.av_string.as_ref().unwrap();
 
-			let result_str = [obj_a.av_string.as_ref().unwrap().to_string(), 
-							  obj_b.av_string.as_ref().unwrap().to_string()].join("");
+			// IDK if the +1 is needed
+			let mut result_str = String::with_capacity(str_a.len() + str_b.len() + 1);
+			result_str.push_str(str_a);
+			result_str.push_str(str_b);
+			
 			let result_obj = AvObject::new_string(result_str);
 			let result_ptr = env.save_object(result_obj);
 
@@ -383,49 +404,43 @@ pub extern "C" fn __av_run() -> u32 {
 	__av_inject(&mut env);
 
 
-	let mut builder = flatbuffers::FlatBufferBuilder::new_with_capacity(1024);
-    let hello = builder.create_string("Hello Arevellllllllllllllllll were werwerw ");
-	let shared_vec: Vec<u64> = Vec::new();
-	let results_vec = builder.create_vector(&shared_vec);
+	// let mut builder = flatbuffers::FlatBufferBuilder::new_with_capacity(1024);
+    // let hello = builder.create_string("Hello Arevellllllllllllllllll were werwerw ");
+	// let shared_vec: Vec<u64> = Vec::new();
+	// let results_vec = builder.create_vector(&shared_vec);
 
-	let spring = builder.create_string("Spring");
+	// let spring = builder.create_string("Spring");
 
-	let obj2 = AvFbObj::create(&mut builder, &AvFbObjArgs{
-		avtype: AvFbObjType::AvObject,
-		avclass: 0,
-		avhash: 0,
-		values: None,
-        avstr: Some(spring),
-		length: 0,
-		avbytes: None,
-		avobjs: None
-    });
+	// let obj2 = AvFbObj::create(&mut builder, &AvFbObjArgs{
+	// 	id: 0,
+	// 	av_class: 0,
+	// 	av_values: None,
+	// 	av_objects: None,
+	// 	av_string: Some(spring)
+    // });
 
-	let mut obj_vector: Vec<flatbuffers::WIPOffset<AvFbObj>> = Vec::new();
-	obj_vector.push(obj2);
-	let avobjs = builder.create_vector(&obj_vector);
+	// let mut obj_vector: Vec<flatbuffers::WIPOffset<AvFbObj>> = Vec::new();
+	// obj_vector.push(obj2);
 	// let avobjs = builder.create_vector(&obj_vector);
+	// // let avobjs = builder.create_vector(&obj_vector);
+
+    // let obj = AvFbObj::create(&mut builder, &AvFbObjArgs{
+	// 	id: 0,
+	// 	av_class: 0,
+	// 	av_values: Some(results_vec),
+	// 	av_objects: Some(avobjs),
+    //     av_string: Some(hello)
+    // });
+
+	// builder.finish(obj, None);
+
+	// let buf = builder.finished_data(); 		// Of type `&[u8]`
 
 
-    let obj = AvFbObj::create(&mut builder, &AvFbObjArgs{
-		avtype: AvFbObjType::AvObject,
-		avclass: 0,
-		avhash: 0,
-		values: Some(results_vec),
-        avstr: Some(hello),
-		length: 0,
-		avbytes: None,
-		avobjs: Some(avobjs)
-    });
-
-	builder.finish(obj, None);
-
-	let buf = builder.finished_data(); 		// Of type `&[u8]`
-
-
-	let ptr = (&buf[0] as *const u8) as u32;
-	let size = buf.len() as u32;
-	return __av_sized_ptr(ptr, size) as u32
+	// let ptr = (&buf[0] as *const u8) as u32;
+	// let size = buf.len() as u32;
+	// return __av_sized_ptr(ptr, size) as u32
+	return 0;
 }
 
 

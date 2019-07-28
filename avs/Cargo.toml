@@ -26,6 +26,7 @@ libc = "0.2.59"
 wee_alloc = "0.4.4"
 flatbuffers = "0.6.0"
 
+
 # Arevel: Do not use wee_alloc without additional verification to make sure it meets all the 
 # malloc/free semantics. Stick with the standard one for now. 
 
@@ -36,3 +37,6 @@ wasm-bindgen-test = "0.2"
 version = "0.2.47"
 # Feni: Disabled after a quick read of cloudflare/serde-wasm-bindgen
 # features = ["serde-serialize"]
+
+[profile.release]
+panic = 'abort'

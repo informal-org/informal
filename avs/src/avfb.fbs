@@ -1,35 +1,12 @@
 namespace Avfb;
 
-enum AvFbObjType:byte {
-    AvObject = 0,
-    AvString = 1,
-//    AVClass = 2,
-//    AVByteArray = 4,
-}
-
-// table AVClass {
-//     id: uint;
-//     superclass: AVClass;
-// }
-
-// table AVFunc {
-//
-//}
-
-
-// Flatbuffers encourage optional fields packed into a table
-// obj_type is always present. The presence of the other fields depend on type.
+// Maps to avs::structs::AvObject
 table AvFbObj {
-  avtype: AvFbObjType;
-  avclass: uint;     // For objects of obj_type = Obj
-  avhash: ulong;
-  length: uint;
-  values: [ulong];   // Primitive types or boxed refs to other objects.
-  avstr: string;
-  avbytes: [ubyte];
-  avobjs: [AvFbObj];   // Used for the root heap
+  id: uint;
+  av_class: uint;
+  av_values: [ulong];   // Primitive types or boxed refs to other objects.
+  av_objects: [AvFbObj];   // Used for the root heap
+  av_string: string;
 }
-
-// AV List Obj
 
 root_type AvFbObj;
