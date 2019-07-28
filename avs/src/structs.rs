@@ -21,60 +21,31 @@ pub enum ValueType {
 //     // AvClass, AvFunction
 // }
 
-// 4 byte class ID.
-// No other hash or ID fields for now.
-pub struct AvObjectBasic {
-    pub avclass: u32,
-    // Symbol ID for this item. Used for hashed field access.
-    pub id: u64
-    // ID: u32?
-}
+// For classes, there's symbols for value_size and objs_size
+// Hash capacity should be rounded up to the nearest prime number 
+// to minimize hash collisions
 
-pub struct AvClass {
-    pub object: AvObjectBasic,
-    
-    // Capacity should be rounded up to the nearest prime number 
-    // to minimize hash collisions
-    pub values_size: u32,       // For fixed memory allocation
-    pub objs_size: u32,
+// Class and ID are truncated in storage for compact representation.
+// But they represent a full 64 bit symbol value (can be calculated back).
 
-    // TODO: Methods stored in class
-}
-
+#[derive(Debug,PartialEq)]
 pub struct AvObject {
-    pub object: AvObjectBasic,
+    pub avclass: u32,
+    // Truncated symbol ID for this item. Used for hashed field access.
+    pub id: u32,
+
     // Values are required. Objects are optional. (unallocated for primitive arrays)
     // This can be used as a list or a hash table for field access.
     pub values: RefCell<Vec<u64>>,
-    pub avobjs: RefCell<Option<Vec<Rc<AvObject>>>>
+    pub avobjs: RefCell<Option<Vec<Rc<AvObject>>>>,
+    // Future: Can be used for byte storage as well (via unsafe to accomodate invalid utf-8 bytes)
+    pub avstr: Option<String>
 }
 
-pub struct AvObjectString {
-    pub object: AvObjectBasic,
-    pub avstr: str   // ToDo String vs str
-}
+// 4 byte class ID.
+// No other hash or ID fields for now.
 
-// Equivalent to an object, just separate for methods.
-pub struct AvObjectArray {
-    pub object: AvObject,
-}
 
-// TODO: AvBytes
-
-// Matches with the IO object format. The fields present vary based on object type.
-#[derive(Debug,PartialEq)]
-pub struct AvObject {
-    pub avtype: AvObjectType,
-    pub avclass: u32,
-    pub avhash: u64,
-    pub length: u32,
-    pub values: RefCell<Option<Vec<u64>>>,
-    pub avstr: Option<String>,     // TOXO: &str vs str vs String
-    pub avbytes: RefCell<Option<Vec<u8>>>,
-    // Immutable list of reference counted interior mutable cells
-    // RC was required for get_object.
-    pub avobjs: RefCell<Option<Vec<Rc<AvObject>>>>
-}
 
 impl AvObject {
     pub fn new_env() -> AvObject {
@@ -164,3 +135,35 @@ impl AvObject {
     }
 
 }
+
+
+
+
+// TODO: AvBytes
+#[derive(Debug,PartialEq)]
+pub struct AvObjectString {
+    pub object: AvObjectBasic,
+    pub avstr: str   // ToDo String vs str
+}
+
+// Equivalent to an object, just separate for methods.
+#[derive(Debug,PartialEq)]
+pub struct AvObjectArray {
+    pub object: AvObject,
+}
+
+
+// Matches with the IO object format. The fields present vary based on object type.
+// #[derive(Debug,PartialEq)]
+// pub struct AvObject {
+//     pub avtype: AvObjectType,
+//     pub avclass: u32,
+//     pub avhash: u64,
+//     pub length: u32,
+//     pub values: RefCell<Option<Vec<u64>>>,
+//     pub avstr: Option<String>,     // TOXO: &str vs str vs String
+//     pub avbytes: RefCell<Option<Vec<u8>>>,
+//     // Immutable list of reference counted interior mutable cells
+//     // RC was required for get_object.
+//     pub avobjs: RefCell<Option<Vec<Rc<AvObject>>>>
+// }
