@@ -126,8 +126,8 @@ mod tests {
     fn test_parse_basic() {
         // Verify straightforward conversion to postfix
         // 1 + 2
-        let mut input: Vec<TokenType> = vec![TokenType::Literal(LiteralValue::NumericValue(1.0)), TOKEN_PLUS, TokenType::Literal(LiteralValue::NumericValue(2.0))];
-        let output: Vec<TokenType> = vec![TokenType::Literal(LiteralValue::NumericValue(1.0)), TokenType::Literal(LiteralValue::NumericValue(2.0)), TOKEN_PLUS];
+        let mut input: Vec<Atom> = vec![Atom::NumericValue(1.0), Atom::SymbolValue(SYMBOL_PLUS), Atom::NumericValue(2.0)];
+        let output: Vec<Atom> = vec![Atom::NumericValue(1.0), Atom::NumericValue(2.0), Atom::SymbolValue(SYMBOL_PLUS)];
         assert_eq!(apply_operator_precedence(0, &mut input).parsed, output);
     }
 
@@ -135,37 +135,37 @@ mod tests {
     fn test_parse_add_mult() {
         // Verify order of operands - multiply before addition
         // 1 * 2 + 3 = 1 2 * 3 +
-        let mut input: Vec<TokenType> = vec![
-            TokenType::Literal(LiteralValue::NumericValue(1.0)), 
-            TOKEN_MULTIPLY, 
-            TokenType::Literal(LiteralValue::NumericValue(2.0)),
-            TOKEN_PLUS, 
-            TokenType::Literal(LiteralValue::NumericValue(3.0)),
+        let mut input: Vec<Atom> = vec![
+            Atom::NumericValue(1.0), 
+            Atom::SymbolValue(SYMBOL_MULTIPLY), 
+            Atom::NumericValue(2.0),
+            Atom::SymbolValue(SYMBOL_PLUS), 
+            Atom::NumericValue(3.0),
         ];
-        let output: Vec<TokenType> = vec![
-            TokenType::Literal(LiteralValue::NumericValue(1.0)), 
-            TokenType::Literal(LiteralValue::NumericValue(2.0)),
-            TOKEN_MULTIPLY, 
-            TokenType::Literal(LiteralValue::NumericValue(3.0)),
-            TOKEN_PLUS,
+        let output: Vec<Atom> = vec![
+            Atom::NumericValue(1.0), 
+            Atom::NumericValue(2.0),
+            Atom::SymbolValue(SYMBOL_MULTIPLY), 
+            Atom::NumericValue(3.0),
+            Atom::SymbolValue(SYMBOL_PLUS),
         ];
         assert_eq!(apply_operator_precedence(0, &mut input).parsed, output);
 
         // above test with order reversed. 1 + 2 * 3 = 1 2 3 * +
-        let mut input2: Vec<TokenType> = vec![
-            TokenType::Literal(LiteralValue::NumericValue(1.0)), 
-            TOKEN_PLUS, 
-            TokenType::Literal(LiteralValue::NumericValue(2.0)),
-            TOKEN_MULTIPLY, 
-            TokenType::Literal(LiteralValue::NumericValue(3.0)),
+        let mut input2: Vec<Atom> = vec![
+            Atom::NumericValue(1.0), 
+            Atom::SymbolValue(SYMBOL_PLUS), 
+            Atom::NumericValue(2.0),
+            Atom::SymbolValue(SYMBOL_MULTIPLY), 
+            Atom::NumericValue(3.0),
         ];
 
-        let output2: Vec<TokenType> = vec![
-            TokenType::Literal(LiteralValue::NumericValue(1.0)), 
-            TokenType::Literal(LiteralValue::NumericValue(2.0)),
-            TokenType::Literal(LiteralValue::NumericValue(3.0)),
-            TOKEN_MULTIPLY,
-            TOKEN_PLUS,
+        let output2: Vec<Atom> = vec![
+            Atom::NumericValue(1.0), 
+            Atom::NumericValue(2.0),
+            Atom::NumericValue(3.0),
+            Atom::SymbolValue(SYMBOL_MULTIPLY),
+            Atom::SymbolValue(SYMBOL_PLUS),
         ];
 
         assert_eq!(apply_operator_precedence(0, &mut input2).parsed, output2);
@@ -175,41 +175,41 @@ mod tests {
     fn test_parse_add_mult_paren() {
         // Verify order of operands - multiply before addition
         // 1 * (2 + 3) = 1 2 3 + *
-        let mut input: Vec<TokenType> = vec![
-            TokenType::Literal(LiteralValue::NumericValue(1.0)), 
-            TOKEN_MULTIPLY, 
-            TOKEN_OPEN_PAREN, 
-            TokenType::Literal(LiteralValue::NumericValue(2.0)),
-            TOKEN_PLUS, 
-            TokenType::Literal(LiteralValue::NumericValue(3.0)),
-            TOKEN_CLOSE_PAREN 
+        let mut input: Vec<Atom> = vec![
+            Atom::NumericValue(1.0), 
+            Atom::SymbolValue(SYMBOL_MULTIPLY), 
+            Atom::SymbolValue(SYMBOL_OPEN_PAREN), 
+            Atom::NumericValue(2.0),
+            Atom::SymbolValue(SYMBOL_PLUS), 
+            Atom::NumericValue(3.0),
+            Atom::SymbolValue(SYMBOL_CLOSE_PAREN)
         ];
-        let output: Vec<TokenType> = vec![
-            TokenType::Literal(LiteralValue::NumericValue(1.0)), 
-            TokenType::Literal(LiteralValue::NumericValue(2.0)),
-            TokenType::Literal(LiteralValue::NumericValue(3.0)),
-            TOKEN_PLUS,
-            TOKEN_MULTIPLY
+        let output: Vec<Atom> = vec![
+            Atom::NumericValue(1.0), 
+            Atom::NumericValue(2.0),
+            Atom::NumericValue(3.0),
+            Atom::SymbolValue(SYMBOL_PLUS),
+            Atom::SymbolValue(SYMBOL_MULTIPLY)
         ];
         assert_eq!(apply_operator_precedence(0, &mut input).parsed, output);
 
         // above test with order reversed. (1 + 2) * 3 = 1 2 + 3 *
-        let mut input2: Vec<TokenType> = vec![
-            TOKEN_OPEN_PAREN,
-            TokenType::Literal(LiteralValue::NumericValue(1.0)),
-            TOKEN_PLUS,
-            TokenType::Literal(LiteralValue::NumericValue(2.0)),
-            TOKEN_CLOSE_PAREN,
-            TOKEN_MULTIPLY,
-            TokenType::Literal(LiteralValue::NumericValue(3.0)),
+        let mut input2: Vec<Atom> = vec![
+            Atom::SymbolValue(SYMBOL_OPEN_PAREN),
+            Atom::NumericValue(1.0),
+            Atom::SymbolValue(SYMBOL_PLUS),
+            Atom::NumericValue(2.0),
+            Atom::SymbolValue(SYMBOL_CLOSE_PAREN),
+            Atom::SymbolValue(SYMBOL_MULTIPLY),
+            Atom::NumericValue(3.0),
         ];
 
-        let output2: Vec<TokenType> = vec![
-            TokenType::Literal(LiteralValue::NumericValue(1.0)), 
-            TokenType::Literal(LiteralValue::NumericValue(2.0)),
-            TOKEN_PLUS,
-            TokenType::Literal(LiteralValue::NumericValue(3.0)),
-            TOKEN_MULTIPLY,
+        let output2: Vec<Atom> = vec![
+            Atom::NumericValue(1.0), 
+            Atom::NumericValue(2.0),
+            Atom::SymbolValue(SYMBOL_PLUS),
+            Atom::NumericValue(3.0),
+            Atom::SymbolValue(SYMBOL_MULTIPLY),
         ];
 
         assert_eq!(apply_operator_precedence(0, &mut input2).parsed, output2);
