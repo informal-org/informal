@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use avs::structs::Atom;
 
 // Enum values are associated with their index for fast precedence lookup.
 #[derive(Debug,PartialEq,Clone)]
@@ -88,10 +89,11 @@ impl AST {
     }
 }
 
-#[derive(Debug,PartialEq,Clone)]
+
+#[derive(Debug,PartialEq)]
 pub struct ASTNode {
     pub id: u64,
-    pub parsed: Vec<TokenType>,
+    pub parsed: Vec<Atom>,
     pub depends_on: Vec<u64>,
     pub used_by: Vec<u64>,
     // Internal dependency counter used during ordering.

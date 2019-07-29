@@ -14,7 +14,7 @@ use super::ast::*;
 use avs::operators::*;
 use avs::types::*;
 use avs::constants::*;
-use avs::structs::{ValueType, AvObject};
+use avs::structs::{ValueType, AvObject, Atom};
 
 macro_rules! apply_bin_op {
     ($env:expr, $op:expr, $stack:expr) => ({
@@ -26,24 +26,30 @@ macro_rules! apply_bin_op {
 }
 
 
-pub fn apply_operator(mut env: &mut AvObject, operator: KeywordType, stack: &mut Vec<u64>) {
+pub fn apply_operator(mut env: &mut AvObject, operator: u64, stack: &mut Vec<u64>) {
     let result = match operator {
-        KeywordType::KwPlus => apply_bin_op!(env, __av_add, stack),
-        KeywordType::KwMinus => apply_bin_op!(env, __av_sub, stack),
-        KeywordType::KwMultiply => apply_bin_op!(env, __av_mul, stack),
-        KeywordType::KwDivide => apply_bin_op!(env, __av_div, stack),
+        SYMBOL_PLUS => apply_bin_op!(env, __av_add, stack),
+        SYMBOL_MINUS => apply_bin_op!(env, __av_sub, stack),
+        SYMBOL_MULTIPLY => apply_bin_op!(env, __av_mul, stack),
+        SYMBOL_DIVIDE => apply_bin_op!(env, __av_div, stack),
         
-        KeywordType::KwAnd => apply_bin_op!(env, __av_and, stack),
-        KeywordType::KwOr => apply_bin_op!(env, __av_or, stack),
-        KeywordType::KwNot => {
+        SYMBOL_AND => apply_bin_op!(env, __av_and, stack),
+        SYMBOL_OR => apply_bin_op!(env, __av_or, stack),
+        SYMBOL_NOT => {
             __av_not(&mut env, stack.pop().unwrap())
         },
 
-        KeywordType::KwLt => apply_bin_op!(env, __av_lt, stack),
-        KeywordType::KwLte => apply_bin_op!(env, __av_lte, stack),
-        KeywordType::KwGt => apply_bin_op!(env, __av_gt, stack),
-        KeywordType::KwGte => apply_bin_op!(env, __av_gte, stack),
-        _ => {INTERPRETER_ERR}              // TODO
+        SYMBOL_LT => apply_bin_op!(env, __av_lt, stack),
+        SYMBOL_LTE => apply_bin_op!(env, __av_lte, stack),
+        SYMBOL_GT => apply_bin_op!(env, __av_gt, stack),
+        SYMBOL_GTE => apply_bin_op!(env, __av_gte, stack),
+        _ => {
+            // TODO: Is this correct? Or should it be INTERPRETER_ERR?
+            // Unknown symbols are emitted as-is. 
+            // They should be turned into functions?
+            // INTERPRETER_ERR
+            operator
+        }
     };
 
     stack.push(result);
@@ -62,39 +68,30 @@ pub fn interpret_expr(mut env: &mut AvObject, node: &ASTNode, ast: &AST) -> u64 
 
     for token in node.parsed.iter() {
         match token {
-            TokenType::Keyword(kw) => {
+            Atom::SymbolValue(kw) => {
                 apply_operator(&mut env, *kw, &mut expr_stack);
             }, 
-            TokenType::Literal(lit) => {
-                match lit {
-                    LiteralValue::NumericValue(num) => {
-                        // f64 -> u64
-                        expr_stack.push(num.to_bits());
-                    },
-                    LiteralValue::BooleanValue(val) => {    // val = 1 or 0
-                        expr_stack.push(*val);
-                    },
-                    LiteralValue::StringValue(val) => {
-                        // Save object to heap and return pointer
-                        // Note: String copy likely occurs here
-                        let str_obj = AvObject::new_string(val.to_string());
-                        let heap_ptr = env.save_object(str_obj);
-                        expr_stack.push(heap_ptr);
-                    },
-                    LiteralValue::NoneValue => {
-                        expr_stack.push(SYMBOL_NONE);
-                    }
-                }
+            Atom::NumericValue(num) => {
+                // f64 -> u64
+                expr_stack.push(num.to_bits());
             },
-            TokenType::Identifier(reference) => {
-                // TODO: Lookup scoping rules
-                if let Some(&symbol_index) = ast.scope.symbols.get(&reference) {
-                    let deref_value = *ast.scope.values.get(symbol_index).unwrap();
-                    expr_stack.push(deref_value);
-                } else {
-                    println!("Could not find identifier! {:?}", reference);
-                }
+            Atom::StringValue(val) => {
+                // Save object to heap and return pointer
+                // Note: String copy likely occurs here
+                let str_obj = AvObject::new_string(val.to_string());
+                let heap_ptr = env.save_object(str_obj);
+                expr_stack.push(heap_ptr);
             }
+            //,
+            //TokenType::Identifier(reference) => {
+                // TODO: Lookup scoping rules
+                // if let Some(&symbol_index) = ast.scope.symbols.get(&reference) {
+                //     let deref_value = *ast.scope.values.get(symbol_index).unwrap();
+                //     expr_stack.push(deref_value);
+                // } else {
+                //     println!("Could not find identifier! {:?}", reference);
+                // }
+            //}
             // _ => {
             //     // TODO
             //     // return String::from("")
