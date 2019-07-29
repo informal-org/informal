@@ -2,6 +2,7 @@ use super::structs::*;
 use avs::constants::*;
 use avs::structs::Atom;
 use fnv::FnvHashMap;
+use std::fmt;
 
 /*
 // Takes parsed tokens and generates wasm code from it.
@@ -153,3 +154,20 @@ lazy_static! {
     };
 
 }
+
+
+// impl fmt::Debug for Atom {
+//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+//         match self {
+//             Atom::NumericValue(num) => {
+//                 write!(f, "NumericValue({})", num)
+//             },
+//             Atom::StringValue(str_val) => {
+//                 write!(f, "StringValue({})", str_val)
+//             }
+//             Atom::SymbolValue(symbol) => {
+//                 write!(f, "SymbolValue({})", symbol)
+//             }
+//         }
+//     }
+// }

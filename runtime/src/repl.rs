@@ -251,7 +251,7 @@ mod tests {
     #[test]
     fn test_identifiers() {
         let cell_a = CellRequest {id: String::from("@1"), input: String::from("1 + 1")};
-        let cell_b = CellRequest {id: String::from("@2"), input: String::from("@1 + 2")};
+        let cell_b = CellRequest {id: String::from("@2"), input: String::from("@1 + 3")};
 
         // Can't just have single value inputs anymore, need cells as inputs
         let mut program = EvalRequest {
@@ -271,7 +271,7 @@ mod tests {
 
         let expected_b = CellResponse {
             id: String::from("@2"), 
-            output: String::from("4"),
+            output: String::from("5"),
             error: String::from("")
         };
 

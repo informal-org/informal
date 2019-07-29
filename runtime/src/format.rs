@@ -1,6 +1,7 @@
 use avs::types::{__av_typeof, is_error};
 use avs::structs::{ValueType, AvObject};
 use avs::constants::*;
+use super::constants::ID_SYMBOL_MAP;
 
 pub fn repr(env: &AvObject, result: u64) -> String {
     let result_type = __av_typeof(result);
@@ -15,26 +16,42 @@ pub fn repr(env: &AvObject, result: u64) -> String {
             }
         },
         ValueType::SymbolType => {
-            if result == SYMBOL_TRUE {
-                format!("TRUE")
+            if let Some(symbol_str) = ID_SYMBOL_MAP.get(&result) {
+                symbol_str.to_string()
             } else {
-                // TODO: Handle all the other symbols (None, etc.)
-                format!("Not true {:X} ", result)
+                format!("Symbol {:X} ", result)
             }
+            // if result == SYMBOL_TRUE {
+            //     format!("TRUE")
+            // } else {
+            //     // TODO: Handle all the other symbols (None, etc.)
+            //     format!("Not true {:X} ", result)
+            // }
         },
         ValueType::ObjectType | ValueType::StringType => {
             if is_error(result) {
                 repr_error(result)
             } else {
                 // TODO: Split up string type into separate one to handle small strings
-                let obj = env.get_object(result);
-                repr_object(&obj)
+                // let obj = env.get_object(result);
+                // repr_object(&obj)
+
+                // TODO: Handle
+                format!("Is non error object or string todo ")
             }
         }
         // _ => {
         //     format!("{:?}: {:?}", result_type, result)
         // }
     }
+}
+
+pub fn print_stacktrace(env: &AvObject, stack: &Vec<u64>) {
+    println!("----------Stack----------");
+    for val in stack {
+        println!("{:?}", repr(env, *val));
+    }
+    println!("-------------------------");
 }
 
 pub fn repr_object(obj: &AvObject) -> String {

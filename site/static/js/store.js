@@ -16,35 +16,36 @@ const initialState = {
                 id: "@2",
                 type: "cell",
                 name: "Name",
-                input: "@1 + 3"
+                input: "true"
+//                input: "@1 + 3"
             },
-            "@3": {
-                id: "@3",
-                type: "list",
-                name: "List",
-                length: 3,
-                values: ["@4", "@5", "@6"]
-            },
-            "@4": {
-                id: "@4",
-                type: "listcell",
-                input: "1",
-                parent: "@3"
-            },
-            "@5": {
-                id: "@5",
-                type: "listcell",
-                input: "2",
-                parent: "3"
-            },
-            "@6": {
-                id: "@6",
-                type: "listcell",
-                input: "3",
-                parent: "3"
-            },
+            // "@3": {
+            //     id: "@3",
+            //     type: "list",
+            //     name: "List",
+            //     length: 3,
+            //     values: ["@4", "@5", "@6"]
+            // },
+            // "@4": {
+            //     id: "@4",
+            //     type: "listcell",
+            //     input: "1",
+            //     parent: "@3"
+            // },
+            // "@5": {
+            //     id: "@5",
+            //     type: "listcell",
+            //     input: "2",
+            //     parent: "3"
+            // },
+            // "@6": {
+            //     id: "@6",
+            //     type: "listcell",
+            //     input: "3",
+            //     parent: "3"
+            // },
         },
-        allIds: ["@1", "@2", "@3", "@4", "@5", "@6",],
+        allIds: ["@1", "@2" ], //"@3", "@4", "@5", "@6",
         focus: null,  // ID of the element selected
         modified: true,  // Allow initial evaluation
     }

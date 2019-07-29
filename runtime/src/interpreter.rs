@@ -28,6 +28,8 @@ macro_rules! apply_bin_op {
 
 
 pub fn apply_operator(mut env: &mut AvObject, operator: u64, stack: &mut Vec<u64>) {
+    println!("Operator: {}", operator);
+    print_stacktrace(env, &stack);
     let result = match operator {
         SYMBOL_PLUS => apply_bin_op!(env, __av_add, stack),
         SYMBOL_MINUS => apply_bin_op!(env, __av_sub, stack),
@@ -49,11 +51,14 @@ pub fn apply_operator(mut env: &mut AvObject, operator: u64, stack: &mut Vec<u64
             // Unknown symbols are emitted as-is. 
             // They should be turned into functions?
             // INTERPRETER_ERR
+            println!("Found Symbol {:X}", operator);
             operator
         }
     };
-
     stack.push(result);
+    print_stacktrace(env, &stack);
+
+    println!("Next");
 }
 
 
@@ -104,8 +109,11 @@ pub fn interpret_expr(mut env: &mut AvObject, node: &ASTNode, ast: &AST) -> u64 
 }
 
 pub fn interpret_one(input: String) -> u64 {
+    println!("Input: {:?}", input);
     let mut lexed = lex(&input).unwrap();
+    println!("Lexed: {:?}", lexed);
     let parsed = parser::apply_operator_precedence(0, &mut lexed).parsed;
+    println!("parsed: {:?}", parsed);
     // TODO: A base, shared global namespace.
     let ast = AST::new();
     let mut node = ASTNode::new(0);

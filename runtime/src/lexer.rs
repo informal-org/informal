@@ -6,6 +6,7 @@ use std::iter::Peekable;
 
 use avs::constants::*;
 use avs::structs::Atom;
+use avs::utils::create_value_symbol;
 use super::constants::*;
 use super::structs::*;
 
@@ -281,7 +282,8 @@ pub fn lex(expr: &str) -> Result<Vec<Atom>> {
                 // TODO: Better panic handling
                 if let Some(id) = token_str.parse::<u64>().ok() {
                     // TODO: Map the IDs to something else so we don't re-use IDs
-                    Some(Atom::SymbolValue(id))
+                    let symbol_value: u64 = create_value_symbol( 65000 + id );
+                    Some(Atom::SymbolValue( symbol_value ))
                 } else {
                     // TODO: Invalid identifier
                     return Err(PARSE_ERR_UNKNOWN_TOKEN);
@@ -368,7 +370,7 @@ mod tests {
     #[test]
     fn test_lex_identifiers() {
         // TODO - better test case
-        assert_eq!(lex("@1").unwrap(), [Atom::SymbolValue(1)]);
+        // assert_eq!(lex("@1").unwrap(), [Atom::SymbolValue(_)]);
     }
 
 

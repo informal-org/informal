@@ -26,7 +26,8 @@ fn get_op_precedence(symbol: u64) -> u8 {
         return KEYWORD_PRECEDENCE[index];
     }
     // TODO: Rearrange precedence to not use 0 then.
-    return 0
+    // Symbols and everything else have a higher precedence so they're evaluated first
+    return 16
 }
 
 // TODO: There may be additional edge cases for handling inline function calls within the expression

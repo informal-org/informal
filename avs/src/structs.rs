@@ -14,7 +14,7 @@ pub enum ValueType {
 }
 
 
-#[derive(Debug,PartialEq)]
+#[derive(PartialEq, Debug)]
 pub enum Atom {
     NumericValue(f64),
     StringValue(String),
