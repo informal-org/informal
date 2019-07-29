@@ -11,6 +11,7 @@ use super::lexer::*;
 use super::structs::*;
 use super::format::*;
 use super::ast::*;
+use super::constants::*;
 use avs::operators::*;
 use avs::types::*;
 use avs::constants::*;

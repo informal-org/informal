@@ -1,29 +1,34 @@
 use std::fs;
 use super::constants::*;
 use super::structs::*;
+use avs::structs::Atom;
 
 
-pub fn operator_to_wat(operator: KeywordType) -> String {
-    let wasm_op: &str = match operator {
-        KeywordType::KwPlus => AV_STD_ADD,
-        KeywordType::KwMinus => AV_STD_SUB,
-        KeywordType::KwMultiply => AV_STD_MUL,
-        KeywordType::KwDivide => AV_STD_DIV,
+pub fn operator_to_wat(operator: u64) -> String {
+    let wasm_op: String = match operator {
+        SYMBOL_PLUS => String::from(AV_STD_ADD),
+        SYMBOL_MINUS => String::from(AV_STD_SUB),
+        SYMBOL_MULTIPLY => String::from(AV_STD_MUL),
+        SYMBOL_DIVIDE => String::from(AV_STD_DIV),
         
-        KeywordType::KwAnd => AV_STD_AND,
-        KeywordType::KwOr => AV_STD_OR,
-        KeywordType::KwNot => AV_STD_NOT,
+        SYMBOL_AND => String::from(AV_STD_AND),
+        SYMBOL_OR => String::from(AV_STD_OR),
+        SYMBOL_NOT => String::from(AV_STD_NOT),
 
-        KeywordType::KwLt => AV_STD_LT,
-        KeywordType::KwLte => AV_STD_LTE,
-        KeywordType::KwGt => AV_STD_GT,
-        KeywordType::KwGte => AV_STD_GTE,
-        _ => {""}
+        SYMBOL_LT => String::from(AV_STD_LT),
+        SYMBOL_LTE => String::from(AV_STD_LTE),
+        SYMBOL_GT => String::from(AV_STD_GT),
+        SYMBOL_GTE => String::from(AV_STD_GTE),
+        _ => {
+            // TODO! This works for true/false, what about other symbols?
+            let symbol_val = ["(i64.const ", &operator.to_string(), ")"].concat();
+            symbol_val
+        }
     };
-    return String::from(wasm_op);
+    return wasm_op;
 }
 
-pub fn expr_to_wat(postfix: &mut Vec<TokenType>, id: i32) -> String {
+pub fn expr_to_wat(postfix: &mut Vec<Atom>, id: i32) -> String {
     let mut result = String::from("");
     // Prepare for result save call. 
     // This is kinda hacky right now and depends on the linked symbols & positional locals.
@@ -33,34 +38,23 @@ pub fn expr_to_wat(postfix: &mut Vec<TokenType>, id: i32) -> String {
 
     for token in postfix.drain(..) {
         match token {
-            TokenType::Keyword(kw) => {
+            Atom::SymbolValue(kw) => {
                 result += &operator_to_wat(kw);
             }, 
-            TokenType::Literal(lit) => {
-                match lit {
-                    LiteralValue::NumericValue(num) => {
-                        let lit_def = ["(f64.const ", &num.to_string(), ")", WASM_F64_AS_I64].concat();
-                        result += &lit_def;
-                    },
-                    LiteralValue::BooleanValue(val) => {    // val = 1 or 0
-                        let lit_def = ["(i64.const ", &val.to_string(), ")"].concat();
-                        result += &lit_def;
-                    },
-                    _ => {
-                        // Identifier = get
-                        //     local.get 0
-                        //     i32.const 0
-                        //     call $__av_get
-
-                        return String::from("");
-                        
-                    } // TODO
-                }
+            Atom::NumericValue(num) => {
+                let lit_def = ["(f64.const ", &num.to_string(), ")", WASM_F64_AS_I64].concat();
+                result += &lit_def;
             },
             _ => {
-                // TODO
-                return String::from("")
-            }
+                // TODO: Strings
+                // Identifier = get
+                //     local.get 0
+                //     i32.const 0
+                //     call $__av_get
+
+                return String::from("");
+                
+            } // TODO
         }
     }
 
