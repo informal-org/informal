@@ -1,6 +1,9 @@
 use super::Result;
 use avs::constants::*;
+use avs::structs::Atom;
+use avs::utils::truncate_symbol;
 use super::structs::*;
+use super::constants::*;
 
 
 // Higher numbers have higher precedence. 
@@ -16,37 +19,42 @@ const KEYWORD_PRECEDENCE: &[u8] = &[
     0           // Equals
 ];
 
-fn get_op_precedence(keyword: KeywordType) -> u8 {
-    let index = keyword as usize;
-    return KEYWORD_PRECEDENCE[index];
+
+fn get_op_precedence(symbol: u64) -> u8 {
+    let index = truncate_symbol(symbol) as usize;
+    if index < KEYWORD_PRECEDENCE.len() {
+        return KEYWORD_PRECEDENCE[index];
+    }
+    // TODO: Rearrange precedence to not use 0 then.
+    return 0
 }
 
 // TODO: There may be additional edge cases for handling inline function calls within the expression
 // Current assumption is that all variable references are to a value.
-pub fn apply_operator_precedence(id: u64, infix: &mut Vec<TokenType>) -> ASTNode {
+pub fn apply_operator_precedence(id: u64, infix: &mut Vec<Atom>) -> ASTNode {
     // Parse the lexed infix input and construct a postfix version
     // Current implementation uses the shunting yard algorithm for operator precedence.
-    let mut postfix: Vec<TokenType> = Vec::with_capacity(infix.len());
-    let mut operator_stack: Vec<KeywordType> = Vec::with_capacity(infix.len());
+    let mut postfix: Vec<Atom> = Vec::with_capacity(infix.len());
+    let mut operator_stack: Vec<u64> = Vec::with_capacity(infix.len());
     // The callee will generate used_by from this.
     let mut depends_on: Vec<u64> = Vec::new();
 
     for token in infix.drain(..) {
         match &token {
-            TokenType::Keyword(kw) => {
-                match kw {
-                    KeywordType::KwOpenParen => operator_stack.push(*kw),
-                    KeywordType::KwCloseParen => {
+            Atom::SymbolValue(kw) => {
+                match *kw {
+                    SYMBOL_OPEN_PAREN => operator_stack.push(*kw),
+                    SYMBOL_CLOSE_PAREN => {
                         // Pop until you find the matching opening paren
                         let mut found = false;
                         while let Some(op) = operator_stack.pop() {
                             // Sholud always be true since the operator stack only contains keywords
                             match op {
-                                KeywordType::KwOpenParen => {
+                                SYMBOL_OPEN_PAREN => {
                                     found = true;
                                     break;
                                 }
-                                _ => postfix.push(TokenType::Keyword(op))
+                                _ => postfix.push(Atom::SymbolValue(op))
                             }
                         }
                         if found == false {
@@ -61,13 +69,13 @@ pub fn apply_operator_precedence(id: u64, infix: &mut Vec<TokenType>) -> ASTNode
                         while operator_stack.len() > 0 {
                             let op_peek_last = operator_stack.last().unwrap();
                             // Skip any items that aren't really operators.
-                            if *op_peek_last == KeywordType::KwOpenParen {
+                            if *op_peek_last == SYMBOL_OPEN_PAREN {
                                 break;
                             }
 
                             let other_precedence = get_op_precedence(*op_peek_last);
                             if other_precedence >= my_precedence {        // output any higher priority operators.
-                                postfix.push(TokenType::Keyword(operator_stack.pop().unwrap()));
+                                postfix.push(Atom::SymbolValue(operator_stack.pop().unwrap()));
                             } else {
                                 break;
                             }
@@ -77,11 +85,13 @@ pub fn apply_operator_precedence(id: u64, infix: &mut Vec<TokenType>) -> ASTNode
                     }
                 }
             },
-            TokenType::Literal(_lit) => postfix.push(token),
-            TokenType::Identifier(_id) => {
-                depends_on.push(*_id);
-                postfix.push(token)
-            }
+            Atom::NumericValue(_lit) => postfix.push(token),
+            Atom::StringValue(_lit) => postfix.push(token),
+            // TODO
+            // TokenType::Identifier(_id) => {
+            //     depends_on.push(*_id);
+            //     postfix.push(token)
+            // }
         }
     }
 
@@ -91,14 +101,14 @@ pub fn apply_operator_precedence(id: u64, infix: &mut Vec<TokenType>) -> ASTNode
     for op_kw in operator_stack.drain(..) {
         // All of them should be keywords
         match op_kw {
-            KeywordType::KwOpenParen => {
+            SYMBOL_OPEN_PAREN => {
                 println!("Invalid paren in drain operator stack");
                 // return Err(PARSE_ERR_UNMATCHED_PARENS)
                 return ASTNode::err(id, PARSE_ERR_UNMATCHED_PARENS)
             }
             _ => {}
         }
-        postfix.push(TokenType::Keyword(op_kw));
+        postfix.push(Atom::SymbolValue(op_kw));
     }
     let mut node = ASTNode::new(id);
     node.parsed = postfix;
