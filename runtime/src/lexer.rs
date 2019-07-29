@@ -5,6 +5,7 @@ use super::{Result};
 use std::iter::Peekable;
 
 use avs::constants::*;
+use avs::structs::Atom;
 use super::constants::*;
 use super::structs::*;
 
@@ -25,7 +26,7 @@ fn gobble_digits(token: &mut String, it: &mut Peekable<std::str::Chars<'_>>) {
     }
 }
 
-fn parse_number(it: &mut Peekable<std::str::Chars<'_>>, is_negative: bool) -> Result<LiteralValue> {
+fn parse_number(it: &mut Peekable<std::str::Chars<'_>>, is_negative: bool) -> Result<Atom> {
     let mut token = String::from("");
     let mut _is_float = false;       // Unused. Could be used for dedicated int type later.
 
@@ -76,10 +77,10 @@ fn parse_number(it: &mut Peekable<std::str::Chars<'_>>, is_negative: bool) -> Re
     if is_negative {
         val = -1.0 * val;
     }
-    return Ok(LiteralValue::NumericValue(val));
+    return Ok(Atom::NumericValue(val));
 }
 
-fn parse_string(it: &mut Peekable<std::str::Chars<'_>>) -> Result<LiteralValue> {
+fn parse_string(it: &mut Peekable<std::str::Chars<'_>>) -> Result<Atom> {
     let mut token = String::from("");
     
     // Don't include the quotes in the resulting string.
@@ -125,7 +126,7 @@ fn parse_string(it: &mut Peekable<std::str::Chars<'_>>) -> Result<LiteralValue> 
     if ! _terminated {
         return Err(PARSE_ERR_UNTERM_STR);
     }
-    return Ok(LiteralValue::StringValue(token));
+    return Ok(Atom::StringValue(token));
 }
 
 fn parse_identifier(it: &mut Peekable<std::str::Chars<'_>>) -> String {
@@ -146,26 +147,32 @@ fn parse_identifier(it: &mut Peekable<std::str::Chars<'_>>) -> String {
     return token;
 }
 
-fn reserved_keyword(token: &str) -> Option<TokenType> {
+fn reserved_keyword(token: &str) -> Option<Atom> {
     // Returns the token type if the token matches a reserved keyword.
     let token_upcase: &str = &token.to_ascii_uppercase();
-    return match token_upcase {
-        "IS" => Some(TOKEN_IS),
-        "NONE" => Some(TOKEN_NONE),
-        "TRUE" => Some(TOKEN_TRUE),
-        "FALSE" => Some(TOKEN_FALSE),
-        "NOT" => Some(TOKEN_NOT),
-        "AND" => Some(TOKEN_AND),
-        "OR" => Some(TOKEN_OR),
-        _ => None
+    if let Some(&symbol_id) = SYMBOL_ID_MAP.get(token_upcase) {
+        return Some(Atom::SymbolValue(symbol_id))
     }
+    
+    return None
+
+    // return match token_upcase {
+    //     "IS" => Some(TOKEN_IS),
+    //     "NONE" => Some(TOKEN_NONE),
+    //     "TRUE" => Some(TOKEN_TRUE),
+    //     "FALSE" => Some(TOKEN_FALSE),
+    //     "NOT" => Some(TOKEN_NOT),
+    //     "AND" => Some(TOKEN_AND),
+    //     "OR" => Some(TOKEN_OR),
+    //     _ => None
+    // }
 }
 
 // One-liner shorthand to advance the iterator and return the given value
 macro_rules! lex_advance_return {
     ($it:expr, $e:expr) => ({
         $it.next();
-        Some($e)
+        Some(Atom::SymbolValue($e))
     });
 }
 
@@ -176,12 +183,12 @@ macro_rules! lex_comparison_eq {
         if let Some(&eq) = $it.peek() {
             if eq == '=' {
                 $it.next();
-                Some($comp_eq)
+                Some(Atom::SymbolValue($comp_eq))
             } else {
-                Some($comp)
+                Some(Atom::SymbolValue($comp))
             }
         } else {
-            Some($comp)
+            Some(Atom::SymbolValue($comp))
         }
     });
 }
@@ -189,7 +196,7 @@ macro_rules! lex_comparison_eq {
 #[macro_export]
 macro_rules! numeric_literal {
      ($val:expr) => ({
-       TokenType::Literal(LiteralValue::NumericValue($val))
+       Atom::NumericValue($val)
     });
 }
 
@@ -199,11 +206,11 @@ macro_rules! apply_unary_minus {
             match next {
                 '(' => {
                     // Rewrite A + -(.. => A + -1 * (
-                    $tokens.push( TokenType::Literal(LiteralValue::NumericValue( -1.0 ) ));
-                    Some(TOKEN_MULTIPLY)
+                    $tokens.push(Atom::NumericValue( -1.0 ));
+                    Some(Atom::SymbolValue(SYMBOL_MULTIPLY))
                 },
                 _ => {
-                    Some(TokenType::Literal(parse_number(&mut $it, true)? ))
+                    Some(parse_number(&mut $it, true)?)
                 }
             }
         } else {
@@ -213,27 +220,29 @@ macro_rules! apply_unary_minus {
     });
 }
 
-pub fn lex(expr: &str) -> Result<Vec<TokenType>> {
+pub fn lex(expr: &str) -> Result<Vec<Atom>> {
     // Split into lexems based on some known operators
-    let mut tokens: Vec<TokenType> = vec![];
+    let mut tokens: Vec<Atom> = vec![];
     let mut it = expr.chars().peekable();
 
     while let Some(&ch) = it.peek() {
         // The match should have a case for each starting value of any valid token
-        let token: Option<TokenType> = match ch {
+        let token: Option<Atom> = match ch {
             // Digit start
-            '0'..='9' | '.' => Some(TokenType::Literal(parse_number(&mut it, false)? )),
+            '0'..='9' | '.' => Some(parse_number(&mut it, false)? ),
             // Differentiate subtraction or unary minus
             '-' => {
                 // If the previous char was begining of string or another operator
                 if let Some(prev) = tokens.last() {
                     match prev {
-                        TokenType::Keyword(_kw) => {
-                            it.next();
-                            apply_unary_minus!(it, tokens)
+                        // TODO: Re-verify support for unary minus 
+                        // TokenType::Keyword(_kw) => {
+                        Atom::SymbolValue(_kw) => {
+                             it.next();
+                             apply_unary_minus!(it, tokens)
                         },
                         _ => {
-                            lex_advance_return!(it, TOKEN_MINUS)
+                            lex_advance_return!(it, SYMBOL_MINUS)
                         }
                     }
                 } else {
@@ -243,16 +252,16 @@ pub fn lex(expr: &str) -> Result<Vec<TokenType>> {
                 }
             },
             // Operators
-            '+' => lex_advance_return!(it, TOKEN_PLUS),
-            '*' => lex_advance_return!(it, TOKEN_MULTIPLY),
-            '/' => lex_advance_return!(it, TOKEN_DIVIDE),
-            '(' => lex_advance_return!(it, TOKEN_OPEN_PAREN),
-            ')' => lex_advance_return!(it, TOKEN_CLOSE_PAREN),
-            '=' => lex_advance_return!(it, TOKEN_EQUALS),
-            '<' => lex_comparison_eq!(it, TOKEN_LT, TOKEN_LTE),
-            '>' => lex_comparison_eq!(it, TOKEN_GT, TOKEN_GTE),
+            '+' => lex_advance_return!(it, SYMBOL_PLUS),
+            '*' => lex_advance_return!(it, SYMBOL_MULTIPLY),
+            '/' => lex_advance_return!(it, SYMBOL_DIVIDE),
+            '(' => lex_advance_return!(it, SYMBOL_OPEN_PAREN),
+            ')' => lex_advance_return!(it, SYMBOL_CLOSE_PAREN),
+            '=' => lex_advance_return!(it, SYMBOL_EQUALS),
+            '<' => lex_comparison_eq!(it, SYMBOL_LT, SYMBOL_LTE),
+            '>' => lex_comparison_eq!(it, SYMBOL_GT, SYMBOL_GTE),
             // Interchangable single/double quoted strings grouped as single token.
-            '"' | '\'' => Some(TokenType::Literal(parse_string(&mut it)?)),
+            '"' | '\'' => Some(parse_string(&mut it)?),
             // Identifiers and reserved keywords
             // TODO: Benchmark if a..z vs looking at char code range.
             'a'..='z' | 'A'..='Z' | '_' => {
@@ -271,7 +280,8 @@ pub fn lex(expr: &str) -> Result<Vec<TokenType>> {
                 gobble_digits(&mut token_str, &mut it);
                 // TODO: Better panic handling
                 if let Some(id) = token_str.parse::<u64>().ok() {
-                    Some(TokenType::Identifier(id))
+                    // TODO: Map the IDs to something else so we don't re-use IDs
+                    Some(Atom::SymbolValue(id))
                 } else {
                     // TODO: Invalid identifier
                     return Err(PARSE_ERR_UNKNOWN_TOKEN);
@@ -324,32 +334,32 @@ mod tests {
         // Unary minus is handled at the lexer stage.
         assert_eq!(lex("-1").unwrap(), [numeric_literal!(-1.0)]);
         assert_eq!(lex("-.05").unwrap(), [numeric_literal!(-0.05)]);
-        assert_eq!(lex("5 -.05").unwrap(), [numeric_literal!(5.0), TOKEN_MINUS, numeric_literal!(0.05)]);
-        assert_eq!(lex("5 + -.05").unwrap(), [numeric_literal!(5.0), TOKEN_PLUS, numeric_literal!(-0.05)]);
-        assert_eq!(lex("-(4) + 2").unwrap(), [numeric_literal!(-1.0), TOKEN_MULTIPLY, TOKEN_OPEN_PAREN, 
-         numeric_literal!(4.0), TOKEN_CLOSE_PAREN, TOKEN_PLUS, numeric_literal!(2.0)] );
-        assert_eq!(lex("5 * -(2)").unwrap(), [numeric_literal!(5.0), TOKEN_MULTIPLY, numeric_literal!(-1.0), 
-            TOKEN_MULTIPLY, TOKEN_OPEN_PAREN, numeric_literal!(2.0), TOKEN_CLOSE_PAREN ]);
+        assert_eq!(lex("5 -.05").unwrap(), [numeric_literal!(5.0), Atom::SymbolValue(SYMBOL_MINUS), numeric_literal!(0.05)]);
+        assert_eq!(lex("5 + -.05").unwrap(), [numeric_literal!(5.0), Atom::SymbolValue(SYMBOL_PLUS), numeric_literal!(-0.05)]);
+        assert_eq!(lex("-(4) + 2").unwrap(), [numeric_literal!(-1.0), Atom::SymbolValue(SYMBOL_MULTIPLY), Atom::SymbolValue(SYMBOL_OPEN_PAREN), 
+         numeric_literal!(4.0), Atom::SymbolValue(SYMBOL_CLOSE_PAREN), Atom::SymbolValue(SYMBOL_PLUS), numeric_literal!(2.0)] );
+        assert_eq!(lex("5 * -(2)").unwrap(), [numeric_literal!(5.0), Atom::SymbolValue(SYMBOL_MULTIPLY), numeric_literal!(-1.0), 
+            Atom::SymbolValue(SYMBOL_MULTIPLY), Atom::SymbolValue(SYMBOL_OPEN_PAREN), numeric_literal!(2.0), Atom::SymbolValue(SYMBOL_CLOSE_PAREN) ]);
     }
 
     #[test]
     fn test_reserved_keyword() {
-        assert_eq!(reserved_keyword("not"), Some(TOKEN_NOT));
-        assert_eq!(reserved_keyword("And"), Some(TOKEN_AND));
-        assert_eq!(reserved_keyword("NONE"), Some(TOKEN_NONE));
-        assert_eq!(reserved_keyword("True"), Some(TOKEN_TRUE));
-        assert_eq!(reserved_keyword("TRUE"), Some(TOKEN_TRUE));
-        assert_eq!(reserved_keyword("false"), Some(TOKEN_FALSE));
+        assert_eq!(reserved_keyword("not"), Some(Atom::SymbolValue(SYMBOL_NOT)));
+        assert_eq!(reserved_keyword("And"), Some(Atom::SymbolValue(SYMBOL_AND)));
+        assert_eq!(reserved_keyword("NONE"), Some(Atom::SymbolValue(SYMBOL_NONE)));
+        assert_eq!(reserved_keyword("True"), Some(Atom::SymbolValue(SYMBOL_TRUE)));
+        assert_eq!(reserved_keyword("TRUE"), Some(Atom::SymbolValue(SYMBOL_TRUE)));
+        assert_eq!(reserved_keyword("false"), Some(Atom::SymbolValue(SYMBOL_FALSE)));
         assert_eq!(reserved_keyword("unreserved"), None);
     }
 
     #[test]
     fn test_lex_string() {
-        assert_eq!(parse_string(&mut r#""hello world""#.chars().peekable()).unwrap(), LiteralValue::StringValue(String::from("hello world")) );
+        assert_eq!(parse_string(&mut r#""hello world""#.chars().peekable()).unwrap(), Atom::StringValue(String::from("hello world")) );
         // Terminates at end of quote
-        assert_eq!(parse_string(&mut r#""hello world" test"#.chars().peekable()).unwrap(), LiteralValue::StringValue(String::from("hello world")) );
+        assert_eq!(parse_string(&mut r#""hello world" test"#.chars().peekable()).unwrap(), Atom::StringValue(String::from("hello world")) );
         // Matches quotes
-        assert_eq!(parse_string(&mut r#"'hello " world' test"#.chars().peekable()).unwrap(), LiteralValue::StringValue(String::from("hello \" world")) );
+        assert_eq!(parse_string(&mut r#"'hello " world' test"#.chars().peekable()).unwrap(), Atom::StringValue(String::from("hello \" world")) );
         // Error on unterminated string
         assert_eq!(parse_string(&mut r#"'hello"#.chars().peekable()).unwrap_err(), PARSE_ERR_UNTERM_STR);
     }
@@ -357,7 +367,8 @@ mod tests {
 
     #[test]
     fn test_lex_identifiers() {
-        assert_eq!(lex("@1").unwrap(), [TokenType::Identifier(1)]);
+        // TODO - better test case
+        assert_eq!(lex("@1").unwrap(), [Atom::SymbolValue(1)]);
     }
 
 

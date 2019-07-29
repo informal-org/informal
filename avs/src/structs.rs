@@ -2,8 +2,7 @@ use core::cell::RefCell;
 use alloc::rc::Rc;
 use alloc::string::String;
 use alloc::vec::Vec;
-use alloc::boxed::Box;
-use crate::utils::{truncate_symbol, extend_value_symbol, extend_value_object};
+use crate::utils::{truncate_symbol, extend_value_object};
 use crate::constants::*;
 
 #[derive(Debug,PartialEq)]
@@ -17,10 +16,9 @@ pub enum ValueType {
 
 #[derive(Debug,PartialEq)]
 pub enum Atom {
-    NumericValue(u64),
+    NumericValue(f64),
     StringValue(String),
     SymbolValue(u64)
-    // Object Value?
 }
 
 // For classes, there's symbols for value_size and objs_size
