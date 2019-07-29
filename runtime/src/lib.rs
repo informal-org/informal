@@ -18,3 +18,5 @@ pub mod constants;
 pub mod structs;
 
 
+#[macro_use]
+extern crate lazy_static;

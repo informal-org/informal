@@ -1,8 +1,10 @@
 use super::structs::*;
 use avs::constants::*;
+use fnv::FnvHashMap;
 
 /*
 // Takes parsed tokens and generates wasm code from it.
+// TODO: Convert these to a map lookup
 */
 pub const AV_STD_ADD: &'static str  = "(call $__av_add)\n";
 pub const AV_STD_SUB: &'static str  = "(call $__av_sub)\n";
@@ -53,3 +55,74 @@ pub const TOKEN_DIVIDE: TokenType = TokenType::Keyword(KeywordType::KwDivide);
 pub const TOKEN_OPEN_PAREN: TokenType = TokenType::Keyword(KeywordType::KwOpenParen);
 pub const TOKEN_CLOSE_PAREN: TokenType = TokenType::Keyword(KeywordType::KwCloseParen);
 pub const TOKEN_EQUALS: TokenType = TokenType::Keyword(KeywordType::KwEquals);
+
+
+// Constants for supported symbols within expressions.
+// Uses the reserved space from 0-255 
+// Note: Ensure no ID conflict with the symbols defined in avs
+// The IDs represent index into the precedence array.
+// TODO: Invert these?
+pub const SYMBOL_OR: u64 = 0;
+pub const SYMBOL_AND: u64 = 1;
+pub const SYMBOL_IS: u64 = 2;
+pub const SYMBOL_NOT: u64 = 3;
+
+pub const SYMBOL_LT: u64 = 4;
+pub const SYMBOL_LTE: u64 = 5;
+pub const SYMBOL_GT: u64 = 6;
+pub const SYMBOL_GTE: u64 = 7;
+
+pub const SYMBOL_PLUS: u64 = 8;
+pub const SYMBOL_MINUS: u64 = 9;
+pub const SYMBOL_MULTIPLY: u64 = 10;
+pub const SYMBOL_DIVIDE: u64 = 11;
+
+pub const SYMBOL_OPEN_PAREN: u64 = 12;
+pub const SYMBOL_CLOSE_PAREN: u64 = 13;
+pub const SYMBOL_EQUALS: u64 = 14;
+
+lazy_static! {
+    // Used during lexing
+    static ref SYMBOL_ID_MAP: FnvHashMap<&'static str, u64> = {
+        // TODO: Sepcify different hasher
+        let mut m = FnvHashMap::with_capacity_and_hasher(25, Default::default());
+        // Lowercase since they usually appear within sentences.
+        m.insert("or", SYMBOL_OR);
+        m.insert("and", SYMBOL_AND);
+        m.insert("is", SYMBOL_IS);
+        m.insert("not", SYMBOL_NOT);
+        
+        m.insert("<", SYMBOL_LT);
+        m.insert("<=", SYMBOL_LTE);
+        m.insert(">", SYMBOL_GT);
+        m.insert(">=", SYMBOL_GTE);
+
+        m.insert("+", SYMBOL_PLUS);
+        m.insert("-", SYMBOL_MINUS);
+        m.insert("*", SYMBOL_MULTIPLY);
+        m.insert("/", SYMBOL_DIVIDE);
+
+        m.insert("(", SYMBOL_OPEN_PAREN);
+        m.insert(")", SYMBOL_CLOSE_PAREN);
+        m.insert("=", SYMBOL_EQUALS);
+
+        // Additional keywords - Title case like nouns
+        m.insert("True", SYMBOL_TRUE);
+        m.insert("False", SYMBOL_FALSE);
+        m.insert("None", SYMBOL_NONE);
+        m
+    };
+
+
+    // Used during printing
+    static ref ID_SYMBOL_MAP: FnvHashMap<u64, &'static str> = {
+
+        let mut m = FnvHashMap::with_capacity_and_hasher(25, Default::default());
+        // Invert map
+        for (key, val) in SYMBOL_ID_MAP.iter() {
+            m.insert(*val, *key);
+        }
+        m
+
+    };
+}

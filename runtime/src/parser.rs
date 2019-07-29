@@ -3,7 +3,6 @@ use avs::constants::*;
 use super::structs::*;
 
 
-
 // Higher numbers have higher precedence. 
 // Indexes should match with TokenType enum values.
 const KEYWORD_PRECEDENCE: &[u8] = &[
