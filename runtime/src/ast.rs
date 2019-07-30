@@ -1,3 +1,4 @@
+use avs::utils::create_value_symbol;
 use std::collections::HashMap;
 use super::dependency::{get_eval_order};
 use super::structs::*;
@@ -48,11 +49,14 @@ pub fn construct_ast(request: EvalRequest) -> AST {
         let mut lexed = lex(&cell.input).unwrap();
         // Attempt to parse ID of cell and save result "@42" -> 42
         if let Some(id64) = cell.id[1..].parse::<u64>().ok() {
-            let mut ast_node = apply_operator_precedence(id64, &mut lexed);
-            update_used_by(&id64, &mut ast_node, &mut node_list, &mut node_map, &mut used_by_buffer);
+            // TODO: Move the symbol reservation outside and change this to a check
+            // if < rather than modifying the IDs around.
+            let symbol_value: u64 = create_value_symbol( 65000 + id64 );
+            let mut ast_node = apply_operator_precedence(symbol_value, &mut lexed);
+            update_used_by(&symbol_value, &mut ast_node, &mut node_list, &mut node_map, &mut used_by_buffer);
 
             node_list.push(ast_node);
-            node_map.insert(id64, node_list.len() - 1);
+            node_map.insert(symbol_value, node_list.len() - 1);
         } else {
             println!("ERROR parsing id {:?}", cell.id);
         }

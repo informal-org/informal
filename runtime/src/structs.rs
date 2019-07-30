@@ -24,6 +24,7 @@ pub struct EvalRequest {
     pub body: Vec<CellRequest>
 }
 
+#[derive(Debug)]
 pub struct AST {
     pub scope: Scope,
     pub body: Vec<ASTNode>
@@ -85,6 +86,7 @@ impl ASTNode {
 // Kind of a linked list structure
 // Pure functions are scoped to their parameters. i.e. null parent.
 // You can reference parent, but never child or sibiling data.
+#[derive(Debug)]
 pub struct Scope {
     pub parent: Box<Option<Scope>>,
     

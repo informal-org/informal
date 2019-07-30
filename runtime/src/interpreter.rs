@@ -132,6 +132,8 @@ pub fn interpret_all(request: EvalRequest) -> EvalResponse {
     let mut ast = construct_ast(request);
     let mut global_env = AvObject::new_env();
 
+    println!("AST: {:?}", ast);
+
     for node in ast.body.iter() {
         let result = interpret_expr(&mut global_env, &node, &ast);
         
@@ -157,6 +159,8 @@ pub fn interpret_all(request: EvalRequest) -> EvalResponse {
                 }
             }
         }
+
+        let result_symbol_id = node.id - 65000;
 
         results.push(CellResponse {
             id: ["@", &node.id.to_string()].concat(),
