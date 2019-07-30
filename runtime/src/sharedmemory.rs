@@ -7,7 +7,7 @@ macro_rules! decode_flatbuf {
         // We need to read the flatbuffer contents, but since web assembly only supports
         // returning one value, we first send back the pointer, size pair and then decode the buffer
         let memory_view32: MemoryView<u32> = $memory.view();
-        let sized_ptr_index = ($ptr / 4);
+        let sized_ptr_index = $ptr / 4;
         
         let ref_ptr = memory_view32.get(sized_ptr_index as usize).unwrap().get() as usize;
         let ref_size = memory_view32.get( (sized_ptr_index + 1) as usize).unwrap().get() as usize;

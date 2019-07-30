@@ -1,7 +1,7 @@
 use avs::types::{__av_typeof, is_error};
 use avs::structs::{ValueType, AvObject};
 use avs::constants::*;
-use super::constants::ID_SYMBOL_MAP;
+use avs::runtime::ID_SYMBOL_MAP;
 
 pub fn repr(env: &AvObject, result: u64) -> String {
     let result_type = __av_typeof(result);

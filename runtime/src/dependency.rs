@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::collections::VecDeque;
 
 use avs::constants::{RUNTIME_ERR_CIRCULAR_DEP};
-use super::constants::*;
 use super::structs::*;
 
 // Dependency tree resolution

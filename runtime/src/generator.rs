@@ -1,7 +1,8 @@
 use std::fs;
 use super::constants::*;
-use super::structs::*;
+use avs::constants::*;
 use avs::structs::Atom;
+
 
 
 pub fn operator_to_wat(operator: u64) -> String {

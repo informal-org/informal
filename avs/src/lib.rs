@@ -9,6 +9,13 @@ pub mod utils;
 pub mod types;
 pub mod memory;
 pub mod operators;
+
+#[cfg(not(target_os = "unknown"))]
+pub mod runtime;
+
+#[macro_use]
+extern crate lazy_static;
+
 #[allow(non_snake_case)]
 pub mod avfb_generated;
 

@@ -3,9 +3,6 @@ use super::parser;
 use super::generator;
 use super::format;
 use super::{decode_flatbuf};
-use super::interpreter::*;
-use super::constants::*;
-
 
 pub use avs::avfb_generated::avfb::{get_root_as_av_fb_obj};
 pub use avs::structs::{AvObject};
@@ -14,7 +11,6 @@ use wasmer_runtime::{Func, imports, compile};
 use wabt::wat2wasm;
 use wasmer_runtime::memory::MemoryView;
 use std::time::SystemTime;
-
 
 
 // TODO: Environment

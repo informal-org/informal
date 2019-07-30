@@ -87,6 +87,35 @@ pub const SYMBOL_SENTINEL_SENTINEL: u64 = 0xFFFB_0000_0000_004C;
 pub const SYMBOL_TRUE: u64              = 0xFFFF_0000_0000_0080;    // 128
 
 
+// Constants for supported symbols within expressions.
+// Uses the reserved space from 0-255 
+// Note: Ensure no ID conflict with the symbols defined in avs
+// The IDs represent index into the precedence array.
+// TODO: Invert these?
+pub const SYMBOL_OR: u64 = 0;
+pub const SYMBOL_AND: u64 = 1;
+pub const SYMBOL_IS: u64 = 2;
+pub const SYMBOL_NOT: u64 = 3;
+
+pub const SYMBOL_LT: u64 = 4;
+pub const SYMBOL_LTE: u64 = 5;
+pub const SYMBOL_GT: u64 = 6;
+pub const SYMBOL_GTE: u64 = 7;
+
+pub const SYMBOL_PLUS: u64 = 8;
+pub const SYMBOL_MINUS: u64 = 9;
+pub const SYMBOL_MULTIPLY: u64 = 10;
+pub const SYMBOL_DIVIDE: u64 = 11;
+
+pub const SYMBOL_OPEN_PAREN: u64 = 12;
+pub const SYMBOL_CLOSE_PAREN: u64 = 13;
+pub const SYMBOL_EQUALS: u64 = 14;
+
+
+
+// TODO: Investigate whether having statically defined Atom constants for each symbol are worth it.
+
+
 // For built in classes (Use to_symbol to encode these as symbols)
 // Object class constants for built-in types.
 pub const AV_CLASS_OBJECT: u32 = 1025;

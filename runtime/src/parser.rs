@@ -1,9 +1,7 @@
-use super::Result;
 use avs::constants::*;
 use avs::structs::Atom;
 use avs::utils::truncate_symbol;
 use super::structs::*;
-use super::constants::*;
 
 
 // Higher numbers have higher precedence. 

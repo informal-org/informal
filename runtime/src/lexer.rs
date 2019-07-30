@@ -7,8 +7,7 @@ use std::iter::Peekable;
 use avs::constants::*;
 use avs::structs::Atom;
 use avs::utils::create_value_symbol;
-use super::constants::*;
-use super::structs::*;
+use avs::runtime::SYMBOL_ID_MAP;
 
 
 
