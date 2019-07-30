@@ -1,6 +1,6 @@
 extern crate runtime;
 
-use runtime::repl;
+// use runtime::repl;
 
 // use std::str;
 use std::io::{stdin,stdout,Write};
@@ -11,17 +11,17 @@ extern crate flatbuffers;
 pub use avs::avfb_generated::avfb::{AvFbObj, AvFbObjArgs, get_root_as_av_fb_obj};
 
 
-fn repl_it() {
-    loop {
-        print!("> ");
-        let _=stdout().flush();
-        let reader = stdin();
-        let mut input = String::new();
-        reader.read_line(&mut input).ok().expect("Failed to read line");
+// fn repl_it() {
+//     loop {
+//         print!("> ");
+//         let _=stdout().flush();
+//         let reader = stdin();
+//         let mut input = String::new();
+//         reader.read_line(&mut input).ok().expect("Failed to read line");
 
-        repl::read_eval_print(input);
-    }
-}
+//         repl::read_eval_print(input);
+//     }
+// }
 
 
 fn main() {
