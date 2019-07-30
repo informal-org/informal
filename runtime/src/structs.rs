@@ -1,52 +1,6 @@
 use std::collections::HashMap;
 use avs::structs::Atom;
 
-// Enum values are associated with their index for fast precedence lookup.
-#[derive(Debug,PartialEq,Clone)]
-pub enum TokenType {
-    Keyword(KeywordType),
-    Literal(LiteralValue),
-    Identifier(u64),
-}
-
-#[derive(Debug,PartialEq,Clone)]
-pub enum LiteralValue {
-    NoneValue,
-    BooleanValue(u64), 
-    NumericValue(f64),    // Integers are represented within the floats.
-    StringValue(String),  // TODO: String -> Obj. To c-string.
-}
-
-#[derive(Debug,PartialEq,Eq,Copy,Clone)]
-#[repr(u8)]
-pub enum KeywordType {
-    // The u8 repr index into the parser precedence array.
-    KwOr = 0,
-    KwAnd = 1,
-    KwIs = 2,
-    KwNot = 3,
-    
-    KwLt = 4,
-    KwLte = 5,
-    KwGt = 6,
-    KwGte = 7,
-
-    KwPlus = 8,
-    KwMinus = 9,
-    KwMultiply = 10,
-    KwDivide = 11,
-    
-    KwOpenParen = 12,
-    KwCloseParen = 13,
-    KwEquals = 14,
-}
-
-// #[derive(Debug,PartialEq)]
-// pub enum Value {
-//     Literal(LiteralValue),
-//     Identifier(u64)
-// }
-
 #[derive(Serialize, PartialEq, Debug)]
 pub struct CellResponse {
     pub id: String,
