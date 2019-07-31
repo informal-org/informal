@@ -12,13 +12,13 @@ const initialState = {
                 name: "Count",
                 input: "1 + 1"
             },
-//             "@2": {
-//                 id: "@2",
-//                 type: "cell",
-//                 name: "Name",
-//                 input: "true"
-// //                input: "@1 + 3"
-//             },
+            "@2": {
+                id: "@2",
+                type: "cell",
+                name: "Name",
+                input: "true"
+//                input: "@1 + 3"
+            },
             // "@3": {
             //     id: "@3",
             //     type: "list",
@@ -45,7 +45,7 @@ const initialState = {
             //     parent: "3"
             // },
         },
-        allIds: ["@1",  ], //"@3", "@4", "@5", "@6", "@2"
+        allIds: ["@1", "@2" ], //"@3", "@4", "@5", "@6", 
         focus: null,  // ID of the element selected
         modified: true,  // Allow initial evaluation
     }

@@ -6,6 +6,7 @@ with interop with separately compiled modules.
 */
 
 // use std::collections::HashMap;
+use avs::runtime::ID_SYMBOL_MAP;
 use super::parser;
 use super::lexer::*;
 use super::structs::*;
@@ -16,6 +17,7 @@ use avs::operators::*;
 use avs::types::*;
 use avs::constants::*;
 use avs::structs::{ValueType, AvObject, Atom};
+
 
 macro_rules! apply_bin_op {
     ($env:expr, $op:expr, $stack:expr) => ({
@@ -76,7 +78,19 @@ pub fn interpret_expr(mut env: &mut AvObject, expression: &Expression, context: 
         match token {
             Atom::SymbolValue(kw) => {
                 // TODO: Check if built in operator or an identifier
-                apply_operator(&mut env, *kw, &mut expr_stack);
+                if ID_SYMBOL_MAP.contains_key(kw) {
+                    println!("Detected this as a built-in operator");
+                    apply_operator(&mut env, *kw, &mut expr_stack);
+                } else {
+                    if let Some(&symbol_index) = context.symbols_index.get(kw) {
+                        let deref_value = *ast.scope.values.get(symbol_index).unwrap();
+                        expr_stack.push(deref_value);
+                    } else {
+                        println!("Could not find identifier! {:?}", reference);
+                    }
+
+                }
+                
             }, 
             Atom::NumericValue(num) => {
                 // f64 -> u64
@@ -92,12 +106,7 @@ pub fn interpret_expr(mut env: &mut AvObject, expression: &Expression, context: 
             //,
             //TokenType::Identifier(reference) => {
                 // TODO: Lookup scoping rules
-                // if let Some(&symbol_index) = ast.scope.symbols.get(&reference) {
-                //     let deref_value = *ast.scope.values.get(symbol_index).unwrap();
-                //     expr_stack.push(deref_value);
-                // } else {
-                //     println!("Could not find identifier! {:?}", reference);
-                // }
+
             //}
             // _ => {
             //     // TODO
@@ -140,8 +149,9 @@ pub fn interpret_all(request: EvalRequest) -> EvalResponse {
         let result = interpret_expr(&mut global_env, &node, &ast);
         println!("Got result {:?}", repr(&global_env, result));
         
-        // let symbol_id = ast.cell_symbols.unwrap().get(&node.id).unwrap();
-        // ast.scope.values[*symbol_id] = result; //.insert(symbol_id, result);
+        // let symbol_id = ast.cell_symbols.as_ref().unwrap().get(&node.id).unwrap();
+        // let symbol_index = ast.cell.symbol_index.as_ref().unwrap().get(symbol_id).unwrap();
+        // ast.cell_results[*symbol_id] = result; //.insert(symbol_id, result);
         // TODO: Insert value into env?
 
         // TODO: Split up the format if there's a different use-case that doesn't need the string format.
