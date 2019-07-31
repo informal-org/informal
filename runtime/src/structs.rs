@@ -1,4 +1,5 @@
 // use avs::structs::AvObject;
+use avs::utils::create_value_symbol;
 use avs::structs::Atom;
 use fnv::FnvHashMap;
 
@@ -77,7 +78,20 @@ impl Context {
             next_symbol_id: next_symbol_id
         }
     }
+    
     // TODO: Methods for defining a child scope
+
+    pub fn get_or_create_cell_symbol(&mut self, cell_id: u64) -> u64 {
+        if let Some(existing_id) = self.cell_symbols.as_ref().unwrap().get(&cell_id) {
+            *existing_id 
+        } else {
+            let cell_symbol_value: u64 = create_value_symbol( self.next_symbol_id );
+            self.cell_symbols.as_mut().unwrap().insert(cell_id, cell_symbol_value);
+            self.next_symbol_id += 1;
+            cell_symbol_value
+        }
+
+    }
 }
 
 

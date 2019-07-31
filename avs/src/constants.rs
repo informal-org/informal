@@ -92,24 +92,24 @@ pub const SYMBOL_TRUE: u64              = 0xFFFF_0000_0000_0080;    // 128
 // Note: Ensure no ID conflict with the symbols defined in avs
 // The IDs represent index into the precedence array.
 // TODO: Invert these?
-pub const SYMBOL_OR: u64 = 0;
-pub const SYMBOL_AND: u64 = 1;
-pub const SYMBOL_IS: u64 = 2;
-pub const SYMBOL_NOT: u64 = 3;
+pub const SYMBOL_OR: u64 = 0xFFFF_0000_0000_0000;
+pub const SYMBOL_AND: u64 = 0xFFFF_0000_0000_0001;
+pub const SYMBOL_IS: u64 = 0xFFFF_0000_0000_0002;
+pub const SYMBOL_NOT: u64 = 0xFFFF_0000_0000_0003;
 
-pub const SYMBOL_LT: u64 = 4;
-pub const SYMBOL_LTE: u64 = 5;
-pub const SYMBOL_GT: u64 = 6;
-pub const SYMBOL_GTE: u64 = 7;
+pub const SYMBOL_LT: u64 = 0xFFFF_0000_0000_0004;
+pub const SYMBOL_LTE: u64 = 0xFFFF_0000_0000_0005;
+pub const SYMBOL_GT: u64 = 0xFFFF_0000_0000_0006;
+pub const SYMBOL_GTE: u64 = 0xFFFF_0000_0000_0007;
 
-pub const SYMBOL_PLUS: u64 = 8;
-pub const SYMBOL_MINUS: u64 = 9;
-pub const SYMBOL_MULTIPLY: u64 = 10;
-pub const SYMBOL_DIVIDE: u64 = 11;
+pub const SYMBOL_PLUS: u64 = 0xFFFF_0000_0000_0008;
+pub const SYMBOL_MINUS: u64 = 0xFFFF_0000_0000_0009;
+pub const SYMBOL_MULTIPLY: u64 = 0xFFFF_0000_0000_000A;
+pub const SYMBOL_DIVIDE: u64 = 0xFFFF_0000_0000_000B;
 
-pub const SYMBOL_OPEN_PAREN: u64 = 12;
-pub const SYMBOL_CLOSE_PAREN: u64 = 13;
-pub const SYMBOL_EQUALS: u64 = 14;
+pub const SYMBOL_OPEN_PAREN: u64 = 0xFFFF_0000_0000_000C;
+pub const SYMBOL_CLOSE_PAREN: u64 = 0xFFFF_0000_0000_000D;
+pub const SYMBOL_EQUALS: u64 = 0xFFFF_0000_0000_000E;
 
 
 

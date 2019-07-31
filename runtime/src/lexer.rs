@@ -8,7 +8,7 @@ use avs::constants::*;
 use avs::structs::Atom;
 use avs::utils::create_value_symbol;
 use avs::runtime::SYMBOL_ID_MAP;
-
+use crate::structs::Context;
 
 
 fn is_digit(ch: char) -> bool {
@@ -220,7 +220,7 @@ macro_rules! apply_unary_minus {
     });
 }
 
-pub fn lex(expr: &str) -> Result<Vec<Atom>> {
+pub fn lex(context: &mut Context, expr: &str) -> Result<Vec<Atom>> {
     // Split into lexems based on some known operators
     let mut tokens: Vec<Atom> = vec![];
     let mut it = expr.chars().peekable();
@@ -281,8 +281,8 @@ pub fn lex(expr: &str) -> Result<Vec<Atom>> {
                 // TODO: Better panic handling
                 if let Some(id) = token_str.parse::<u64>().ok() {
                     // TODO: Map the IDs to something else so we don't re-use IDs
-                    let symbol_value: u64 = create_value_symbol( 65000 + id );
-                    Some(Atom::SymbolValue( symbol_value ))
+                    Some(Atom::SymbolValue( context.get_or_create_cell_symbol(id) ))
+                    
                 } else {
                     // TODO: Invalid identifier
                     return Err(PARSE_ERR_UNKNOWN_TOKEN);
@@ -314,32 +314,34 @@ mod tests {
 
     #[test]
     fn test_lex_float() {
+        let mut context = Context::new(65000);
         // Floating point numbers should be grouped together
-        assert_eq!(lex("3.1415").unwrap(), [numeric_literal!(3.1415)]);
+        assert_eq!(lex(&mut context, "3.1415").unwrap(), [numeric_literal!(3.1415)]);
 
         // Note: Numeric literals converted to float in lexer. Handled separately in parser.
-        assert_eq!(lex("9 .75 9").unwrap(), [numeric_literal!(9.0), numeric_literal!(0.75), numeric_literal!(9.0)]);
-        assert_eq!(lex("9 1e10").unwrap(), [numeric_literal!(9.0), numeric_literal!(1e10)]);
-        assert_eq!(lex("1e-10").unwrap(), [numeric_literal!(1e-10)]);
-        assert_eq!(lex("123e+10").unwrap(), [numeric_literal!(123e+10)]);
-        assert_eq!(lex("4.237e+101").unwrap(), [numeric_literal!(4.237e+101)]);
+        assert_eq!(lex(&mut context, "9 .75 9").unwrap(), [numeric_literal!(9.0), numeric_literal!(0.75), numeric_literal!(9.0)]);
+        assert_eq!(lex(&mut context, "9 1e10").unwrap(), [numeric_literal!(9.0), numeric_literal!(1e10)]);
+        assert_eq!(lex(&mut context, "1e-10").unwrap(), [numeric_literal!(1e-10)]);
+        assert_eq!(lex(&mut context, "123e+10").unwrap(), [numeric_literal!(123e+10)]);
+        assert_eq!(lex(&mut context, "4.237e+101").unwrap(), [numeric_literal!(4.237e+101)]);
 
         // Error on undefined exponents.
-        assert_eq!(lex("5.1e").unwrap_err(), PARSE_ERR_INVALID_FLOAT);
-        assert_eq!(lex("5.1e ").unwrap_err(), PARSE_ERR_INVALID_FLOAT);
+        assert_eq!(lex(&mut context, "5.1e").unwrap_err(), PARSE_ERR_INVALID_FLOAT);
+        assert_eq!(lex(&mut context, "5.1e ").unwrap_err(), PARSE_ERR_INVALID_FLOAT);
         // 30_000_000 syntax support? Stick to standard valid floats for now.
     }
 
     #[test]
     fn test_lex_unary_minus() {
+        let mut context = Context::new(65000);
         // Unary minus is handled at the lexer stage.
-        assert_eq!(lex("-1").unwrap(), [numeric_literal!(-1.0)]);
-        assert_eq!(lex("-.05").unwrap(), [numeric_literal!(-0.05)]);
-        assert_eq!(lex("5 -.05").unwrap(), [numeric_literal!(5.0), Atom::SymbolValue(SYMBOL_MINUS), numeric_literal!(0.05)]);
-        assert_eq!(lex("5 + -.05").unwrap(), [numeric_literal!(5.0), Atom::SymbolValue(SYMBOL_PLUS), numeric_literal!(-0.05)]);
-        assert_eq!(lex("-(4) + 2").unwrap(), [numeric_literal!(-1.0), Atom::SymbolValue(SYMBOL_MULTIPLY), Atom::SymbolValue(SYMBOL_OPEN_PAREN), 
+        assert_eq!(lex(&mut context, "-1").unwrap(), [numeric_literal!(-1.0)]);
+        assert_eq!(lex(&mut context, "-.05").unwrap(), [numeric_literal!(-0.05)]);
+        assert_eq!(lex(&mut context, "5 -.05").unwrap(), [numeric_literal!(5.0), Atom::SymbolValue(SYMBOL_MINUS), numeric_literal!(0.05)]);
+        assert_eq!(lex(&mut context, "5 + -.05").unwrap(), [numeric_literal!(5.0), Atom::SymbolValue(SYMBOL_PLUS), numeric_literal!(-0.05)]);
+        assert_eq!(lex(&mut context, "-(4) + 2").unwrap(), [numeric_literal!(-1.0), Atom::SymbolValue(SYMBOL_MULTIPLY), Atom::SymbolValue(SYMBOL_OPEN_PAREN), 
          numeric_literal!(4.0), Atom::SymbolValue(SYMBOL_CLOSE_PAREN), Atom::SymbolValue(SYMBOL_PLUS), numeric_literal!(2.0)] );
-        assert_eq!(lex("5 * -(2)").unwrap(), [numeric_literal!(5.0), Atom::SymbolValue(SYMBOL_MULTIPLY), numeric_literal!(-1.0), 
+        assert_eq!(lex(&mut context, "5 * -(2)").unwrap(), [numeric_literal!(5.0), Atom::SymbolValue(SYMBOL_MULTIPLY), numeric_literal!(-1.0), 
             Atom::SymbolValue(SYMBOL_MULTIPLY), Atom::SymbolValue(SYMBOL_OPEN_PAREN), numeric_literal!(2.0), Atom::SymbolValue(SYMBOL_CLOSE_PAREN) ]);
     }
 
@@ -369,7 +371,7 @@ mod tests {
     #[test]
     fn test_lex_identifiers() {
         // TODO - better test case
-        // assert_eq!(lex("@1").unwrap(), [Atom::SymbolValue(_)]);
+        // assert_eq!(lex(&mut context, "@1").unwrap(), [Atom::SymbolValue(_)]);
     }
 
 

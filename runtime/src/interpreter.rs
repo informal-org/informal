@@ -28,7 +28,7 @@ macro_rules! apply_bin_op {
 
 
 pub fn apply_operator(mut env: &mut AvObject, operator: u64, stack: &mut Vec<u64>) {
-    println!("Operator: {}", operator);
+    println!("Operator: {}", repr(&env, operator));
     print_stacktrace(env, &stack);
     let result = match operator {
         SYMBOL_PLUS => apply_bin_op!(env, __av_add, stack),
@@ -110,13 +110,14 @@ pub fn interpret_expr(mut env: &mut AvObject, expression: &Expression, context: 
 }
 
 pub fn interpret_one(input: String) -> u64 {
+    let mut ast = Context::new(65000);
     println!("Input: {:?}", input);
-    let mut lexed = lex(&input).unwrap();
+    let mut lexed = lex(&mut ast, &input).unwrap();
     println!("Lexed: {:?}", lexed);
     let parsed = parser::apply_operator_precedence(0, &mut lexed).parsed;
     println!("parsed: {:?}", parsed);
     // TODO: A base, shared global namespace.
-    let ast = Context::new(65000);
+    
     let mut node = Expression::new(0);
     node.parsed = parsed;
     let mut env = AvObject::new_env();
@@ -137,6 +138,7 @@ pub fn interpret_all(request: EvalRequest) -> EvalResponse {
 
     for node in ast.body.iter() {
         let result = interpret_expr(&mut global_env, &node, &ast);
+        println!("Got result {:?}", repr(&global_env, result));
         
         // let symbol_id = ast.cell_symbols.unwrap().get(&node.id).unwrap();
         // ast.scope.values[*symbol_id] = result; //.insert(symbol_id, result);
@@ -162,9 +164,10 @@ pub fn interpret_all(request: EvalRequest) -> EvalResponse {
             }
         }
 
-        let result_symbol_id = node.id - 65000;
+        let result_symbol_id = ast.cell_symbols.as_ref().unwrap().get(&node.id).unwrap();
 
         results.push(CellResponse {
+            // id: ["@", &node.id.to_string()].concat(),
             id: ["@", &node.id.to_string()].concat(),
             output: output,
             error: err

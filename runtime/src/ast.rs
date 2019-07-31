@@ -46,22 +46,23 @@ pub fn construct_ast(request: EvalRequest) -> Context {
     let mut cell_index_map: FnvHashMap<u64, usize> = FnvHashMap::with_capacity_and_hasher(request.body.len(), Default::default());
     // For nodes that aren't fully created yet, store usages for later.
     let mut used_by_buffer: FnvHashMap<u64, Vec<u64>> = FnvHashMap::default();
+    // Cell ID -> Internal Symbol ID for results
+    let mut ast = Context::new(65000);
+    ast.cell_symbols = Some(FnvHashMap::default());
 
     // The lexer already needs to know the meaning of symbols so it can create new ones
     // So it should just return used by as well in a single pass.
-
     for cell in request.body {
-        let mut lexed = lex(&cell.input).unwrap();
+        let mut lexed = lex(&mut ast, &cell.input).unwrap();
         // Attempt to parse ID of cell and save result "@42" -> 42
         if let Some(id64) = cell.id[1..].parse::<u64>().ok() {
-            // TODO: Move the symbol reservation outside and change this to a check
-            // if < rather than modifying the IDs around.
-            let symbol_value: u64 = create_value_symbol( 65000 + id64 );
-            let mut ast_node = apply_operator_precedence(symbol_value, &mut lexed);
-            update_used_by(&symbol_value, &mut ast_node, &mut cell_list, &mut cell_index_map, &mut used_by_buffer);
+            let cell_symbol_value = ast.get_or_create_cell_symbol(id64);
+            let mut ast_node = apply_operator_precedence(id64, &mut lexed);
+
+            update_used_by(&cell_symbol_value, &mut ast_node, &mut cell_list, &mut cell_index_map, &mut used_by_buffer);
 
             cell_list.push(ast_node);
-            cell_index_map.insert(symbol_value, cell_list.len() - 1);
+            cell_index_map.insert(cell_symbol_value, cell_list.len() - 1);
         } else {
             println!("ERROR parsing id {:?}", cell.id);
         }
@@ -69,12 +70,10 @@ pub fn construct_ast(request: EvalRequest) -> Context {
         // Or save an error node.
     }
     // Do a pass over all the nodes to resolve used_by. You could partially do this inline using a hashmap
-
     // Assert - used_by_buffer empty by now.
-    let node_len = cell_index_map.len();
-    let mut ast = Context::new(65000);
 
     ast.body = get_eval_order(&mut cell_list);
+//    ast.cell_symbols = Some(cell_symbol_map);
     ast.symbols_index = cell_index_map;
     // let mut values: Vec<u64> = Vec::with_capacity(node_len);
     // for _ in 0..node_len {
