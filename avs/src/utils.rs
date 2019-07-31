@@ -5,7 +5,7 @@ use crate::constants::{VALUE_T_SYM_OBJ, VALUE_T_PTR_OBJ, LOW32_MASK};
 pub fn truncate_symbol(symbol: u64) -> u32 {
     // Clear high nan header & part of payload (assertion - it's unused)
     return (symbol & LOW32_MASK) as u32
-}
+} 
 
 // Repr_pointer
 #[inline(always)]

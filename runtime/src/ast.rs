@@ -36,14 +36,23 @@ used_by_buffer: &mut HashMap<u64, Vec<u64>>) {
 
 
 pub fn construct_ast(request: EvalRequest) -> AST {
-    let mut ast = AST::new();
+    // let mut ast = AST::new();
     // let mut nodes: Vec<ASTNode> = Vec::with_capacity(request.body.len());
+    // TODO: Define a root scope
     // ID -> Node
-    let mut node_list: Vec<ASTNode> = Vec::new();
-    // ID -> ID of elem in node list above (because borrowing rules)
-    let mut node_map: HashMap<u64, usize> = HashMap::with_capacity(request.body.len());
+    let mut cell_list: Vec<ASTNode> = Vec::new();
+    // Cell ID -> index of elem in node list above (because borrowing rules)
+    let mut cell_index_map: HashMap<u64, usize> = HashMap::with_capacity(request.body.len());
+    // Assign symbols to each unnamed cell. Named cells should share their value across both maps.
+    let mut cell_symbols: HashMap<u32, u64> = HashMap::with_capacity(request.body.len());
+    // Assign IDs to new name references DEFINED WITHIN this scope. 
+    // Should re-use name references from parent scope for reference when not found in current scope.
+    let mut symbol_names: HashMap<String, u64> = HashMap::new();
     // For nodes that aren't fully created yet, store usages for later.
     let mut used_by_buffer: HashMap<u64, Vec<u64>> = HashMap::new();
+
+    // The lexer already needs to know the meaning of symbols so it can create new ones
+    // So it should just return used by as well in a single pass.
 
     for cell in request.body {
         let mut lexed = lex(&cell.input).unwrap();
@@ -53,10 +62,10 @@ pub fn construct_ast(request: EvalRequest) -> AST {
             // if < rather than modifying the IDs around.
             let symbol_value: u64 = create_value_symbol( 65000 + id64 );
             let mut ast_node = apply_operator_precedence(symbol_value, &mut lexed);
-            update_used_by(&symbol_value, &mut ast_node, &mut node_list, &mut node_map, &mut used_by_buffer);
+            update_used_by(&symbol_value, &mut ast_node, &mut cell_list, &mut node_map, &mut used_by_buffer);
 
-            node_list.push(ast_node);
-            node_map.insert(symbol_value, node_list.len() - 1);
+            cell_list.push(ast_node);
+            node_map.insert(symbol_value, cell_list.len() - 1);
         } else {
             println!("ERROR parsing id {:?}", cell.id);
         }
@@ -69,7 +78,7 @@ pub fn construct_ast(request: EvalRequest) -> AST {
     let node_len = node_list.len();
 
     ast.body = get_eval_order(&mut node_list);
-    ast.scope.symbols = node_map;
+    ast.scope.symbol_index = node_map;
     let mut values: Vec<u64> = Vec::with_capacity(node_len);
     for _ in 0..node_len {
         // If you dereference a value before it's set, it's an error
