@@ -30,7 +30,7 @@ fn get_op_precedence(symbol: u64) -> u8 {
 
 // TODO: There may be additional edge cases for handling inline function calls within the expression
 // Current assumption is that all variable references are to a value.
-pub fn apply_operator_precedence(id: u64, infix: &mut Vec<Atom>) -> ASTNode {
+pub fn apply_operator_precedence(id: u64, infix: &mut Vec<Atom>) -> Expression {
     // Parse the lexed infix input and construct a postfix version
     // Current implementation uses the shunting yard algorithm for operator precedence.
     let mut postfix: Vec<Atom> = Vec::with_capacity(infix.len());
@@ -58,7 +58,7 @@ pub fn apply_operator_precedence(id: u64, infix: &mut Vec<Atom>) -> ASTNode {
                         }
                         if found == false {
                             // return Err(PARSE_ERR_UNMATCHED_PARENS)
-                            return ASTNode::err(id, PARSE_ERR_UNMATCHED_PARENS)
+                            return Expression::err(id, PARSE_ERR_UNMATCHED_PARENS)
                         }
                     },
                     _ => {
@@ -103,13 +103,13 @@ pub fn apply_operator_precedence(id: u64, infix: &mut Vec<Atom>) -> ASTNode {
             SYMBOL_OPEN_PAREN => {
                 println!("Invalid paren in drain operator stack");
                 // return Err(PARSE_ERR_UNMATCHED_PARENS)
-                return ASTNode::err(id, PARSE_ERR_UNMATCHED_PARENS)
+                return Expression::err(id, PARSE_ERR_UNMATCHED_PARENS)
             }
             _ => {}
         }
         postfix.push(Atom::SymbolValue(op_kw));
     }
-    let mut node = ASTNode::new(id);
+    let mut node = Expression::new(id);
     node.parsed = postfix;
     node.depends_on = depends_on;
     return node;

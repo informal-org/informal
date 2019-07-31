@@ -72,7 +72,7 @@ pub fn construct_ast(request: EvalRequest) -> Context {
 
     // Assert - used_by_buffer empty by now.
     let node_len = cell_index_map.len();
-    let ast = Context::new(65000);
+    let mut ast = Context::new(65000);
 
     ast.body = get_eval_order(&mut cell_list);
     ast.symbols_index = cell_index_map;

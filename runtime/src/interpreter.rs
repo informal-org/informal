@@ -138,8 +138,9 @@ pub fn interpret_all(request: EvalRequest) -> EvalResponse {
     for node in ast.body.iter() {
         let result = interpret_expr(&mut global_env, &node, &ast);
         
-        let symbol_id = ast.scope.symbols.get(&node.id).unwrap();
-        ast.scope.values[*symbol_id] = result; //.insert(symbol_id, result);
+        // let symbol_id = ast.cell_symbols.unwrap().get(&node.id).unwrap();
+        // ast.scope.values[*symbol_id] = result; //.insert(symbol_id, result);
+        // TODO: Insert value into env?
 
         // TODO: Split up the format if there's a different use-case that doesn't need the string format.
         let mut output = String::from("");

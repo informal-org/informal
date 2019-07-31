@@ -41,7 +41,7 @@ pub struct Context {
 
     // Cell IDs -> Symbol IDs for cells without a name
     // Only defined for the root Context
-    pub cell_symbols: Option<FnvHashMap<u32, u64>>,
+    pub cell_symbols: Option<FnvHashMap<u64, u64>>,
 
     // Mapping of symbol IDs to values indexes for lookup.
     // This could instead be a hash function which does a lookup
@@ -58,7 +58,9 @@ pub struct Context {
 
     pub body: Vec<Expression>,
 
-    pub next_symbol_id: u64
+    pub next_symbol_id: u64,
+
+//    pub cell_results: Vec<u64>
 }
 
 // AstNode -> Expression
