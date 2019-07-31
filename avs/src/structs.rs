@@ -2,6 +2,7 @@ use core::cell::RefCell;
 use alloc::rc::Rc;
 use alloc::string::String;
 use alloc::vec::Vec;
+use alloc::collections::HashMap;
 use crate::utils::{truncate_symbol, extend_value_object};
 use crate::constants::*;
 
@@ -27,6 +28,18 @@ pub enum Atom {
 
 // Class and ID are truncated in storage for compact representation.
 // But they represent a full 64 bit symbol value (can be calculated back).
+
+pub struct Environment {
+
+    // HashMap of Symbol ID -> Object
+    // HashMap of Symbol ID -> String
+
+    // Objects then contain an array of data. Which are just symbols.
+    // Just references to the actual data.
+
+    // av_objects: RefCell<Option<HashMap<RC<AvObject>>>>
+}
+
 
 #[derive(Debug,PartialEq)]
 pub struct AvObject {
