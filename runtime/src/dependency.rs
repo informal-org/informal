@@ -6,16 +6,16 @@ use super::structs::*;
 
 // Dependency tree resolution
 
-pub fn get_eval_order(cells: &mut Vec<ASTNode>) -> Vec<ASTNode> {
+pub fn get_eval_order(cells: &mut Vec<Expression>) -> Vec<Expression> {
     // Perform a topological sort of the node dependencies to get the evaluation order
     // Errors on any cyclical dependencies
 
-    let mut eval_order: Vec<ASTNode> = Vec::with_capacity(cells.len());
+    let mut eval_order: Vec<Expression> = Vec::with_capacity(cells.len());
     // Use a VecDeque to efficiently get the first elements to preserve ordering
-    let mut leafs: VecDeque<ASTNode> = VecDeque::with_capacity(cells.len());
+    let mut leafs: VecDeque<Expression> = VecDeque::with_capacity(cells.len());
 
     // ID -> Count
-    let mut depend_count: HashMap<u64, ASTNode> = HashMap::with_capacity(cells.len());
+    let mut depend_count: HashMap<u64, Expression> = HashMap::with_capacity(cells.len());
 
     // Find leafs
     for mut cell in cells.drain(..) {
@@ -67,7 +67,7 @@ mod tests {
         });
     }
 
-    fn index_of(vec: &Vec<ASTNode>, target: &ASTNode) -> i32 {
+    fn index_of(vec: &Vec<Expression>, target: &Expression) -> i32 {
         let mut i = 0;
         for node in vec {
             if node.id == target.id {
@@ -76,8 +76,7 @@ mod tests {
             i += 1;
         }
 
-        return i;
-        
+        return i;        
     }
 
 

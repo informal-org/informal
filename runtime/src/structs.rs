@@ -1,4 +1,4 @@
-use avs::structs::AvObject;
+// use avs::structs::AvObject;
 use avs::structs::Atom;
 use fnv::FnvHashMap;
 
@@ -52,7 +52,7 @@ pub struct Context {
     // pub env: AvObject,
 
     // Symbols -> Index of where the result will be stored
-    pub symbols_index: FnvHashMap<u64, u32>,
+    pub symbols_index: FnvHashMap<u64, usize>,
     
 //    pub values: Vec<u64>,
 

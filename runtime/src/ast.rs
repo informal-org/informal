@@ -1,5 +1,6 @@
 use avs::utils::create_value_symbol;
-use std::collections::HashMap;
+// use std::collections::HashMap;
+use fnv::FnvHashMap;
 use super::dependency::{get_eval_order};
 use super::structs::*;
 use super::lexer::lex;
@@ -8,8 +9,8 @@ use avs::constants::{RUNTIME_ERR_UNK_VAL};
 
 
 
-pub fn update_used_by(id64: &u64, ast_node: &mut ASTNode, node_list: &mut Vec<ASTNode>, node_map: &mut HashMap<u64, usize>, 
-used_by_buffer: &mut HashMap<u64, Vec<u64>>) {
+pub fn update_used_by(id64: &u64, ast_node: &mut Expression, node_list: &mut Vec<Expression>, node_map: &mut FnvHashMap<u64, usize>, 
+used_by_buffer: &mut FnvHashMap<u64, Vec<u64>>) {
     // Build reverse side of the dependency map
     for dep in &ast_node.depends_on {
         if let Some(&dep_node_id) = node_map.get(&dep) {
@@ -35,21 +36,16 @@ used_by_buffer: &mut HashMap<u64, Vec<u64>>) {
 
 
 
-pub fn construct_ast(request: EvalRequest) -> AST {
+pub fn construct_ast(request: EvalRequest) -> Context {
     // let mut ast = AST::new();
     // let mut nodes: Vec<ASTNode> = Vec::with_capacity(request.body.len());
     // TODO: Define a root scope
     // ID -> Node
-    let mut cell_list: Vec<ASTNode> = Vec::new();
+    let mut cell_list: Vec<Expression> = Vec::new();
     // Cell ID -> index of elem in node list above (because borrowing rules)
-    let mut cell_index_map: HashMap<u64, usize> = HashMap::with_capacity(request.body.len());
-    // Assign symbols to each unnamed cell. Named cells should share their value across both maps.
-    let mut cell_symbols: HashMap<u32, u64> = HashMap::with_capacity(request.body.len());
-    // Assign IDs to new name references DEFINED WITHIN this scope. 
-    // Should re-use name references from parent scope for reference when not found in current scope.
-    let mut symbol_names: HashMap<String, u64> = HashMap::new();
+    let mut cell_index_map: FnvHashMap<u64, usize> = FnvHashMap::with_capacity_and_hasher(request.body.len(), Default::default());
     // For nodes that aren't fully created yet, store usages for later.
-    let mut used_by_buffer: HashMap<u64, Vec<u64>> = HashMap::new();
+    let mut used_by_buffer: FnvHashMap<u64, Vec<u64>> = FnvHashMap::default();
 
     // The lexer already needs to know the meaning of symbols so it can create new ones
     // So it should just return used by as well in a single pass.
@@ -62,10 +58,10 @@ pub fn construct_ast(request: EvalRequest) -> AST {
             // if < rather than modifying the IDs around.
             let symbol_value: u64 = create_value_symbol( 65000 + id64 );
             let mut ast_node = apply_operator_precedence(symbol_value, &mut lexed);
-            update_used_by(&symbol_value, &mut ast_node, &mut cell_list, &mut node_map, &mut used_by_buffer);
+            update_used_by(&symbol_value, &mut ast_node, &mut cell_list, &mut cell_index_map, &mut used_by_buffer);
 
             cell_list.push(ast_node);
-            node_map.insert(symbol_value, cell_list.len() - 1);
+            cell_index_map.insert(symbol_value, cell_list.len() - 1);
         } else {
             println!("ERROR parsing id {:?}", cell.id);
         }
@@ -75,15 +71,16 @@ pub fn construct_ast(request: EvalRequest) -> AST {
     // Do a pass over all the nodes to resolve used_by. You could partially do this inline using a hashmap
 
     // Assert - used_by_buffer empty by now.
-    let node_len = node_list.len();
+    let node_len = cell_index_map.len();
+    let ast = Context::new(65000);
 
-    ast.body = get_eval_order(&mut node_list);
-    ast.scope.symbol_index = node_map;
-    let mut values: Vec<u64> = Vec::with_capacity(node_len);
-    for _ in 0..node_len {
-        // If you dereference a value before it's set, it's an error
-        values.push(RUNTIME_ERR_UNK_VAL);
-    }
-    ast.scope.values = values;
+    ast.body = get_eval_order(&mut cell_list);
+    ast.symbols_index = cell_index_map;
+    // let mut values: Vec<u64> = Vec::with_capacity(node_len);
+    // for _ in 0..node_len {
+    //     // If you dereference a value before it's set, it's an error
+    //     values.push(RUNTIME_ERR_UNK_VAL);
+    // }
+    // ast.values = values;
     return ast;
 }

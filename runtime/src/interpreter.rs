@@ -62,19 +62,20 @@ pub fn apply_operator(mut env: &mut AvObject, operator: u64, stack: &mut Vec<u64
 }
 
 
-pub fn interpret_expr(mut env: &mut AvObject, node: &ASTNode, ast: &AST) -> u64 {
+pub fn interpret_expr(mut env: &mut AvObject, expression: &Expression, context: &Context) -> u64 {
     // Propagate prior errors up.
     // TODO: Implement this in the compiler
-    if node.result.is_some() {
-        return node.result.unwrap();
+    if expression.result.is_some() {
+        return expression.result.unwrap();
     }
 
     // TODO: Faster stack version of this without heap alloc.
-    let mut expr_stack: Vec<u64> = Vec::with_capacity(node.parsed.len());
+    let mut expr_stack: Vec<u64> = Vec::with_capacity(expression.parsed.len());
 
-    for token in node.parsed.iter() {
+    for token in expression.parsed.iter() {
         match token {
             Atom::SymbolValue(kw) => {
+                // TODO: Check if built in operator or an identifier
                 apply_operator(&mut env, *kw, &mut expr_stack);
             }, 
             Atom::NumericValue(num) => {
@@ -115,8 +116,8 @@ pub fn interpret_one(input: String) -> u64 {
     let parsed = parser::apply_operator_precedence(0, &mut lexed).parsed;
     println!("parsed: {:?}", parsed);
     // TODO: A base, shared global namespace.
-    let ast = AST::new();
-    let mut node = ASTNode::new(0);
+    let ast = Context::new(65000);
+    let mut node = Expression::new(0);
     node.parsed = parsed;
     let mut env = AvObject::new_env();
     return interpret_expr(&mut env, &node, &ast);
