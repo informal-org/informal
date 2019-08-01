@@ -88,6 +88,9 @@ impl fmt::Debug for Atom {
             }
             Atom::SymbolValue(symbol) => {
                 write!(f, "SymbolValue({})", symbol)
+            },
+            Atom::ObjectValue(obj_val) => {
+                write!(f, "ObjectValue({})", obj_val.id)
             }
         }
     }

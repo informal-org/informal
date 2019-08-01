@@ -86,6 +86,7 @@ pub fn apply_operator_precedence(id: u64, infix: &mut Vec<Atom>) -> Expression {
             },
             Atom::NumericValue(_lit) => postfix.push(token),
             Atom::StringValue(_lit) => postfix.push(token),
+            Atom::ObjectValue(_lit) => postfix.push(token),     // Should not happen
             // TODO
             // TokenType::Identifier(_id) => {
             //     depends_on.push(*_id);

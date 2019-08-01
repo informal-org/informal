@@ -1,9 +1,9 @@
 use avs::types::{__av_typeof, is_error};
-use avs::structs::{ValueType, AvObject};
+use avs::structs::{ValueType, Runtime};
 use avs::constants::*;
 use avs::runtime::ID_SYMBOL_MAP;
 
-pub fn repr(env: &AvObject, result: u64) -> String {
+pub fn repr(env: &Runtime, result: u64) -> String {
     let result_type = __av_typeof(result);
     match result_type {
         ValueType::NumericType => {
@@ -46,7 +46,7 @@ pub fn repr(env: &AvObject, result: u64) -> String {
     }
 }
 
-pub fn print_stacktrace(env: &AvObject, stack: &Vec<u64>) {
+pub fn print_stacktrace(env: &Runtime, stack: &Vec<u64>) {
     println!("----------Stack----------");
     for val in stack {
         println!("{:?}", repr(env, *val));
@@ -54,16 +54,18 @@ pub fn print_stacktrace(env: &AvObject, stack: &Vec<u64>) {
     println!("-------------------------");
 }
 
-pub fn repr_object(obj: &AvObject) -> String {
-    match obj.av_class {
-        AV_CLASS_STRING => {
-            format!("{:?}", obj.av_string.as_ref().unwrap())
-        },
-        _ => {
-            // TODO
-            format!("(Object)")
-        }
-    }
+pub fn repr_object(obj: &Runtime) -> String {
+    // match obj.av_class {
+    //     AV_CLASS_STRING => {
+    //         format!("{:?}", obj.av_string.as_ref().unwrap())
+    //     },
+    //     _ => {
+    //         // TODO
+    //         format!("(Object)")
+    //     }
+    // }
+
+    format!("(Object)")
 }
 
 pub fn repr_error(result: u64) -> String {

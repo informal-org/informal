@@ -76,7 +76,7 @@ impl Context {
             symbols_index: FnvHashMap::default(),
             body: Vec::with_capacity(0),
             next_symbol_id: next_symbol_id,
-            cell_results: Vec::new()
+//            cell_results: Vec::new()
         }
     }
     

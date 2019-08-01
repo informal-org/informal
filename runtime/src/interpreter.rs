@@ -16,7 +16,7 @@ use super::constants::*;
 use avs::operators::*;
 use avs::types::*;
 use avs::constants::*;
-use avs::structs::{ValueType, AvObject, Atom};
+use avs::structs::{ValueType, AvObject, Atom, Runtime};
 
 
 macro_rules! apply_bin_op {
@@ -29,7 +29,7 @@ macro_rules! apply_bin_op {
 }
 
 
-pub fn apply_operator(mut env: &mut AvObject, operator: u64, stack: &mut Vec<u64>) {
+pub fn apply_operator(mut env: &mut Runtime, operator: u64, stack: &mut Vec<u64>) {
     println!("Operator: {}", repr(&env, operator));
     print_stacktrace(env, &stack);
     let result = match operator {
@@ -64,7 +64,7 @@ pub fn apply_operator(mut env: &mut AvObject, operator: u64, stack: &mut Vec<u64
 }
 
 
-pub fn interpret_expr(mut env: &mut AvObject, expression: &Expression, context: &Context) -> u64 {
+pub fn interpret_expr(mut env: &mut Runtime, expression: &Expression, context: &Context) -> u64 {
     // Propagate prior errors up.
     // TODO: Implement this in the compiler
     if expression.result.is_some() {
@@ -82,12 +82,12 @@ pub fn interpret_expr(mut env: &mut AvObject, expression: &Expression, context: 
                     println!("Detected this as a built-in operator");
                     apply_operator(&mut env, *kw, &mut expr_stack);
                 } else {
-                    if let Some(&symbol_index) = context.symbols_index.get(kw) {
-                        let deref_value = *ast.scope.values.get(symbol_index).unwrap();
-                        expr_stack.push(deref_value);
-                    } else {
-                        println!("Could not find identifier! {:?}", reference);
-                    }
+                    // if let Some(&symbol_index) = context.symbols_index.get(kw) {
+                    //     let deref_value = *ast.scope.values.get(symbol_index).unwrap();
+                    //     expr_stack.push(deref_value);
+                    // } else {
+                    //     println!("Could not find identifier! {:?}", reference);
+                    // }
 
                 }
                 
@@ -99,9 +99,14 @@ pub fn interpret_expr(mut env: &mut AvObject, expression: &Expression, context: 
             Atom::StringValue(val) => {
                 // Save object to heap and return pointer
                 // Note: String copy likely occurs here
-                let str_obj = AvObject::new_string(val.to_string());
-                let heap_ptr = env.save_object(str_obj);
-                expr_stack.push(heap_ptr);
+                //let str_obj = AvObject::new_string(val.to_string());
+                // let heap_ptr = env.save_object(str_obj);
+                // TODO: Non-clone version
+                let symbol_id = env.save_atom(Atom::StringValue(val.to_string()));
+                expr_stack.push(symbol_id);
+            },
+            Atom::ObjectValue(val) => {
+                println!("Unexpected Object Atom found?");
             }
             //,
             //TokenType::Identifier(reference) => {
@@ -129,7 +134,7 @@ pub fn interpret_one(input: String) -> u64 {
     
     let mut node = Expression::new(0);
     node.parsed = parsed;
-    let mut env = AvObject::new_env();
+    let mut env = Runtime::new(ast.next_symbol_id);
     return interpret_expr(&mut env, &node, &ast);
 }
 
@@ -141,7 +146,7 @@ pub fn interpret_all(request: EvalRequest) -> EvalResponse {
     let mut results: Vec<CellResponse> = Vec::with_capacity(request.body.len());
     // External Global ID -> Internal ID
     let mut ast = construct_ast(request);
-    let mut global_env = AvObject::new_env();
+    let mut global_env = Runtime::new(ast.next_symbol_id);
 
     println!("AST: {:?}", ast);
 
