@@ -1,8 +1,9 @@
+use crate::types::__av_typeof;
 use core::cell::RefCell;
 use alloc::rc::Rc;
 use alloc::string::String;
 use alloc::vec::Vec;
-use crate::utils::{truncate_symbol, extend_value_object};
+use crate::utils::{truncate_symbol};
 use crate::constants::*;
 use fnv::FnvHashMap;
 
@@ -64,12 +65,52 @@ impl Runtime {
     pub fn set_atom(&mut self, symbol: u64, atom: Atom) {
         self.symbols.insert(symbol, atom);  // Rc::new(atom)
     }
+
+    pub fn set_value(&mut self, symbol: u64, value: u64) {
+        let mut atom: Atom = match __av_typeof(value){
+            ValueType::NumericType => {
+                Atom::NumericValue(f64::from_bits(value))
+            },
+            _ => {
+                Atom::SymbolValue(symbol)
+            }
+        };
+        self.set_atom(symbol, atom);
+    }
     
     pub fn get_atom(&self, symbol: u64) -> Option<&Atom> {
         // TODO: Not found
         // return Rc::clone(&obj_arr.get())
         return self.symbols.get(&symbol);
     }
+
+    pub fn get_string(&self, symbol: u64) -> Option<&String> {
+        // TODO: Not found
+        // return Rc::clone(&obj_arr.get())
+        let atom = self.get_atom(symbol);
+        if let Some(atom_val) = atom {
+            match atom_val {
+                Atom::StringValue(str_val) => return Some(str_val),
+                _ => return None
+            }
+        }
+        return None;
+    }
+
+
+    pub fn get_number(&self, symbol: u64) -> Option<&f64> {
+        // TODO: Not found
+        // return Rc::clone(&obj_arr.get())
+        let atom = self.get_atom(symbol);
+        if let Some(atom_val) = atom {
+            match atom_val {
+                Atom::NumericValue(num_val) => return Some(num_val),
+                _ => return None
+            }
+        }
+        return None;
+    }
+
 
     // pub fn get_string(&self, symbol: u64) -> Option<String> {
     //     let atom = self.get_atom(symbol);
@@ -86,9 +127,9 @@ impl Runtime {
 
 #[derive(Debug,PartialEq)]
 pub struct AvObject {
-    // Class and ID are truncated symbol IDs.
-    pub id: u32,        // Used for hash1ed field access.
-    pub av_class: u32,
+    // Class and ID are truncated symbol IDs. // TODO: Re-enable truncation
+    pub id: u64,        // Used for hash1ed field access.
+    pub av_class: u64,
 
     // Values are required for objects. Objects are optional. (unallocated for strings)
     // This can be used as a list or a hash table for field access.

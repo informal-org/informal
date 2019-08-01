@@ -1,5 +1,5 @@
-#![no_main]
-#![no_std]
+// #![no_main]
+// #![no_std]
 
 pub mod constants;
 pub mod structs;

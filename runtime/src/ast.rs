@@ -1,3 +1,4 @@
+use avs::constants::APP_SYMBOL_START;
 use avs::utils::create_value_symbol;
 // use std::collections::HashMap;
 use fnv::FnvHashMap;
@@ -47,7 +48,7 @@ pub fn construct_ast(request: EvalRequest) -> Context {
     // For nodes that aren't fully created yet, store usages for later.
     let mut used_by_buffer: FnvHashMap<u64, Vec<u64>> = FnvHashMap::default();
     // Cell ID -> Internal Symbol ID for results
-    let mut ast = Context::new(65000);
+    let mut ast = Context::new(APP_SYMBOL_START);
     ast.cell_symbols = Some(FnvHashMap::default());
 
     // The lexer already needs to know the meaning of symbols so it can create new ones

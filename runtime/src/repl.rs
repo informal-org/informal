@@ -5,7 +5,7 @@ use super::format;
 // use super::{decode_flatbuf};
 
 // pub use avs::avfb_generated::avfb::{get_root_as_av_fb_obj};
-pub use avs::structs::{AvObject};
+pub use avs::structs::{AvObject, Runtime};
 
 // use wasmer_runtime::{Func, imports, compile};
 // use wabt::wat2wasm;
@@ -130,7 +130,7 @@ mod tests {
             // Execute both a compiled and interpreted version
             let i_result = interpreter::interpret_one(String::from($e));
             // TODO: correct avobject
-            println!("Checking interpreted result {:?} expected {:?}", format::repr(&AvObject::new(), i_result), format::repr(&AvObject::new(), $expected));
+            println!("Checking interpreted result {:?} expected {:?}", format::repr(&Runtime::new(18445899648779484648), i_result), format::repr(&Runtime::new(18445899648779484648), $expected));
             assert_eq!(i_result, $expected);
             
 

@@ -314,7 +314,7 @@ mod tests {
 
     #[test]
     fn test_lex_float() {
-        let mut context = Context::new(65000);
+        let mut context = Context::new(APP_SYMBOL_START);
         // Floating point numbers should be grouped together
         assert_eq!(lex(&mut context, "3.1415").unwrap(), [numeric_literal!(3.1415)]);
 
@@ -333,7 +333,7 @@ mod tests {
 
     #[test]
     fn test_lex_unary_minus() {
-        let mut context = Context::new(65000);
+        let mut context = Context::new(APP_SYMBOL_START);
         // Unary minus is handled at the lexer stage.
         assert_eq!(lex(&mut context, "-1").unwrap(), [numeric_literal!(-1.0)]);
         assert_eq!(lex(&mut context, "-.05").unwrap(), [numeric_literal!(-0.05)]);

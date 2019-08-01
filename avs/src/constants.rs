@@ -118,11 +118,11 @@ pub const SYMBOL_EQUALS: u64 = 0xFFFF_0000_0000_000E;
 
 // For built in classes (Use to_symbol to encode these as symbols)
 // Object class constants for built-in types.
-pub const AV_CLASS_OBJECT: u32 = 1025;
-pub const AV_CLASS_CLASS: u32 = 1026;
-pub const AV_CLASS_FUNCTION: u32 = 1027;
-pub const AV_CLASS_ENVIRONMENT: u32 = 1028;
-pub const AV_CLASS_STRING: u32 = 1029;
+pub const AV_CLASS_OBJECT: u64 = 0xFFFF_0000_0000_1025;
+pub const AV_CLASS_CLASS: u64 = 0xFFFF_0000_0000_1026;
+pub const AV_CLASS_FUNCTION: u64 = 0xFFFF_0000_0000_1027;
+pub const AV_CLASS_ENVIRONMENT: u64 = 0xFFFF_0000_0000_1028;
+pub const AV_CLASS_STRING: u64 = 0xFFFF_0000_0000_1029;
 
 
 // Reserve up to 65k symbols for standard library usage. (Classes, functions, etc.)
@@ -164,3 +164,5 @@ pub const RUNTIME_ERR_EXPECTED_STR: u64     = 0xFFF9_0008_0000_0000;
 
 // Arithmetic errors - 0x00
 pub const RUNTIME_ERR_DIV_Z: u64            = 0xFFF9_0009_0000_0000;
+
+pub const APP_SYMBOL_START: u64             = 0xFFFF_0000_0001_0000;

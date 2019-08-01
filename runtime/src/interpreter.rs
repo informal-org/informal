@@ -82,6 +82,8 @@ pub fn interpret_expr(mut env: &mut Runtime, expression: &Expression, context: &
                     println!("Detected this as a built-in operator");
                     apply_operator(&mut env, *kw, &mut expr_stack);
                 } else {
+                    expr_stack.push(*kw);
+
                     // if let Some(&symbol_index) = context.symbols_index.get(kw) {
                     //     let deref_value = *ast.scope.values.get(symbol_index).unwrap();
                     //     expr_stack.push(deref_value);
@@ -124,7 +126,7 @@ pub fn interpret_expr(mut env: &mut Runtime, expression: &Expression, context: &
 }
 
 pub fn interpret_one(input: String) -> u64 {
-    let mut ast = Context::new(65000);
+    let mut ast = Context::new(APP_SYMBOL_START);
     println!("Input: {:?}", input);
     let mut lexed = lex(&mut ast, &input).unwrap();
     println!("Lexed: {:?}", lexed);
@@ -154,7 +156,8 @@ pub fn interpret_all(request: EvalRequest) -> EvalResponse {
         let result = interpret_expr(&mut global_env, &node, &ast);
         println!("Got result {:?}", repr(&global_env, result));
         
-        // let symbol_id = ast.cell_symbols.as_ref().unwrap().get(&node.id).unwrap();
+        let symbol_id = ast.cell_symbols.as_ref().unwrap().get(&node.id).unwrap();
+        global_env.set_value(*symbol_id, result);
         // let symbol_index = ast.cell.symbol_index.as_ref().unwrap().get(symbol_id).unwrap();
         // ast.cell_results[*symbol_id] = result; //.insert(symbol_id, result);
         // TODO: Insert value into env?

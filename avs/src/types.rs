@@ -9,6 +9,15 @@ pub extern "C" fn is_nan(f: f64) -> bool {
     return f != f
 }
 
+
+#[no_mangle]
+#[inline(always)]
+pub extern "C" fn is_number(value: u64) -> bool {
+    // By definition, any comparison with a nan returns 0. 
+    // So NaNs can be identified with a self comparison.
+    return !is_nan(f64::from_bits(value))
+}
+
 #[no_mangle]
 #[inline(always)]
 pub extern "C" fn is_truthy(value: u64) -> bool {
