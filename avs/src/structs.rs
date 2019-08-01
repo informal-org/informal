@@ -16,7 +16,6 @@ pub enum ValueType {
     SymbolType
 }
 
-
 #[derive(PartialEq)]
 pub enum Atom {
     NumericValue(f64),
@@ -25,24 +24,13 @@ pub enum Atom {
     ObjectValue(AvObject)
 }
 
-
-// For classes, there's symbols for value_size and objs_size
-// Hash capacity should be rounded up to the nearest prime number 
-// to minimize hash collisions
-
-// Class and ID are truncated in storage for compact representation.
-// But they represent a full 64 bit symbol value (can be calculated back).
-
+// Context available during program execution managing current runtime state
 pub struct Runtime {
     pub symbols: FnvHashMap<u64, Atom>,
     pub next_symbol_id: u64
-
-    // Objects then contain an array of data. Which are just symbols.
-    // Just references to the actual data.
 }
 
 impl Runtime {
-
     pub fn new(next_symbol_id: u64) -> Runtime {
         Runtime {
             symbols: FnvHashMap::default(), 
@@ -50,26 +38,37 @@ impl Runtime {
         }
     }
 
+    /// Saves an object into the symbol table and returns the symbol
     pub fn save_atom(&mut self, atom: Atom) -> u64 {
         let next_id = self.next_symbol_id;
-        // Save an object into this object's "heap" and return pointer to index.
-        self.symbols.insert(next_id, atom); //Rc::new(atom)
-        // let index = obj_arr.len() - 1;
+        self.symbols.insert(next_id, atom);
         self.next_symbol_id += 1;
-        // return extend_value_symbol(index as u32);
         return next_id
-        // TODO: stack trace for this
-        // return RUNTIME_ERR_MEMORY_ACCESS;
     }
 
+    /// Replace the value of an existing symbol in the symbol table
     pub fn set_atom(&mut self, symbol: u64, atom: Atom) {
-        self.symbols.insert(symbol, atom);  // Rc::new(atom)
+        self.symbols.insert(symbol, atom);
     }
 
+    /// Set a symbol value, with automatic casting of value
     pub fn set_value(&mut self, symbol: u64, value: u64) {
-        let mut atom: Atom = match __av_typeof(value){
+        let atom: Atom = match __av_typeof(value){
             ValueType::NumericType => {
                 Atom::NumericValue(f64::from_bits(value))
+            },
+            ValueType::SymbolType => {
+                if let Some(resolved) = self.resolve_symbol(symbol) {
+                    // Partial implementation of a copy
+                    match resolved {
+                        Atom::NumericValue(val) => Atom::NumericValue(*val),
+                        Atom::StringValue(val) => Atom::StringValue(val.to_string()),
+                        _ => Atom::SymbolValue(symbol)
+                    }
+                } else {
+                    println!("Could not resolve symbol");
+                    Atom::SymbolValue(symbol)
+                }
             },
             _ => {
                 Atom::SymbolValue(symbol)
@@ -82,6 +81,29 @@ impl Runtime {
         // TODO: Not found
         // return Rc::clone(&obj_arr.get())
         return self.symbols.get(&symbol);
+    }
+
+    /// Resolve a symbol to their final destination, following links up to a max depth
+    pub fn resolve_symbol(&self, symbol: u64) -> Option<&Atom> {
+        let mut count = 0;
+        let mut current_symbol = symbol;
+        while count < 100 {
+            if let Some(atom) = self.symbols.get(&current_symbol) {
+                match atom {
+                    Atom::SymbolValue(next_symbol) => {
+                        current_symbol = *next_symbol
+                    }, 
+                    _ => return Some(atom)
+                }
+            } else {
+                println!("symbol not found");
+                return None
+            }
+            count += 1;
+        }
+        println!("Max depth exceeded");
+        // Max search depth, terminate
+        return None
     }
 
     pub fn get_string(&self, symbol: u64) -> Option<&String> {

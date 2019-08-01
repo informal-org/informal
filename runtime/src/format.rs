@@ -101,7 +101,7 @@ pub fn repr_error(result: u64) -> String {
     } else if result == RUNTIME_ERR_TYPE_NAN {
         String::from("This operation doesn't work with not-a-number (NaN) values.")
     } else if result == RUNTIME_ERR_EXPECTED_NUM {
-        String::from("Hmmm... Arevel expects a number here.")
+        String::from("Arevel expects a number here.")
     } else if result == RUNTIME_ERR_EXPECTED_BOOL {
         String::from("Arevel expects a true/false boolean here.")
     } else if result == RUNTIME_ERR_UNK_VAL {

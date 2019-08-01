@@ -48,15 +48,15 @@ pub const VALHEAD_OBJTYPE_MASK: u64 = 0xFFF1_0000_0000_0000;
 // These constant values are based on the bit masks above
 
 // Pointer to error values
-pub const VALUE_F_PTR_OBJ: u64 = 0xFFF9_0000_0000_0000;
+pub const VALUE_F_PTR_OBJ: u64 = 0xFFF9_0000_0000_0000;             // Unused
 // Reserved symbol for empty string for bool & str type checking.
 pub const VALUE_F_SYM_STR: u64 = 0xFFFA_0000_0000_0000;
 // Symbol space for empty values and other "Falsey" symbols.
 pub const VALUE_F_SYM_OBJ: u64 = 0xFFFB_0000_0000_0000;
 // Pointer to full string objects. 16 bit payload of short length. 
-pub const VALUE_T_PTR_STR: u64 = 0xFFFC_0000_0000_0000;
+pub const VALUE_T_PTR_STR: u64 = 0xFFFC_0000_0000_0000;             // Unused
 // Pointer to object references. 4 bit payload.
-pub const VALUE_T_PTR_OBJ: u64 = 0xFFFD_0000_0000_0000;
+pub const VALUE_T_PTR_OBJ: u64 = 0xFFFD_0000_0000_0000;             // Unused
 // Small strings (up to 6 bytes) encoded directly as payload.
 pub const VALUE_T_SYM_STR: u64 = 0xFFFE_0000_0000_0000;
 // Symbol space (Functions, keywords, user-defined symbols, etc.)

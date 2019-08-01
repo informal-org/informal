@@ -29,12 +29,9 @@ pub extern "C" fn __av_add(env: &mut Runtime, a: u64, b: u64) -> u64 {
 				_ => return RUNTIME_ERR_EXPECTED_NUM
 			}
 		}
-
-	} 
+	}
 	return RUNTIME_ERR_EXPECTED_NUM
 	
-
-
 
 		// // Switched from ObjectType -> String Type
 		// ValueType::StringType => {

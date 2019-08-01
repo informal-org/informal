@@ -34,8 +34,7 @@ macro_rules! valid_num {
 #[macro_export]
 macro_rules! resolve_num {
 	($env:expr, $val:expr) => ({
-		// Given a u64, return the f64 resolved value or raise
-		// expected num
+		// Given a u64, return the f64 resolved value or raise error
 		if is_number($val) {
 			let f_val = f64::from_bits($val);
 			if f_val != f_val {
@@ -43,6 +42,7 @@ macro_rules! resolve_num {
 			}
 			f_val
 		} else if is_symbol($val) {
+			// TODO: Resolve rather than get to follow symbols?
 			if let Some(sym_b) = $env.get_atom($val) {
 				match sym_b {
 					Atom::NumericValue(f_val) => {

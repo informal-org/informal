@@ -156,6 +156,7 @@ pub fn interpret_all(request: EvalRequest) -> EvalResponse {
         let result = interpret_expr(&mut global_env, &node, &ast);
         println!("Got result {:?}", repr(&global_env, result));
         
+        // Don't double-encode symbols
         let symbol_id = ast.cell_symbols.as_ref().unwrap().get(&node.id).unwrap();
         global_env.set_value(*symbol_id, result);
         // let symbol_index = ast.cell.symbol_index.as_ref().unwrap().get(symbol_id).unwrap();
