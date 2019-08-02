@@ -5,8 +5,6 @@ use runtime::format;
 use runtime::interpreter::{interpret_all};
 use runtime::structs::{CellResponse, EvalRequest, EvalResponse};
 
-
-
 fn home(_req: HttpRequest) -> actix_web::Result<NamedFile> {
     // let path: PathBuf = req.match_info().query("filename").parse().unwrap();
     return Ok(NamedFile::open("templates/index.html")?)
@@ -17,32 +15,12 @@ fn evaluate(req: web::Json<EvalRequest>) -> impl Responder {
 
     let mut inputs: Vec<String> = Vec::with_capacity(results.len());
     for cell in &req.body {
-        // results.push(CellResponse { id: cell.id.clone(), output: read_eval(String::from(cell.input.clone())), error: "".to_string() });
         inputs.push(cell.input.clone())
     }
 
-    // let program_wat = read_multi(inputs);
-    // let eval_res = eval(program_wat);
     let eval_res = interpret_all(req.into_inner());
-
-    // let size = req.body.len();
-    // for i in 0..size {
-    //     let cell = &req.body[i];
-    //     let cell_result = eval_res[i];
-    //     results.push(CellResponse { id: cell.id.clone(), output: format::repr(cell_result), error: "".to_string() });
-    // }
-    
-    // results.push(CellResponse { id: "id02".to_string(), output: "1".to_string(), error: "".to_string() });
-    // results.push(CellResponse { id: "id03".to_string(), output: "4".to_string(), error: "".to_string() });
-
-    // return web::Json(EvalResponse{results: results} )
     return web::Json(eval_res)
 }
-
-// fn eval_expr(req: HttpRequest) -> impl Responder {
-//     let q = req.uri().query().unwrap();
-//     return read_eval(String::from(q))
-// }
 
 pub fn main() {
     HttpServer::new(|| {
@@ -56,6 +34,3 @@ pub fn main() {
     .run()
     .unwrap();
 }
-// .route("/evaluate", web::get().to(evaluate))
-// .route("/eval", web::get().to(eval_expr))
-// .show_files_listing())
