@@ -16,14 +16,14 @@ pub struct EvalResponse {
     pub results: Vec<CellResponse>
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize,Debug)]
 pub struct CellRequest {
     pub id: u64,
     pub input: String,
     pub name: Option<String>
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize,Debug)]
 pub struct EvalRequest {
     pub body: Vec<CellRequest>
 }
