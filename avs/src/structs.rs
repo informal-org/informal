@@ -66,7 +66,8 @@ impl Runtime {
                         _ => Atom::SymbolValue(symbol)
                     }
                 } else {
-                    println!("Could not resolve symbol");
+                    // May just be a built-in symbol? 
+                    println!("Could not resolve symbol {:X}", symbol);
                     Atom::SymbolValue(symbol)
                 }
             },

@@ -1,5 +1,5 @@
 use avs::types::{__av_typeof, is_error};
-use avs::structs::{ValueType, Runtime};
+use avs::structs::{ValueType, Runtime, Atom};
 use avs::constants::*;
 use avs::runtime::ID_SYMBOL_MAP;
 
@@ -17,9 +17,29 @@ pub fn repr(env: &Runtime, result: u64) -> String {
         },
         ValueType::SymbolType => {
             if let Some(symbol_str) = ID_SYMBOL_MAP.get(&result) {
+                // Built in symbols
                 symbol_str.to_string()
             } else {
-                format!("Symbol {:X} ", result)
+                if let Some(atom) = env.get_atom(result) {
+                    match atom {
+                        Atom::NumericValue(num) => {
+                            format!("{}", num)
+                        },
+                        Atom::StringValue(str_val) => {
+                            format!("\"{}\"", str_val)
+                        }
+                        Atom::SymbolValue(symbol) => {
+                            format!("{:X}", symbol)
+                        },
+                        Atom::ObjectValue(obj_val) => {
+                            format!("{}", obj_val.id)
+                        }
+                    }
+                } else {
+                    // Print symbol name instead
+                    format!("Symbol {:X} ", result)
+                }
+                
             }
             // if result == SYMBOL_TRUE {
             //     format!("TRUE")
