@@ -260,7 +260,7 @@ pub fn lex(context: &mut Context, expr: &str) -> Result<Vec<Atom>> {
                     return Err(PARSE_ERR_UNKNOWN_TOKEN);
                 }
             }
-            '@' => {
+            '@' => {        // TODO: Remove?
                 let mut token_str: String = String::from("");
                 it.next();
                 gobble_digits(&mut token_str, &mut it);

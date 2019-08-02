@@ -6,7 +6,7 @@ use crate::Result;
 
 #[derive(Serialize, PartialEq, Debug)]
 pub struct CellResponse {
-    pub id: String,
+    pub id: u64,
     pub output: String,
     pub error: String
 }
@@ -18,7 +18,7 @@ pub struct EvalResponse {
 
 #[derive(Deserialize)]
 pub struct CellRequest {
-    pub id: String,
+    pub id: u64,
     pub input: String,
     pub name: Option<String>
 }
@@ -62,6 +62,19 @@ impl Context {
             next_symbol_id: next_symbol_id,
         }
     }
+
+    pub fn get_cell_symbol(&self, cell_id: u64) -> Option<&u64> {
+        return self.cell_symbols.as_ref().unwrap().get(&cell_id);
+    }
+
+    pub fn get_name_symbol(&self, name: String) -> Option<&u64> {
+        let norm_name = name.trim().to_uppercase();
+        return self.normname_symbols.get(&norm_name);
+    }
+
+    pub fn get_symbol_repr(&self, symbol: u64) -> Option<&String> {
+        return self.symbols_name.get(&symbol);
+    }
     
     // TODO: Methods for defining a child scope
     pub fn get_or_create_cell_symbol(&mut self, cell_id: u64) -> u64 {
@@ -75,15 +88,14 @@ impl Context {
         }
     }
 
-    pub fn define_name(&mut self, name: String, symbol: u64) -> Result<u64> {
-        let trimmed_name = name.trim();
+    pub fn define_name(&mut self, trimmed_name: String, symbol: u64) -> Result<u64> {
         let name_upper = trimmed_name.to_uppercase();
         let existing_val = self.normname_symbols.get(&name_upper);
         if existing_val.is_some() {
             return Err(PARSE_ERR_USED_NAME);
         }
         self.normname_symbols.insert(name_upper, symbol);
-        self.symbols_name.insert(symbol, String::from(trimmed_name));
+        self.symbols_name.insert(symbol, trimmed_name);
         return Ok(symbol);
     }
 }

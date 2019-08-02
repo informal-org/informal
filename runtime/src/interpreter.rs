@@ -152,7 +152,7 @@ pub fn interpret_all(request: EvalRequest) -> EvalResponse {
 
         results.push(CellResponse {
             // id: ["@", &node.id.to_string()].concat(),
-            id: ["@", &node.id.to_string()].concat(),
+            id: node.id,
             output: output,
             error: err
         });

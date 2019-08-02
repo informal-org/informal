@@ -36,6 +36,25 @@ used_by_buffer: &mut FnvHashMap<u64, Vec<u64>>) {
 }
 
 
+pub fn define_symbols(request: &EvalRequest, ast: &mut Context) {
+    // We may encounter these symbols and names while lexing, so do a pre-pass
+    // to define these.
+
+    for cell in request.body.iter() {
+        // Attempt to parse ID of cell and save result "@42" -> 42
+        let cell_symbol_value = ast.get_or_create_cell_symbol(cell.id);
+        if cell.name.is_some() {
+            let cell_name: &String = cell.name.as_ref().unwrap();
+            let trimmed_name = cell_name.trim();
+            if trimmed_name != "" {
+                // Save the name
+                let name_def_result = ast.define_name(String::from(trimmed_name), cell_symbol_value);
+                // TODO: Handling duplicate names
+            }
+        }
+    }
+}
+
 
 pub fn construct_ast(request: EvalRequest) -> Context {
     // let mut ast = AST::new();
@@ -50,32 +69,22 @@ pub fn construct_ast(request: EvalRequest) -> Context {
     // Cell ID -> Internal Symbol ID for results
     let mut ast = Context::new(APP_SYMBOL_START);
     ast.cell_symbols = Some(FnvHashMap::default());
+    define_symbols(&request, &mut ast);
 
     // The lexer already needs to know the meaning of symbols so it can create new ones
     // So it should just return used by as well in a single pass.
     for cell in request.body {
         let mut lexed = lex(&mut ast, &cell.input).unwrap();
         // Attempt to parse ID of cell and save result "@42" -> 42
-        if let Some(id64) = cell.id[1..].parse::<u64>().ok() {
-            let cell_symbol_value = ast.get_or_create_cell_symbol(id64);
-            if cell.name.is_some() {
-                let cell_name = cell.name.unwrap();
-                if cell_name.trim() != "" {
-                    // Save the name
-                    let name_def_result = ast.define_name(cell_name, cell_symbol_value);
-                    // TODO: Handling duplicate names
-                }
-            }
 
-            let mut ast_node = apply_operator_precedence(id64, &mut lexed);
+        let cell_symbol_value = ast.get_cell_symbol(cell.id).unwrap();
+        let mut ast_node = apply_operator_precedence(cell.id, &mut lexed);
 
-            update_used_by(&cell_symbol_value, &mut ast_node, &mut cell_list, &mut cell_index_map, &mut used_by_buffer);
+        update_used_by(&cell_symbol_value, &mut ast_node, &mut cell_list, &mut cell_index_map, &mut used_by_buffer);
 
-            cell_list.push(ast_node);
-            cell_index_map.insert(cell_symbol_value, cell_list.len() - 1);
-        } else {
-            println!("ERROR parsing id {:?}", cell.id);
-        }
+        cell_list.push(ast_node);
+        cell_index_map.insert(*cell_symbol_value, cell_list.len() - 1);
+
         // TODO: ID Parsing failure? Or change the input format in a way that disallows failures
         // Or save an error node.
     }
