@@ -3,99 +3,37 @@ use crate::structs::*;
 use crate::constants::*;
 use crate::macros::*;
 use alloc::string::String;
+use alloc::borrow::Cow;
 
 
 #[no_mangle]
 pub extern "C" fn __av_add(env: &mut Runtime, a: u64, b: u64) -> u64 {
-	// Add supports adding two numbers (priority) or concat strings
-	if is_number(a) {
-		let f_a: f64 = resolve_num!(env, a);
-		let f_b: f64 = resolve_num!(env, b);
-		return (f_a + f_b).to_bits();
-	} else if is_string(a) {
-		// TODO
-		return RUNTIME_ERR_EXPECTED_STR
-	} else if is_symbol(a) {
-
-		if let Some(sym_a) = env.get_atom(a) {
-			match sym_a {
-				Atom::NumericValue(f_a) => {
-					if f_a != f_a {
-						return RUNTIME_ERR_TYPE_NAN
-					}
-					let f_b: f64 = resolve_num!(env, b);
-					return (f_a + f_b).to_bits();
-				}
+	// + is an overloaded operator, allowing combinations across various things
+	// To prevent exponential branching, resolve both elements to Atoms and then do the math.
+	let atom_a = resolve_atom!(env, a);
+	let atom_b = resolve_atom!(env, b);
+	match atom_a {
+		Atom::NumericValue(f_a) => {
+			match atom_b {
+				Atom::NumericValue(f_b) => return (f_a + f_b).to_bits(),
 				_ => return RUNTIME_ERR_EXPECTED_NUM
 			}
-		}
+		},
+		Atom::StringValue(str_a) => {
+			match atom_b {
+				Atom::StringValue(str_b) => {
+					let mut result_str = String::with_capacity(str_a.len() + str_b.len() + 1);
+					result_str.push_str(&str_a);
+					result_str.push_str(&str_b);
+
+					let result_symbol = env.save_atom(Atom::StringValue(result_str));
+					return result_symbol
+				},
+				_ => return RUNTIME_ERR_EXPECTED_STR
+			}
+		},
+		_ => return RUNTIME_ERR_EXPECTED_NUM
 	}
-	return RUNTIME_ERR_EXPECTED_NUM
-	
-
-		// // Switched from ObjectType -> String Type
-		// ValueType::StringType => {
-		// 	// TODO: String concantanation and mixed mode unit tests.
-		// 	// if __av_typeof(b) != ValueType::StringType {
-		// 	// 	return RUNTIME_ERR_EXPECTED_STR;
-		// 	// }
-		// 	// // Verify if both are pointers to strings
-		// 	// // TODO: Support for a to-string method on structs
-
-		// 	// // TODO: Support small string constants.
-		// 	// let obj_a = env.get_atom(a);
-		// 	// if let Some(obj_a)
-
-		// 	// if obj_a.av_class != AV_CLASS_STRING {
-		// 	// 	return RUNTIME_ERR_EXPECTED_STR;
-		// 	// }
-		// 	// let obj_b = env.get_atom(b);
-		// 	// if obj_b.av_class != AV_CLASS_STRING {
-		// 	// 	return RUNTIME_ERR_EXPECTED_STR;
-		// 	// }
-		// 	// let str_a = obj_a.av_string.as_ref().unwrap();
-		// 	// let str_b = obj_b.av_string.as_ref().unwrap();
-
-		// 	// // IDK if the +1 is needed
-		// 	// let mut result_str = String::with_capacity(str_a.len() + str_b.len() + 1);
-		// 	// result_str.push_str(str_a);
-		// 	// result_str.push_str(str_b);
-			
-		// 	// let result_obj = AvObject::new_string(result_str);
-		// 	// let result_ptr = env.save_object(result_obj);
-
-		// 	// return result_ptr
-
-		// 	return RUNTIME_ERR_EXPECTED_STR;
-		// },
-		// ValueType::SymbolType => {
-		// 	if let Some(val_a) = env.get_atom(a) {
-		// 		match val_a {
-		// 			Atom::NumericValue(num_a) => {
-		// 				let f_a = num_a.to_bits();
-
-						
-
-		// 			}, 
-		// 			Atom::StringValue(str_a) => {
-		// 				return RUNTIME_ERR_EXPECTED_STR
-		// 			},
-		// 			_ => { return RUNTIME_ERR_EXPECTED_NUM }
-		// 		}
-				
-		// 	} else {
-		// 		println!("Could not find symbol {:?}", a);
-		// 		for val in env.symbols.values() {
-   		// 			 println!("{:?}", val);
-		// 		}
-
-		// 		return RUNTIME_ERR_EXPECTED_NUM
-		// 	}
-		// },
-		// _ => {
-		// 	return RUNTIME_ERR_EXPECTED_NUM
-		// }
-	//}
 }
 
 #[no_mangle]

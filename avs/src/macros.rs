@@ -32,7 +32,7 @@ macro_rules! valid_num {
 }
 
 #[macro_export]
-macro_rules! resolve_num {
+macro_rules! resolve_atom {
 	($env:expr, $val:expr) => ({
 		// Given a u64, return the f64 resolved value or raise error
 		if is_number($val) {
@@ -40,21 +40,17 @@ macro_rules! resolve_num {
 			if f_val != f_val {
 				return RUNTIME_ERR_TYPE_NAN
 			}
-			f_val
+			Atom::NumericValue(f_val)
 		} else if is_symbol($val) {
 			// TODO: Resolve rather than get to follow symbols?
-			if let Some(sym_b) = $env.get_atom($val) {
-				match sym_b {
-					Atom::NumericValue(f_val) => {
-						*f_val
-					}
-					_ => return RUNTIME_ERR_EXPECTED_NUM
-				}
+			let symbol_resolution = $env.get_atom($val);
+			if symbol_resolution.is_some() {
+				symbol_resolution.unwrap().clone()
 			} else {
-				return RUNTIME_ERR_EXPECTED_NUM
+				Atom::SymbolValue($val)
 			}
-			
 		} else {
+			// Should not happen
 			return RUNTIME_ERR_EXPECTED_NUM
 		}
 	})

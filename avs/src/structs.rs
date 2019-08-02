@@ -16,7 +16,7 @@ pub enum ValueType {
     SymbolType
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq,Clone)]
 pub enum Atom {
     NumericValue(f64),
     StringValue(String),
@@ -138,7 +138,7 @@ impl Runtime {
 
 
 
-#[derive(Debug,PartialEq)]
+#[derive(Debug,PartialEq,Clone)]
 pub struct AvObject {
     // Class and ID are truncated symbol IDs. // TODO: Re-enable truncation
     pub id: u64,        // Used for hash1ed field access.
@@ -146,7 +146,7 @@ pub struct AvObject {
 
     // Values are required for objects. Objects are optional. (unallocated for strings)
     // This can be used as a list or a hash table for field access.
-    pub av_values: RefCell<Option<Vec<u64>>>,
+    pub av_values: Option<Vec<u64>>,
 }
 
 
@@ -158,7 +158,7 @@ impl AvObject {
         return AvObject {
             id: 0,          // TODO
             av_class: AV_CLASS_ENVIRONMENT,
-            av_values: RefCell::new(Some(results)),
+            av_values: Some(results),
         };
     }
 
@@ -168,29 +168,26 @@ impl AvObject {
         return AvObject {
             id: 0,
             av_class: 0, // TODO
-            av_values: RefCell::new(None),
+            av_values: None,
         };
     }
 
     pub fn resize_values(&mut self, new_len: usize) {
         // Since results are often saved out of order, pre-reserve space
-        let mut values = self.av_values.borrow_mut();
-        if values.is_some() {
-            values.as_mut().unwrap().resize(new_len, 0);
+        if self.av_values.is_some() {
+            self.av_values.as_mut().unwrap().resize(new_len, 0);
         }
     }
 
     pub fn save_value(&mut self, index: usize, value: u64) {
-        let mut values = self.av_values.borrow_mut();
-        if values.is_some() {
+        if self.av_values.is_some() {
             // TODO: Resize?
-            values.as_mut().unwrap()[index] = value;
+            self.av_values.as_mut().unwrap()[index] = value;
         }
     }
 
     pub fn get_value(&mut self, index: usize) -> u64 {
-        let values = self.av_values.borrow();
-        return values.as_ref().unwrap()[index];
+        return self.av_values.as_ref().unwrap()[index];
     }
 
 }
