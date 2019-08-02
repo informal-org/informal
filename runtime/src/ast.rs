@@ -75,7 +75,7 @@ pub fn construct_ast(request: EvalRequest) -> Context {
 
     ast.body = get_eval_order(&mut cell_list);
 //    ast.cell_symbols = Some(cell_symbol_map);
-    ast.symbols_index = cell_index_map;
+    // ast.symbols_index = cell_index_map;
     // let node_len = cell_list.len();
     // let mut values: Vec<u64> = Vec::with_capacity(node_len);
     // for _ in 0..node_len {

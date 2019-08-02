@@ -25,7 +25,7 @@ pub use avs::avfb_generated::avfb::{AvFbObj, AvFbObjArgs, get_root_as_av_fb_obj}
 
 
 fn main() {
-    println!("Arevel - Version - 1.0");
+    println!("Arevel - Version - 0.0");
     // repl_it();
     // eval_wat();
 
@@ -39,26 +39,26 @@ fn main() {
     // });
 
 
-	let mut builder = flatbuffers::FlatBufferBuilder::new_with_capacity(1024);
-    let hello = builder.create_string("Hello Arevel");
+	// let mut builder = flatbuffers::FlatBufferBuilder::new_with_capacity(1024);
+    // let hello = builder.create_string("Hello Arevel");
 
-    let obj = AvFbObj::create(&mut builder, &AvFbObjArgs{
-        id: 0,
-		av_class: AV_CLASS_STRING,
-		av_values: None,
-        av_objects: None,
-        av_string: Some(hello)
-    });
+    // let obj = AvFbObj::create(&mut builder, &AvFbObjArgs{
+    //     id: 0,
+	// 	av_class: AV_CLASS_STRING,
+	// 	av_values: None,
+    //     av_objects: None,
+    //     av_string: Some(hello)
+    // });
 
-    println!("{:?}", obj);
-    // println!("raw str data {:?}", obj.1.avstr());
+    // println!("{:?}", obj);
+    // // println!("raw str data {:?}", obj.1.avstr());
 
-	builder.finish(obj, None);
+	// builder.finish(obj, None);
 
-	let buf = builder.finished_data(); 		// Of type `&[u8]`    
+	// let buf = builder.finished_data(); 		// Of type `&[u8]`    
 
-    println!("OBJ {:?}", obj);
-    println!("BUF {:?}", buf);
+    // println!("OBJ {:?}", obj);
+    // println!("BUF {:?}", buf);
 
     // let input = get_root_as_avobj(buf);
 

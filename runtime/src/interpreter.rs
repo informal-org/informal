@@ -5,7 +5,6 @@ There may be more of a hybrid version in the future,
 with interop with separately compiled modules.
 */
 
-// use std::collections::HashMap;
 use avs::runtime::ID_SYMBOL_MAP;
 use super::parser;
 use super::lexer::*;
@@ -30,8 +29,8 @@ macro_rules! apply_bin_op {
 
 
 pub fn apply_operator(mut env: &mut Runtime, operator: u64, stack: &mut Vec<u64>) {
-    println!("Operator: {}", repr(&env, operator));
-    print_stacktrace(env, &stack);
+    // println!("Operator: {}", repr(&env, operator));
+    // print_stacktrace(env, &stack);
     let result = match operator {
         SYMBOL_PLUS => apply_bin_op!(env, __av_add, stack),
         SYMBOL_MINUS => apply_bin_op!(env, __av_sub, stack),
@@ -51,22 +50,17 @@ pub fn apply_operator(mut env: &mut Runtime, operator: u64, stack: &mut Vec<u64>
         _ => {
             // TODO: Is this correct? Or should it be INTERPRETER_ERR?
             // Unknown symbols are emitted as-is. 
-            // They should be turned into functions?
-            // INTERPRETER_ERR
-            println!("Found Symbol {:X}", operator);
             operator
         }
     };
     stack.push(result);
-    print_stacktrace(env, &stack);
-
-    println!("Next");
+    // print_stacktrace(env, &stack);
+    // println!("Next");
 }
 
 
 pub fn interpret_expr(mut env: &mut Runtime, expression: &Expression, context: &Context) -> u64 {
     // Propagate prior errors up.
-    // TODO: Implement this in the compiler
     if expression.result.is_some() {
         return expression.result.unwrap();
     }
@@ -79,20 +73,12 @@ pub fn interpret_expr(mut env: &mut Runtime, expression: &Expression, context: &
             Atom::SymbolValue(kw) => {
                 // TODO: Check if built in operator or an identifier
                 if ID_SYMBOL_MAP.contains_key(kw) {
-                    println!("Detected this as a built-in operator");
+                    println!("Detected symbol as a built-in operator");
                     apply_operator(&mut env, *kw, &mut expr_stack);
                 } else {
                     expr_stack.push(*kw);
-
-                    // if let Some(&symbol_index) = context.symbols_index.get(kw) {
-                    //     let deref_value = *ast.scope.values.get(symbol_index).unwrap();
-                    //     expr_stack.push(deref_value);
-                    // } else {
-                    //     println!("Could not find identifier! {:?}", reference);
-                    // }
-
+                    // TODO: Scoping rules
                 }
-                
             }, 
             Atom::NumericValue(num) => {
                 // f64 -> u64
@@ -100,25 +86,13 @@ pub fn interpret_expr(mut env: &mut Runtime, expression: &Expression, context: &
             },
             Atom::StringValue(val) => {
                 // Save object to heap and return pointer
-                // Note: String copy likely occurs here
-                //let str_obj = AvObject::new_string(val.to_string());
-                // let heap_ptr = env.save_object(str_obj);
-                // TODO: Non-clone version
+                // TODO: Non-copying version
                 let symbol_id = env.save_atom(Atom::StringValue(val.to_string()));
                 expr_stack.push(symbol_id);
             },
             Atom::ObjectValue(val) => {
                 println!("Unexpected Object Atom found?");
             }
-            //,
-            //TokenType::Identifier(reference) => {
-                // TODO: Lookup scoping rules
-
-            //}
-            // _ => {
-            //     // TODO
-            //     // return String::from("")
-            // }
         }
     }
     // Assert - only one value on expr stack
@@ -140,9 +114,6 @@ pub fn interpret_one(input: String) -> u64 {
     return interpret_expr(&mut env, &node, &ast);
 }
 
-// pub fn build_ast(inputs: EvalRequest) {
-
-// }
 
 pub fn interpret_all(request: EvalRequest) -> EvalResponse {
     let mut results: Vec<CellResponse> = Vec::with_capacity(request.body.len());
@@ -159,11 +130,7 @@ pub fn interpret_all(request: EvalRequest) -> EvalResponse {
         // Don't double-encode symbols
         let symbol_id = ast.cell_symbols.as_ref().unwrap().get(&node.id).unwrap();
         global_env.set_value(*symbol_id, result);
-        // let symbol_index = ast.cell.symbol_index.as_ref().unwrap().get(symbol_id).unwrap();
-        // ast.cell_results[*symbol_id] = result; //.insert(symbol_id, result);
-        // TODO: Insert value into env?
 
-        // TODO: Split up the format if there's a different use-case that doesn't need the string format.
         let mut output = String::from("");
         let mut err = String::from("");
         
@@ -173,8 +140,6 @@ pub fn interpret_all(request: EvalRequest) -> EvalResponse {
             },
             ValueType::ObjectType => {
                 if is_error(result) {
-                    println!("Interpreter return returned true");
-                    println!("{:X}, {:X}", result, result & VALUE_F_PTR_OBJ);
                     // Errors returned in different field.
                     err = repr_error(result);
                 } else {

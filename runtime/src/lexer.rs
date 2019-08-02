@@ -6,7 +6,6 @@ use std::iter::Peekable;
 
 use avs::constants::*;
 use avs::structs::Atom;
-use avs::utils::create_value_symbol;
 use avs::runtime::SYMBOL_ID_MAP;
 use crate::structs::Context;
 
@@ -122,7 +121,7 @@ fn parse_string(it: &mut Peekable<std::str::Chars<'_>>) -> Result<Atom> {
             }
         }
     }
-    // Invalid if you reach end of input before closing quotes.
+    // Invalid if you reach end of input before a matching closing quotes (of the same type)
     if ! _terminated {
         return Err(PARSE_ERR_UNTERM_STR);
     }
@@ -155,17 +154,6 @@ fn reserved_keyword(token: &str) -> Option<Atom> {
     }
     
     return None
-
-    // return match token_upcase {
-    //     "IS" => Some(TOKEN_IS),
-    //     "NONE" => Some(TOKEN_NONE),
-    //     "TRUE" => Some(TOKEN_TRUE),
-    //     "FALSE" => Some(TOKEN_FALSE),
-    //     "NOT" => Some(TOKEN_NOT),
-    //     "AND" => Some(TOKEN_AND),
-    //     "OR" => Some(TOKEN_OR),
-    //     _ => None
-    // }
 }
 
 // One-liner shorthand to advance the iterator and return the given value
@@ -235,8 +223,6 @@ pub fn lex(context: &mut Context, expr: &str) -> Result<Vec<Atom>> {
                 // If the previous char was begining of string or another operator
                 if let Some(prev) = tokens.last() {
                     match prev {
-                        // TODO: Re-verify support for unary minus 
-                        // TokenType::Keyword(_kw) => {
                         Atom::SymbolValue(_kw) => {
                              it.next();
                              apply_unary_minus!(it, tokens)

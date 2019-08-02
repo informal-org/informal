@@ -133,16 +133,6 @@ impl Runtime {
         return None;
     }
 
-
-    // pub fn get_string(&self, symbol: u64) -> Option<String> {
-    //     let atom = self.get_atom(symbol);
-    //     if let Some(atom_val) = atom {
-    //         match {
-
-    //         }
-    //     }
-    //     return None
-    // }
 }
 
 
@@ -156,9 +146,6 @@ pub struct AvObject {
     // Values are required for objects. Objects are optional. (unallocated for strings)
     // This can be used as a list or a hash table for field access.
     pub av_values: RefCell<Option<Vec<u64>>>,
-//    pub av_objects: RefCell<Option<Vec<Rc<AvObject>>>>,
-    // Future: Can be used for byte storage as well (via unsafe to accomodate invalid utf-8 bytes)
-//    pub av_string: Option<String>
 }
 
 
@@ -171,18 +158,6 @@ impl AvObject {
             id: 0,          // TODO
             av_class: AV_CLASS_ENVIRONMENT,
             av_values: RefCell::new(Some(results)),
-//            av_objects: RefCell::new(Some(obj_vec)),
-//            av_string: None
-        };
-    }
-
-    pub fn new_string(value: String) -> AvObject {
-        return AvObject {
-            id: 0,
-            av_class: AV_CLASS_STRING,
-            av_values: RefCell::new(None),
-//            av_objects: RefCell::new(None),
-//            av_string: Some(value)
         };
     }
 
@@ -193,8 +168,6 @@ impl AvObject {
             id: 0,
             av_class: 0, // TODO
             av_values: RefCell::new(None),
-//            av_objects: RefCell::new(None),
-//            av_string: None,
         };
     }
 
@@ -220,35 +193,3 @@ impl AvObject {
     }
 
 }
-
-
-
-
-// // TODO: AvBytes
-// #[derive(Debug,PartialEq)]
-// pub struct AvObjectString {
-//     pub object: AvObjectBasic,
-//     pub av_string: str   // ToDo String vs str
-// }
-
-// // Equivalent to an object, just separate for methods.
-// #[derive(Debug,PartialEq)]
-// pub struct AvObjectArray {
-//     pub object: AvObject,
-// }
-
-
-// Matches with the IO object format. The fields present vary based on object type.
-// #[derive(Debug,PartialEq)]
-// pub struct AvObject {
-//     pub avtype: AvObjectType,
-//     pub avclass: u32,
-//     pub avhash: u64,
-//     pub length: u32,
-//     pub values: RefCell<Option<Vec<u64>>>,
-//     pub av_string: Option<String>,     // TOXO: &str vs str vs String
-//     pub avbytes: RefCell<Option<Vec<u8>>>,
-//     // Immutable list of reference counted interior mutable cells
-//     // RC was required for get_object.
-//     pub av_objects: RefCell<Option<Vec<Rc<AvObject>>>>
-// }

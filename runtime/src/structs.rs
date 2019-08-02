@@ -1,4 +1,3 @@
-// use avs::structs::AvObject;
 use avs::utils::create_value_symbol;
 use avs::structs::Atom;
 use fnv::FnvHashMap;
@@ -27,6 +26,7 @@ pub struct EvalRequest {
 }
 
 
+// Context (Scope / Global AST)
 // Primary AST linked list structure
 // Pure functions are scoped to their parameters. i.e. null parent.
 // You can reference parent, but never child or sibiling data.
@@ -40,32 +40,14 @@ pub struct Context {
     // Preserve the original case of the name for printing back to user
     pub symbols_name: FnvHashMap<u64, String>,
 
-    // Cell IDs -> Symbol IDs for cells without a name
-    // Only defined for the root Context
+    // (Root context only) Cell IDs -> Symbol IDs for cells without a name
     pub cell_symbols: Option<FnvHashMap<u64, u64>>,
-
-    // Mapping of symbol IDs to values indexes for lookup.
-    // This could instead be a hash function which does a lookup
-    // with linear probing/a perfect hash.
-    // pub symbol_index: FnvHashMap<u64, usize>,
-
-    // Stores the running state. Symbol index -> result
-    // pub env: AvObject,
-
-    // Symbols -> Index of where the result will be stored
-    pub symbols_index: FnvHashMap<u64, usize>,
-    
-//    pub values: Vec<u64>,
 
     pub body: Vec<Expression>,
 
     pub next_symbol_id: u64,
-
-//    pub cell_results: Vec<u64>
 }
 
-// AstNode -> Expression
-// Context (Scope / Global AST)
 impl Context {
     pub fn new(next_symbol_id: u64) -> Context {
         return Context {
@@ -73,15 +55,12 @@ impl Context {
             normname_symbols: FnvHashMap::default(),
             symbols_name: FnvHashMap::default(),
             cell_symbols: None,
-            symbols_index: FnvHashMap::default(),
             body: Vec::with_capacity(0),
             next_symbol_id: next_symbol_id,
-//            cell_results: Vec::new()
         }
     }
     
     // TODO: Methods for defining a child scope
-
     pub fn get_or_create_cell_symbol(&mut self, cell_id: u64) -> u64 {
         if let Some(existing_id) = self.cell_symbols.as_ref().unwrap().get(&cell_id) {
             *existing_id 
