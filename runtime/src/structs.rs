@@ -1,6 +1,8 @@
 use avs::utils::create_value_symbol;
 use avs::structs::Atom;
+use avs::constants::*;
 use fnv::FnvHashMap;
+use crate::Result;
 
 #[derive(Serialize, PartialEq, Debug)]
 pub struct CellResponse {
@@ -18,6 +20,7 @@ pub struct EvalResponse {
 pub struct CellRequest {
     pub id: String,
     pub input: String,
+    pub name: Option<String>
 }
 
 #[derive(Deserialize)]
@@ -70,7 +73,18 @@ impl Context {
             self.next_symbol_id += 1;
             cell_symbol_value
         }
+    }
 
+    pub fn define_name(&mut self, name: String, symbol: u64) -> Result<u64> {
+        let trimmed_name = name.trim();
+        let name_upper = trimmed_name.to_uppercase();
+        let existing_val = self.normname_symbols.get(&name_upper);
+        if existing_val.is_some() {
+            return Err(PARSE_ERR_USED_NAME);
+        }
+        self.normname_symbols.insert(name_upper, symbol);
+        self.symbols_name.insert(symbol, String::from(trimmed_name));
+        return Ok(symbol);
     }
 }
 

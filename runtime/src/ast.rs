@@ -58,6 +58,15 @@ pub fn construct_ast(request: EvalRequest) -> Context {
         // Attempt to parse ID of cell and save result "@42" -> 42
         if let Some(id64) = cell.id[1..].parse::<u64>().ok() {
             let cell_symbol_value = ast.get_or_create_cell_symbol(id64);
+            if cell.name.is_some() {
+                let cell_name = cell.name.unwrap();
+                if cell_name.trim() != "" {
+                    // Save the name
+                    let name_def_result = ast.define_name(cell_name, cell_symbol_value);
+                    // TODO: Handling duplicate names
+                }
+            }
+
             let mut ast_node = apply_operator_precedence(id64, &mut lexed);
 
             update_used_by(&cell_symbol_value, &mut ast_node, &mut cell_list, &mut cell_index_map, &mut used_by_buffer);

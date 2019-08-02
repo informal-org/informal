@@ -23,6 +23,7 @@ export function parseEverything(cells) {
         }
         data.body.push({
             id: cell.id,
+            name: cell.name,
             input: cellInput,
         });
     }
