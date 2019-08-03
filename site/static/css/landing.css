@@ -1,0 +1,198 @@
+/* This file is for your main application css. */
+
+@tailwind base;
+
+@tailwind components;
+
+@tailwind utilities;
+
+html, body {
+    color: #212529;
+}
+
+h1 {
+  @apply text-4xl;
+}
+h2 {
+  @apply text-2xl;
+}
+h3 {
+  @apply text-lg;
+}
+a {
+  @apply text-blue-600 underline;
+}
+
+
+.btn {
+  @apply font-bold py-2 px-4 rounded;
+  
+  cursor: pointer;
+}
+
+.btn-primary {
+  @apply bg-blue-500 text-white;
+}
+
+
+.form-control {
+  @apply shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight;
+}
+
+.form-control:focus {
+  @apply outline-none shadow-outline;
+}
+
+.Grid {
+  /* display: inline-flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+	flex-direction: column;
+  height: 500px; */
+
+  /* 
+  Standard spreadsheet cells are 200x40 
+  Font size: 10pt; = 13px for Arial.
+  12pt is more readable at 16px;
+  Arial is the standard font used there. 
+  Let's stick with it here for now unless needed.
+  WxH - 2.4142 silver ratio
+
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+
+  160x60 previous
+  163x72
+  */
+
+  font-size: 13px;
+  font-family: Arial;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 133px);
+  grid-gap: 1px;
+  grid-auto-rows: 55px;
+  grid-auto-flow: row;
+  padding: 10px 1px;
+  justify-content: center;
+}
+
+.Cell {
+  @apply px-20 py-8;
+  /* width: 180px;
+  height: 100px; */
+  padding: 0.5rem 1rem;
+  font-size: 14px;
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  position: relative;
+  /* outline: 1px solid #a0aec0; */
+  outline: 1px dotted rgba(160, 174, 192, 0.55);
+}
+
+.Cell-cellName {
+  font-weight: bold;
+}
+
+.Cell.Cell--focused {
+  @apply py-0 px-0;
+  border: 1px solid #4299e1;
+}
+
+.Cell.Cell--error {
+  @apply border-2 border-red-500;
+}
+.Cell-cellError {
+  @apply text-red-500;
+}
+
+.Cell-cellValue {
+  white-space: pre-line;
+}
+
+.Cell-cellValue--edit {
+  padding: 5px 7px;
+  width: 100%;
+}
+
+.Cell-cellValue--edit:focus, .Cell-cellName--edit:focus {
+  outline-width: 2px;
+}
+
+.Cell-cellName--edit {
+  padding: 3px 7px;
+}
+
+.Cell--focused .Cell-cellResult {
+  padding: 0 7px;
+}
+
+.Cell-cellResult {
+  white-space: normal;
+  overflow: scroll;
+  text-overflow: ellipsis;
+  width: 100%;
+}
+
+.Cell--height1 .Cell-cellResult {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+
+.Cell--width2 { grid-column-end: span 2; }
+.Cell--width3 { grid-column-end: span 3; }
+.Cell--width4 { grid-column-end: span 4; }
+.Cell--width5 { grid-column-end: span 5; }
+.Cell--width6 { grid-column-end: span 6; }
+.Cell--width7 { grid-column-end: span 7; }
+.Cell--width8 { grid-column-end: span 8; }
+
+.Cell--height2 { grid-row-end: span 2; }
+.Cell--height3 { grid-row-end: span 3; }
+.Cell--height4 { grid-row-end: span 4; }
+.Cell--height5 { grid-row-end: span 5; }
+.Cell--height6 { grid-row-end: span 6; }
+.Cell--height7 { grid-row-end: span 7; }
+.Cell--height8 { grid-row-end: span 8; }
+
+.Cell--height2 .Cell-cellResult { height: 80px; }
+.Cell--height3 .Cell-cellResult { height: 145px; }
+.Cell--height4 .Cell-cellResult { height: 210px; }
+.Cell--height5 .Cell-cellResult { height: 277px; }
+.Cell--height6 .Cell-cellResult { height: 342px; }
+.Cell--height7 .Cell-cellResult { height: 410px; }
+.Cell--height8 .Cell-cellResult { height: 490px; }
+
+.maximize {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  cursor: pointer;
+  cursor: nesw-resize;
+}
+
+.ActionBar {
+  @apply border bg-gray-300;
+  
+}
+
+.ActionBar-action {
+  @apply border-l border-r px-3 py-2 inline-block;
+}
+
+@import "./base.css";
+
+
+
+/* Tailwind utility syntax - Small (sm) */
+@screen sm { /* ... */ }
+
+/* Medium (md) */
+@screen md { /* ... */ }
+
+/* Large (lg) */
+@screen lg { /* ... */ }
+
+/* Extra Large (xl) */
+@screen xl { /* ... */ }
