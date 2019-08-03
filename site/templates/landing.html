@@ -4,9 +4,9 @@
     <meta charset="utf-8"/>
     <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <meta name="description" content="Arevel is a visual programming language for building dynamic web applications.">
+    <meta name="description" content="Arevel is a visual language and serverless platform to build, launch and scale dynamic web applications.">
 
-    <title>Arevel</title>
+    <title>Arevel - Visual Web Application Language & Serverless Platform</title>
     
     <link href="https://unpkg.com/tailwindcss@^1.0/dist/tailwind.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,700" rel="stylesheet">
@@ -15,6 +15,8 @@
       
   </head>
   <body class="font-sans leading-tight">
+
+
     <header>
       <nav role="navigation" class="flex bg-white border-b border-gray-200 items-center flex-wrap p-4 justify-between">
 
@@ -29,24 +31,65 @@
     </header>
       
       
-    
-    <section class="max-w-6xl relative mx-auto px-16 pt-32 pb-32 md:pb-24">
-        <div class="inline-block pb-16">
-            <h1 class="text-5xl inline-block max-w-lg font-sans font-bold pb-6">Build. Launch. <br>Scale.</h1> <br>
-            <h2 class="text-xl max-w-md inline-block">
-                Arevel is a visual language and serverless platform to build, launch and scale dynamic web applications. 
+    <section class="bg-light pattern-primary">
+        <div class="max-w-6xl relative mx-auto px-16 pt-32 pb-32 md:pb-24">
+            <div class="inline-block pb-16">
+                <h1 class="fg-primary text-5xl inline-block max-w-lg font-sans font-bold pb-6">Build. Launch. <br>Scale.</h1> <br>
+                <h2 class="fg-primary text-xl max-w-md inline-block">
+                    Arevel is a visual language and serverless platform to build, launch and scale dynamic web applications. 
 
-            </h2>
+                </h2>
+            </div>
+        
+            <!-- <img class="shadow-lg xl:mx-12 vertical-top max-width-sm inline-block" width="450px" src="static/images/screenshot.png"/> -->
+
+            <div class="landingExample">
+            <div class="Grid">
+              
+              <div class="Cell">
+                <span>
+                  <div class="Cell-cellName">
+                    path
+                  </div>
+                  <div class="Cell-cellValue">
+                    /echo
+                  </div>
+                </span>
+              </div>
+              
+
+              <div class="Cell">
+                <span>
+                  <div class="Cell-cellName">
+                    method
+                  </div>
+                  <div class="Cell-cellValue">
+                    GET
+                  </div>
+                </span>
+              </div>
+
+              <div class="Cell">
+                <span>
+                  <div class="Cell-cellName">
+                    echo_message
+                  </div>
+                  <div class="Cell-cellValue">
+                    Hello Arevel
+                  </div>
+                </span>
+              </div>
+
+            </div>
+          </div>
+
         </div>
-        
-            <img class="shadow-lg xl:mx-12 vertical-top max-width-sm inline-block" width="450px" src="static/images/screenshot.png"/>
-        
     </section>
       
       
       <div class="bg-gray-100">
     <section class="max-w-6xl relative mx-auto px-16 pt-32 pb-32 bg-gray-100">
-        <h2 class="text-4xl font-sans font-bold">
+        <h2 class="fg-primary text-4xl font-sans font-bold">
           Interactive, Real-time Development
         </h2>
         <p class="text-lg">Explore and modify your application backend more effectively with an editor that connects you to directly to your code and data. Arevel combines the power and flexibility of a high level programming language with the visual ease-of-use of a spreadsheet.</p>
@@ -55,7 +98,7 @@
       
       
       <section class="max-w-6xl relative mx-auto px-16 pt-32 pb-32 md:pb-24">
-        <h2 class="text-4xl font-sans font-bold">Powered by WebAssembly</h2>
+        <h2 class="fg-primary text-4xl font-sans font-bold">Powered by WebAssembly</h2>
         <p class="text-lg">
             WebAssembly is a new binary code format that enables high performance applications in browsers and on servers. Arevel code compiles down to a portable WebAssembly format for fast response times and secure, sandboxed code execution. In the future, Arevel will also be able to introp with any language that compiles down to WebAssembly. 
         </p>
@@ -66,7 +109,7 @@
             
       <div class="bg-gray-100">
     <section class="max-w-6xl relative mx-auto px-16 pt-32 pb-32 bg-gray-100">
-        <h2 class="text-4xl font-sans font-bold">
+        <h2 class="fg-primary text-4xl font-sans font-bold">
           Serverless Scaling
         </h2>
         <p class="text-lg">

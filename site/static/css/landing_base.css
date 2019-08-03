@@ -7,10 +7,45 @@
     vertical-align: top;
 }
 
+.pattern-primary {
+  /* background-image: url("/static/images/knitting250px.png"); */
+}
 
+.bg-light {
+  background-color: #E6F7FF;
+}
 
+.bg-primary {
+  background-color: #1890ff;
+}
 
+.bg-success {
+  background-color: #52c41a;
+}
 
+.bg-warning {
+  background-color: #faad14;
+}
+
+.fg-primary {
+  color: rgba(0, 0, 0, 0.85);
+}
+
+.fg-base {
+  color: rgba(0, 0, 0, 0.65);
+}
+
+.fg-secondary {
+  color: rgba(0, 0, 0, .45);
+}
+
+.fg-disabled {
+  color: rgba(0, 0, 0, .25);
+}
+
+.shadow-base {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
 
 
 /* Landing page */
@@ -61,3 +96,52 @@ h6{font-size: 1.4rem; letter-spacing: 0; line-height: 1.2} */
   margin: -1rem 0 2rem;
 }
 
+
+.landingExample {
+  width: 450px;
+  height: 300px;
+  max-width: 450px;
+  display: inline-block;
+  vertical-align: top;
+}
+
+.landingExample .Grid {
+  font-size: 13px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 133px);
+  grid-gap: 5px; 
+  grid-auto-rows: 55px;
+  grid-auto-flow: row;  
+  padding: 10px 1px;
+  justify-content: center;  
+}
+
+.Cell {
+  padding: 0.5rem 1rem;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  position: relative; 
+  border: 1px solid #a0aec0;
+  border: 1px dotted rgba(160, 174, 192, 0.55);
+  
+  
+  /* Extra landing page styles */
+  background-color: white;
+  /* box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15); */
+  transition: all 0.1s;
+}
+
+.Cell:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  margin: -2px 0;
+}
+
+.Cell-cellName {
+  font-weight: bold;
+}
+
+.Cell-cellValue {
+}
