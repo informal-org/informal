@@ -131,15 +131,25 @@ fn parse_string(it: &mut Peekable<std::str::Chars<'_>>) -> Result<Atom> {
 fn parse_identifier(it: &mut Peekable<std::str::Chars<'_>>) -> String {
     let mut token = String::from("");
     // Assert - the caller checks if the first char is not a number
+    
+    // Unlike symbol names, identifiers may begin with : as first character for keywords.
+    if let Some(&ch) = it.peek() {
+        if ch == ':' {
+            token.push(ch);
+            it.next();
+        }
+    }
+
     while let Some(&ch) = it.peek() {
         match ch {
-            // IDs are separate from names, so the character set could be more restrictive.
-            'a'..='z' | 'A'..='Z' | '_' | '0'..='9' => {
-                token.push(ch);
-                it.next(); 
+            // All characters except delimiters
+            '('| ')' | '[' | ']' | '{' | '}' | '"' | '\'' | ',' | ':' | ';' | ' ' | '\t' | '\n' => {
+                break;
             }
             _ => {
-                break;
+                token.push(ch);
+                it.next(); 
+                
             }
         }
     }
@@ -216,6 +226,11 @@ pub fn lex(context: &mut Context, expr: &str) -> Result<Vec<Atom>> {
     while let Some(&ch) = it.peek() {
         // The match should have a case for each starting value of any valid token
         let token: Option<Atom> = match ch {
+            // Whitespace - ignore
+            ' ' | '\t' | '\n' => {
+                it.next();
+                None
+            },
             // Digit start
             '0'..='9' | '.' => Some(parse_number(&mut it, false)? ),
             // Differentiate subtraction or unary minus
@@ -238,51 +253,45 @@ pub fn lex(context: &mut Context, expr: &str) -> Result<Vec<Atom>> {
                 }
             },
             // Operators
-            '+' => lex_advance_return!(it, SYMBOL_PLUS),
-            '*' => lex_advance_return!(it, SYMBOL_MULTIPLY),
-            '/' => lex_advance_return!(it, SYMBOL_DIVIDE),
-            '(' => lex_advance_return!(it, SYMBOL_OPEN_PAREN),
-            ')' => lex_advance_return!(it, SYMBOL_CLOSE_PAREN),
-            '=' => lex_advance_return!(it, SYMBOL_EQUALS),
-            '<' => lex_comparison_eq!(it, SYMBOL_LT, SYMBOL_LTE),
-            '>' => lex_comparison_eq!(it, SYMBOL_GT, SYMBOL_GTE),
+            // '+' => lex_advance_return!(it, SYMBOL_PLUS),
+            // '*' => lex_advance_return!(it, SYMBOL_MULTIPLY),
+            // '/' => lex_advance_return!(it, SYMBOL_DIVIDE),
+            // '(' => lex_advance_return!(it, SYMBOL_OPEN_PAREN),
+            // ')' => lex_advance_return!(it, SYMBOL_CLOSE_PAREN),
+            // '=' => lex_advance_return!(it, SYMBOL_EQUALS),
+            // '<' => lex_comparison_eq!(it, SYMBOL_LT, SYMBOL_LTE),
+            // '>' => lex_comparison_eq!(it, SYMBOL_GT, SYMBOL_GTE),
             // Interchangable single/double quoted strings grouped as single token.
             '"' | '\'' => Some(parse_string(&mut it)?),
             // Identifiers and reserved keywords
             // TODO: Benchmark if a..z vs looking at char code range.
-            'a'..='z' | 'A'..='Z' | '_' => {
+            // 'a'..='z' | 'A'..='Z' | '_' => {
+
+            // }
+            // '@' => {        // TODO: Remove?
+            //     let mut token_str: String = String::from("");
+            //     it.next();
+            //     gobble_digits(&mut token_str, &mut it);
+            //     // TODO: Better panic handling
+            //     if let Some(id) = token_str.parse::<u64>().ok() {
+            //         // TODO: Map the IDs to something else so we don't re-use IDs
+            //         Some(Atom::SymbolValue( context.get_or_create_cell_symbol(id) ))
+                    
+            //     } else {
+            //         // TODO: Invalid identifier
+            //         return Err(PARSE_ERR_UNKNOWN_TOKEN);
+            //     }
+            // },
+            _ => {
                 let token_str: String = parse_identifier(&mut it);
                 let keyword = reserved_keyword(&token_str);
-                if keyword != None { 
+                if keyword.is_some() {
+                    // Currently disallow operator overloading and changing built-in keywords
                     keyword
                 } else {
-                    // TODO more specific error
-                    return Err(PARSE_ERR_UNKNOWN_TOKEN);
+                    // New, user-defined symbol
+                    Some(Atom::SymbolValue( context.get_or_create_symbol(token_str) ))
                 }
-            }
-            '@' => {        // TODO: Remove?
-                let mut token_str: String = String::from("");
-                it.next();
-                gobble_digits(&mut token_str, &mut it);
-                // TODO: Better panic handling
-                if let Some(id) = token_str.parse::<u64>().ok() {
-                    // TODO: Map the IDs to something else so we don't re-use IDs
-                    Some(Atom::SymbolValue( context.get_or_create_cell_symbol(id) ))
-                    
-                } else {
-                    // TODO: Invalid identifier
-                    return Err(PARSE_ERR_UNKNOWN_TOKEN);
-                }
-            },
-            // Whitespace - ignore
-            ' ' | '\t' | '\n' => {
-                it.next();
-                None
-            }
-            _ => {
-                // Error out on any unrecognized token starts.
-                it.next();
-                return Err(PARSE_ERR_UNKNOWN_TOKEN);
             }
         };
         // Add token to result if present

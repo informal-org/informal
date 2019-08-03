@@ -30,6 +30,17 @@ lazy_static! {
 
         m.insert(SYMBOL_OPEN_PAREN, "(");
         m.insert(SYMBOL_CLOSE_PAREN, ")");
+
+        m.insert(SYMBOL_OPEN_SQBR, "[");
+        m.insert(SYMBOL_CLOSE_SQBR, "]");
+
+        m.insert(SYMBOL_OPEN_BRACE, "{");
+        m.insert(SYMBOL_CLOSE_BRACE, "}");
+
+        m.insert(SYMBOL_COMMA, ",");
+        m.insert(SYMBOL_COLON, ":");
+        m.insert(SYMBOL_SEMI_COLON, ";");
+
         m.insert(SYMBOL_EQUALS, "=");
 
         // Additional keywords - Title case like nouns
@@ -65,6 +76,18 @@ lazy_static! {
 
         m.insert("(", SYMBOL_OPEN_PAREN);
         m.insert(")", SYMBOL_CLOSE_PAREN);
+
+        m.insert("[", SYMBOL_OPEN_SQBR);
+        m.insert("]", SYMBOL_CLOSE_SQBR);
+
+        m.insert("{", SYMBOL_OPEN_BRACE);
+        m.insert("}", SYMBOL_CLOSE_BRACE);
+
+        m.insert(",", SYMBOL_COMMA);
+        m.insert(":", SYMBOL_COLON);
+        m.insert(";", SYMBOL_SEMI_COLON);
+
+
         m.insert("=", SYMBOL_EQUALS);
 
         m.insert("TRUE", SYMBOL_TRUE);

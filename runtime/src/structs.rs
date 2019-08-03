@@ -75,25 +75,47 @@ impl Context {
     pub fn get_symbol_repr(&self, symbol: u64) -> Option<&String> {
         return self.symbols_name.get(&symbol);
     }
+
+    pub fn next_symbol(&mut self) -> u64 {
+        let next_symbol: u64 = create_value_symbol( self.next_symbol_id );
+        self.next_symbol_id += 1;
+        return next_symbol;
+    }
     
     // TODO: Methods for defining a child scope
     pub fn get_or_create_cell_symbol(&mut self, cell_id: u64) -> u64 {
         if let Some(existing_id) = self.cell_symbols.as_ref().unwrap().get(&cell_id) {
             *existing_id 
         } else {
-            let cell_symbol_value: u64 = create_value_symbol( self.next_symbol_id );
-            self.cell_symbols.as_mut().unwrap().insert(cell_id, cell_symbol_value);
-            self.next_symbol_id += 1;
-            cell_symbol_value
+            let symbol_id = self.next_symbol();
+            self.cell_symbols.as_mut().unwrap().insert(cell_id, symbol_id);
+            symbol_id
         }
     }
 
+    // Symbol used in expression
+    pub fn get_or_create_symbol(&mut self, name: String) -> u64 {
+        let name_upper = name.to_uppercase();
+        let existing_val = self.normname_symbols.get(&name_upper);
+        if existing_val.is_some() {
+            return *existing_val.unwrap();
+        }
+
+        let symbol_id = self.next_symbol();
+        self.normname_symbols.insert(name_upper, symbol_id);
+        self.symbols_name.insert(symbol_id, name);
+        symbol_id
+    }
+
+    // Symbol used as cell names
     pub fn define_name(&mut self, trimmed_name: String, symbol: u64) -> Result<u64> {
+        // TODO: Check name validity - no delimiter characters, doesn't start with :
         let name_upper = trimmed_name.to_uppercase();
         let existing_val = self.normname_symbols.get(&name_upper);
         if existing_val.is_some() {
             return Err(PARSE_ERR_USED_NAME);
         }
+        
         self.normname_symbols.insert(name_upper, symbol);
         self.symbols_name.insert(symbol, trimmed_name);
         return Ok(symbol);

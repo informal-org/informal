@@ -112,6 +112,14 @@ pub const SYMBOL_CLOSE_PAREN: u64 = 0xFFFF_0000_0000_000D;
 pub const SYMBOL_EQUALS: u64 = 0xFFFF_0000_0000_000E;
 
 
+pub const SYMBOL_OPEN_SQBR: u64 = 0xFFFF_0000_0000_000F;
+pub const SYMBOL_CLOSE_SQBR: u64 = 0xFFFF_0000_0000_0010;
+pub const SYMBOL_OPEN_BRACE: u64 = 0xFFFF_0000_0000_0011;
+pub const SYMBOL_CLOSE_BRACE: u64 = 0xFFFF_0000_0000_0012;
+pub const SYMBOL_COMMA: u64 = 0xFFFF_0000_0000_0013;
+pub const SYMBOL_COLON: u64 = 0xFFFF_0000_0000_0014;
+pub const SYMBOL_SEMI_COLON: u64 = 0xFFFF_0000_0000_0015;
+
 
 // TODO: Investigate whether having statically defined Atom constants for each symbol are worth it.
 
