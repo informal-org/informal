@@ -178,38 +178,6 @@ fn reserved_keyword(token: &str) -> Option<Atom> {
     return None
 }
 
-// One-liner shorthand to advance the iterator and return the given value
-macro_rules! lex_advance_return {
-    ($it:expr, $e:expr) => ({
-        $it.next();
-        Some(Atom::SymbolValue($e))
-    });
-}
-
-// Shortcut for lte and gte - check next token and decide which form it is.
-macro_rules! lex_comparison_eq {
-    ($it:expr, $comp:expr, $comp_eq:expr) => ({
-        $it.next();
-        if let Some(&eq) = $it.peek() {
-            if eq == '=' {
-                $it.next();
-                Some(Atom::SymbolValue($comp_eq))
-            } else {
-                Some(Atom::SymbolValue($comp))
-            }
-        } else {
-            Some(Atom::SymbolValue($comp))
-        }
-    });
-}
-
-#[macro_export]
-macro_rules! numeric_literal {
-     ($val:expr) => ({
-       Atom::NumericValue($val)
-    });
-}
-
 macro_rules! apply_unary_minus {
     ($it:expr, $tokens:expr) => ({
         if let Some(next) = $it.peek() {
@@ -224,14 +192,14 @@ macro_rules! apply_unary_minus {
                 }
             }
         } else {
-            // Unexpected end of string
+            // Unexpected end of string - Return from outer lex function
             return Err(PARSE_ERR_UNEXPECTED_TOKEN);
         }
     });
 }
 
 pub fn lex(context: &mut Context, expr: &str) -> Result<Vec<Atom>> {
-    // Split into lexems based on some known operators
+    // Split into lexemes based on some known operators
     let mut tokens: Vec<Atom> = vec![];
     let mut it = expr.chars().peekable();
 
@@ -245,9 +213,9 @@ pub fn lex(context: &mut Context, expr: &str) -> Result<Vec<Atom>> {
             },
             // Digit start
             '0'..='9' | '.' => Some(parse_number(&mut it, false)? ),
-            // Differentiate subtraction or unary minus
+            // Special case for minus sign to differentiate subtraction or unary minus
             '-' => {
-                // If the previous char was begining of string or another operator
+                // If the previous char was beginning of string or another operator
                 if let Some(prev) = tokens.last() {
                     match prev {
                         Atom::SymbolValue(_kw) => {
@@ -255,7 +223,8 @@ pub fn lex(context: &mut Context, expr: &str) -> Result<Vec<Atom>> {
                              apply_unary_minus!(it, tokens)
                         },
                         _ => {
-                            lex_advance_return!(it, SYMBOL_MINUS)
+                            it.next();
+                            Some(Atom::SymbolValue(SYMBOL_MINUS))
                         }
                     }
                 } else {
@@ -264,37 +233,10 @@ pub fn lex(context: &mut Context, expr: &str) -> Result<Vec<Atom>> {
                     apply_unary_minus!(it, tokens)
                 }
             },
-            // Operators
-            // '+' => lex_advance_return!(it, SYMBOL_PLUS),
-            // '*' => lex_advance_return!(it, SYMBOL_MULTIPLY),
-            // '/' => lex_advance_return!(it, SYMBOL_DIVIDE),
-            // '(' => lex_advance_return!(it, SYMBOL_OPEN_PAREN),
-            // ')' => lex_advance_return!(it, SYMBOL_CLOSE_PAREN),
-            // '=' => lex_advance_return!(it, SYMBOL_EQUALS),
-            // '<' => lex_comparison_eq!(it, SYMBOL_LT, SYMBOL_LTE),
-            // '>' => lex_comparison_eq!(it, SYMBOL_GT, SYMBOL_GTE),
-            // Interchangable single/double quoted strings grouped as single token.
+            // Interchangeable single/double quoted strings grouped as single token.
             '"' | '\'' => Some(parse_string(&mut it)?),
-            // Identifiers and reserved keywords
-            // TODO: Benchmark if a..z vs looking at char code range.
-            // 'a'..='z' | 'A'..='Z' | '_' => {
-
-            // }
-            // '@' => {        // TODO: Remove?
-            //     let mut token_str: String = String::from("");
-            //     it.next();
-            //     gobble_digits(&mut token_str, &mut it);
-            //     // TODO: Better panic handling
-            //     if let Some(id) = token_str.parse::<u64>().ok() {
-            //         // TODO: Map the IDs to something else so we don't re-use IDs
-            //         Some(Atom::SymbolValue( context.get_or_create_cell_symbol(id) ))
-                    
-            //     } else {
-            //         // TODO: Invalid identifier
-            //         return Err(PARSE_ERR_UNKNOWN_TOKEN);
-            //     }
-            // },
             _ => {
+                // Symbols and reserved symbols
                 let token_str: String = parse_identifier(&mut it);
                 let keyword = reserved_keyword(&token_str);
                 if keyword.is_some() {
@@ -318,6 +260,13 @@ pub fn lex(context: &mut Context, expr: &str) -> Result<Vec<Atom>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[macro_export]
+    macro_rules! numeric_literal {
+        ($val:expr) => ({
+        Atom::NumericValue($val)
+        });
+    }
 
     #[test]
     fn test_lex_float() {
