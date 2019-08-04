@@ -76,8 +76,25 @@ pub fn interpret_expr(mut env: &mut Runtime, expression: &Expression, context: &
                     println!("Detected symbol as a built-in operator");
                     apply_operator(&mut env, *kw, &mut expr_stack);
                 } else {
-                    expr_stack.push(*kw);
+                    // Lookup result of symbol
+                    // TODO: Pointer vs symbols
                     // TODO: Scoping rules
+                    if let Some(atom) = env.resolve_symbol(*kw) {
+                        match atom {
+                            Atom::NumericValue(num) => {
+                                expr_stack.push(num.to_bits());
+                            },
+                            Atom::SymbolValue(sym) => {
+                                expr_stack.push(*sym);
+                            }, 
+                            _ => {
+                                expr_stack.push(*kw);
+                            }
+                        }
+                    } else {
+                        expr_stack.push(*kw);
+                    }
+                    
                 }
             }, 
             Atom::NumericValue(num) => {
