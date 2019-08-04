@@ -121,7 +121,7 @@ pub fn interpret_one(input: String) -> u64 {
     println!("Input: {:?}", input);
     let mut lexed = lex(&mut ast, &input).unwrap();
     println!("Lexed: {:?}", lexed);
-    let parsed = parser::apply_operator_precedence(0, &mut lexed).parsed;
+    let parsed = parser::apply_operator_precedence(&ast, 0, ast.next_symbol_id, &mut lexed).parsed;
     println!("parsed: {:?}", parsed);
     // TODO: A base, shared global namespace.
     

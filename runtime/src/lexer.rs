@@ -132,7 +132,7 @@ fn is_delimiter(ch: char) -> bool {
     // Delimiters for splitting tokens
     match ch {
         '(' | ')' | '[' | ']' | '{' | '}' | '"' | '\'' | 
-        ',' | ',' | ':' | ';' |
+        '.' | ',' | ':' | ';' |
         '-' | '+' | '*' | '/' |  // Split to support unary -
         ' ' | '\t' | '\n' => true,
         _ => false

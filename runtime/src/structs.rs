@@ -123,9 +123,10 @@ impl Context {
 }
 
 
-#[derive(Debug,PartialEq)]
+#[derive(Debug,PartialEq,Clone)]
 pub struct Expression {
-    pub id: u64,
+    pub id: u64,        // Cell ID
+    pub cell_symbol: u64,
     pub parsed: Vec<Atom>,
     pub depends_on: Vec<u64>,
     pub used_by: Vec<u64>,
@@ -138,6 +139,7 @@ impl Expression {
     pub fn new(id: u64) -> Expression {
         return Expression {
             id: id,
+            cell_symbol: 0,
             parsed: Vec::with_capacity(0), 
             depends_on: Vec::with_capacity(0),
             used_by: Vec::with_capacity(0),

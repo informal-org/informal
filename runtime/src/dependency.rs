@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use fnv::{FnvHashMap, FnvHashSet};
 use std::collections::VecDeque;
 
 use avs::constants::{RUNTIME_ERR_CIRCULAR_DEP};
@@ -15,20 +15,26 @@ pub fn get_eval_order(cells: &mut Vec<Expression>) -> Vec<Expression> {
     let mut leafs: VecDeque<Expression> = VecDeque::with_capacity(cells.len());
 
     // ID -> Count
-    let mut depend_count: HashMap<u64, Expression> = HashMap::with_capacity(cells.len());
+    let mut depend_count: FnvHashMap<u64, Expression> = FnvHashMap::with_capacity_and_hasher(cells.len(), Default::default());
+
+    let mut scope_symbols: FnvHashSet<u64> = FnvHashSet::default();
 
     // Find leafs
     for mut cell in cells.drain(..) {
+        scope_symbols.insert(cell.cell_symbol);
         match cell.depends_on.len() {
             0 => {
                 leafs.push_back(cell);
             },
             _ => {
                 cell.unmet_depend_count = cell.depends_on.len() as i32;
-                depend_count.insert(cell.id, cell);
+                depend_count.insert(cell.cell_symbol, cell);
             }
         };
     }
+
+    println!("Leafs: {:?}", leafs);
+    println!("Depend count: {:?}", depend_count);
 
     // Iterate over leafs repeatedly building up eval order
     while let Some(leaf) = leafs.pop_front() {
@@ -49,8 +55,13 @@ pub fn get_eval_order(cells: &mut Vec<Expression>) -> Vec<Expression> {
     
     // Mark any elements remaining with unmet dependencies as having circular dependencies.
     for (dep_count, mut unmet_dep) in depend_count.drain() {
-        unmet_dep.set_result(RUNTIME_ERR_CIRCULAR_DEP);
-        eval_order.push(unmet_dep);
+        println!("Found unmet dep");
+        // Only treat other cells/pointers as unmet dependency
+        // Note that any depdency not present in the original cell list may be marked as unmet.
+        if scope_symbols.contains(&unmet_dep.cell_symbol) {
+            unmet_dep.set_result(RUNTIME_ERR_CIRCULAR_DEP);
+            eval_order.push(unmet_dep);
+        }
     }
     
     return eval_order
@@ -81,44 +92,51 @@ mod tests {
 
 
     // TODO: Implement this without Clone
-    // #[test]
-    // fn test_eval_order() {
-    //     let mut a = ASTNode::new(1);
-    //     let mut b = ASTNode::new(2);
-    //     let mut c = ASTNode::new(3);
-    //     let mut d = ASTNode::new(4);
-    //     let mut e = ASTNode::new(5);
-    //     let mut f = ASTNode::new(6);
+    #[test]
+    fn test_eval_order() {
+        let mut a = Expression::new(1);
+        a.cell_symbol = 1;
+        let mut b = Expression::new(2);
+        b.cell_symbol = 2;
+        let mut c = Expression::new(3);
+        c.cell_symbol = 3;
+        let mut d = Expression::new(4);
+        d.cell_symbol = 4;
+        let mut e = Expression::new(5);
+        e.cell_symbol = 5;
+        let mut f = Expression::new(6);
+        f.cell_symbol = 6;
 
-    // /*
-    // // #       a
-    // // #    b    c
-    // // #         d
-    // // #       e   f
-    // */
+    /*
+    // #       a
+    // #    b    c
+    // #         d
+    // #       e   f
+    */
 
-    //     add_dep!(a, b);
-    //     add_dep!(a, c);
-    //     add_dep!(c, d);
-    //     add_dep!(d, e);
-    //     add_dep!(d, f);
+        add_dep!(a, b);
+        add_dep!(a, c);
+        add_dep!(c, d);
+        add_dep!(d, e);
+        add_dep!(d, f);
 
-    //     let mut cells = vec![a.clone(), b.clone(), c.clone(), d.clone(), e.clone(), f.clone()];
-    //     let count = cells.len();
-    //     let order = get_eval_order(&mut cells);
+        let mut cells = vec![a.clone(), b.clone(), c.clone(), d.clone(), e.clone(), f.clone()];
+        let count = cells.len();
+        let order = get_eval_order(&mut cells);
 
-    //     println!("{:?}", order);
+        println!("{:?}", order);
 
-    //     // Assert everything returned
-    //     assert_eq!(order.len(), count);
-    //     // Expect ordered maintained. Doesn't matter if e is before or after f.
+        // Assert everything returned
+        assert_eq!(order.len(), count);
+        // Expect ordered maintained. Doesn't matter if e is before or after f.
 
-    //     assert_eq!(index_of(&order, &e) < index_of(&order, &d), true);
-    //     assert_eq!(index_of(&order, &f) < index_of(&order, &d), true);
-    //     assert_eq!(index_of(&order, &d) < index_of(&order, &c), true);
-    //     assert_eq!(index_of(&order, &c) < index_of(&order, &a), true);
-    //     assert_eq!(index_of(&order, &b) < index_of(&order, &a), true);
-    //     // Node A should be evaluated last
-    //     assert_eq!(index_of(&order, &a) == (order.len() as i32) - 1, true);
-    // }
+        assert_eq!(index_of(&order, &e) < index_of(&order, &d), true);
+        assert_eq!(index_of(&order, &f) < index_of(&order, &d), true);
+        assert_eq!(index_of(&order, &d) < index_of(&order, &c), true);
+        assert_eq!(index_of(&order, &c) < index_of(&order, &a), true);
+        assert_eq!(index_of(&order, &b) < index_of(&order, &a), true);
+        // Node A should be evaluated last
+        assert_eq!(index_of(&order, &a) == (order.len() as i32) - 1, true);
+    }
+
 }

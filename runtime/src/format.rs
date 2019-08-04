@@ -20,7 +20,7 @@ pub fn repr(env: &Runtime, result: u64) -> String {
                 // Built in symbols
                 symbol_str.to_string()
             } else {
-                if let Some(atom) = env.get_atom(result) {
+                if let Some(atom) = env.resolve_symbol(result) {
                     match atom {
                         Atom::NumericValue(num) => {
                             format!("{}", num)
@@ -37,16 +37,10 @@ pub fn repr(env: &Runtime, result: u64) -> String {
                     }
                 } else {
                     // Print symbol name instead
-                    format!("Symbol {:X} ", result)
+                    format!("Symbol {} ", result)
                 }
                 
             }
-            // if result == SYMBOL_TRUE {
-            //     format!("TRUE")
-            // } else {
-            //     // TODO: Handle all the other symbols (None, etc.)
-            //     format!("Not true {:X} ", result)
-            // }
         },
         ValueType::ObjectType | ValueType::StringType => {
             if is_error(result) {
@@ -57,7 +51,7 @@ pub fn repr(env: &Runtime, result: u64) -> String {
                 // repr_object(&obj)
 
                 // TODO: Handle
-                format!("Is non error object or string todo ")
+                format!("(Object)")
             }
         }
         // _ => {

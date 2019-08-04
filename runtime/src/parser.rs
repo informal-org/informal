@@ -30,7 +30,7 @@ fn get_op_precedence(symbol: u64) -> u8 {
 
 // TODO: There may be additional edge cases for handling inline function calls within the expression
 // Current assumption is that all variable references are to a value.
-pub fn apply_operator_precedence(id: u64, infix: &mut Vec<Atom>) -> Expression {
+pub fn apply_operator_precedence(context: &Context, id: u64, cell_symbol: u64, infix: &mut Vec<Atom>) -> Expression {
     // Parse the lexed infix input and construct a postfix version
     // Current implementation uses the shunting yard algorithm for operator precedence.
     let mut postfix: Vec<Atom> = Vec::with_capacity(infix.len());
@@ -74,7 +74,10 @@ pub fn apply_operator_precedence(id: u64, infix: &mut Vec<Atom>) -> Expression {
 
                             let other_precedence = get_op_precedence(*op_peek_last);
                             if other_precedence >= my_precedence {        // output any higher priority operators.
-                                postfix.push(Atom::SymbolValue(operator_stack.pop().unwrap()));
+                                let stack_symbol = operator_stack.pop().unwrap();
+                                // Dependency is managed at cell/pointer level
+                                depends_on.push(stack_symbol);
+                                postfix.push(Atom::SymbolValue(stack_symbol));
                             } else {
                                 break;
                             }
@@ -109,8 +112,13 @@ pub fn apply_operator_precedence(id: u64, infix: &mut Vec<Atom>) -> Expression {
             _ => {}
         }
         postfix.push(Atom::SymbolValue(op_kw));
+        // Don't push operators in
+        if context.cell_symbols.is_some() && context.cell_symbols.as_ref().unwrap().contains_key(&op_kw) {
+            depends_on.push(op_kw);
+        }
     }
     let mut node = Expression::new(id);
+    node.cell_symbol = cell_symbol;
     node.parsed = postfix;
     node.depends_on = depends_on;
     return node;
@@ -126,15 +134,17 @@ mod tests {
     fn test_parse_basic() {
         // Verify straightforward conversion to postfix
         // 1 + 2
+        let mut context = Context::new(APP_SYMBOL_START);
         let mut input: Vec<Atom> = vec![Atom::NumericValue(1.0), Atom::SymbolValue(SYMBOL_PLUS), Atom::NumericValue(2.0)];
         let output: Vec<Atom> = vec![Atom::NumericValue(1.0), Atom::NumericValue(2.0), Atom::SymbolValue(SYMBOL_PLUS)];
-        assert_eq!(apply_operator_precedence(0, &mut input).parsed, output);
+        assert_eq!(apply_operator_precedence(&context, 0, context.next_symbol_id, &mut input).parsed, output);
     }
 
     #[test]
     fn test_parse_add_mult() {
         // Verify order of operands - multiply before addition
         // 1 * 2 + 3 = 1 2 * 3 +
+        let mut context = Context::new(APP_SYMBOL_START);
         let mut input: Vec<Atom> = vec![
             Atom::NumericValue(1.0), 
             Atom::SymbolValue(SYMBOL_MULTIPLY), 
@@ -149,7 +159,7 @@ mod tests {
             Atom::NumericValue(3.0),
             Atom::SymbolValue(SYMBOL_PLUS),
         ];
-        assert_eq!(apply_operator_precedence(0, &mut input).parsed, output);
+        assert_eq!(apply_operator_precedence(&context, 0, context.next_symbol_id, &mut input).parsed, output);
 
         // above test with order reversed. 1 + 2 * 3 = 1 2 3 * +
         let mut input2: Vec<Atom> = vec![
@@ -168,13 +178,14 @@ mod tests {
             Atom::SymbolValue(SYMBOL_PLUS),
         ];
 
-        assert_eq!(apply_operator_precedence(0, &mut input2).parsed, output2);
+        assert_eq!(apply_operator_precedence(&context, 0, context.next_symbol_id, &mut input2).parsed, output2);
     }
 
     #[test]
     fn test_parse_add_mult_paren() {
         // Verify order of operands - multiply before addition
         // 1 * (2 + 3) = 1 2 3 + *
+        let mut context = Context::new(APP_SYMBOL_START);
         let mut input: Vec<Atom> = vec![
             Atom::NumericValue(1.0), 
             Atom::SymbolValue(SYMBOL_MULTIPLY), 
@@ -191,7 +202,7 @@ mod tests {
             Atom::SymbolValue(SYMBOL_PLUS),
             Atom::SymbolValue(SYMBOL_MULTIPLY)
         ];
-        assert_eq!(apply_operator_precedence(0, &mut input).parsed, output);
+        assert_eq!(apply_operator_precedence(&context, 0, context.next_symbol_id, &mut input).parsed, output);
 
         // above test with order reversed. (1 + 2) * 3 = 1 2 + 3 *
         let mut input2: Vec<Atom> = vec![
@@ -212,6 +223,6 @@ mod tests {
             Atom::SymbolValue(SYMBOL_MULTIPLY),
         ];
 
-        assert_eq!(apply_operator_precedence(0, &mut input2).parsed, output2);
+        assert_eq!(apply_operator_precedence(&context, 0, context.next_symbol_id, &mut input2).parsed, output2);
     }
 }

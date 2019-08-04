@@ -321,23 +321,67 @@ mod tests {
     }    
 
 
-    // #[test]
-    // fn test_reval_string_literals() {
-    //     let cell_a = CellRequest {id: 1, name: Some(String::from("one")), input: String::from("\"hello\"")};
-    //     // Can't just have single value inputs anymore, need cells as inputs
-    //     let mut program = EvalRequest {
-    //         body: vec![cell_a]
-    //     };
-    //     let i_result = interpreter::interpret_all(program);
-    //     println!("{:?}", i_result);
-    //     // assert_eq!(true, false);
-    // }
+    #[test]
+    fn test_resolution_order() {
+        // Should order the cells appropriately since two depends on three
+        let cell_a = CellRequest {id: 1, name: Some(String::from("one")), input: String::from("1 + 1")};
+        let cell_b = CellRequest {id: 2, name: Some(String::from("two")), input: String::from("three")};
+        let cell_c = CellRequest {id: 3, name: Some(String::from("three")), input: String::from("one")};
+
+        // Can't just have single value inputs anymore, need cells as inputs
+        let mut program = EvalRequest {
+            body: Vec::new()
+        };
+        program.body.push(cell_a);
+        program.body.push(cell_b);
+        program.body.push(cell_c);
+
+        let i_result = interpreter::interpret_all(program);
+
+        let expected_a = CellResponse {
+            id: 1, 
+            output: String::from("2"),
+            error: String::from("")
+        };
+
+        let expected_b = CellResponse {
+            id: 2, 
+            output: String::from("2"),
+            error: String::from("")
+        };
+
+        let expected_c = CellResponse {
+            id: 3, 
+            output: String::from("2"),
+            error: String::from("")
+        };        
+
+        let mut expected_results = Vec::new();
+        expected_results.push(expected_a);
+        expected_results.push(expected_b);
+        expected_results.push(expected_c);
+
+        assert_eq!(i_result.results, expected_results);    
+    }    
+
+
+    #[test]
+    fn test_reval_string_literals() {
+        let cell_a = CellRequest {id: 1, name: Some(String::from("one")), input: String::from("\"hello\"")};
+        // Can't just have single value inputs anymore, need cells as inputs
+        let mut program = EvalRequest {
+            body: vec![cell_a]
+        };
+        let i_result = interpreter::interpret_all(program);
+        println!("{:?}", i_result);
+        // assert_eq!(true, false);
+    }
 
     // #[test]
     // fn test_reval_string_concat() {
     //     let cell_a = CellRequest {id: 1, name: Some(String::from("one")), input: String::from("\"Hello\"")};
-    //     let cell_b = CellRequest {id: 2, name: Some(String::from("two")), input: String::from("@1 + \" Arevel\"")};
-    //     let cell_c = CellRequest {id: 3, name: Some(String::from("three")), input: String::from("\" Arevel\" + @1")};
+    //     let cell_b = CellRequest {id: 2, name: Some(String::from("two")), input: String::from("one + \" Arevel\"")};
+    //     let cell_c = CellRequest {id: 3, name: Some(String::from("three")), input: String::from("\" Arevel\" + one")};
     //     // Can't just have single value inputs anymore, need cells as inputs
     //     let mut program = EvalRequest {
     //         body: vec![cell_a, cell_b, cell_c]

@@ -30,8 +30,8 @@ used_by_buffer: &mut FnvHashMap<u64, Vec<u64>>) {
     }
 
     // If this node has any buffered up used_by entries, save it.
-    if used_by_buffer.contains_key(&ast_node.id) {
-        ast_node.used_by = used_by_buffer.remove(&ast_node.id).unwrap();
+    if used_by_buffer.contains_key(&ast_node.cell_symbol) {
+        ast_node.used_by = used_by_buffer.remove(&ast_node.cell_symbol).unwrap();
     }
 }
 
@@ -78,7 +78,7 @@ pub fn construct_ast(request: EvalRequest) -> Context {
         if lex_result.is_ok() {
             let mut lexed = lex_result.unwrap();
             let cell_symbol_value = ast.get_cell_symbol(cell.id).unwrap();
-            let mut ast_node = apply_operator_precedence(cell.id, &mut lexed);
+            let mut ast_node = apply_operator_precedence(&ast, cell.id, *cell_symbol_value, &mut lexed);
 
             update_used_by(&cell_symbol_value, &mut ast_node, &mut cell_list, &mut cell_index_map, &mut used_by_buffer);
 
