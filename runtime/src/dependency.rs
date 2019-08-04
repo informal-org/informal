@@ -17,11 +17,9 @@ pub fn get_eval_order(cells: &mut Vec<Expression>) -> Vec<Expression> {
     // ID -> Count
     let mut depend_count: FnvHashMap<u64, Expression> = FnvHashMap::with_capacity_and_hasher(cells.len(), Default::default());
 
-    let mut scope_symbols: FnvHashSet<u64> = FnvHashSet::default();
 
     // Find leafs
     for mut cell in cells.drain(..) {
-        scope_symbols.insert(cell.cell_symbol);
         match cell.depends_on.len() {
             0 => {
                 leafs.push_back(cell);
@@ -58,10 +56,8 @@ pub fn get_eval_order(cells: &mut Vec<Expression>) -> Vec<Expression> {
         println!("Found unmet dep");
         // Only treat other cells/pointers as unmet dependency
         // Note that any depdency not present in the original cell list may be marked as unmet.
-        if scope_symbols.contains(&unmet_dep.cell_symbol) {
-            unmet_dep.set_result(RUNTIME_ERR_CIRCULAR_DEP);
-            eval_order.push(unmet_dep);
-        }
+        unmet_dep.set_result(RUNTIME_ERR_CIRCULAR_DEP);
+        eval_order.push(unmet_dep);
     }
     
     return eval_order

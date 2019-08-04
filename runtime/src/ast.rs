@@ -69,6 +69,7 @@ pub fn construct_ast(request: EvalRequest) -> Context {
     // Cell ID -> Internal Symbol ID for results
     let mut ast = Context::new(APP_SYMBOL_START);
     ast.cell_symbols = Some(FnvHashMap::default());
+    ast.symbols_cell = Some(FnvHashMap::default());
     define_symbols(&request, &mut ast);
 
     // The lexer already needs to know the meaning of symbols so it can create new ones

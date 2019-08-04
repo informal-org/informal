@@ -46,6 +46,11 @@ pub struct Context {
     // (Root context only) Cell IDs -> Symbol IDs for cells without a name
     pub cell_symbols: Option<FnvHashMap<u64, u64>>,
 
+
+    // (Root context only) Cell IDs -> Symbol IDs for cells without a name
+    pub symbols_cell: Option<FnvHashMap<u64, u64>>,
+
+
     pub body: Vec<Expression>,
 
     pub next_symbol_id: u64,
@@ -58,6 +63,7 @@ impl Context {
             normname_symbols: FnvHashMap::default(),
             symbols_name: FnvHashMap::default(),
             cell_symbols: None,
+            symbols_cell: None,
             body: Vec::with_capacity(0),
             next_symbol_id: next_symbol_id,
         }
@@ -87,8 +93,9 @@ impl Context {
         if let Some(existing_id) = self.cell_symbols.as_ref().unwrap().get(&cell_id) {
             *existing_id 
         } else {
-            let symbol_id = self.next_symbol();
+            let symbol_id = self.next_symbol();         // TODO: Create pointer types for these
             self.cell_symbols.as_mut().unwrap().insert(cell_id, symbol_id);
+            self.symbols_cell.as_mut().unwrap().insert(symbol_id, cell_id);
             symbol_id
         }
     }

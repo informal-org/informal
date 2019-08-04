@@ -357,9 +357,10 @@ mod tests {
         };        
 
         let mut expected_results = Vec::new();
+        // Evaluate 3 before 2
         expected_results.push(expected_a);
-        expected_results.push(expected_b);
         expected_results.push(expected_c);
+        expected_results.push(expected_b);
 
         assert_eq!(i_result.results, expected_results);    
     }    

@@ -112,9 +112,13 @@ pub fn apply_operator_precedence(context: &Context, id: u64, cell_symbol: u64, i
             _ => {}
         }
         postfix.push(Atom::SymbolValue(op_kw));
+        println!("Checking if {} is a cell", op_kw);
         // Don't push operators in
-        if context.cell_symbols.is_some() && context.cell_symbols.as_ref().unwrap().contains_key(&op_kw) {
+        if context.symbols_cell.is_some() && context.symbols_cell.as_ref().unwrap().contains_key(&op_kw) {
+            println!("Adding dependency");
             depends_on.push(op_kw);
+        } else {
+            println!("Not found: {:?}", context.symbols_cell);
         }
     }
     let mut node = Expression::new(id);
