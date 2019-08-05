@@ -31,6 +31,8 @@ cd $AREVEL_BASE/avs
 cp header.wat $RELEASE_DIR
 cp footer.wat $RELEASE_DIR
 
+# Copy setup script
+cp $AREVEL_BASE/bin/instance-startup.sh $RELEASE_DIR
 
 # Package release
 cd $RELEASE_DIR/..

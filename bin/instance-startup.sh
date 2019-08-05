@@ -1,19 +1,14 @@
-#!/bin/sh
+#!/bin/bash
 set -ex
 export HOME=/app
 export RELEASE_DIR=/app/arevel-release/
 
-mkdir -p ${HOME}
-cd ${HOME}
-RELEASE_URL=$(curl \
-    -s "http://metadata.google.internal/computeMetadata/v1/instance/attributes/release-url" \
-    -H "Metadata-Flavor: Google")
-gsutil cp ${RELEASE_URL} arevel-release.tar.gz
-tar -xvzf arevel-release.tar.gz
-
-
-# Link project directories
-
+# Link project directories - create www & arevelcom dirs
+sudo mkdir -p /var/www/arevelcom
+sudo chown arevelapp /var/www/arevelcom
+cd /var/www/arevelcom
+ln -s /app/arevel-release/static/ static
+ln -s /app/arevel-release/templates/ templates
 
 
 
@@ -84,8 +79,32 @@ PROJECT_ID=$(curl \
     -H "Metadata-Flavor: Google")
 #./cloud_sql_proxy -projects=${PROJECT_ID} -dir=/tmp/cloudsql &
 
-
 chmod 755 $RELEASE_DIR/arevel
+
+# Systemd setup
+sudo cat <<EOF >> /etc/systemd/system/arevel.service
+[Unit]
+Description="Arevel web app"
+After=network.target
+
+[Service]
+User=arevelapp
+Group=arevelapp
+Environment=PORT=9080,env=prod
+ExecStart=/app/arevel-release/arevel
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+
+sudo systemctl status arevel
+echo "Starting"
+sleep 3
+sudo systemctl start arevel
+
+echo "Arevel server started"
 
 #PORT=9080 ./arevel
 
