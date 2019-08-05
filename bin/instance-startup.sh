@@ -1,6 +1,8 @@
 #!/bin/sh
 set -ex
 export HOME=/app
+export RELEASE_DIR=/app/arevel-release/
+
 mkdir -p ${HOME}
 cd ${HOME}
 RELEASE_URL=$(curl \
@@ -8,7 +10,13 @@ RELEASE_URL=$(curl \
     -H "Metadata-Flavor: Google")
 gsutil cp ${RELEASE_URL} arevel-release.tar.gz
 tar -xvzf arevel-release.tar.gz
-chmod 755 arevel
+
+
+# Link project directories
+
+
+
+
 #wget https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64 \
 #    -O cloud_sql_proxy
 #chmod +x cloud_sql_proxy
@@ -75,7 +83,11 @@ PROJECT_ID=$(curl \
     -s "http://metadata.google.internal/computeMetadata/v1/project/project-id" \
     -H "Metadata-Flavor: Google")
 #./cloud_sql_proxy -projects=${PROJECT_ID} -dir=/tmp/cloudsql &
-PORT=9080 ./arevel
+
+
+chmod 755 $RELEASE_DIR/arevel
+
+#PORT=9080 ./arevel
 
 
 

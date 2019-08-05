@@ -5,9 +5,17 @@ use runtime::format;
 use runtime::interpreter::{interpret_all};
 use runtime::structs::{CellResponse, EvalRequest, EvalResponse};
 
-fn home(_req: HttpRequest) -> actix_web::Result<NamedFile> {
+fn landing(_req: HttpRequest) -> actix_web::Result<NamedFile> {
     // let path: PathBuf = req.match_info().query("filename").parse().unwrap();
-    return Ok(NamedFile::open("templates/index.html")?)
+    return Ok(NamedFile::open("/var/www/arevelcom/templates/landing.html")?)
+}
+
+fn arevel(_req: HttpRequest) -> actix_web::Result<NamedFile> {
+    return Ok(NamedFile::open("/var/www/arevelcom/templates/index.html")?)
+}
+
+fn health() -> impl Responder {
+    return "OK"
 }
 
 fn evaluate(req: web::Json<EvalRequest>) -> impl Responder {
@@ -25,11 +33,13 @@ fn evaluate(req: web::Json<EvalRequest>) -> impl Responder {
 pub fn main() {
     HttpServer::new(|| {
         App::new()
-        .route("/", web::get().to(home))
+        .route("/", web::get().to(landing))
+        .route("/arevel", web::get().to(arevel))
+        .route("/_info/health", web::get().to(health))
         .route("/api/evaluate", web::post().to(evaluate))
-        .service(fs::Files::new("/static", "static/dist/static"))
+        .service(fs::Files::new("/static", "/var/www/arevelcom/static/"))  // static/dist/static
     })
-    .bind("127.0.0.1:9080")
+    .bind("0.0.0.0:9080")
     .expect("Can not bind to port 9080")
     .run()
     .unwrap();
