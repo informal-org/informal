@@ -142,7 +142,7 @@ pub fn interpret_all(request: EvalRequest) -> EvalResponse {
 
     for node in ast.body.iter() {
         let result = interpret_expr(&mut global_env, &node, &ast);
-        println!("Got result {:?}", repr(&global_env, result));
+        println!("Got result {:?}", repr(&global_env, &ast, result));
         
         // Don't double-encode symbols
         let symbol_id = ast.cell_symbols.as_ref().unwrap().get(&node.id).unwrap();
@@ -153,14 +153,14 @@ pub fn interpret_all(request: EvalRequest) -> EvalResponse {
         
         match __av_typeof(result){
             ValueType::NumericType | ValueType::StringType | ValueType::SymbolType => {
-                output = repr(&global_env, result);
+                output = repr(&global_env, &ast, result);
             },
             ValueType::ObjectType => {
                 if is_error(result) {
                     // Errors returned in different field.
                     err = repr_error(result);
                 } else {
-                    output = repr(&global_env, result);
+                    output = repr(&global_env, &ast, result);
                 }
             }
         }

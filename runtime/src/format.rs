@@ -1,9 +1,10 @@
+use crate::structs::Context;
 use avs::types::{__av_typeof, is_error};
 use avs::structs::{ValueType, Runtime, Atom};
 use avs::constants::*;
 use avs::runtime::ID_SYMBOL_MAP;
 
-pub fn repr(env: &Runtime, result: u64) -> String {
+pub fn repr(env: &Runtime, context: &Context, result: u64) -> String {
     let result_type = __av_typeof(result);
     match result_type {
         ValueType::NumericType => {
@@ -29,17 +30,22 @@ pub fn repr(env: &Runtime, result: u64) -> String {
                             format!("\"{}\"", str_val)
                         }
                         Atom::SymbolValue(symbol) => {
-                            format!("{:X}", symbol)
+                            format!("({:X})", symbol)
                         },
                         Atom::ObjectValue(obj_val) => {
                             format!("{}", obj_val.id)
                         }
                     }
                 } else {
-                    // Print symbol name instead
-                    format!("Symbol {} ", result)
+                    // Print un-resolved symbols as-is
+                    // format!("Symbol {} ", result)
+                    if let Some(name) = context.symbols_name.get(&result) {
+                        name.to_string()
+                    } else {
+                        format!("({}) ", result)
+                    }
+
                 }
-                
             }
         },
         ValueType::ObjectType | ValueType::StringType => {
@@ -60,13 +66,13 @@ pub fn repr(env: &Runtime, result: u64) -> String {
     }
 }
 
-pub fn print_stacktrace(env: &Runtime, stack: &Vec<u64>) {
-    println!("----------Stack----------");
-    for val in stack {
-        println!("{:?}", repr(env, *val));
-    }
-    println!("-------------------------");
-}
+// pub fn print_stacktrace(env: &Runtime, stack: &Vec<u64>) {
+//     println!("----------Stack----------");
+//     for val in stack {
+//         println!("{:?}", repr(env, *val));
+//     }
+//     println!("-------------------------");
+// }
 
 pub fn repr_object(obj: &Runtime) -> String {
     // match obj.av_class {

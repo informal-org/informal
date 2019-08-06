@@ -92,6 +92,11 @@ impl Runtime {
             if let Some(atom) = self.symbols.get(&current_symbol) {
                 match atom {
                     Atom::SymbolValue(next_symbol) => {
+                        if *next_symbol == current_symbol || *next_symbol == symbol {
+                            println!("Cyclic symbol reference");
+                            // Terminate on cycles
+                            return None
+                        }
                         current_symbol = *next_symbol
                     }, 
                     _ => return Some(atom)
