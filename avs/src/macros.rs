@@ -19,13 +19,10 @@ macro_rules! disallow_nan {
 #[macro_export]
 macro_rules! valid_num {
 	($val:expr) => ({
-		if __av_typeof($val) != ValueType::NumericType {
-			return RUNTIME_ERR_EXPECTED_NUM
-		}
 		let f_val = f64::from_bits($val);
-		// Disallow nan
-		if f_val != f_val {
-			return RUNTIME_ERR_TYPE_NAN
+		// Disallow nan or other data types
+		if is_nan(f_val) {
+			return RUNTIME_ERR_EXPECTED_NUM
 		}
 		f_val
 	})
@@ -34,12 +31,9 @@ macro_rules! valid_num {
 #[macro_export]
 macro_rules! resolve_atom {
 	($env:expr, $val:expr) => ({
+		let f_val = f64::from_bits($val);
 		// Given a u64, return the f64 resolved value or raise error
-		if is_number($val) {
-			let f_val = f64::from_bits($val);
-			if f_val != f_val {
-				return RUNTIME_ERR_TYPE_NAN
-			}
+		if !is_nan(f_val) {
 			Atom::NumericValue(f_val)
 		} else if is_symbol($val) {
 			// TODO: Resolve rather than get to follow symbols?
@@ -50,7 +44,7 @@ macro_rules! resolve_atom {
 				Atom::SymbolValue($val)
 			}
 		} else {
-			// Should not happen
+			// Encountered other NaN Type
 			return RUNTIME_ERR_EXPECTED_NUM
 		}
 	})
