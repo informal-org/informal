@@ -1,3 +1,5 @@
+use avs::utils::create_string_pointer;
+use avs::utils::create_pointer_symbol;
 use avs::utils::create_value_symbol;
 use avs::structs::Atom;
 use avs::constants::*;
@@ -82,18 +84,32 @@ impl Context {
         return self.symbols_name.get(&symbol);
     }
 
-    pub fn next_symbol(&mut self) -> u64 {
+    pub fn next_value_symbol(&mut self) -> u64 {
+        // These symbols reference themselves
         let next_symbol: u64 = create_value_symbol( self.next_symbol_id );
         self.next_symbol_id += 1;
         return next_symbol;
     }
     
+    pub fn next_string_symbol(&mut self, _value: String) -> u64 {
+        // TODO: Encode length in symbol
+        let next_symbol: u64 = create_string_pointer( self.next_symbol_id );
+        self.next_symbol_id += 1;
+        return next_symbol;
+    }
+
+    pub fn next_pointer(&mut self) -> u64 {
+        let next_symbol: u64 = create_pointer_symbol(self.next_symbol_id);
+        self.next_symbol_id += 1;
+        return next_symbol;
+    }
+
     // TODO: Methods for defining a child scope
     pub fn get_or_create_cell_symbol(&mut self, cell_id: u64) -> u64 {
         if let Some(existing_id) = self.cell_symbols.as_ref().unwrap().get(&cell_id) {
             *existing_id 
         } else {
-            let symbol_id = self.next_symbol();         // TODO: Create pointer types for these
+            let symbol_id = self.next_pointer();
             self.cell_symbols.as_mut().unwrap().insert(cell_id, symbol_id);
             self.symbols_cell.as_mut().unwrap().insert(symbol_id, cell_id);
             symbol_id
@@ -108,7 +124,7 @@ impl Context {
             return *existing_val.unwrap();
         }
 
-        let symbol_id = self.next_symbol();
+        let symbol_id = self.next_value_symbol();
         self.normname_symbols.insert(name_upper, symbol_id);
         self.symbols_name.insert(symbol_id, name);
         symbol_id

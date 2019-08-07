@@ -1,6 +1,4 @@
 use avs::constants::APP_SYMBOL_START;
-use avs::utils::create_value_symbol;
-// use std::collections::HashMap;
 use fnv::FnvHashMap;
 use super::dependency::{get_eval_order};
 use super::structs::*;
