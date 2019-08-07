@@ -129,8 +129,12 @@ mod tests {
         ($e:expr, $expected:expr) => ({
             // Execute both a compiled and interpreted version
             let i_result = interpreter::interpret_one(String::from($e));
+            let context = Context::new(avs::constants::APP_SYMBOL_START);
+
+            let fmt_interpreted = format::repr(&Runtime::new(18445899648779484648), &context, i_result);
+            let fmt_expected = format::repr(&Runtime::new(18445899648779484648), &context, $expected);
             // TODO: correct avobject
-            println!("Checking interpreted result {:?} expected {:?}", format::repr(&Runtime::new(18445899648779484648), i_result), format::repr(&Runtime::new(18445899648779484648), $expected));
+            println!("Checking interpreted result {:?} expected {:?}", fmt_interpreted, fmt_expected);
             assert_eq!(i_result, $expected);
             
 
@@ -145,7 +149,8 @@ mod tests {
             // Execute both a compiled and interpreted version
             let i_result = interpreter::interpret_one(String::from($e));
             let i_result_f = f64::from_bits(i_result);
-            println!("Checking interpreted result: {:?} {:?}", i_result, i_result_f);
+
+            println!("Checking interpreted result: {:?} {:?}", i_result_f, $expected);
             assert_eq!(i_result_f, $expected);
             
             // let c_result = eval(read(String::from($e)))[0];
