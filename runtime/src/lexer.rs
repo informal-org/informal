@@ -198,10 +198,9 @@ macro_rules! apply_unary_minus {
     });
 }
 
-pub fn lex(context: &mut Context, expr: &str) -> Result<Vec<Atom>> {
+pub fn lex_expression(context: &mut Context, mut it: &mut Peekable<std::str::Chars<'_>>) -> Result<Vec<Atom>> {
     // Split into lexemes based on some known operators
     let mut tokens: Vec<Atom> = vec![];
-    let mut it = expr.chars().peekable();
 
     while let Some(&ch) = it.peek() {
         // The match should have a case for each starting value of any valid token
@@ -257,6 +256,35 @@ pub fn lex(context: &mut Context, expr: &str) -> Result<Vec<Atom>> {
     return Ok(tokens);
 }
 
+pub fn lex(mut context: &mut Context, expr: &str) -> Result<Vec<Atom>> {
+    let mut it = expr.chars().peekable();
+    if let Some(ch) = it.peek() {
+        match ch {
+            // Treated as string if there's whitespace before
+            '=' => {
+                println!("Parsing expression");
+                it.next();
+                return lex_expression(&mut context, &mut it);
+            },
+            _ => {
+                // Treat expression as-is as a string constant, like spreadsheets do
+                if let Ok(maybe_f) = lexical::try_parse::<f64, _>(expr.trim()) {
+                    println!("Detected float");
+                    let tokens: Vec<Atom> = vec![Atom::NumericValue(maybe_f)];
+                    return Ok(tokens);
+                } else {
+                    println!("fallback to string");
+                    let tokens: Vec<Atom> = vec![Atom::StringValue(expr.to_string())];
+                    return Ok(tokens);
+                }                
+            }
+        }
+    } else {
+        let tokens: Vec<Atom> = vec![];
+        return Ok(tokens);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -275,15 +303,15 @@ mod tests {
         assert_eq!(lex(&mut context, "3.1415").unwrap(), [numeric_literal!(3.1415)]);
 
         // Note: Numeric literals converted to float in lexer. Handled separately in parser.
-        assert_eq!(lex(&mut context, "9 .75 9").unwrap(), [numeric_literal!(9.0), numeric_literal!(0.75), numeric_literal!(9.0)]);
-        assert_eq!(lex(&mut context, "9 1e10").unwrap(), [numeric_literal!(9.0), numeric_literal!(1e10)]);
+        assert_eq!(lex(&mut context, "=9 .75 9").unwrap(), [numeric_literal!(9.0), numeric_literal!(0.75), numeric_literal!(9.0)]);
+        assert_eq!(lex(&mut context, "=9 1e10").unwrap(), [numeric_literal!(9.0), numeric_literal!(1e10)]);
         assert_eq!(lex(&mut context, "1e-10").unwrap(), [numeric_literal!(1e-10)]);
         assert_eq!(lex(&mut context, "123e+10").unwrap(), [numeric_literal!(123e+10)]);
         assert_eq!(lex(&mut context, "4.237e+101").unwrap(), [numeric_literal!(4.237e+101)]);
 
         // Error on undefined exponents.
-        assert_eq!(lex(&mut context, "5.1e").unwrap_err(), PARSE_ERR_INVALID_FLOAT);
-        assert_eq!(lex(&mut context, "5.1e ").unwrap_err(), PARSE_ERR_INVALID_FLOAT);
+        assert_eq!(lex(&mut context, "=5.1e").unwrap_err(), PARSE_ERR_INVALID_FLOAT);
+        assert_eq!(lex(&mut context, "=5.1e ").unwrap_err(), PARSE_ERR_INVALID_FLOAT);
         // 30_000_000 syntax support? Stick to standard valid floats for now.
     }
 
@@ -293,13 +321,13 @@ mod tests {
         // Unary minus is handled at the lexer stage.
         assert_eq!(lex(&mut context, "-1").unwrap(), [numeric_literal!(-1.0)]);
         assert_eq!(lex(&mut context, "-.05").unwrap(), [numeric_literal!(-0.05)]);
-        assert_eq!(lex(&mut context, "5 -.05").unwrap(), [numeric_literal!(5.0), Atom::SymbolValue(SYMBOL_MINUS), numeric_literal!(0.05)]);
-        assert_eq!(lex(&mut context, "5 + -2").unwrap(), [numeric_literal!(5.0), Atom::SymbolValue(SYMBOL_PLUS), numeric_literal!(-2.0)]);
+        assert_eq!(lex(&mut context, "=5 -.05").unwrap(), [numeric_literal!(5.0), Atom::SymbolValue(SYMBOL_MINUS), numeric_literal!(0.05)]);
+        assert_eq!(lex(&mut context, "=5 + -2").unwrap(), [numeric_literal!(5.0), Atom::SymbolValue(SYMBOL_PLUS), numeric_literal!(-2.0)]);
 
-        assert_eq!(lex(&mut context, "5 + -.05").unwrap(), [numeric_literal!(5.0), Atom::SymbolValue(SYMBOL_PLUS), numeric_literal!(-0.05)]);
-        assert_eq!(lex(&mut context, "-(4) + 2").unwrap(), [numeric_literal!(-1.0), Atom::SymbolValue(SYMBOL_MULTIPLY), Atom::SymbolValue(SYMBOL_OPEN_PAREN), 
+        assert_eq!(lex(&mut context, "=5 + -.05").unwrap(), [numeric_literal!(5.0), Atom::SymbolValue(SYMBOL_PLUS), numeric_literal!(-0.05)]);
+        assert_eq!(lex(&mut context, "=-(4) + 2").unwrap(), [numeric_literal!(-1.0), Atom::SymbolValue(SYMBOL_MULTIPLY), Atom::SymbolValue(SYMBOL_OPEN_PAREN), 
          numeric_literal!(4.0), Atom::SymbolValue(SYMBOL_CLOSE_PAREN), Atom::SymbolValue(SYMBOL_PLUS), numeric_literal!(2.0)] );
-        assert_eq!(lex(&mut context, "5 * -(2)").unwrap(), [numeric_literal!(5.0), Atom::SymbolValue(SYMBOL_MULTIPLY), numeric_literal!(-1.0), 
+        assert_eq!(lex(&mut context, "=5 * -(2)").unwrap(), [numeric_literal!(5.0), Atom::SymbolValue(SYMBOL_MULTIPLY), numeric_literal!(-1.0), 
             Atom::SymbolValue(SYMBOL_MULTIPLY), Atom::SymbolValue(SYMBOL_OPEN_PAREN), numeric_literal!(2.0), Atom::SymbolValue(SYMBOL_CLOSE_PAREN) ]);
     }
 
