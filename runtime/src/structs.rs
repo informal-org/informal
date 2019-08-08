@@ -1,6 +1,4 @@
-use avs::utils::create_string_pointer;
-use avs::utils::create_pointer_symbol;
-use avs::utils::create_value_symbol;
+use avs::utils::{create_string_pointer, create_pointer_symbol, create_value_symbol};
 use avs::structs::Atom;
 use avs::constants::*;
 use fnv::FnvHashMap;
@@ -52,9 +50,10 @@ pub struct Context {
     // (Root context only) Cell IDs -> Symbol IDs for cells without a name
     pub symbols_cell: Option<FnvHashMap<u64, u64>>,
 
-
     pub body: Vec<Expression>,
 
+    // We could maintain multiple "next" indexes for each symbol type to maximize symbol-space
+    // Keeping it simple for now.
     pub next_symbol_id: u64,
 }
 

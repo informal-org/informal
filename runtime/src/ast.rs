@@ -37,6 +37,10 @@ used_by_buffer: &mut FnvHashMap<u64, Vec<u64>>) {
 pub fn define_symbols(request: &EvalRequest, ast: &mut Context) {
     // We may encounter these symbols and names while lexing, so do a pre-pass
     // to define these.
+    // TODO: Right now these are all arbitrary pointer symbols. If you better integrate it, 
+    // the cell IDs & name IDs can better encode type information for constants. 
+    // i.e. a cell with Name = "hello" can point straight to it. Or one with Count = 2 might 
+    // have an ID of "2" directly without a symbol intermediary.
 
     for cell in request.body.iter() {
         // Attempt to parse ID of cell and save result "@42" -> 42

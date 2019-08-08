@@ -380,7 +380,7 @@ mod tests {
         };
         let i_result = interpreter::interpret_all(program);
         println!("{:?}", i_result);
-        // assert_eq!(true, false);
+        assert_eq!(true, false);
     }
 
     // #[test]

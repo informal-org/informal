@@ -3,6 +3,7 @@ use alloc::rc::Rc;
 use alloc::string::String;
 use alloc::vec::Vec;
 use crate::constants::*;
+use crate::utils::{create_string_pointer, create_pointer_symbol};
 use fnv::FnvHashMap;
 
 
@@ -38,11 +39,18 @@ impl Runtime {
 
     /// Saves an object into the symbol table and returns the symbol
     pub fn save_atom(&mut self, atom: Atom) -> u64 {
-        let next_id = self.next_symbol_id;
+        let next_id = create_pointer_symbol(self.next_symbol_id);
         self.symbols.insert(next_id, atom);
         self.next_symbol_id += 1;
         return next_id
     }
+
+    pub fn save_string(&mut self, atom: Atom) -> u64 {
+        let next_id = create_string_pointer(self.next_symbol_id);
+        self.symbols.insert(next_id, atom);
+        self.next_symbol_id += 1;
+        return next_id
+    }    
 
     /// Replace the value of an existing symbol in the symbol table
     pub fn set_atom(&mut self, symbol: u64, atom: Atom) {
@@ -191,6 +199,23 @@ impl AvObject {
 
     pub fn get_value(&mut self, index: usize) -> u64 {
         return self.av_values.as_ref().unwrap()[index];
+    }
+
+}
+
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_symbol_type() {
+        let mut env = Runtime::new(APP_SYMBOL_START);
+        // TODO: Test longer vs shorter string
+        let symbol_id = env.save_string(Atom::StringValue("Hello".to_string()));
+        let symbol_header = symbol_id & VALHEAD_MASK;
+        assert_eq!(symbol_header, VALUE_T_PTR_STR);
     }
 
 }

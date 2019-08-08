@@ -104,7 +104,7 @@ pub fn interpret_expr(mut env: &mut Runtime, expression: &Expression, context: &
             Atom::StringValue(val) => {
                 // Save object to heap and return pointer
                 // TODO: Non-copying version
-                let symbol_id = env.save_atom(Atom::StringValue(val.to_string()));
+                let symbol_id = env.save_string(Atom::StringValue(val.to_string()));
                 expr_stack.push(symbol_id);
             },
             Atom::ObjectValue(val) => {

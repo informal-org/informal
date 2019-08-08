@@ -24,3 +24,4 @@ pub fn create_string_pointer(raw: u64) -> u64 {
     // TODO: Pointer, length in the future.
     return raw | VALUE_T_PTR_STR;
 }
+
