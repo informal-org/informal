@@ -115,6 +115,15 @@ impl Context {
         }
     }
 
+    pub fn get_symbol(&self, name: String) -> Option<u64> {
+        let name_upper = name.to_uppercase();
+        let existing_val = self.normname_symbols.get(&name_upper);
+        if existing_val.is_some() {
+            return Some(*existing_val.unwrap());
+        }
+        return None;
+    }
+
     // Symbol used in expression
     pub fn get_or_create_symbol(&mut self, name: String) -> u64 {
         let name_upper = name.to_uppercase();

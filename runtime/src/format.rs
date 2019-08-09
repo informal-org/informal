@@ -123,6 +123,8 @@ pub fn repr_error(result: u64) -> String {
         String::from("There's a token in an unexpected location in this expression.")
     } else if result == PARSE_ERR_UNMATCHED_PARENS {
         String::from("Arevel couldn't find where the brackets end. Check whether all opened brackets are closed.")
+    } else if result == PARSE_ERR_UNK_SYMBOL {
+        String::from("Arevel didn't recognize the symbol.")
     } else if result == RUNTIME_ERR_INVALID_TYPE {
         String::from("That data type doesn't work with this operation.")
     } else if result == RUNTIME_ERR_TYPE_NAN {

@@ -243,8 +243,11 @@ pub fn lex(mut context: &mut Context, expr: &str) -> Result<Vec<Atom>> {
                     // Currently disallow operator overloading and changing built-in keywords
                     keyword
                 } else {
-                    // New, user-defined symbol
-                    Some(Atom::SymbolValue( context.get_or_create_symbol(token_str) ))
+                    if let Some(symbol_id) = context.get_symbol(token_str) {
+                        Some(Atom::SymbolValue( symbol_id))
+                    } else {
+                        return Err(PARSE_ERR_UNK_SYMBOL);
+                    }
                 }
             }
         };

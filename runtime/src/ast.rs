@@ -77,20 +77,24 @@ pub fn construct_ast(request: EvalRequest) -> Context {
     // The lexer already needs to know the meaning of symbols so it can create new ones
     // So it should just return used by as well in a single pass.
     for cell in request.body {
-        let mut lex_result = lex(&mut ast, &cell.input);
-        if lex_result.is_ok() {
+        let lex_result = lex(&mut ast, &cell.input);
+        let cell_symbol_value = ast.get_cell_symbol(cell.id).unwrap();
+        let ast_node = if lex_result.is_ok() {
             let mut lexed = lex_result.unwrap();
-            let cell_symbol_value = ast.get_cell_symbol(cell.id).unwrap();
-            let mut ast_node = apply_operator_precedence(&ast, cell.id, *cell_symbol_value, &mut lexed);
-
-            update_used_by(&cell_symbol_value, &mut ast_node, &mut cell_list, &mut cell_index_map, &mut used_by_buffer);
-
-            cell_list.push(ast_node);
-            cell_index_map.insert(*cell_symbol_value, cell_list.len() - 1);            
+            let mut node = apply_operator_precedence(&ast, cell.id, *cell_symbol_value, &mut lexed);
+            update_used_by(&cell_symbol_value, &mut node, &mut cell_list, &mut cell_index_map, &mut used_by_buffer);
+            node
         } else {
             // TODO: Propagate this failure up to user.
-            println!("Lexing failure for Node {:?} {:X}", cell, lex_result.err().unwrap());
-        }
+            // println!("Lexing failure for Node {:?} {:X}", cell, lex_result.err().unwrap());
+
+            let mut node = Expression::new(cell.id);
+            node.cell_symbol = *cell_symbol_value;
+            node.result = Some(lex_result.err().unwrap());
+            node
+        };
+        cell_list.push(ast_node);
+        cell_index_map.insert(*cell_symbol_value, cell_list.len() - 1);
     }
     // Do a pass over all the nodes to resolve used_by. You could partially do this inline using a hashmap
     // Assert - used_by_buffer empty by now.
