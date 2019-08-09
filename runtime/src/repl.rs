@@ -170,54 +170,54 @@ mod tests {
 
     #[test]
     fn test_reval_arithmetic() {
-        read_eval_check_f!("=( 2 ) ", 2.0);
-        read_eval_check_f!("=1 + 2", 3.0);
-        read_eval_check_f!("=3 * 2", 6.0);
-        read_eval_check_f!("=12 * 2 / 3", 8.0);
-        read_eval_check_f!("=48 / 3 / 2", 8.0);
-        read_eval_check_f!("=1 + 2 * 3 + 4", 11.0);
-        read_eval_check_f!("=2 * (3 + 4) ", 14.0);
-        read_eval_check_f!("=2 * 2 / (5 - 1) + 3", 4.0);
+        read_eval_check_f!("( 2 ) ", 2.0);
+        read_eval_check_f!("1 + 2", 3.0);
+        read_eval_check_f!("3 * 2", 6.0);
+        read_eval_check_f!("12 * 2 / 3", 8.0);
+        read_eval_check_f!("48 / 3 / 2", 8.0);
+        read_eval_check_f!("1 + 2 * 3 + 4", 11.0);
+        read_eval_check_f!("2 * (3 + 4) ", 14.0);
+        read_eval_check_f!("2 * 2 / (5 - 1) + 3", 4.0);
     }
 
     #[test]
     fn test_unary_minus(){
-        read_eval_check_f!("=2 + -1", 1.0);
-        read_eval_check_f!("=5 * -2", -10.0);
-        read_eval_check_f!("=5 * -(2)", -10.0);
-        read_eval_check_f!("=5 * -(1 + 1)", -10.0);
-        read_eval_check_f!("=-(4) + 2", -2.0);
+        read_eval_check_f!("2 + -1", 1.0);
+        read_eval_check_f!("5 * -2", -10.0);
+        read_eval_check_f!("5 * -(2)", -10.0);
+        read_eval_check_f!("5 * -(1 + 1)", -10.0);
+        read_eval_check_f!("-(4) + 2", -2.0);
     }
 
     #[test]
     fn test_reval_bool() {
-        read_eval_check!("=true", SYMBOL_TRUE);
-        read_eval_check!("=false", SYMBOL_FALSE);
-        read_eval_check!("=true or false", SYMBOL_TRUE);
-        read_eval_check!("=true and false", SYMBOL_FALSE);
+        read_eval_check!("true", SYMBOL_TRUE);
+        read_eval_check!("false", SYMBOL_FALSE);
+        read_eval_check!("true or false", SYMBOL_TRUE);
+        read_eval_check!("true and false", SYMBOL_FALSE);
     }
 
     #[test]
     fn test_reval_bool_not() {
         // Not is kind of a special case since it's a bit of a unary op
-        read_eval_check!("=true and not false", SYMBOL_TRUE);
-        read_eval_check!("=not true or false", SYMBOL_FALSE);
+        read_eval_check!("true and not false", SYMBOL_TRUE);
+        read_eval_check!("not true or false", SYMBOL_FALSE);
     }
 
     #[test]
     fn test_reval_comparison() {
-        read_eval_check!("=1 < 2", SYMBOL_TRUE);
-        read_eval_check!("=2 < 1", SYMBOL_FALSE);
-        read_eval_check!("=2 > 1", SYMBOL_TRUE);
-        read_eval_check!("=1 >= 0", SYMBOL_TRUE);
-        read_eval_check!("=-1 > 1", SYMBOL_FALSE);
+        read_eval_check!("1 < 2", SYMBOL_TRUE);
+        read_eval_check!("2 < 1", SYMBOL_FALSE);
+        read_eval_check!("2 > 1", SYMBOL_TRUE);
+        read_eval_check!("1 >= 0", SYMBOL_TRUE);
+        read_eval_check!("-1 > 1", SYMBOL_FALSE);
     }
 
 
     #[test]
     fn test_program_eval() {
-        let cell_a = CellRequest {id: 1, name: Some(String::from("one")), input: String::from("=1 + 1")};
-        let cell_b = CellRequest {id: 2, name: Some(String::from("two")), input: String::from("=2 + 1")};
+        let cell_a = CellRequest {id: 1, name: Some(String::from("one")), input: String::from("1 + 1")};
+        let cell_b = CellRequest {id: 2, name: Some(String::from("two")), input: String::from("2 + 1")};
 
         // Can't just have single value inputs anymore, need cells as inputs
         let mut program = EvalRequest {
@@ -250,8 +250,8 @@ mod tests {
 
     #[test]
     fn test_identifiers() {
-        let cell_a = CellRequest {id: 1, name: Some(String::from("One")), input: String::from("=1 + 1")};
-        let cell_b = CellRequest {id: 2, name: Some(String::from("two")), input: String::from("=One + 3")};
+        let cell_a = CellRequest {id: 1, name: Some(String::from("One")), input: String::from("1 + 1")};
+        let cell_b = CellRequest {id: 2, name: Some(String::from("two")), input: String::from("One + 3")};
 
         // Can't just have single value inputs anymore, need cells as inputs
         let mut program = EvalRequest {
@@ -285,9 +285,9 @@ mod tests {
 
     #[test]
     fn test_resolution() {
-        let cell_a = CellRequest {id: 1, name: Some(String::from("one")), input: String::from("=1 + 1")};
-        let cell_b = CellRequest {id: 2, name: Some(String::from("two")), input: String::from("=one")};
-        let cell_c = CellRequest {id: 3, name: Some(String::from("three")), input: String::from("=two")};
+        let cell_a = CellRequest {id: 1, name: Some(String::from("one")), input: String::from("1 + 1")};
+        let cell_b = CellRequest {id: 2, name: Some(String::from("two")), input: String::from("one")};
+        let cell_c = CellRequest {id: 3, name: Some(String::from("three")), input: String::from("two")};
 
         // Can't just have single value inputs anymore, need cells as inputs
         let mut program = EvalRequest {
@@ -329,9 +329,9 @@ mod tests {
     #[test]
     fn test_resolution_order() {
         // Should order the cells appropriately since two depends on three
-        let cell_a = CellRequest {id: 1, name: Some(String::from("one")), input: String::from("=1 + 1")};
-        let cell_b = CellRequest {id: 2, name: Some(String::from("two")), input: String::from("=three")};
-        let cell_c = CellRequest {id: 3, name: Some(String::from("three")), input: String::from("=one")};
+        let cell_a = CellRequest {id: 1, name: Some(String::from("one")), input: String::from("1 + 1")};
+        let cell_b = CellRequest {id: 2, name: Some(String::from("two")), input: String::from("three")};
+        let cell_c = CellRequest {id: 3, name: Some(String::from("three")), input: String::from("one")};
 
         // Can't just have single value inputs anymore, need cells as inputs
         let mut program = EvalRequest {
