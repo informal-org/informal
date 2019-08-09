@@ -48,7 +48,14 @@ pub fn repr(env: &Runtime, context: &Context, result: u64) -> String {
                 }
             }
         },
-        ValueType::ObjectType | ValueType::StringType => {
+        ValueType::StringType => {
+            if let Some(Atom::StringValue(str_val)) = env.resolve_symbol(result) {
+                format!("\"{}\"", str_val)
+            } else {
+                format!("(String)")
+            }
+        },
+        ValueType::ObjectType => {
             if is_error(result) {
                 repr_error(result)
             } else {
