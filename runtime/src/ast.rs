@@ -85,9 +85,6 @@ pub fn construct_ast(request: EvalRequest) -> Context {
             update_used_by(&cell_symbol_value, &mut node, &mut cell_list, &mut cell_index_map, &mut used_by_buffer);
             node
         } else {
-            // TODO: Propagate this failure up to user.
-            // println!("Lexing failure for Node {:?} {:X}", cell, lex_result.err().unwrap());
-
             let mut node = Expression::new(cell.id);
             node.cell_symbol = *cell_symbol_value;
             node.result = Some(lex_result.err().unwrap());

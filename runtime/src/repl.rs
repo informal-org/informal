@@ -383,6 +383,22 @@ mod tests {
         // assert_eq!(true, false);
     }
 
+
+    #[test]
+    fn test_builtin_fncall() {
+        let program = EvalRequest {
+            body: vec![
+                CellRequest {id: 1, name: Some(String::from("one")), input: String::from("min(4, 3)")}
+            ]
+        };
+        let i_result = interpreter::interpret_all(program);
+        let expected_results = vec![
+            CellResponse { id: 1, output: String::from("3"), error: String::from("") }
+        ];
+        assert_eq!(i_result.results, expected_results);
+    }    
+
+
     // #[test]
     // fn test_reval_string_concat() {
     //     let cell_a = CellRequest {id: 1, name: Some(String::from("one")), input: String::from("\"Hello\"")};
