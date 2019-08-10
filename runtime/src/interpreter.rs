@@ -73,7 +73,6 @@ pub fn interpret_expr(mut env: &mut Runtime, expression: &Expression, context: &
             Atom::SymbolValue(kw) => {
                 // TODO: Check if built in operator or an identifier
                 if ID_SYMBOL_MAP.contains_key(kw) {
-                    println!("Detected symbol as a built-in operator");
                     apply_operator(&mut env, *kw, &mut expr_stack);
                 } else {
                     // Lookup result of symbol

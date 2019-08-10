@@ -28,6 +28,15 @@ fn get_op_precedence(symbol: u64) -> u8 {
     return 16
 }
 
+pub fn is_dependency_symbol(context: &Context, symbol: u64) -> bool {
+    // Check if a symbol is a valid dependency (i.e. not a built in operator/symbol)
+    // One option - check for any symbols that are outside the built-in range.
+    return (symbol & PAYLOAD_MASK) >= APP_SYMBOL_START
+
+    // Another - check against cell list
+    // context.symbols_cell.is_some() && context.symbols_cell.as_ref().unwrap().contains_key(&op_kw)
+}
+
 // TODO: There may be additional edge cases for handling inline function calls within the expression
 // Current assumption is that all variable references are to a value.
 pub fn apply_operator_precedence(context: &Context, id: u64, cell_symbol: u64, infix: &mut Vec<Atom>) -> Expression {
@@ -75,8 +84,11 @@ pub fn apply_operator_precedence(context: &Context, id: u64, cell_symbol: u64, i
                             let other_precedence = get_op_precedence(*op_peek_last);
                             if other_precedence >= my_precedence {        // output any higher priority operators.
                                 let stack_symbol = operator_stack.pop().unwrap();
-                                // Dependency is managed at cell/pointer level
-                                depends_on.push(stack_symbol);
+                                // Dependency is managed at cell/pointer level. Treat built-in symbols as met.
+                                if is_dependency_symbol(&context, stack_symbol) {
+                                    depends_on.push(stack_symbol);
+                                }
+                                
                                 postfix.push(Atom::SymbolValue(stack_symbol));
                             } else {
                                 break;
@@ -107,7 +119,7 @@ pub fn apply_operator_precedence(context: &Context, id: u64, cell_symbol: u64, i
         }
         postfix.push(Atom::SymbolValue(op_kw));
         // Don't push operators in
-        if context.symbols_cell.is_some() && context.symbols_cell.as_ref().unwrap().contains_key(&op_kw) {
+        if is_dependency_symbol(&context, op_kw) {
             depends_on.push(op_kw);
         }
     }

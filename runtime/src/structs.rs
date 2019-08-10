@@ -62,7 +62,7 @@ pub struct Context {
 impl fmt::Debug for Context {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut parts = vec![];
-        parts.push(String::from("Context{\n"));
+        parts.push(String::from("Context {\n"));
 
         parts.push(format!("Cells: {:#?}\n", self.cell_symbols));
         parts.push(format!("Names: {:#?}\n", self.symbols_name));
@@ -197,15 +197,15 @@ fn fmt_symbols_list(list: &Vec<u64>) -> String {
 impl fmt::Debug for Expression {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut parts = vec![];
-        parts.push(String::from("Expression{\n"));
-        parts.push(format!("id: {:#?}\n", self.id));
-        parts.push(format!("cell_symbol: {:X}\n", self.cell_symbol));
-        parts.push(format!("parsed: {:#?}\n", self.parsed));
-        parts.push(format!("depends_on: {:#?}\n", fmt_symbols_list(&self.depends_on)));
-        parts.push(format!("used_by: {:#?}\n", fmt_symbols_list(&self.used_by)));
-        parts.push(format!("unmet_depend_count: {:#?}\n", self.unmet_depend_count));
+        parts.push(String::from("Expression {\n"));
+        parts.push(format!("\tid: {:#?}\n", self.id));
+        parts.push(format!("\tcell_symbol: {:X}\n", self.cell_symbol));
+        parts.push(format!("\tparsed: {:#?}\n", self.parsed));
+        parts.push(format!("\tdepends_on: {} \n", fmt_symbols_list(&self.depends_on)));
+        parts.push(format!("\tused_by: {}\n", fmt_symbols_list(&self.used_by)));
+        parts.push(format!("\tunmet_depend_count: {:#?}\n", self.unmet_depend_count));
         if self.result.is_some() {
-            parts.push(format!("result: {:X}\n", self.result.unwrap()));
+            parts.push(format!("\tresult: {:X}\n", self.result.unwrap()));
         }
 
         parts.push(String::from("}"));
