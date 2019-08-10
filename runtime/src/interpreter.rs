@@ -94,7 +94,6 @@ pub fn interpret_expr(mut env: &mut Runtime, expression: &Expression, context: &
                     } else {
                         expr_stack.push(*kw);
                     }
-                    
                 }
             }, 
             Atom::NumericValue(num) => {

@@ -100,6 +100,16 @@ lazy_static! {
 }
 
 #[cfg(not(target_os = "unknown"))]
+fn repr_symbol(symbol: &u64) -> String {
+    let builtin_name = ID_SYMBOL_MAP.get(symbol);
+    if builtin_name.is_some(){
+        format!("Symbol({:X},{})", symbol, builtin_name.unwrap())
+    } else {
+        format!("Symbol({:X})", symbol)
+    }
+}
+
+#[cfg(not(target_os = "unknown"))]
 impl fmt::Debug for Atom {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -110,7 +120,7 @@ impl fmt::Debug for Atom {
                 write!(f, "StringValue({})", str_val)
             }
             Atom::SymbolValue(symbol) => {
-                write!(f, "SymbolValue({})", symbol)
+                write!(f, "{}", repr_symbol(symbol))
             },
             Atom::ObjectValue(obj_val) => {
                 write!(f, "ObjectValue({})", obj_val.id)

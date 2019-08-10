@@ -75,7 +75,7 @@ pub const SYMBOL_EMPTY_ARR: u64         = 0xFFFB_0000_0000_0042;
 pub const SYMBOL_EMPTY_STR: u64         = 0xFFFA_0000_0000_FFFF;
 
 
-// Internal sentinal nodes for hash tables.
+// Internal sentinel nodes for hash tables. (Unused)
 pub const SYMBOL_SENTINEL_EMPTY: u64    = 0xFFFB_0000_0000_004A;
 pub const SYMBOL_SENTINEL_DELETED: u64  = 0xFFFB_0000_0000_004B;
 pub const SYMBOL_SENTINEL_SENTINEL: u64 = 0xFFFB_0000_0000_004C;
@@ -122,9 +122,6 @@ pub const SYMBOL_COLON: u64 = 0xFFFF_0000_0000_0014;
 pub const SYMBOL_SEMI_COLON: u64 = 0xFFFF_0000_0000_0015;
 
 
-// TODO: Investigate whether having statically defined Atom constants for each symbol are worth it.
-
-
 // For built in classes (Use to_symbol to encode these as symbols)
 // Object class constants for built-in types.
 pub const AV_CLASS_OBJECT: u64 = 0xFFFF_0000_0000_1025;
@@ -157,7 +154,7 @@ pub const PARSE_ERR_UNKNOWN_TOKEN: u64      = 0xFFF9_0400_0000_0000;
 pub const PARSE_ERR_UNEXPECTED_TOKEN: u64   = 0xFFF9_0500_0000_0000;
 pub const PARSE_ERR_UNMATCHED_PARENS: u64   = 0xFFF9_0600_0000_0000;
 pub const PARSE_ERR_USED_NAME: u64          = 0xFFF9_0700_0000_0000;
-pub const PARSE_ERR_UNK_SYMBOL: u64          = 0xFFF9_0800_0000_0000;
+pub const PARSE_ERR_UNK_SYMBOL: u64         = 0xFFF9_0800_0000_0000;
 
 // Type checking errors
 pub const RUNTIME_ERR_INVALID_TYPE: u64     = 0xFFF9_0001_0000_0000;

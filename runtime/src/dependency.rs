@@ -31,9 +31,6 @@ pub fn get_eval_order(cells: &mut Vec<Expression>) -> Vec<Expression> {
         };
     }
 
-    println!("Leafs: {:?}", leafs);
-    println!("Depend count: {:?}", depend_count);
-
     // Iterate over leafs repeatedly building up eval order
     while let Some(leaf) = leafs.pop_front() {
         for cell_user_id in &leaf.used_by {

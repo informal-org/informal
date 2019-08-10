@@ -90,11 +90,6 @@ pub fn apply_operator_precedence(context: &Context, id: u64, cell_symbol: u64, i
             Atom::NumericValue(_lit) => postfix.push(token),
             Atom::StringValue(_lit) => postfix.push(token),
             Atom::ObjectValue(_lit) => postfix.push(token),     // Should not happen
-            // TODO!!!!!!!!!!!!
-            // TokenType::Identifier(_id) => {
-            //     depends_on.push(*_id);
-            //     postfix.push(token)
-            // }
         }
     }
 
@@ -106,19 +101,14 @@ pub fn apply_operator_precedence(context: &Context, id: u64, cell_symbol: u64, i
         match op_kw {
             SYMBOL_OPEN_PAREN => {
                 println!("Invalid paren in drain operator stack");
-                // return Err(PARSE_ERR_UNMATCHED_PARENS)
                 return Expression::err(id, PARSE_ERR_UNMATCHED_PARENS)
             }
             _ => {}
         }
         postfix.push(Atom::SymbolValue(op_kw));
-        println!("Checking if {} is a cell", op_kw);
         // Don't push operators in
         if context.symbols_cell.is_some() && context.symbols_cell.as_ref().unwrap().contains_key(&op_kw) {
-            println!("Adding dependency");
             depends_on.push(op_kw);
-        } else {
-            println!("Not found: {:?}", context.symbols_cell);
         }
     }
     let mut node = Expression::new(id);

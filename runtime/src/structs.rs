@@ -3,6 +3,8 @@ use avs::structs::Atom;
 use avs::constants::*;
 use fnv::FnvHashMap;
 use crate::Result;
+use core::fmt;
+
 
 #[derive(Serialize, PartialEq, Debug)]
 pub struct CellResponse {
@@ -33,7 +35,6 @@ pub struct EvalRequest {
 // Primary AST linked list structure
 // Pure functions are scoped to their parameters. i.e. null parent.
 // You can reference parent, but never child or sibiling data.
-#[derive(Debug)]
 pub struct Context {
     pub parent: Box<Option<Context>>,
     
@@ -56,6 +57,23 @@ pub struct Context {
     // Keeping it simple for now.
     pub next_symbol_id: u64,
 }
+
+#[cfg(not(target_os = "unknown"))]
+impl fmt::Debug for Context {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut parts = vec![];
+        parts.push(String::from("Context{\n"));
+
+        parts.push(format!("Cells: {:#?}\n", self.cell_symbols));
+        parts.push(format!("Names: {:#?}\n", self.symbols_name));
+        parts.push(format!("Body: {:#?}\n", self.body));
+
+        parts.push(String::from("\n}"));
+
+        write!(f, "{}", parts.join(""))
+    }
+}
+
 
 impl Context {
     pub fn new(next_symbol_id: u64) -> Context {
@@ -154,7 +172,7 @@ impl Context {
 }
 
 
-#[derive(Debug,PartialEq,Clone)]
+#[derive(PartialEq,Clone)]
 pub struct Expression {
     pub id: u64,        // Cell ID
     pub cell_symbol: u64,
@@ -165,6 +183,37 @@ pub struct Expression {
     pub unmet_depend_count: i32,
     pub result: Option<u64>
 }
+
+fn fmt_symbols_list(list: &Vec<u64>) -> String {
+    let mut output = vec![];
+    for item in list {
+        output.push(format!("{:X}", item));
+    }
+    return output.join(",");
+}
+
+
+#[cfg(not(target_os = "unknown"))]
+impl fmt::Debug for Expression {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut parts = vec![];
+        parts.push(String::from("Expression{\n"));
+        parts.push(format!("id: {:#?}\n", self.id));
+        parts.push(format!("cell_symbol: {:X}\n", self.cell_symbol));
+        parts.push(format!("parsed: {:#?}\n", self.parsed));
+        parts.push(format!("depends_on: {:#?}\n", fmt_symbols_list(&self.depends_on)));
+        parts.push(format!("used_by: {:#?}\n", fmt_symbols_list(&self.used_by)));
+        parts.push(format!("unmet_depend_count: {:#?}\n", self.unmet_depend_count));
+        if self.result.is_some() {
+            parts.push(format!("result: {:X}\n", self.result.unwrap()));
+        }
+
+        parts.push(String::from("}"));
+
+        write!(f, "{}", parts.join(""))
+    }
+}
+
 
 impl Expression {
     pub fn new(id: u64) -> Expression {

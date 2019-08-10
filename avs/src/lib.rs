@@ -46,7 +46,6 @@ extern {
 
 #[no_mangle]
 #[inline(never)]
-// pub extern "C" fn __av_save(results: &mut Vec<u64>, id: usize, value: u64) { 
 pub extern "C" fn __av_save(env: &mut Runtime, id: u64, value: Atom) { 
 	env.set_atom(id, value);
 }
