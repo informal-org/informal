@@ -102,6 +102,7 @@ pub fn apply_operator_precedence(context: &Context, id: u64, cell_symbol: u64, i
             Atom::NumericValue(_lit) => postfix.push(token),
             Atom::StringValue(_lit) => postfix.push(token),
             Atom::ObjectValue(_lit) => postfix.push(token),     // Should not happen
+            Atom::HashMapValue(_lit) => postfix.push(token)     // Should not happen
         }
     }
 

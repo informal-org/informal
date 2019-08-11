@@ -12,7 +12,8 @@ pub enum ValueType {
     NumericType,
     StringType,
 	ObjectType,
-    SymbolType
+    SymbolType,
+    HashMapType
 }
 
 #[derive(PartialEq,Clone)]
@@ -20,7 +21,8 @@ pub enum Atom {
     NumericValue(f64),
     StringValue(String),
     SymbolValue(u64),
-    ObjectValue(AvObject)
+    ObjectValue(AvObject),
+    HashMapValue(FnvHashMap<u64, Atom>)
 }
 
 // Context available during program execution managing current runtime state

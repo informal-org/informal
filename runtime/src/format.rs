@@ -2,7 +2,7 @@ use crate::structs::Context;
 use avs::types::{__av_typeof, is_error};
 use avs::structs::{ValueType, Runtime, Atom};
 use avs::constants::*;
-use avs::runtime::ID_SYMBOL_MAP;
+use avs::runtime::{ID_SYMBOL_MAP, repr_atom};
 
 pub fn repr(env: &Runtime, context: &Context, result: u64) -> String {
     let result_type = __av_typeof(result);
@@ -22,20 +22,7 @@ pub fn repr(env: &Runtime, context: &Context, result: u64) -> String {
                 symbol_str.to_string()
             } else {
                 if let Some(atom) = env.resolve_symbol(result) {
-                    match atom {
-                        Atom::NumericValue(num) => {
-                            format!("{}", num)
-                        },
-                        Atom::StringValue(str_val) => {
-                            format!("\"{}\"", str_val)
-                        }
-                        Atom::SymbolValue(symbol) => {
-                            format!("({:X})", symbol)
-                        },
-                        Atom::ObjectValue(obj_val) => {
-                            format!("{}", obj_val.id)
-                        }
-                    }
+                    repr_atom(atom)
                 } else {
                     // Print un-resolved symbols as-is
                     // format!("Symbol {} ", result)
@@ -67,9 +54,10 @@ pub fn repr(env: &Runtime, context: &Context, result: u64) -> String {
                 format!("(Object)")
             }
         }
-        // _ => {
-        //     format!("{:?}: {:?}", result_type, result)
-        // }
+        _ => {
+            // Should not happen
+            format!("{:?}: {:?}", result_type, result)
+        }
     }
 }
 

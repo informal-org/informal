@@ -105,8 +105,8 @@ pub fn interpret_expr(mut env: &mut Runtime, expression: &Expression, context: &
                 let symbol_id = env.save_string(Atom::StringValue(val.to_string()));
                 expr_stack.push(symbol_id);
             },
-            Atom::ObjectValue(val) => {
-                println!("Unexpected Object Atom found?");
+            _ => {
+                println!("Unexpected Object/hashmap Atom found?");
             }
         }
     }
@@ -160,7 +160,8 @@ pub fn interpret_all(request: EvalRequest) -> EvalResponse {
                 } else {
                     output = repr(&global_env, &ast, result);
                 }
-            }
+            },
+            ValueType::HashMapType => {}
         }
 
         let result_symbol_id = ast.cell_symbols.as_ref().unwrap().get(&node.id).unwrap();

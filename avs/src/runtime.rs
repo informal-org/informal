@@ -100,31 +100,40 @@ lazy_static! {
 }
 
 #[cfg(not(target_os = "unknown"))]
-fn repr_symbol(symbol: &u64) -> String {
+pub fn repr_symbol(symbol: &u64) -> String {
     let builtin_name = ID_SYMBOL_MAP.get(symbol);
     if builtin_name.is_some(){
-        format!("Symbol({:X},{})", symbol, builtin_name.unwrap())
+        format!("{}", builtin_name.unwrap())
     } else {
-        format!("Symbol({:X})", symbol)
+        format!("{:X}", symbol)
+    }
+}
+
+
+#[cfg(not(target_os = "unknown"))]
+pub fn repr_atom(atom: &Atom) -> String {
+    match atom {
+        Atom::NumericValue(num) => {
+            format!("{}", num)
+        },
+        Atom::StringValue(str_val) => {
+            format!("\"{}\"", str_val)
+        }
+        Atom::SymbolValue(symbol) => {
+            repr_symbol(symbol)
+        },
+        Atom::ObjectValue(obj_val) => {
+            format!("{}", obj_val.id)
+        },
+        Atom::HashMapValue(map_val) => {
+            format!("{:#?}", map_val)
+        }
     }
 }
 
 #[cfg(not(target_os = "unknown"))]
 impl fmt::Debug for Atom {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Atom::NumericValue(num) => {
-                write!(f, "NumericValue({})", num)
-            },
-            Atom::StringValue(str_val) => {
-                write!(f, "StringValue({})", str_val)
-            }
-            Atom::SymbolValue(symbol) => {
-                write!(f, "{}", repr_symbol(symbol))
-            },
-            Atom::ObjectValue(obj_val) => {
-                write!(f, "ObjectValue({})", obj_val.id)
-            }
-        }
+        write!(f, "{}", repr_atom(&self))
     }
 }
