@@ -235,7 +235,7 @@ mod tests {
         let mut next_symbol = APP_SYMBOL_START;
         let mut runtime: Vec<SymbolAtom> = Vec::new();
 
-        for i in 0..1_000_000 {
+        for i in 0..100_000 {
             // runtime.save_atom(Atom::NumericValue(999.0));
             let value = SymbolAtom {
                 symbol: create_pointer_symbol(APP_SYMBOL_START + i),
@@ -245,7 +245,7 @@ mod tests {
         }
         b.iter(|| {
             let symbol = create_pointer_symbol(APP_SYMBOL_START);
-            for i in 0..1_000_000 {
+            for i in 0..100_000 {
                 let lookup_symbol = create_pointer_symbol(APP_SYMBOL_START + i);
 
                 let index = (truncate_symbol(lookup_symbol) - truncate_symbol(symbol)) as usize;
@@ -263,7 +263,7 @@ mod tests {
     //     let mut next_symbol = APP_SYMBOL_START;
     //     let mut runtime: Vec<SymbolAtom> = Vec::new();
 
-    //     for i in 0..1_000_000 {
+    //     for i in 0..100_000 {
     //         // runtime.save_atom(Atom::NumericValue(999.0));
     //         let value = SymbolAtom {
     //             symbol: create_pointer_symbol(APP_SYMBOL_START + i),
@@ -272,10 +272,10 @@ mod tests {
     //         runtime.push(value);
     //     }
     //     b.iter(|| {
-    //         for i in 0..1_000_000 {
+    //         for i in 0..100_000 {
     //             let lookup_symbol = create_pointer_symbol(APP_SYMBOL_START + i);
 
-    //             for index in 0..1_000_000 {
+    //             for index in 0..100_000 {
     //                 let value = &runtime[index];
     //                 if value.symbol == i {
     //                     value.symbol;
@@ -287,41 +287,41 @@ mod tests {
     // }
 
 
-    // #[bench]
-    // fn bench_binary(b: &mut Bencher) {
-    //     let mut next_symbol = APP_SYMBOL_START;
-    //     let mut runtime: Vec<SymbolAtom> = Vec::new();
+    #[bench]
+    fn bench_binary(b: &mut Bencher) {
+        let mut next_symbol = APP_SYMBOL_START;
+        let mut runtime: Vec<SymbolAtom> = Vec::new();
 
-    //     for _ in 0..1_000_000 {
-    //         // runtime.save_atom(Atom::NumericValue(999.0));
-    //         let value = SymbolAtom {
-    //             symbol: create_pointer_symbol(next_symbol),
-    //             atom: Atom::NumericValue(999.0)
-    //         };
-    //         runtime.push(value);
-    //         next_symbol = next_symbol + 1 + ((pseudo_random() % 1000) as u64);
-    //     }
-    //     b.iter(|| {
-    //         for i in 0..1_000_000 {
-    //             let lookup_symbol = create_pointer_symbol(APP_SYMBOL_START + i);
+        for _ in 0..100_000 {
+            // runtime.save_atom(Atom::NumericValue(999.0));
+            let value = SymbolAtom {
+                symbol: create_pointer_symbol(next_symbol),
+                atom: Atom::NumericValue(999.0)
+            };
+            runtime.push(value);
+            next_symbol = next_symbol + 1 + ((pseudo_random() % 1000) as u64);
+        }
+        b.iter(|| {
+            for i in 0..100_000 {
+                let lookup_symbol = create_pointer_symbol(APP_SYMBOL_START + i);
 
-    //             let mut min_index: usize = 0;
-    //             let mut max_index = runtime.len();
+                let mut min_index: usize = 0;
+                let mut max_index = runtime.len();
 
-    //             while min_index < max_index {
-    //                 let mid = ((min_index + max_index) / 2) as usize;
-    //                 let mid_symbol = runtime[mid].symbol;
-    //                 if mid_symbol == lookup_symbol {
-    //                     break;
-    //                 } else if mid_symbol < lookup_symbol {
-    //                     min_index = (mid + 1) as usize;
-    //                 } else {
-    //                     max_index = (mid - 1) as usize;
-    //                 }
-    //             }
-    //         }
-    //     });
-    // }
+                while min_index < max_index {
+                    let mid = ((min_index + max_index) / 2) as usize;
+                    let mid_symbol = runtime[mid].symbol;
+                    if mid_symbol == lookup_symbol {
+                        break;
+                    } else if mid_symbol < lookup_symbol {
+                        min_index = (mid + 1) as usize;
+                    } else {
+                        max_index = (mid - 1) as usize;
+                    }
+                }
+            }
+        });
+    }
 
     fn pseudo_random() -> u32 {
         // Between 0 and 1 billion
@@ -338,7 +338,7 @@ mod tests {
         let mut next_symbol = APP_SYMBOL_START;
         let mut runtime: Vec<SymbolAtom> = Vec::new();
 
-        for _ in 0..1_000_000 {
+        for _ in 0..100_000 {
             // runtime.save_atom(Atom::NumericValue(999.0));
             let value = SymbolAtom {
                 symbol: create_pointer_symbol(next_symbol),
@@ -349,7 +349,7 @@ mod tests {
             // next_symbol = next_symbol + 1;
         }
         b.iter(|| {
-            for i in 0..1_000_000 {
+            for i in 0..100_000 {
                 let lookup_symbol = create_pointer_symbol(APP_SYMBOL_START + i);
 
                 let trunc_look = truncate_symbol(lookup_symbol);
@@ -434,7 +434,7 @@ mod tests {
         let mut next_symbol = APP_SYMBOL_START;
         let mut runtime: Vec<SymbolAtom> = Vec::new();
 
-        for _ in 0..1_000_000 {
+        for _ in 0..100_000 {
             // runtime.save_atom(Atom::NumericValue(999.0));
             let value = SymbolAtom {
                 symbol: create_pointer_symbol(next_symbol),
@@ -445,7 +445,7 @@ mod tests {
             // next_symbol = next_symbol + 1;
         }
         b.iter(|| {
-            for i in 0..1_000_000 {
+            for i in 0..100_000 {
                 let lookup_symbol = create_pointer_symbol(APP_SYMBOL_START + i);
                 let trunc_look = truncate_symbol(lookup_symbol) as usize;
                 let mut min_index: usize = 0;
@@ -477,7 +477,7 @@ mod tests {
                     max_symbol = truncate_symbol(mid_symbol);
                 }
 
-                // Unrolled next iteration
+                // Unrolled next iteration - this time using interpolation
                 if min_index < max_index {
                     // Not found
                     continue;
@@ -493,203 +493,41 @@ mod tests {
                 if lookup_symbol == mid_symbol {
                     // We got lucky and found it. (Unlikely)
                     continue;
-                } else if lookup_symbol > mid_symbol {
+                } 
+
+                // Set interpolation endpoints based on what was set previously
+                if min_symbol != 0 {
+                    low = min_index;
+                    high = mid;
+
+                    low_symbol = min_symbol as usize;
+                    high_symbol = truncate_symbol(mid_symbol) as usize;
+                } else {
+                    // Max_symbol != 0
+                    low = mid;
+                    high = max_index;
+
+                    low_symbol = truncate_symbol(mid_symbol) as usize;
+                    high_symbol = max_symbol as usize;
+                }
+                
+                if lookup_symbol > mid_symbol {
                     // It's in the range of Mid -> End
                     // But this time, with two points we know something more about the distribution based on what we found from previous turn
                     // So rather than going to midpoint, interpolate closer to where we guess the value will be.
-
-                    if min_symbol != 0 {
-                        low = min_index;
-                        high = mid;
-
-                        low_symbol = min_symbol as usize;
-                        high_symbol = truncate_symbol(mid_symbol) as usize;
-                        // pos = lo + [ (x - arr[lo]) * (hi - lo) / (arr[hi] - arr[lo]) ]                        
-                    } else {
-                        // Max_symbol != 0
-                        low = mid;
-                        high = max_index;
-
-                        low_symbol = truncate_symbol(mid_symbol) as usize;
-                        high_symbol = max_symbol as usize;
-                        // pos = lo + [ (x - arr[lo]) * (hi - lo) / (arr[hi] - arr[lo]) ]
-                    }
                     min_index = (mid + 1) as usize;
+                    // Adjust interpolation by interpolation step
                     mid = mid + ( (trunc_look - low_symbol) * (high - low) / (high_symbol - low_symbol) );
-                    min_symbol = truncate_symbol(mid_symbol);
                 } else {
                     // Value is in the range of Start -> Mid
-                    if min_symbol != 0 {
-                        low = min_index;
-                        high = mid;
-
-                        low_symbol = min_symbol as usize;
-                        high_symbol = truncate_symbol(mid_symbol) as usize;
-                        // pos = lo + [ (x - arr[lo]) * (hi - lo) / (arr[hi] - arr[lo]) ]
-                    } else {
-                        // Max_symbol != 0
-                        low = mid;
-                        high = max_index;
-
-                        low_symbol = truncate_symbol(mid_symbol) as usize;
-                        high_symbol = max_symbol as usize;
-                        // pos = lo + [ (x - arr[lo]) * (hi - lo) / (arr[hi] - arr[lo]) ]
-                    }
-
-                    max_index = (mid - 1) as usize; // TODO: Set this before or after the comparisons?
+                    max_index = (mid - 1) as usize;
                     mid = mid - ( (trunc_look - low_symbol) * (high - low) / (high_symbol - low_symbol) );
-                    max_symbol = truncate_symbol(mid_symbol);
                 }
 
-
-
-
-
-
-
-
-
-                // Unrolled next iteration
-                // if min_index < max_index {
-                //     // Not found
-                //     continue;
-                // }
-                // mid_symbol = runtime[mid].symbol;
-
-
-                // if lookup_symbol == mid_symbol {
-                //     // We got lucky and found it. (Unlikely)
-                //     continue;
-                // } else if lookup_symbol > mid_symbol {
-                //     // It's in the range of Mid -> End
-                //     // But this time, with two points we know something more about the distribution based on what we found from previous turn
-                //     // So rather than going to midpoint, interpolate closer to where we guess the value will be.
-
-                //     if min_symbol != 0 {
-                //         low = min_index;
-                //         high = mid;
-
-                //         low_symbol = min_symbol as usize;
-                //         high_symbol = truncate_symbol(mid_symbol) as usize;
-                //         // pos = lo + [ (x - arr[lo]) * (hi - lo) / (arr[hi] - arr[lo]) ]                        
-                //     } else {
-                //         // Max_symbol != 0
-                //         low = mid;
-                //         high = max_index;
-
-                //         low_symbol = truncate_symbol(mid_symbol) as usize;
-                //         high_symbol = max_symbol as usize;
-                //         // pos = lo + [ (x - arr[lo]) * (hi - lo) / (arr[hi] - arr[lo]) ]
-                //     }
-                //     min_index = (mid + 1) as usize;
-                //     mid = mid + ( (trunc_look - low_symbol) * (high - low) / (high_symbol - low_symbol) );
-                //     min_symbol = truncate_symbol(mid_symbol);
-                // } else {
-                //     // Value is in the range of Start -> Mid
-                //     if min_symbol != 0 {
-                //         low = min_index;
-                //         high = mid;
-
-                //         low_symbol = min_symbol as usize;
-                //         high_symbol = truncate_symbol(mid_symbol) as usize;
-                //         // pos = lo + [ (x - arr[lo]) * (hi - lo) / (arr[hi] - arr[lo]) ]
-                //     } else {
-                //         // Max_symbol != 0
-                //         low = mid;
-                //         high = max_index;
-
-                //         low_symbol = truncate_symbol(mid_symbol) as usize;
-                //         high_symbol = max_symbol as usize;
-                //         // pos = lo + [ (x - arr[lo]) * (hi - lo) / (arr[hi] - arr[lo]) ]
-                //     }
-
-                //     max_index = (mid - 1) as usize; // TODO: Set this before or after the comparisons?
-                //     mid = mid - ( (trunc_look - low_symbol) * (high - low) / (high_symbol - low_symbol) );
-                //     max_symbol = truncate_symbol(mid_symbol);
-                // }
-
-
-
-
-
-                
-
-
-
-
-                // let mut mid = mid_pt as usize;
-
-                // println!("min {} max {} ends {} => {} : {}", min_diff, max_diff, ends_diff, mid_pt, mid);
-                // if i > 100 {
-                //     panic!();
-                // }
-                
-
-                // If target was min symbol, it should say min = 0, max = max value and you should search at 0. 
-                // if target was max symbol, it should say min = max, max = 0, and you should search there. 
-
-                
-                // if mid > true_mid {
-                //     mid = true_mid;
-                // }
-                
-
-
+                // Further stages of interpolation doesn't seem to add much benefit. Mostly overhead.
+                // So switch to binary search at this point. (Binary better than linear even for small inputs)
                 while min_index < max_index {
                     mid_symbol = runtime[mid].symbol;
-                    // if lookup_symbol == mid_symbol {
-                    //     // We got lucky and found it. (Unlikely)
-                    //     continue;
-                    // } else if lookup_symbol > mid_symbol {
-                    //     // It's in the range of Mid -> End
-                    //     // But this time, with two points we know something more about the distribution based on what we found from previous turn
-                    //     // So rather than going to midpoint, interpolate closer to where we guess the value will be.
-
-                    //     if min_symbol != 0 {
-                    //         low = min_index;
-                    //         high = mid;
-
-                    //         low_symbol = min_symbol as usize;
-                    //         high_symbol = truncate_symbol(mid_symbol) as usize;
-                    //         // pos = lo + [ (x - arr[lo]) * (hi - lo) / (arr[hi] - arr[lo]) ]                        
-                    //     } else {
-                    //         // Max_symbol != 0
-                    //         low = mid;
-                    //         high = max_index;
-
-                    //         low_symbol = truncate_symbol(mid_symbol) as usize;
-                    //         high_symbol = max_symbol as usize;
-                    //         // pos = lo + [ (x - arr[lo]) * (hi - lo) / (arr[hi] - arr[lo]) ]
-                    //     }
-                    //     min_index = (mid + 1) as usize;
-                    //     mid = mid + ( (trunc_look - low_symbol) * (high - low) / (high_symbol - low_symbol) );
-                    //     min_symbol = truncate_symbol(mid_symbol);
-                    // } else {
-                    //     // Value is in the range of Start -> Mid
-                    //     if min_symbol != 0 {
-                    //         low = min_index;
-                    //         high = mid;
-
-                    //         low_symbol = min_symbol as usize;
-                    //         high_symbol = truncate_symbol(mid_symbol) as usize;
-                    //         // pos = lo + [ (x - arr[lo]) * (hi - lo) / (arr[hi] - arr[lo]) ]
-                    //     } else {
-                    //         // Max_symbol != 0
-                    //         low = mid;
-                    //         high = max_index;
-
-                    //         low_symbol = truncate_symbol(mid_symbol) as usize;
-                    //         high_symbol = max_symbol as usize;
-                    //         // pos = lo + [ (x - arr[lo]) * (hi - lo) / (arr[hi] - arr[lo]) ]
-                    //     }
-
-                    //     max_index = (mid - 1) as usize; // TODO: Set this before or after the comparisons?
-                    //     mid = mid - ( (trunc_look - low_symbol) * (high - low) / (high_symbol - low_symbol) );
-                    //     max_symbol = truncate_symbol(mid_symbol);
-                    // }
-
-
-
 
                     // let mid_symbol = runtime[mid].symbol;
                     if mid_symbol == lookup_symbol {
@@ -705,19 +543,21 @@ mod tests {
         });
     }    
 
+    // TODO: Binary heap Eytzinger layout
 
-    // #[bench]
-    // fn bench_hash(b: &mut Bencher) {
-    //     let mut runtime = Runtime::new(APP_SYMBOL_START);
-    //     for i in 0..1_000_000 {
-    //         runtime.save_atom(Atom::NumericValue(999.0));
-    //     }
-    //     b.iter(|| {
-    //         for i in 0..1_000_000 {
-    //             runtime.get_atom(create_pointer_symbol(APP_SYMBOL_START + i));
-    //         }
-    //     });
-    // }
+
+    #[bench]
+    fn bench_hash(b: &mut Bencher) {
+        let mut runtime = Runtime::new(APP_SYMBOL_START);
+        for i in 0..100_000 {
+            runtime.save_atom(Atom::NumericValue(999.0));
+        }
+        b.iter(|| {
+            for i in 0..100_000 {
+                runtime.get_atom(create_pointer_symbol(APP_SYMBOL_START + i));
+            }
+        });
+    }
 
     // #[bench]
     // fn bench_binary(b: &mut Bencher) {
