@@ -26,7 +26,7 @@ libc = "0.2.59"
 wee_alloc = "0.4.4"
 flatbuffers = "0.6.0"
 fnv = "1.0.6"
-
+eytzinger = "1.0.1"
 
 # Arevel: Do not use wee_alloc without additional verification to make sure it meets all the 
 # malloc/free semantics. Stick with the standard one for now. 
