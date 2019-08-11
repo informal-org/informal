@@ -2,54 +2,26 @@ use crate::structs::Context;
 use avs::types::{__av_typeof, is_error};
 use avs::structs::{ValueType, Runtime, Atom};
 use avs::constants::*;
-use avs::runtime::{ID_SYMBOL_MAP, repr_atom};
+use avs::runtime::{ID_SYMBOL_MAP};
+use avs::format::{repr_atom, repr_number, repr_symbol};
 
 pub fn repr(env: &Runtime, context: &Context, result: u64) -> String {
     let result_type = __av_typeof(result);
     match result_type {
         ValueType::NumericType => {
-            let f_val: f64 = f64::from_bits(result);
-            // Print integers without the trailing zeroes
-            if f_val.fract() == 0.0 {
-                format!("{:?}", f_val.trunc() as i64)
-            } else {
-                format!("{:?}", f_val)
-            }
+            repr_number(result)
         },
-        ValueType::SymbolType => {
-            if let Some(symbol_str) = ID_SYMBOL_MAP.get(&result) {
-                // Built in symbols
-                symbol_str.to_string()
+        ValueType::SymbolType | ValueType::StringType => {
+            if let Some(atom) = env.resolve_symbol(result) {
+                repr_atom(atom)
             } else {
-                if let Some(atom) = env.resolve_symbol(result) {
-                    repr_atom(atom)
-                } else {
-                    // Print un-resolved symbols as-is
-                    // format!("Symbol {} ", result)
-                    if let Some(name) = context.symbols_name.get(&result) {
-                        name.to_string()
-                    } else {
-                        format!("({}) ", result)
-                    }
-
-                }
-            }
-        },
-        ValueType::StringType => {
-            if let Some(Atom::StringValue(str_val)) = env.resolve_symbol(result) {
-                format!("\"{}\"", str_val)
-            } else {
-                format!("(String)")
+                repr_symbol(&result)
             }
         },
         ValueType::ObjectType => {
             if is_error(result) {
                 repr_error(result)
             } else {
-                // TODO: Split up string type into separate one to handle small strings
-                // let obj = env.get_object(result);
-                // repr_object(&obj)
-
                 // TODO: Handle
                 format!("(Object)")
             }
@@ -70,16 +42,6 @@ pub fn repr(env: &Runtime, context: &Context, result: u64) -> String {
 // }
 
 pub fn repr_object(obj: &Runtime) -> String {
-    // match obj.av_class {
-    //     AV_CLASS_STRING => {
-    //         format!("{:?}", obj.av_string.as_ref().unwrap())
-    //     },
-    //     _ => {
-    //         // TODO
-    //         format!("(Object)")
-    //     }
-    // }
-
     format!("(Object)")
 }
 

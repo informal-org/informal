@@ -1,7 +1,5 @@
-use crate::structs::Atom;
 use crate::constants::*;
 use fnv::FnvHashMap;
-use core::fmt;
 
 
 // Exclude from WASM code
@@ -97,43 +95,4 @@ lazy_static! {
         m
     };
 
-}
-
-#[cfg(not(target_os = "unknown"))]
-pub fn repr_symbol(symbol: &u64) -> String {
-    let builtin_name = ID_SYMBOL_MAP.get(symbol);
-    if builtin_name.is_some(){
-        format!("{}", builtin_name.unwrap())
-    } else {
-        format!("{:X}", symbol)
-    }
-}
-
-
-#[cfg(not(target_os = "unknown"))]
-pub fn repr_atom(atom: &Atom) -> String {
-    match atom {
-        Atom::NumericValue(num) => {
-            format!("{}", num)
-        },
-        Atom::StringValue(str_val) => {
-            format!("\"{}\"", str_val)
-        }
-        Atom::SymbolValue(symbol) => {
-            repr_symbol(symbol)
-        },
-        Atom::ObjectValue(obj_val) => {
-            format!("{}", obj_val.id)
-        },
-        Atom::HashMapValue(map_val) => {
-            format!("{:#?}", map_val)
-        }
-    }
-}
-
-#[cfg(not(target_os = "unknown"))]
-impl fmt::Debug for Atom {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", repr_atom(&self))
-    }
 }

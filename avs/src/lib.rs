@@ -10,6 +10,7 @@ pub mod utils;
 pub mod types;
 pub mod memory;
 pub mod operators;
+pub mod format;
 
 #[cfg(not(target_os = "unknown"))]
 pub mod runtime;
