@@ -66,6 +66,4 @@ fn main() {
     // println!("id: {:?}", input.id());
     // println!("name: {:?}", input.name());
     // println!("value: {:?}", input.value());
-
-
 }

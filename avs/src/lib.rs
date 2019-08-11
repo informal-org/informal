@@ -1,5 +1,6 @@
 // #![no_main]
 // #![no_std]
+#![feature(test)]
 
 pub mod constants;
 pub mod structs;
@@ -15,6 +16,9 @@ pub mod runtime;
 
 #[macro_use]
 extern crate lazy_static;
+
+extern crate test;
+
 
 #[allow(non_snake_case)]
 pub mod avfb_generated;

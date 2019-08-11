@@ -3,7 +3,7 @@ use alloc::rc::Rc;
 use alloc::string::String;
 use alloc::vec::Vec;
 use crate::constants::*;
-use crate::utils::{create_string_pointer, create_pointer_symbol};
+use crate::utils::{create_string_pointer, create_pointer_symbol, truncate_symbol};
 use fnv::FnvHashMap;
 
 
@@ -27,6 +27,12 @@ pub enum Atom {
 pub struct Runtime {
     pub symbols: FnvHashMap<u64, Atom>,
     pub next_symbol_id: u64
+}
+
+// Tuple of symbol -> value for storage
+pub struct SymbolAtom {
+    pub symbol: u64, 
+    pub atom: Atom
 }
 
 impl Runtime {
@@ -204,10 +210,13 @@ impl AvObject {
 }
 
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    extern crate test;
+
+    use test::Bencher;
+
 
     #[test]
     fn test_symbol_type() {
@@ -218,4 +227,117 @@ mod tests {
         assert_eq!(symbol_header, VALUE_T_PTR_STR);
     }
 
+    #[bench]
+    fn bench_direct(b: &mut Bencher) {
+        let mut next_symbol = APP_SYMBOL_START;
+        let mut runtime: Vec<SymbolAtom> = Vec::new();
+
+        for i in 0..10_000 {
+            // runtime.save_atom(Atom::NumericValue(999.0));
+            let value = SymbolAtom {
+                symbol: create_pointer_symbol(APP_SYMBOL_START + i),
+                atom: Atom::NumericValue(999.0)
+            };
+            runtime.push(value);
+        }
+        b.iter(|| {
+            let symbol = create_pointer_symbol(APP_SYMBOL_START);
+            for i in 0..10_000 {
+                let lookup_symbol = create_pointer_symbol(APP_SYMBOL_START + i);
+
+                let index = (truncate_symbol(lookup_symbol) - truncate_symbol(symbol)) as usize;
+
+                let value = &runtime[index];
+                if value.symbol == i {
+                    value.symbol;
+                }
+            }
+        });
+    }
+
+    // #[bench]
+    // fn bench_linear(b: &mut Bencher) {
+    //     let mut next_symbol = APP_SYMBOL_START;
+    //     let mut runtime: Vec<SymbolAtom> = Vec::new();
+
+    //     for i in 0..10_000 {
+    //         // runtime.save_atom(Atom::NumericValue(999.0));
+    //         let value = SymbolAtom {
+    //             symbol: create_pointer_symbol(APP_SYMBOL_START + i),
+    //             atom: Atom::NumericValue(999.0)
+    //         };
+    //         runtime.push(value);
+    //     }
+    //     b.iter(|| {
+    //         for i in 0..10_000 {
+    //             let lookup_symbol = create_pointer_symbol(APP_SYMBOL_START + i);
+
+    //             for index in 0..10_000 {
+    //                 let value = &runtime[index];
+    //                 if value.symbol == i {
+    //                     value.symbol;
+    //                     break;
+    //                 }
+    //             }
+    //         }
+    //     });
+    // }
+
+
+    #[bench]
+    fn bench_binary(b: &mut Bencher) {
+        let mut next_symbol = APP_SYMBOL_START;
+        let mut runtime: Vec<SymbolAtom> = Vec::new();
+
+        for i in 0..10_000 {
+            // runtime.save_atom(Atom::NumericValue(999.0));
+            let value = SymbolAtom {
+                symbol: create_pointer_symbol(APP_SYMBOL_START + i),
+                atom: Atom::NumericValue(999.0)
+            };
+            runtime.push(value);
+        }
+        b.iter(|| {
+            for i in 0..10_000 {
+                let lookup_symbol = create_pointer_symbol(APP_SYMBOL_START + i);
+
+                let mut min_index: usize = 0;
+                let mut max_index = runtime.len();
+
+                while min_index < max_index {
+                    let mid = ((min_index + max_index) / 2) as usize;
+                    let mid_symbol = runtime[mid].symbol;
+                    if mid_symbol == lookup_symbol {
+                        break;
+                    } else if mid_symbol < lookup_symbol {
+                        min_index = (mid + 1) as usize;
+                    } else {
+                        max_index = (mid - 1) as usize;
+                    }
+                }
+            }
+        });
+    }
+
+
+    #[bench]
+    fn bench_hash(b: &mut Bencher) {
+        let mut runtime = Runtime::new(APP_SYMBOL_START);
+        for i in 0..10_000 {
+            runtime.save_atom(Atom::NumericValue(999.0));
+        }
+        b.iter(|| {
+            for i in 0..10_000 {
+                runtime.get_atom(create_pointer_symbol(APP_SYMBOL_START + i));
+            }
+        });
+    }
+
+    // #[bench]
+    // fn bench_binary(b: &mut Bencher) {
+    //     b.iter(|| add_two(2));
+    // }
 }
+
+
+
