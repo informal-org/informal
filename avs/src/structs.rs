@@ -224,7 +224,7 @@ mod tests {
 
     use test::Bencher;
 
-    pub const BENCH_SIZE: u64 = 10000;
+    pub const BENCH_SIZE: u64 = 100;
 
     #[test]
     fn test_symbol_type() {
@@ -506,28 +506,28 @@ mod tests {
     // }
 
     #[inline(always)]
-    fn get_interpolation_step(trunc_look: usize, mid: usize, mid_symbol: u64, min_index: usize, min_symbol: u32, max_index: usize, max_symbol: u32) -> usize {
-        let mut low: usize;
-        let mut high: usize;
-        let mut low_symbol: usize;
-        let mut high_symbol: usize;
+    fn get_interpolation_step(lookup_symbol: u64, mid: usize, mid_symbol: u64, min_index: usize, min_symbol: u64, max_index: usize, max_symbol: u64) -> usize {
+        let mut low: u64;
+        let mut high: u64;
+        let mut low_symbol: u64;
+        let mut high_symbol: u64;
 
         if min_symbol != 0 {
-            low = min_index;
-            high = mid;
+            low = min_index as u64;
+            high = mid as u64;
 
-            low_symbol = min_symbol as usize;
-            high_symbol = truncate_symbol(mid_symbol) as usize;
+            low_symbol = min_symbol;
+            high_symbol = mid_symbol;
         } else {
             // Max_symbol != 0
-            low = mid;
-            high = max_index;
+            low = mid as u64;
+            high = max_index as u64;
 
-            low_symbol = truncate_symbol(mid_symbol) as usize;
-            high_symbol = max_symbol as usize;
+            low_symbol = mid_symbol;
+            high_symbol = max_symbol;
         }
 
-        return ( (trunc_look - low_symbol) * (high - low) / (high_symbol - low_symbol) );
+        return ( (lookup_symbol - low_symbol) * (high - low) / (high_symbol - low_symbol) ) as usize;
     }
 
     #[bench]
@@ -589,7 +589,7 @@ mod tests {
                     // Not found
                     continue;
                 }
-                mid = ((min_index + max_index) / 2) as usize;
+                mid = (min_index + max_index) / 2;
                 // mid_symbol = runtime[mid].symbol;
                 mid_symbol = runtime[mid];
 
@@ -600,7 +600,7 @@ mod tests {
                     // let step = get_interpolation_step(trunc_look, mid, mid_symbol, min_index, min_symbol, max_index, max_symbol);
                     let step = get_interpolation_step(lookup_symbol, mid, mid_symbol, min_index, min_symbol, max_index, max_symbol);
 
-                    min_index = (mid + 1) as usize;
+                    min_index = mid + 1;
                     // Adjust interpolation by interpolation step
                     mid = mid + step;
                 } else if lookup_symbol < mid_symbol {
@@ -608,40 +608,39 @@ mod tests {
                     // let step = get_interpolation_step(trunc_look, mid, mid_symbol, min_index, min_symbol, max_index, max_symbol);
                     let step = get_interpolation_step(lookup_symbol, mid, mid_symbol, min_index, min_symbol, max_index, max_symbol);
 
-                    max_index = (mid - 1) as usize;
+                    max_index = mid - 1;
                     mid = mid - step;
                 } else {
                     // We got lucky and found it. (Unlikely)
                     continue;
                 } 
 
-
                 // Further stages of interpolation doesn't seem to add much benefit. Mostly overhead.
                 // So switch to binary search at this point. (Binary better than linear even for small inputs)
                 // Experimentation shows the branched version outperforming the branchless version here (664 vs 884)
-                // while min_index < max_index {
-                //     // mid_symbol = runtime[mid].symbol;
-                //     mid_symbol = runtime[mid];
+                while min_index < max_index {
+                    // mid_symbol = runtime[mid].symbol;
+                    mid_symbol = runtime[mid];
 
-                //     // let mid_symbol = runtime[mid].symbol;
-                //     if lookup_symbol > mid_symbol {
-                //         min_index = (mid + 1) as usize;
-                //     } else if lookup_symbol < mid_symbol {
-                //         max_index = (mid - 1) as usize;
-                //     } else {
-                //         // mid_symbol == lookup_symbol
-                //         break;
-                //     }
-                //     mid = ((min_index + max_index) / 2) as usize;
-                // }
-
-                let mut index = max_index;
-                let mut base = min_index;
-                while index > 1 {
-                    let half = index / 2;
-                    base = if runtime[half] < lookup_symbol { half } else { base };
-                    index -= half;
+                    // let mid_symbol = runtime[mid].symbol;
+                    if lookup_symbol > mid_symbol {
+                        min_index = mid + 1;
+                    } else if lookup_symbol < mid_symbol {
+                        max_index = mid - 1;
+                    } else {
+                        // mid_symbol == lookup_symbol
+                        break;
+                    }
+                    mid = (min_index + max_index) / 2;
                 }
+
+                // let mut index = max_index;
+                // let mut base = min_index;
+                // while index > 1 {
+                //     let half = index / 2;
+                //     base = if runtime[half] < lookup_symbol { half } else { base };
+                //     index -= half;
+                // }
 
                 //     let mut index = max_index;
                 //     // let mut base = mid;
