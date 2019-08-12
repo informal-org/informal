@@ -224,7 +224,7 @@ mod tests {
 
     use test::Bencher;
 
-    pub const BENCH_SIZE: u64 = 100;
+    pub const BENCH_SIZE: u64 = 100_000;
 
     #[test]
     fn test_symbol_type() {
@@ -533,27 +533,25 @@ mod tests {
     #[bench]
     fn bench_interpolated_binary(b: &mut Bencher) {
         let mut next_symbol = APP_SYMBOL_START;
-        let mut runtime: Vec<u64> = Vec::new();
+        let mut runtime: Vec<SymbolAtom> = Vec::new();
 
         for _ in 0..BENCH_SIZE {
             let symbol = create_pointer_symbol(next_symbol);
-            // runtime.save_atom(Atom::NumericValue(999.0));
-            // let value = SymbolAtom {
-            //     symbol: symbol,
-            //     atom: Atom::NumericValue(999.0)
-            // };
-            // runtime.push(value);
-            runtime.push(symbol);
+            let value = SymbolAtom {
+                symbol: symbol,
+                atom: Atom::NumericValue(999.0)
+            };
+            runtime.push(value);
             next_symbol = next_symbol + 1 + ((pseudo_random() % 1000) as u64);
             // next_symbol = next_symbol + 1;
         }
         b.iter(|| {
             for i in 0..BENCH_SIZE {
                 let lookup_symbol = create_pointer_symbol(APP_SYMBOL_START + i);
-                // let trunc_look = truncate_symbol(lookup_symbol) as usize;
                 let mut min_index: usize = 0;
                 let mut max_index = runtime.len();
 
+                // Interpolation points saved as we discover info
                 let mut min_symbol = 0;
                 let mut max_symbol = 0;
                 let mut mid_symbol;
@@ -561,12 +559,12 @@ mod tests {
                 // In the beginning we have absolutely no information about where anything is
                 // So the best place to check to get the maximum info is the middle
                 // If we know additional info like the start value or the end value or any point
-                // use that instead. Otherwise, start similar to binary search
+                // jump to interpolation. Otherwise, start similar to binary search.
                 let mut mid = max_index / 2;
                 
                 // Unrolled first iteration. Check elem at mid index.
                 // mid_symbol = runtime[mid].symbol;
-                mid_symbol = runtime[mid];
+                mid_symbol = runtime[mid].symbol;
                 if lookup_symbol > mid_symbol {
                     // It's in the range of Mid -> End
                     // We could set it to the end of the list, but again the best place to extract maximum info is the midpoint
@@ -591,7 +589,7 @@ mod tests {
                 }
                 mid = (min_index + max_index) / 2;
                 // mid_symbol = runtime[mid].symbol;
-                mid_symbol = runtime[mid];
+                mid_symbol = runtime[mid].symbol;
 
                 if lookup_symbol > mid_symbol {
                     // It's in the range of Mid -> End
@@ -620,9 +618,8 @@ mod tests {
                 // Experimentation shows the branched version outperforming the branchless version here (664 vs 884)
                 while min_index < max_index {
                     // mid_symbol = runtime[mid].symbol;
-                    mid_symbol = runtime[mid];
+                    mid_symbol = runtime[mid].symbol;
 
-                    // let mid_symbol = runtime[mid].symbol;
                     if lookup_symbol > mid_symbol {
                         min_index = mid + 1;
                     } else if lookup_symbol < mid_symbol {
@@ -633,37 +630,6 @@ mod tests {
                     }
                     mid = (min_index + max_index) / 2;
                 }
-
-                // let mut index = max_index;
-                // let mut base = min_index;
-                // while index > 1 {
-                //     let half = index / 2;
-                //     base = if runtime[half] < lookup_symbol { half } else { base };
-                //     index -= half;
-                // }
-
-                //     let mut index = max_index;
-                //     // let mut base = mid;
-                //     let mut base = min_index;
-                //     // while min_index < max_index {
-                //     while base < index {
-                //         let step = (max_index - min_index) / 3;
-                //         let mid1 = min_index + step;
-                //         let mid2 = min_index + 2 * step;
-                //         let elem1 = runtime[mid1];
-                //         let elem2 = runtime[mid2];
-
-                //         base = if elem1 <= lookup_symbol { mid1 } else { base };
-                //         base = if elem2 <= lookup_symbol { mid2 } else { base };
-
-                // // BARRIER;                                        \
-                // // base = (mid1 <= key)?b1:base;                   \
-                // // base = (mid2 <= key)?b2:base;                   \
-
-                        
-                //     }
-
-
 
             }
         });
