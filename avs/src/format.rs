@@ -1,7 +1,8 @@
-use crate::runtime::ID_SYMBOL_MAP;
 use crate::structs::Atom;
 use core::fmt;
 
+#[cfg(not(target_os = "unknown"))]
+use crate::runtime::ID_SYMBOL_MAP;
 
 #[cfg(not(target_os = "unknown"))]
 pub fn repr_symbol(symbol: &u64) -> String {
