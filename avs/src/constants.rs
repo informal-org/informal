@@ -55,11 +55,11 @@ pub const VALUE_F_SYM_STR: u64 = 0xFFFA_0000_0000_0000;
 pub const VALUE_F_SYM_OBJ: u64 = 0xFFFB_0000_0000_0000;
 // Pointer to full string objects. 16 bit payload of short length. 
 pub const VALUE_T_PTR_STR: u64 = 0xFFFC_0000_0000_0000;
-// Pointer to object references. 4 bit payload.
+// Pointer to object references or functions. 2 bit payload.
 pub const VALUE_T_PTR_OBJ: u64 = 0xFFFD_0000_0000_0000;
 // Small strings (up to 6 bytes) encoded directly as payload.
 pub const VALUE_T_SYM_STR: u64 = 0xFFFE_0000_0000_0000;
-// Symbol space (Functions, keywords, user-defined symbols, etc.)
+// Symbol space (Keywords, user-defined symbols, etc.)
 pub const VALUE_T_SYM_OBJ: u64 = 0xFFFF_0000_0000_0000;
 
 
@@ -132,6 +132,9 @@ pub const AV_CLASS_STRING: u64 = 0xFFFF_0000_0000_1029;
 
 
 // Reserve up to 65k symbols for standard library usage. (Classes, functions, etc.)
+pub const AV_FN_MIN: u64 = 0xFFFD_0000_0000_0100;
+pub const AV_FN_MAX: u64 = 0xFFFD_0000_0000_0101;
+
 
 
 //////////////////////////////////////////////////////////////////////////////////
