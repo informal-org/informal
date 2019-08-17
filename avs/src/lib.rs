@@ -12,6 +12,7 @@ pub mod memory;
 pub mod operators;
 pub mod format;
 pub mod heap;
+pub mod functions;
 
 #[cfg(not(target_os = "unknown"))]
 pub mod runtime;

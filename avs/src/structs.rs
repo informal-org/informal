@@ -3,11 +3,9 @@ use alloc::rc::Rc;
 use alloc::string::String;
 use alloc::vec::Vec;
 use crate::constants::*;
+use crate::functions::NativeFn;
 use crate::utils::{create_string_pointer, create_pointer_symbol, truncate_symbol};
 use fnv::FnvHashMap;
-
-
-
 
 
 #[derive(Debug,PartialEq)]
@@ -25,10 +23,13 @@ pub enum Atom {
     StringValue(String),
     SymbolValue(u64),
     ObjectValue(AvObject),
-    HashMapValue(FnvHashMap<u64, Atom>)
+    HashMapValue(FnvHashMap<u64, Atom>),
+    FunctionValue(NativeFn)
 }
 
+
 // Context available during program execution managing current runtime state
+#[derive(PartialEq,Clone)]
 pub struct Runtime {
     pub symbols: FnvHashMap<u64, Atom>,
     pub next_symbol_id: u64

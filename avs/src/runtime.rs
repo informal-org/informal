@@ -46,6 +46,11 @@ lazy_static! {
         m.insert(SYMBOL_FALSE, "False");
         m.insert(SYMBOL_NONE, "None");
 
+
+        // Built in functions
+        m.insert(AV_FN_MIN, "min");
+        m.insert(AV_FN_MAX, "max");
+
         m
     };
 
@@ -85,12 +90,15 @@ lazy_static! {
         m.insert(":", SYMBOL_COLON);
         m.insert(";", SYMBOL_SEMI_COLON);
 
-
         m.insert("=", SYMBOL_EQUALS);
 
         m.insert("TRUE", SYMBOL_TRUE);
         m.insert("FALSE", SYMBOL_FALSE);
         m.insert("NONE", SYMBOL_NONE);
+
+
+        m.insert("MIN", AV_FN_MIN);
+        m.insert("MAX", AV_FN_MAX);
 
         m
     };

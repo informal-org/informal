@@ -47,6 +47,9 @@ pub fn repr_atom(atom: &Atom) -> String {
         },
         Atom::HashMapValue(map_val) => {
             format!("{:#?}", map_val)
+        },
+        Atom::FunctionValue(fn_val) => {
+            format!("<Function>")
         }
     }
 }

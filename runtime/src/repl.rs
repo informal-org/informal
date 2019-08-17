@@ -368,7 +368,7 @@ mod tests {
         expected_results.push(expected_b);
 
         assert_eq!(i_result.results, expected_results);    
-    }    
+    }
 
 
     #[test]

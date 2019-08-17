@@ -28,6 +28,10 @@ fn get_op_precedence(symbol: u64) -> u8 {
     return 16
 }
 
+pub fn is_operator(symbol: u64) -> bool {
+    return (symbol & PAYLOAD_MASK) <= 16;
+}
+
 pub fn is_dependency_symbol(context: &Context, symbol: u64) -> bool {
     // Check if a symbol is a valid dependency (i.e. not a built in operator/symbol)
     // One option - check for any symbols that are outside the built-in range.
@@ -74,35 +78,42 @@ pub fn apply_operator_precedence(context: &Context, id: u64, cell_symbol: u64, i
                         // For all other operators, flush higher or equal level operators
                         // All operators are left associative in our system right now. (else, equals doesn't get pushed)
                         let my_precedence = get_op_precedence(*kw);
-                        while operator_stack.len() > 0 {
-                            let op_peek_last = operator_stack.last().unwrap();
-                            // Skip any items that aren't really operators.
-                            if *op_peek_last == SYMBOL_OPEN_PAREN {
-                                break;
-                            }
-
-                            let other_precedence = get_op_precedence(*op_peek_last);
-                            if other_precedence >= my_precedence {        // output any higher priority operators.
-                                let stack_symbol = operator_stack.pop().unwrap();
-                                // Dependency is managed at cell/pointer level. Treat built-in symbols as met.
-                                if is_dependency_symbol(&context, stack_symbol) {
-                                    depends_on.push(stack_symbol);
+                        if my_precedence <= 16 {
+                            // Is operator. Use precedence.
+                            while operator_stack.len() > 0 {
+                                let op_peek_last = operator_stack.last().unwrap();
+                                // Skip any items that aren't really operators.
+                                if *op_peek_last == SYMBOL_OPEN_PAREN {
+                                    break;
                                 }
-                                
-                                postfix.push(Atom::SymbolValue(stack_symbol));
-                            } else {
-                                break;
+
+                                let other_precedence = get_op_precedence(*op_peek_last);
+                                if other_precedence >= my_precedence {        // output any higher priority operators.
+                                    let stack_symbol = operator_stack.pop().unwrap();
+                                    // Dependency is managed at cell/pointer level. Treat built-in symbols as met.
+                                    if is_dependency_symbol(&context, stack_symbol) {
+                                        depends_on.push(stack_symbol);
+                                    }
+                                    
+                                    postfix.push(Atom::SymbolValue(stack_symbol));
+                                } else {
+                                    break;
+                                }
                             }
+                            // Flushed all operators with higher precedence. Add to op stack.
+                            operator_stack.push(*kw);
+                        } else {
+                            // Is other symbol. Emit as-is.
+                            postfix.push(token);
                         }
-                        // Flushed all operators with higher precedence. Add to op stack.
-                        operator_stack.push(*kw);
                     }
                 }
             },
             Atom::NumericValue(_lit) => postfix.push(token),
             Atom::StringValue(_lit) => postfix.push(token),
             Atom::ObjectValue(_lit) => postfix.push(token),     // Should not happen
-            Atom::HashMapValue(_lit) => postfix.push(token)     // Should not happen
+            Atom::HashMapValue(_lit) => postfix.push(token),     // Should not happen
+            Atom::FunctionValue(_lit) => postfix.push(token)
         }
     }
 
