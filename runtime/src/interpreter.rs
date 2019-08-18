@@ -58,7 +58,10 @@ pub fn apply_operator(mut env: &mut Runtime, operator: u64, stack: &mut Vec<u64>
                         match fval {
                             NativeFn::Fn2(f2) => {
                                 // TODO: Verify stack size
-                                let fn_result = ((f2.func)(&mut env, stack.pop().unwrap(), stack.pop().unwrap()));
+                                // Pop in reverse order since stack is in postfix
+                                let b = stack.pop().unwrap();
+                                let a = stack.pop().unwrap();
+                                let fn_result = (f2.func)(&mut env, a, b);
                                 fn_result
                             }
                             _ => {

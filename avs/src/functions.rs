@@ -1,6 +1,9 @@
 use crate::structs::Atom;
 use crate::structs::Runtime;
 
+use crate::constants::*;
+use crate::types::*;
+
 
 #[derive(Clone)]
 pub enum NativeFn {
@@ -80,5 +83,8 @@ impl Callable for NativeFn3 {
 
 #[no_mangle]
 pub fn __av_min(env: &mut Runtime, a: u64, b: u64) -> u64 {
-    return a;
+    let f_a: f64 = valid_num!(a);
+	let f_b: f64 = valid_num!(b);
+
+    return f_a.min(f_b).to_bits();
 }

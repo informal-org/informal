@@ -388,12 +388,14 @@ mod tests {
     fn test_builtin_fncall() {
         let program = EvalRequest {
             body: vec![
-                CellRequest {id: 1, name: Some(String::from("one")), input: String::from("min(4, 3)")}
+                CellRequest {id: 1, name: Some(String::from("one")), input: String::from("min(4, 3)")},
+                CellRequest {id: 2, name: Some(String::from("two")), input: String::from("min(3, 4)")}
             ]
         };
         let i_result = interpreter::interpret_all(program);
         let expected_results = vec![
-            CellResponse { id: 1, output: String::from("3"), error: String::from("") }
+            CellResponse { id: 1, output: String::from("3"), error: String::from("") },
+            CellResponse { id: 2, output: String::from("3"), error: String::from("") },
         ];
         assert_eq!(i_result.results, expected_results);
     }    
