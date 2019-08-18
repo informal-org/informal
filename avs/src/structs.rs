@@ -3,7 +3,7 @@ use alloc::rc::Rc;
 use alloc::string::String;
 use alloc::vec::Vec;
 use crate::constants::*;
-use crate::functions::NativeFn;
+use crate::functions::{NativeFn, NativeFn2, __av_min};
 use crate::utils::{create_string_pointer, create_pointer_symbol, truncate_symbol};
 use fnv::FnvHashMap;
 
@@ -43,11 +43,17 @@ pub struct SymbolAtom {
 
 impl Runtime {
     pub fn new(next_symbol_id: u64) -> Runtime {
-        Runtime {
-            symbols: FnvHashMap::default(), 
+        let mut runtime = Runtime {
+            symbols: FnvHashMap::with_capacity_and_hasher(25, Default::default()),
             next_symbol_id: next_symbol_id
-        }
+        };
+        // Initialize global symbols
+        runtime.set_atom(AV_FN_MIN, NativeFn2::create_atom(__av_min));
+
+        return runtime
     }
+
+    // TODO: Load module for imports
 
     /// Saves an object into the symbol table and returns the symbol
     pub fn save_atom(&mut self, atom: Atom) -> u64 {

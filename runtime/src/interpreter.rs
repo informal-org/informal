@@ -6,6 +6,7 @@ with interop with separately compiled modules.
 */
 
 use avs::runtime::ID_SYMBOL_MAP;
+use avs::functions::NativeFn;
 use super::parser;
 use super::lexer::*;
 use super::structs::*;
@@ -47,6 +48,34 @@ pub fn apply_operator(mut env: &mut Runtime, operator: u64, stack: &mut Vec<u64>
         SYMBOL_LTE => apply_bin_op!(env, __av_lte, stack),
         SYMBOL_GT => apply_bin_op!(env, __av_gt, stack),
         SYMBOL_GTE => apply_bin_op!(env, __av_gte, stack),
+
+        SYMBOL_CALL_FN => {
+            // TODO: Stack exists
+            let func_symbol = stack.pop().unwrap();
+            if let Some(func_atom) = env.get_atom(func_symbol) {
+                match func_atom {
+                    Atom::FunctionValue(fval) => {
+                        match fval {
+                            NativeFn::Fn2(f2) => {
+                                // TODO: Verify stack size
+                                let fn_result = ((f2.func)(&mut env, stack.pop().unwrap(), stack.pop().unwrap()));
+                                fn_result
+                            }
+                            _ => {
+                                RUNTIME_ERR
+                            }
+                        }
+                    }
+                    _ => {
+                        // TODO
+                        RUNTIME_ERR
+                    }
+                }
+            } else {
+                // TODO: Specific error
+                RUNTIME_ERR
+            }
+        },
         _ => {
             // TODO: Is this correct? Or should it be INTERPRETER_ERR?
             // Unknown symbols are emitted as-is. 

@@ -139,6 +139,17 @@ pub const SYMBOL_CALL_FN: u64 = 0xFFFF_0000_0000_1042;
 pub const AV_FN_MIN: u64 = 0xFFFD_0000_0000_0100;
 pub const AV_FN_MAX: u64 = 0xFFFD_0000_0000_0101;
 
+// WASM defined native functions
+// min
+// max
+// abs
+// ceil
+// floor
+// trunc - round to 0 (similar to floor)
+// nearest - round
+// sqrt
+
+
 
 
 //////////////////////////////////////////////////////////////////////////////////

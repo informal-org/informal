@@ -1,3 +1,4 @@
+use crate::structs::Atom;
 use crate::structs::Runtime;
 
 
@@ -22,17 +23,26 @@ trait Callable {
 
 #[derive(Clone)]
 pub struct NativeFn1 {
-    func: fn(&mut Runtime, u64) -> u64
+    pub func: fn(&mut Runtime, u64) -> u64
 }
 
 #[derive(Clone)]
 pub struct NativeFn2 {
-    func: fn(&mut Runtime, u64, u64) -> u64
+    pub func: fn(&mut Runtime, u64, u64) -> u64
 }
+
+impl NativeFn2 {
+    pub fn create_atom(func: fn(&mut Runtime, u64, u64) -> u64) -> Atom {
+        return Atom::FunctionValue(NativeFn::Fn2(NativeFn2 {
+            func: func
+        }))
+    }
+}
+
 
 #[derive(Clone)]
 pub struct NativeFn3 {
-    func: fn(&mut Runtime, u64, u64, u64) -> u64
+    pub func: fn(&mut Runtime, u64, u64, u64) -> u64
 }
 
 // #[derive(Clone)]
@@ -65,4 +75,10 @@ impl Callable for NativeFn3 {
         // TODO: Check arity
         return (self.func)(&mut env, args[0], args[1], args[2])
     }
+}
+
+
+#[no_mangle]
+pub fn __av_min(env: &mut Runtime, a: u64, b: u64) -> u64 {
+    return a;
 }

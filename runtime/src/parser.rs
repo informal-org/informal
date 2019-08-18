@@ -65,7 +65,11 @@ pub fn apply_operator_precedence(context: &Context, id: u64, cell_symbol: u64, i
                                 SYMBOL_OPEN_PAREN => {
                                     found = true;
                                     break;
-                                }
+                                },
+                                SYMBOL_COMMA => {
+                                    // Eat commas within function calls fn(a, b)
+                                    continue
+                                },
                                 _ => postfix.push(Atom::SymbolValue(op))
                             }
                         }
@@ -75,10 +79,13 @@ pub fn apply_operator_precedence(context: &Context, id: u64, cell_symbol: u64, i
                         }
                         
                         // Check for function call
-                        if let Some(maybe_fn) = operator_stack.first() {
-                            // todo: check if function
-                            postfix.push(Atom::SymbolValue(*maybe_fn));
-                            postfix.push(Atom::SymbolValue(SYMBOL_CALL_FN));
+                        if let Some(maybe_fn) = operator_stack.last() {
+                            if !is_operator(*maybe_fn) {
+                                // TODO: check if function
+                                // TODO: Namespace/module support
+                                postfix.push(Atom::SymbolValue(operator_stack.pop().unwrap()));
+                                postfix.push(Atom::SymbolValue(SYMBOL_CALL_FN));
+                            }
                         }
                     },
                     _ => {
