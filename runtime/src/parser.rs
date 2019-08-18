@@ -41,6 +41,8 @@ pub fn is_dependency_symbol(context: &Context, symbol: u64) -> bool {
     // context.symbols_cell.is_some() && context.symbols_cell.as_ref().unwrap().contains_key(&op_kw)
 }
 
+
+
 // TODO: There may be additional edge cases for handling inline function calls within the expression
 // Current assumption is that all variable references are to a value.
 pub fn apply_operator_precedence(context: &Context, id: u64, cell_symbol: u64, infix: &mut Vec<Atom>) -> Expression {
@@ -66,6 +68,7 @@ pub fn apply_operator_precedence(context: &Context, id: u64, cell_symbol: u64, i
                                     found = true;
                                     break;
                                 },
+                                // TODO: Handle function calls separately
                                 SYMBOL_COMMA => {
                                     // Eat commas within function calls fn(a, b)
                                     continue
@@ -100,6 +103,7 @@ pub fn apply_operator_precedence(context: &Context, id: u64, cell_symbol: u64, i
                                 if *op_peek_last == SYMBOL_OPEN_PAREN {
                                     break;
                                 }
+
 
                                 let other_precedence = get_op_precedence(*op_peek_last);
                                 if other_precedence >= my_precedence {        // output any higher priority operators.

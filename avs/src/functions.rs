@@ -88,3 +88,11 @@ pub fn __av_min(env: &mut Runtime, a: u64, b: u64) -> u64 {
 
     return f_a.min(f_b).to_bits();
 }
+
+#[no_mangle]
+pub fn __av_max(env: &mut Runtime, a: u64, b: u64) -> u64 {
+    let f_a: f64 = valid_num!(a);
+	let f_b: f64 = valid_num!(b);
+
+    return f_a.max(f_b).to_bits();
+}

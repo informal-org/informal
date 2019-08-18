@@ -3,7 +3,7 @@ use alloc::rc::Rc;
 use alloc::string::String;
 use alloc::vec::Vec;
 use crate::constants::*;
-use crate::functions::{NativeFn, NativeFn2, __av_min};
+use crate::functions::*;
 use crate::utils::{create_string_pointer, create_pointer_symbol, truncate_symbol};
 use fnv::FnvHashMap;
 
@@ -47,8 +47,10 @@ impl Runtime {
             symbols: FnvHashMap::with_capacity_and_hasher(25, Default::default()),
             next_symbol_id: next_symbol_id
         };
+        
         // Initialize global symbols
         runtime.set_atom(AV_FN_MIN, NativeFn2::create_atom(__av_min));
+        runtime.set_atom(AV_FN_MAX, NativeFn2::create_atom(__av_max));
 
         return runtime
     }
