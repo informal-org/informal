@@ -73,12 +73,19 @@ pub fn apply_operator_precedence(context: &Context, id: u64, cell_symbol: u64, i
                             // return Err(PARSE_ERR_UNMATCHED_PARENS)
                             return Expression::err(id, PARSE_ERR_UNMATCHED_PARENS)
                         }
+                        
+                        // Check for function call
+                        if let Some(maybe_fn) = operator_stack.first() {
+                            // todo: check if function
+                            postfix.push(Atom::SymbolValue(*maybe_fn));
+                            postfix.push(Atom::SymbolValue(SYMBOL_CALL_FN));
+                        }
                     },
                     _ => {
                         // For all other operators, flush higher or equal level operators
                         // All operators are left associative in our system right now. (else, equals doesn't get pushed)
                         let my_precedence = get_op_precedence(*kw);
-                        if my_precedence <= 16 {
+                        // if my_precedence <= 16 {
                             // Is operator. Use precedence.
                             while operator_stack.len() > 0 {
                                 let op_peek_last = operator_stack.last().unwrap();
@@ -102,10 +109,10 @@ pub fn apply_operator_precedence(context: &Context, id: u64, cell_symbol: u64, i
                             }
                             // Flushed all operators with higher precedence. Add to op stack.
                             operator_stack.push(*kw);
-                        } else {
-                            // Is other symbol. Emit as-is.
-                            postfix.push(token);
-                        }
+                        // } else {
+                        //     // Is other symbol. Emit as-is.
+                        //     postfix.push(token);
+                        // }
                     }
                 }
             },
