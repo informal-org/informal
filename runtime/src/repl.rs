@@ -418,6 +418,35 @@ mod tests {
     }
 
 
+    #[test]
+    fn test_builtin_math_fn() {
+        let program = EvalRequest {
+            body: vec![
+                CellRequest {id: 1, name: None, input: String::from("abs(-23)")},
+                CellRequest {id: 2, name: None, input: String::from("ceil(2.3)")},
+                CellRequest {id: 3, name: None, input: String::from("floor(2.3)")},
+                CellRequest {id: 4, name: None, input: String::from("round(2.5)")},
+                CellRequest {id: 5, name: None, input: String::from("round(-2.5)")},
+                CellRequest {id: 6, name: None, input: String::from("truncate(-2.5)")},
+                CellRequest {id: 7, name: None, input: String::from("sqrt(25)")},
+            ]
+        };
+        let i_result = interpreter::interpret_all(program);
+        let expected_results = vec![
+            CellResponse { id: 1, output: String::from("23"), error: String::from("") },
+            CellResponse { id: 2, output: String::from("3"), error: String::from("") },
+            CellResponse { id: 3, output: String::from("2"), error: String::from("") },
+            CellResponse { id: 4, output: String::from("3"), error: String::from("") },
+            CellResponse { id: 5, output: String::from("-3"), error: String::from("") },
+            CellResponse { id: 6, output: String::from("-2"), error: String::from("") },
+            CellResponse { id: 7, output: String::from("5"), error: String::from("") },
+        ];
+        assert_eq!(i_result.results, expected_results);
+    }
+
+
+
+
     // #[test]
     // fn test_reval_string_concat() {
     //     let cell_a = CellRequest {id: 1, name: Some(String::from("one")), input: String::from("\"Hello\"")};

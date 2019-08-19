@@ -52,6 +52,14 @@ impl Runtime {
         runtime.set_atom(AV_FN_MIN, NativeFn2::create_atom(__av_min));
         runtime.set_atom(AV_FN_MAX, NativeFn2::create_atom(__av_max));
 
+        runtime.set_atom(AV_FN_ABS, NativeFn1::create_atom(__av_abs));
+        runtime.set_atom(AV_FN_CEIL, NativeFn1::create_atom(__av_ceil));
+        runtime.set_atom(AV_FN_FLOOR, NativeFn1::create_atom(__av_floor));
+        runtime.set_atom(AV_FN_TRUNC, NativeFn1::create_atom(__av_truncate));
+        runtime.set_atom(AV_FN_ROUND, NativeFn1::create_atom(__av_round));
+        runtime.set_atom(AV_FN_SQRT, NativeFn1::create_atom(__av_sqrt));
+
+
         return runtime
     }
 

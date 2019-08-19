@@ -64,19 +64,22 @@ pub fn apply_operator(mut env: &mut Runtime, operator: u64, stack: &mut Vec<u64>
                                 let fn_result = (f2.func)(&mut env, a, b);
                                 fn_result
                             }
+                            NativeFn::Fn1(f1) => {
+                                let a = stack.pop().unwrap();
+                                let fn_result = (f1.func)(&mut env, a);
+                                fn_result
+                            },
                             _ => {
-                                RUNTIME_ERR
+                                RUNTIME_ERR_FN_UNK
                             }
                         }
                     }
                     _ => {
-                        // TODO
-                        RUNTIME_ERR
+                        RUNTIME_ERR_FN_EXPECTED
                     }
                 }
             } else {
-                // TODO: Specific error
-                RUNTIME_ERR
+                RUNTIME_ERR_FN_UNK
             }
         },
         _ => {
