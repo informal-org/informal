@@ -46,7 +46,6 @@ lazy_static! {
         m.insert(SYMBOL_FALSE, "False");
         m.insert(SYMBOL_NONE, "None");
 
-
         // Internal signal. Defined here for recognition by interpreter. 
         // Not defined in SYMBOL_ID_MAP because it's not meant to be used frontend.
         m.insert(SYMBOL_CALL_FN, "__call__");
@@ -105,7 +104,6 @@ lazy_static! {
         m.insert("TRUE", SYMBOL_TRUE);
         m.insert("FALSE", SYMBOL_FALSE);
         m.insert("NONE", SYMBOL_NONE);
-
 
         m.insert("MIN", AV_FN_MIN);
         m.insert("MAX", AV_FN_MAX);

@@ -1,6 +1,6 @@
 use actix_files as fs;
 use actix_files::NamedFile;
-use actix_web::{web, App, HttpRequest, HttpServer, Responder};
+use actix_web::{web, App, HttpRequest, HttpServer, Responder, HttpResponse};
 use runtime::format;
 use runtime::interpreter::{interpret_all};
 use runtime::structs::{CellResponse, EvalRequest, EvalResponse};
@@ -12,6 +12,10 @@ fn landing(_req: HttpRequest) -> actix_web::Result<NamedFile> {
 
 fn arevel(_req: HttpRequest) -> actix_web::Result<NamedFile> {
     return Ok(NamedFile::open("/var/www/arevelcom/templates/index.html")?)
+}
+
+fn slides(_req: HttpRequest) -> impl Responder {
+    return HttpResponse::TemporaryRedirect().set_header("location", "https://docs.google.com/presentation/d/19Z9IGLz_NO1PN3LDTi492W_4l68WHTrmVG9Xxou8_lY/edit?usp=sharing").finish();
 }
 
 fn health() -> impl Responder {
@@ -35,6 +39,7 @@ pub fn main() {
         App::new()
         .route("/", web::get().to(landing))
         .route("/arevel", web::get().to(arevel))
+        .route("/slides", web::get().to(slides))
         .route("/_info/health", web::get().to(health))
         .route("/api/evaluate", web::post().to(evaluate))
         .service(fs::Files::new("/static", "/var/www/arevelcom/static/"))  // static/dist/static
