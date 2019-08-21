@@ -136,19 +136,16 @@ pub const SYMBOL_CALL_FN: u64 = 0xFFFF_0000_0000_1042;
 
 
 // Reserve up to 65k symbols for standard library usage. (Classes, functions, etc.)
+
+// Based on WASM defined native functions
 pub const AV_FN_MIN: u64 = 0xFFFD_0000_0000_0100;
 pub const AV_FN_MAX: u64 = 0xFFFD_0000_0000_0101;
-
-// WASM defined native functions
-// min
-// max
-// abs
-// ceil
-// floor
-// trunc - round to 0 (similar to floor)
-// nearest - round
-// sqrt
-
+pub const AV_FN_ABS: u64 = 0xFFFD_0000_0000_0102;
+pub const AV_FN_CEIL: u64 = 0xFFFD_0000_0000_0103;
+pub const AV_FN_FLOOR: u64 = 0xFFFD_0000_0000_0104;
+pub const AV_FN_TRUNC: u64 = 0xFFFD_0000_0000_0105;
+pub const AV_FN_ROUND: u64 = 0xFFFD_0000_0000_0106;
+pub const AV_FN_SQRT: u64 = 0xFFFD_0000_0000_0107;
 
 
 
@@ -190,6 +187,11 @@ pub const RUNTIME_ERR_EXPECTED_STR: u64     = 0xFFF9_0008_0000_0000;
 
 // Arithmetic errors - 0x00
 pub const RUNTIME_ERR_DIV_Z: u64            = 0xFFF9_0009_0000_0000;
+
+// Function errors
+pub const RUNTIME_ERR_FN_UNK: u64     = 0xFFF9_000A_0000_0000;
+pub const RUNTIME_ERR_FN_ARITY: u64     = 0xFFF9_000B_0000_0000;
+pub const RUNTIME_ERR_FN_EXPECTED: u64     = 0xFFF9_000C_0000_0000;
 
 // Note: This must be OR-ed with a symbol header to be a symbol
 pub const APP_SYMBOL_START: u64             = 0x0000_0000_0001_0000;

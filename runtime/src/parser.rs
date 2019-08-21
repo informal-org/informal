@@ -58,6 +58,18 @@ pub fn apply_operator_precedence(context: &Context, id: u64, cell_symbol: u64, i
             Atom::SymbolValue(kw) => {
                 match *kw {
                     SYMBOL_OPEN_PAREN => operator_stack.push(*kw),
+                    SYMBOL_COMMA => {
+                        // Denotes end of one sub-expression. i.e. min(1 * 2, 2 + 2). Flush.
+                        while let Some(op) = operator_stack.last() {
+                            if *op == SYMBOL_COMMA {
+                                operator_stack.pop();
+                            } else if *op == SYMBOL_OPEN_PAREN {
+                                break;
+                            } else {
+                                postfix.push(Atom::SymbolValue(operator_stack.pop().unwrap()))
+                            }
+                        }
+                    },
                     SYMBOL_CLOSE_PAREN => {
                         // Pop until you find the matching opening paren
                         let mut found = false;
@@ -68,11 +80,12 @@ pub fn apply_operator_precedence(context: &Context, id: u64, cell_symbol: u64, i
                                     found = true;
                                     break;
                                 },
-                                // TODO: Handle function calls separately
-                                SYMBOL_COMMA => {
-                                    // Eat commas within function calls fn(a, b)
-                                    continue
-                                },
+                                // // TODO: Handle function calls separately
+                                // // This currently makes commas optional. It should be required, but ignored.
+                                // SYMBOL_COMMA => {
+                                //     // Eat commas within function calls fn(a, b)
+                                //     continue
+                                // },
                                 _ => postfix.push(Atom::SymbolValue(op))
                             }
                         }
@@ -113,6 +126,11 @@ pub fn apply_operator_precedence(context: &Context, id: u64, cell_symbol: u64, i
                                         depends_on.push(stack_symbol);
                                     }
                                     
+                                    // // TODO: This makes commas optional. Change to required but ignored.
+                                    // if stack_symbol == SYMBOL_COMMA {
+                                    //     continue
+                                    // }
+
                                     postfix.push(Atom::SymbolValue(stack_symbol));
                                 } else {
                                     break;
