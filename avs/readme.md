@@ -1,1 +1,0 @@
-flatc avobj.fbs --rust
