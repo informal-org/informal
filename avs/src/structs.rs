@@ -1,3 +1,4 @@
+use crate::types::is_symbol;
 use crate::types::__av_typeof;
 use alloc::rc::Rc;
 use alloc::string::String;
@@ -139,6 +140,13 @@ impl Runtime {
                     }, 
                     _ => return Some(atom)
                 }
+            } else if is_symbol(current_symbol) {
+                // It's a terminal symbol rather than a pointer
+                // let terminal_symbol = Atom::SymbolValue(current_symbol);
+                // return Some(&terminal_symbol);
+
+                // TODO: This should return the resolved terminal symbol
+                return None
             } else {
                 println!("symbol not found");
                 return None

@@ -451,15 +451,22 @@ mod tests {
     fn test_reval_string_concat() {
         let cell_a = CellRequest {id: 1, name: Some(String::from("one")), input: String::from("\"Hello\"")};
         let cell_b = CellRequest {id: 2, name: Some(String::from("two")), input: String::from("one + \" Arevel\"")};
-        let cell_c = CellRequest {id: 3, name: Some(String::from("three")), input: String::from("\" Arevel\" + one")};
+        let cell_c = CellRequest {id: 3, name: Some(String::from("three")), input: String::from("\"Arevel \" + one")};
         // Can't just have single value inputs anymore, need cells as inputs
         let mut program = EvalRequest {
             body: vec![cell_a, cell_b, cell_c]
         };
         
         let i_result = interpreter::interpret_all(program);
+
+        let expected_results = vec![
+            CellResponse { id: 1, output: String::from("\"Hello\""), error: String::from("") },
+            CellResponse { id: 2, output: String::from("\"Hello Arevel\""), error: String::from("") },
+            CellResponse { id: 3, output: String::from("\"Arevel Hello\""), error: String::from("") },
+        ];
+
         println!("{:?}", i_result);
-        assert_eq!(true, false);
+        assert_eq!(i_result.results, expected_results);
     }
 
 }

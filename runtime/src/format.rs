@@ -39,6 +39,12 @@ pub fn repr(env: &Runtime, context: &Context, result: u64) -> String {
     }
 }
 
+pub fn repr_known_symbol(env: &Runtime, context: &Context, symbol: u64) -> String {
+    
+    
+    return repr_symbol(&symbol);
+}
+
 // pub fn print_stacktrace(env: &Runtime, stack: &Vec<u64>) {
 //     println!("----------Stack----------");
 //     for val in stack {
