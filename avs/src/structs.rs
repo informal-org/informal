@@ -87,28 +87,30 @@ impl Runtime {
 
     /// Set a symbol value, with automatic casting of value
     pub fn set_value(&mut self, symbol: u64, value: u64) {
+        println!("Set value Symbol {:X} value {:X}", symbol, value);
         let atom: Atom = match __av_typeof(value){
             ValueType::NumericType => {
                 Atom::NumericValue(f64::from_bits(value))
             },
             ValueType::SymbolType => {
-                if let Some(resolved) = self.resolve_symbol(symbol) {
+                if let Some(resolved) = self.resolve_symbol(value) {
                     // Partial implementation of a copy
                     match resolved {
                         Atom::NumericValue(val) => Atom::NumericValue(*val),
                         Atom::StringValue(val) => Atom::StringValue(val.to_string()),
-                        _ => Atom::SymbolValue(symbol)
+                        _ => Atom::SymbolValue(value)
                     }
                 } else {
                     // May just be a built-in symbol? 
                     println!("Could not resolve symbol {:X}", symbol);
-                    Atom::SymbolValue(symbol)
+                    Atom::SymbolValue(value)
                 }
             },
             _ => {
-                Atom::SymbolValue(symbol)
+                Atom::SymbolValue(value)
             }
         };
+        println!("Resolved to {:?}", atom);
         self.set_atom(symbol, atom);
     }
     
@@ -122,6 +124,8 @@ impl Runtime {
     pub fn resolve_symbol(&self, symbol: u64) -> Option<&Atom> {
         let mut count = 0;
         let mut current_symbol = symbol;
+        println!("{}", format!("Symbols {:#?}", self.symbols));
+        
         while count < 1000 {
             if let Some(atom) = self.symbols.get(&current_symbol) {
                 match atom {

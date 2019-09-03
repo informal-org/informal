@@ -178,8 +178,9 @@ pub fn interpret_all(request: EvalRequest) -> EvalResponse {
         println!("Got result {:?}", repr(&global_env, &ast, result));
         
         // Don't double-encode symbols
-        let symbol_id = ast.cell_symbols.as_ref().unwrap().get(&node.id).unwrap();
-        global_env.set_value(*symbol_id, result);
+        // let symbol_id = ast.cell_symbols.as_ref().unwrap().get(&node.id).unwrap();
+        let symbol_id = node.cell_symbol;
+        global_env.set_value(symbol_id, result);
 
         let mut output = String::from("");
         let mut err = String::from("");
