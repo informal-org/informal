@@ -383,6 +383,24 @@ mod tests {
         // assert_eq!(true, false);
     }
 
+    #[test]
+    fn test_symbol_ref() {
+        // Can't just have single value inputs anymore, need cells as inputs
+        let program = EvalRequest {
+            body: vec![
+                CellRequest {id: 1, name: Some(String::from("one")), input: String::from("True")},
+                CellRequest {id: 2, name: Some(String::from("two")), input: String::from("one")}
+            ]
+        };
+        let i_result = interpreter::interpret_all(program);
+        println!("{:?}", i_result);
+        let expected_results = vec![
+            CellResponse { id: 1, output: String::from("True"), error: String::from("") },
+            CellResponse { id: 2, output: String::from("True"), error: String::from("") },
+        ];
+        assert_eq!(i_result.results, expected_results);
+    }
+
 
     #[test]
     fn test_builtin_fncall() {

@@ -85,6 +85,7 @@ pub fn apply_operator(mut env: &mut Runtime, operator: u64, stack: &mut Vec<u64>
         _ => {
             // TODO: Is this correct? Or should it be INTERPRETER_ERR?
             // Unknown symbols are emitted as-is. 
+            println!("Unknown symbol {:X}", operator);
             operator
         }
     };
@@ -110,10 +111,12 @@ pub fn interpret_expr(mut env: &mut Runtime, expression: &Expression, context: &
                 if ID_SYMBOL_MAP.contains_key(kw) {
                     apply_operator(&mut env, *kw, &mut expr_stack);
                 } else {
+                    println!("Looking up symbol {:X}", kw);
                     // Lookup result of symbol
                     // TODO: Pointer vs symbols
                     // TODO: Scoping rules
                     if let Some(atom) = env.resolve_symbol(*kw) {
+                        println!("Resolved to {:?}", atom);
                         match atom {
                             Atom::NumericValue(num) => {
                                 expr_stack.push(num.to_bits());
@@ -126,6 +129,7 @@ pub fn interpret_expr(mut env: &mut Runtime, expression: &Expression, context: &
                             }
                         }
                     } else {
+                        println!("Unresolved {:X}", kw);
                         expr_stack.push(*kw);
                     }
                 }
