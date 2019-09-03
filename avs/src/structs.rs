@@ -7,6 +7,8 @@ use crate::functions::*;
 use crate::utils::{create_string_pointer, create_pointer_symbol, truncate_symbol};
 use fnv::FnvHashMap;
 
+use crate::format::*;
+
 
 #[derive(Debug,PartialEq)]
 pub enum ValueType {
@@ -124,7 +126,7 @@ impl Runtime {
     pub fn resolve_symbol(&self, symbol: u64) -> Option<&Atom> {
         let mut count = 0;
         let mut current_symbol = symbol;
-        println!("{}", format!("Symbols {:#?}", self.symbols));
+        println!("{}", fmt_symbols_map(&self.symbols));
         
         while count < 1000 {
             if let Some(atom) = self.symbols.get(&current_symbol) {

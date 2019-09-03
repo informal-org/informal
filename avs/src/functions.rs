@@ -51,21 +51,10 @@ impl NativeFn2 {
     }
 }
 
-
 #[derive(Clone)]
 pub struct NativeFn3 {
     pub func: fn(&mut Runtime, u64, u64, u64) -> u64
 }
-
-// #[derive(Clone)]
-// pub struct NativeFn4 {
-//     func: fn(&mut Runtime, u64, u64, u64, u64) -> u64
-// }
-
-// #[derive(Clone)]
-// pub struct NativeFn5 {
-//     func: fn(&mut Runtime, u64, u64, u64, u64, u64) -> u64
-// }
 
 
 impl Callable for NativeFn1 {

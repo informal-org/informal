@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use avs::runtime::ERR_MSG_MAP;
 use crate::structs::Context;
 use avs::types::{__av_typeof, is_error};
@@ -44,6 +45,14 @@ pub fn repr(env: &Runtime, context: &Context, result: u64) -> String {
 
 pub fn repr_object(obj: &Runtime) -> String {
     format!("(Object)")
+}
+
+pub fn fmt_symbols_list(list: &Vec<u64>) -> String {
+    let mut output = vec![];
+    for item in list {
+        output.push(format!("{:X}", item));
+    }
+    return output.join(",");
 }
 
 pub fn repr_error(result: u64) -> String {
