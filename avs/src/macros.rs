@@ -38,10 +38,8 @@ macro_rules! resolve_atom {
 		if !is_nan(f_val) {
 			Atom::NumericValue(f_val)
 		} else if is_pointer($val) {
-			println!("is symbol true");
-			// TODO: Resolve rather than get to follow symbols?
-			let symbol_resolution = $env.get_atom($val);
-			format!("Resolved symbol {:?}", symbol_resolution);
+			let symbol_resolution = $env.resolve_symbol($val);
+			println!("Resolved symbol {:X} -> {:?}", $val, symbol_resolution);
 			if symbol_resolution.is_some() {
 				symbol_resolution.unwrap().clone()
 			} else {

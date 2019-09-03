@@ -89,7 +89,6 @@ impl Runtime {
 
     /// Set a symbol value, with automatic casting of value
     pub fn set_value(&mut self, symbol: u64, value: u64) {
-        println!("Set value Symbol {:X} value {:X}", symbol, value);
         let atom: Atom = match __av_typeof(value){
             ValueType::NumericType => {
                 Atom::NumericValue(f64::from_bits(value))
@@ -112,7 +111,6 @@ impl Runtime {
                 Atom::SymbolValue(value)
             }
         };
-        println!("Resolved to {:?}", atom);
         self.set_atom(symbol, atom);
     }
     

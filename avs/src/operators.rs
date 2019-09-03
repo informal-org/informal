@@ -12,6 +12,7 @@ pub extern "C" fn __av_add(env: &mut Runtime, a: u64, b: u64) -> u64 {
 	// To prevent exponential branching, resolve both elements to Atoms and then do the math.
 	let atom_a = resolve_atom!(env, a);
 	let atom_b = resolve_atom!(env, b);
+	println!("A {:?} B {:?}", atom_a, atom_b);
 	match atom_a {
 		Atom::NumericValue(f_a) => {
 			match atom_b {
