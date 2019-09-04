@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use avs::runtime::ERR_MSG_MAP;
 use crate::structs::Context;
 use avs::types::{__av_typeof, is_error};
@@ -8,6 +9,7 @@ use avs::format::{repr_atom, repr_number, repr_symbol};
 
 pub fn repr(env: &Runtime, context: &Context, result: u64) -> String {
     let result_type = __av_typeof(result);
+    println!("repr {:X} {:?}", result, result_type);
     match result_type {
         ValueType::NumericType => {
             repr_number(result)
@@ -23,8 +25,11 @@ pub fn repr(env: &Runtime, context: &Context, result: u64) -> String {
             if is_error(result) {
                 repr_error(result)
             } else {
-                // TODO: Handle
-                format!("(Object)")
+                if let Some(atom) = env.resolve_symbol(result) {
+                    repr_atom(atom)
+                } else {
+                    repr_symbol(&result)
+                }
             }
         }
         _ => {
@@ -32,6 +37,12 @@ pub fn repr(env: &Runtime, context: &Context, result: u64) -> String {
             format!("{:?}: {:?}", result_type, result)
         }
     }
+}
+
+pub fn repr_known_symbol(env: &Runtime, context: &Context, symbol: u64) -> String {
+    
+    
+    return repr_symbol(&symbol);
 }
 
 // pub fn print_stacktrace(env: &Runtime, stack: &Vec<u64>) {
@@ -44,6 +55,14 @@ pub fn repr(env: &Runtime, context: &Context, result: u64) -> String {
 
 pub fn repr_object(obj: &Runtime) -> String {
     format!("(Object)")
+}
+
+pub fn fmt_symbols_list(list: &Vec<u64>) -> String {
+    let mut output = vec![];
+    for item in list {
+        output.push(format!("{:X}", item));
+    }
+    return output.join(",");
 }
 
 pub fn repr_error(result: u64) -> String {

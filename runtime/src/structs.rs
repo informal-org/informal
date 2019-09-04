@@ -3,6 +3,7 @@ use avs::structs::Atom;
 use avs::constants::*;
 use fnv::FnvHashMap;
 use crate::Result;
+use crate::format::fmt_symbols_list;
 use core::fmt;
 
 
@@ -46,7 +47,6 @@ pub struct Context {
 
     // (Root context only) Cell IDs -> Symbol IDs for cells without a name
     pub cell_symbols: Option<FnvHashMap<u64, u64>>,
-
 
     // (Root context only) Cell IDs -> Symbol IDs for cells without a name
     pub symbols_cell: Option<FnvHashMap<u64, u64>>,
@@ -183,15 +183,6 @@ pub struct Expression {
     pub unmet_depend_count: i32,
     pub result: Option<u64>
 }
-
-fn fmt_symbols_list(list: &Vec<u64>) -> String {
-    let mut output = vec![];
-    for item in list {
-        output.push(format!("{:X}", item));
-    }
-    return output.join(",");
-}
-
 
 #[cfg(not(target_os = "unknown"))]
 impl fmt::Debug for Expression {

@@ -85,6 +85,7 @@ pub fn apply_operator(mut env: &mut Runtime, operator: u64, stack: &mut Vec<u64>
         _ => {
             // TODO: Is this correct? Or should it be INTERPRETER_ERR?
             // Unknown symbols are emitted as-is. 
+            println!("Unknown symbol {:X}", operator);
             operator
         }
     };
@@ -110,10 +111,12 @@ pub fn interpret_expr(mut env: &mut Runtime, expression: &Expression, context: &
                 if ID_SYMBOL_MAP.contains_key(kw) {
                     apply_operator(&mut env, *kw, &mut expr_stack);
                 } else {
+                    println!("Looking up symbol {:X}", kw);
                     // Lookup result of symbol
                     // TODO: Pointer vs symbols
                     // TODO: Scoping rules
                     if let Some(atom) = env.resolve_symbol(*kw) {
+                        println!("Resolved to {:?}", atom);
                         match atom {
                             Atom::NumericValue(num) => {
                                 expr_stack.push(num.to_bits());
@@ -126,6 +129,7 @@ pub fn interpret_expr(mut env: &mut Runtime, expression: &Expression, context: &
                             }
                         }
                     } else {
+                        println!("Unresolved {:X}", kw);
                         expr_stack.push(*kw);
                     }
                 }
@@ -178,8 +182,9 @@ pub fn interpret_all(request: EvalRequest) -> EvalResponse {
         println!("Got result {:?}", repr(&global_env, &ast, result));
         
         // Don't double-encode symbols
-        let symbol_id = ast.cell_symbols.as_ref().unwrap().get(&node.id).unwrap();
-        global_env.set_value(*symbol_id, result);
+        // let symbol_id = ast.cell_symbols.as_ref().unwrap().get(&node.id).unwrap();
+        let symbol_id = node.cell_symbol;
+        global_env.set_value(symbol_id, result);
 
         let mut output = String::from("");
         let mut err = String::from("");

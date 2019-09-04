@@ -37,15 +37,16 @@ macro_rules! resolve_atom {
 		// Given a u64, return the f64 resolved value or raise error
 		if !is_nan(f_val) {
 			Atom::NumericValue(f_val)
-		} else if is_symbol($val) {
-			// TODO: Resolve rather than get to follow symbols?
-			let symbol_resolution = $env.get_atom($val);
+		} else if is_pointer($val) {
+			let symbol_resolution = $env.resolve_symbol($val);
+			println!("Resolved symbol {:X} -> {:?}", $val, symbol_resolution);
 			if symbol_resolution.is_some() {
 				symbol_resolution.unwrap().clone()
 			} else {
 				Atom::SymbolValue($val)
 			}
 		} else {
+			println!("is symbol false");
 			// Encountered other NaN Type
 			return RUNTIME_ERR_EXPECTED_NUM
 		}

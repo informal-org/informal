@@ -1,5 +1,7 @@
 use crate::structs::Atom;
 use core::fmt;
+use fnv::FnvHashMap;
+
 
 #[cfg(not(target_os = "unknown"))]
 use crate::runtime::ID_SYMBOL_MAP;
@@ -52,6 +54,17 @@ pub fn repr_atom(atom: &Atom) -> String {
             format!("<Function>")
         }
     }
+}
+
+#[cfg(not(target_os = "unknown"))]
+pub fn fmt_symbols_map(map: &FnvHashMap<u64, Atom>) -> String {
+    let mut output = vec![];
+    output.push(String::from("{"));
+    for (key, val) in map.iter() {
+        output.push(format!("\t{:X}: {:?}", key, val));
+    }
+    output.push(String::from("}"));
+    return output.join("\n");
 }
 
 #[cfg(not(target_os = "unknown"))]

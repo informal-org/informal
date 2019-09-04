@@ -1,3 +1,4 @@
+use crate::types::is_symbol;
 use crate::types::__av_typeof;
 use alloc::rc::Rc;
 use alloc::string::String;
@@ -6,6 +7,8 @@ use crate::constants::*;
 use crate::functions::*;
 use crate::utils::{create_string_pointer, create_pointer_symbol, truncate_symbol};
 use fnv::FnvHashMap;
+
+use crate::format::*;
 
 
 #[derive(Debug,PartialEq)]
@@ -92,21 +95,22 @@ impl Runtime {
                 Atom::NumericValue(f64::from_bits(value))
             },
             ValueType::SymbolType => {
-                if let Some(resolved) = self.resolve_symbol(symbol) {
+                if let Some(resolved) = self.resolve_symbol(value) {
+                    println!("Setting {:X} to {:X} -> {:?}", symbol, value, resolved);
                     // Partial implementation of a copy
                     match resolved {
                         Atom::NumericValue(val) => Atom::NumericValue(*val),
                         Atom::StringValue(val) => Atom::StringValue(val.to_string()),
-                        _ => Atom::SymbolValue(symbol)
+                        _ => Atom::SymbolValue(value)
                     }
                 } else {
                     // May just be a built-in symbol? 
-                    println!("Could not resolve symbol {:X}", symbol);
-                    Atom::SymbolValue(symbol)
+                    println!("Could not resolve symbol {:X}", value);
+                    Atom::SymbolValue(value)
                 }
             },
             _ => {
-                Atom::SymbolValue(symbol)
+                Atom::SymbolValue(value)
             }
         };
         self.set_atom(symbol, atom);
@@ -122,10 +126,18 @@ impl Runtime {
     pub fn resolve_symbol(&self, symbol: u64) -> Option<&Atom> {
         let mut count = 0;
         let mut current_symbol = symbol;
+        // println!("{}", fmt_symbols_map(&self.symbols));
+        
         while count < 1000 {
             if let Some(atom) = self.symbols.get(&current_symbol) {
                 match atom {
                     Atom::SymbolValue(next_symbol) => {
+                        // Terminal symbol
+                        if is_symbol(*next_symbol) {
+                            return Some(atom)
+                        }
+
+                        // Check for circular pointers
                         if *next_symbol == current_symbol || *next_symbol == symbol {
                             println!("Cyclic symbol reference");
                             // Terminate on cycles

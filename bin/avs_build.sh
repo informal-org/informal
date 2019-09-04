@@ -7,7 +7,7 @@
 # cargo instal wasm-gc
 ##########
 
-cd avs
+cd ../avs
 wasm-pack build -t no-modules --release -m force
 # cargo build --target wasm32-unknown-emscripten --release
 
