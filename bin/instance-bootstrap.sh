@@ -13,7 +13,8 @@ RELEASE_URL=$(curl \
     -s "http://metadata.google.internal/computeMetadata/v1/instance/attributes/release-url" \
     -H "Metadata-Flavor: Google")
 
-gsutil cp ${RELEASE_URL} arevel-release.tar.gz
+sudo gsutil cp ${RELEASE_URL} arevel-release.tar.gz
 tar -xvzf arevel-release.tar.gz
 chmod +x arevel-release/instance-startup.sh
+chmod +x arevel-release/instance-update.sh
 source arevel-release/instance-startup.sh
