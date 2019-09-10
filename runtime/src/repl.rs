@@ -221,7 +221,8 @@ mod tests {
 
         // Can't just have single value inputs anymore, need cells as inputs
         let mut program = EvalRequest {
-            body: Vec::new()
+            body: Vec::new(),
+            input: None
         };
         program.body.push(cell_a);
         program.body.push(cell_b);
@@ -255,7 +256,8 @@ mod tests {
 
         // Can't just have single value inputs anymore, need cells as inputs
         let mut program = EvalRequest {
-            body: Vec::new()
+            body: Vec::new(),
+            input: None
         };
         program.body.push(cell_a);
         program.body.push(cell_b);
@@ -291,7 +293,8 @@ mod tests {
 
         // Can't just have single value inputs anymore, need cells as inputs
         let mut program = EvalRequest {
-            body: Vec::new()
+            body: Vec::new(),
+            input: None
         };
         program.body.push(cell_a);
         program.body.push(cell_b);
@@ -335,7 +338,8 @@ mod tests {
 
         // Can't just have single value inputs anymore, need cells as inputs
         let mut program = EvalRequest {
-            body: Vec::new()
+            body: Vec::new(),
+            input: None
         };
         program.body.push(cell_a);
         program.body.push(cell_b);
@@ -376,7 +380,8 @@ mod tests {
         let cell_a = CellRequest {id: 1, name: Some(String::from("one")), input: String::from("\"hello\"")};
         // Can't just have single value inputs anymore, need cells as inputs
         let mut program = EvalRequest {
-            body: vec![cell_a]
+            body: vec![cell_a],
+            input: None
         };
         let i_result = interpreter::interpret_all(program);
         println!("{:?}", i_result);
@@ -390,7 +395,8 @@ mod tests {
             body: vec![
                 CellRequest {id: 1, name: Some(String::from("one")), input: String::from("True")},
                 CellRequest {id: 2, name: Some(String::from("two")), input: String::from("one")}
-            ]
+            ],
+            input: None
         };
         let i_result = interpreter::interpret_all(program);
         println!("{:?}", i_result);
@@ -408,7 +414,8 @@ mod tests {
             body: vec![
                 CellRequest {id: 1, name: Some(String::from("one")), input: String::from("min(4, 3)")},
                 CellRequest {id: 2, name: Some(String::from("two")), input: String::from("min(3, 4)")}
-            ]
+            ],
+            input: None
         };
         let i_result = interpreter::interpret_all(program);
         let expected_results = vec![
@@ -425,7 +432,8 @@ mod tests {
             body: vec![
                 CellRequest {id: 1, name: Some(String::from("one")), input: String::from("min(2 * 2, 2 + 1)")},
                 CellRequest {id: 2, name: Some(String::from("two")), input: String::from("min(2, max(1, 4))")}
-            ]
+            ],
+            input: None
         };
         let i_result = interpreter::interpret_all(program);
         let expected_results = vec![
@@ -447,7 +455,8 @@ mod tests {
                 CellRequest {id: 5, name: None, input: String::from("round(-2.5)")},
                 CellRequest {id: 6, name: None, input: String::from("truncate(-2.5)")},
                 CellRequest {id: 7, name: None, input: String::from("sqrt(25)")},
-            ]
+            ],
+            input: None
         };
         let i_result = interpreter::interpret_all(program);
         let expected_results = vec![
@@ -472,7 +481,8 @@ mod tests {
         let cell_c = CellRequest {id: 3, name: Some(String::from("three")), input: String::from("\"Arevel \" + one")};
         // Can't just have single value inputs anymore, need cells as inputs
         let mut program = EvalRequest {
-            body: vec![cell_a, cell_b, cell_c]
+            body: vec![cell_a, cell_b, cell_c],
+            input: None
         };
         
         let i_result = interpreter::interpret_all(program);

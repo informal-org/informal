@@ -38,7 +38,7 @@ pub struct AvHttpRequest {
 #[derive(Deserialize,Debug)]
 pub struct EvalRequest {
     pub body: Vec<CellRequest>,
-    pub input: AvHttpRequest
+    pub input: Option<AvHttpRequest>
 }
 
 

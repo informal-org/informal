@@ -38,6 +38,7 @@ lazy_static! {
         m.insert(SYMBOL_COMMA, ",");
         m.insert(SYMBOL_COLON, ":");
         m.insert(SYMBOL_SEMI_COLON, ";");
+        m.insert(SYMBOL_DOT, ".");
 
         m.insert(SYMBOL_EQUALS, "=");
 
@@ -105,12 +106,15 @@ lazy_static! {
         m.insert(",", SYMBOL_COMMA);
         m.insert(":", SYMBOL_COLON);
         m.insert(";", SYMBOL_SEMI_COLON);
+        m.insert(".", SYMBOL_DOT);
 
         m.insert("=", SYMBOL_EQUALS);
 
         m.insert("TRUE", SYMBOL_TRUE);
         m.insert("FALSE", SYMBOL_FALSE);
         m.insert("NONE", SYMBOL_NONE);
+
+
 
         m.insert("MIN", AV_FN_MIN);
         m.insert("MAX", AV_FN_MAX);
@@ -121,7 +125,7 @@ lazy_static! {
         m.insert("ROUND", AV_FN_ROUND);
         m.insert("SQRT", AV_FN_SQRT);
 
-
+        m.insert("REQUEST", AV_HTTP_REQUEST);
         m.insert("PATH", AV_HTTP_PATH);
         m.insert("QUERY", AV_HTTP_QUERY);
 

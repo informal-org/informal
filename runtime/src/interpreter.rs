@@ -168,8 +168,10 @@ pub fn interpret_one(input: String) -> u64 {
     return interpret_expr(&mut env, &node, &ast);
 }
 
-pub fn init_runtime_input(runtime: &mut Runtime, input: &AvHttpRequest) {
-    runtime.set_atom(AV_HTTP_PATH, Atom::StringValue(input.path.to_string()));
+pub fn init_runtime_input(runtime: &mut Runtime, input: &Option<AvHttpRequest>) {
+    if let Some(request) = input {
+        runtime.set_atom(AV_HTTP_PATH, Atom::StringValue(request.path.to_string()));
+    }
 }
 
 
