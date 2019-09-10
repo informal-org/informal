@@ -60,6 +60,13 @@ lazy_static! {
         m.insert(AV_FN_ROUND, "round");
         m.insert(AV_FN_SQRT, "sqrt");
 
+
+        // Reserved HTTP words -
+        // TODO: These should be namespace under "request" once we have objects
+        // and dot notation
+        m.insert(AV_HTTP_PATH, "path");
+        m.insert(AV_HTTP_QUERY, "query");
+
         m
     };
 
@@ -113,6 +120,10 @@ lazy_static! {
         m.insert("TRUNCATE", AV_FN_TRUNC);
         m.insert("ROUND", AV_FN_ROUND);
         m.insert("SQRT", AV_FN_SQRT);
+
+
+        m.insert("PATH", AV_HTTP_PATH);
+        m.insert("QUERY", AV_HTTP_QUERY);
 
         m
     };

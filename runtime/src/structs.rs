@@ -26,9 +26,19 @@ pub struct CellRequest {
     pub name: Option<String>
 }
 
+
+#[derive(Deserialize,Debug)]
+pub struct AvHttpRequest {
+    pub path: String,
+    pub method: String,
+    pub query: Option<String>
+}
+
+
 #[derive(Deserialize,Debug)]
 pub struct EvalRequest {
-    pub body: Vec<CellRequest>
+    pub body: Vec<CellRequest>,
+    pub input: AvHttpRequest
 }
 
 
@@ -157,7 +167,7 @@ impl Context {
     }
 
     // Symbol used as cell names
-    pub fn define_name(&mut self, trimmed_name: String, symbol: u64) -> Result<u64> {
+    pub fn define_cell_name(&mut self, trimmed_name: String, symbol: u64) -> Result<u64> {
         // TODO: Check name validity - no delimiter characters, doesn't start with :
         let name_upper = trimmed_name.to_uppercase();
         let existing_val = self.normname_symbols.get(&name_upper);
@@ -169,6 +179,21 @@ impl Context {
         self.symbols_name.insert(symbol, trimmed_name);
         return Ok(symbol);
     }
+
+    // Method for defining external input variables.
+    // pub fn define_input(&mut self, trimmed_name: String) -> Result<u64> {
+    //     let name_upper = trimmed_name.to_uppercase();
+    //     let existing_val = self.normname_symbols.get(&name_upper);
+    //     if existing_val.is_some() {
+    //         return Err(PARSE_ERR_USED_NAME);
+    //     }
+    //     let symbol = self.next_pointer();
+        
+    //     self.normname_symbols.insert(name_upper, symbol);
+    //     self.symbols_name.insert(symbol, trimmed_name);
+    //     return Ok(symbol);
+    // }
+
 }
 
 

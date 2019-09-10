@@ -23,6 +23,7 @@ fn health() -> impl Responder {
 }
 
 fn evaluate(req: web::Json<EvalRequest>) -> impl Responder {
+    println!("{:?}", req);
     let mut results: Vec<CellResponse> = Vec::new();
 
     let mut inputs: Vec<String> = Vec::with_capacity(results.len());

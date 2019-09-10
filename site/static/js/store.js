@@ -139,6 +139,19 @@ const reEvaluate = () => {
             return
         }
         let parsed = parseEverything(state.cellsReducer.byId);
+        parsed.input = {
+            'path': '/hello',
+            'method': 'GET',
+            'query': 'v=1&message=hello',
+            'get': {        // query & query_string in actix
+                'v': 1,
+                'message': 'hello'
+            },
+            'cookies': 'sid=12312',
+            'headers': '',
+            'content_type': ''  // content-type header
+            // TODO: post payload
+        }
 
         apiPost("/api/evaluate", parsed)
         .then(json => {

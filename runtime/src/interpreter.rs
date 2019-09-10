@@ -168,12 +168,18 @@ pub fn interpret_one(input: String) -> u64 {
     return interpret_expr(&mut env, &node, &ast);
 }
 
+pub fn init_runtime_input(runtime: &mut Runtime, input: &AvHttpRequest) {
+    runtime.set_atom(AV_HTTP_PATH, Atom::StringValue(input.path.to_string()));
+}
+
 
 pub fn interpret_all(request: EvalRequest) -> EvalResponse {
     let mut results: Vec<CellResponse> = Vec::with_capacity(request.body.len());
     // External Global ID -> Internal ID
-    let mut ast = construct_ast(request);
+    let mut ast = construct_ast(&request);
     let mut global_env = Runtime::new(ast.next_symbol_id);
+
+    init_runtime_input(&mut global_env, &request.input);
 
     println!("AST: {:?}", ast);
 

@@ -50,7 +50,7 @@ pub fn define_symbols(request: &EvalRequest, ast: &mut Context) {
             let trimmed_name = cell_name.trim();
             if trimmed_name != "" {
                 // Save the name
-                let name_def_result = ast.define_name(String::from(trimmed_name), cell_symbol_value);
+                let name_def_result = ast.define_cell_name(String::from(trimmed_name), cell_symbol_value);
                 // TODO: Handling duplicate names
             }
         }
@@ -58,7 +58,7 @@ pub fn define_symbols(request: &EvalRequest, ast: &mut Context) {
 }
 
 
-pub fn construct_ast(request: EvalRequest) -> Context {
+pub fn construct_ast(request: &EvalRequest) -> Context {
     // let mut ast = AST::new();
     // let mut nodes: Vec<ASTNode> = Vec::with_capacity(request.body.len());
     // TODO: Define a root scope
@@ -76,7 +76,7 @@ pub fn construct_ast(request: EvalRequest) -> Context {
 
     // The lexer already needs to know the meaning of symbols so it can create new ones
     // So it should just return used by as well in a single pass.
-    for cell in request.body {
+    for cell in request.body.iter() {
         let lex_result = lex(&mut ast, &cell.input);
         let cell_symbol_value = ast.get_cell_symbol(cell.id).unwrap();
         let ast_node = if lex_result.is_ok() {
