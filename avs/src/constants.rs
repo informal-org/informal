@@ -26,6 +26,8 @@ Symbols 0-256 reserved for keywords.
 // Data format
 
 // 8 = 1000 in binary
+use crate::structs::Symbol;
+
 pub const SIGNALING_NAN: u64 = 0xFFF8_0000_0000_0000;
 pub const QUITE_NAN: u64 = 0xFFF0_0000_0000_0000;
 
@@ -65,8 +67,18 @@ pub const VALUE_T_SYM_OBJ: u64 = 0xFFFF_0000_0000_0000;
 
 // Falsey/empty value symbols 
 // (00-FF reserved for internal symbols for indexing into precedence lookup table)
-pub const SYMBOL_FALSE: u64             = 0xFFFB_0000_0000_0040;     // 64
-pub const SYMBOL_NONE: u64              = 0xFFFB_0000_0000_0041;
+pub const SYMBOL_FALSE: Symbol = Symbol {
+    symbol: 0xFFFB_0000_0000_0040,  // 64
+    name: "False",
+    precedence: None
+};
+
+pub const SYMBOL_NONE: Symbol = Symbol {
+    symbol: 0xFFFB_0000_0000_0041,
+    name: "None",
+    precedence: None
+};
+
 pub const SYMBOL_EMPTY_ARR: u64         = 0xFFFB_0000_0000_0042;
 
 
@@ -84,43 +96,171 @@ pub const SYMBOL_SENTINEL_SENTINEL: u64 = 0xFFFB_0000_0000_004C;
 // Truthy value symbols
 // Like above, 00-FF reserved for precedence lookup. 
 // Note: The reserved keyword numbers should be unique (regardless of truthy/falsey).
-pub const SYMBOL_TRUE: u64              = 0xFFFF_0000_0000_0080;    // 128
+pub const SYMBOL_TRUE: Symbol = Symbol {
+    symbol: 0xFFFF_0000_0000_0080,  // 128
+    name: "True",
+    precedence: None
+};
 
 
 // Constants for supported symbols within expressions.
 // Uses the reserved space from 0-255 
 // Note: Ensure no ID conflict with the symbols defined in avs
 // The IDs represent index into the precedence array.
-// TODO: Invert these?
-pub const SYMBOL_OR: u64 = 0xFFFF_0000_0000_0000;
-pub const SYMBOL_AND: u64 = 0xFFFF_0000_0000_0001;
-pub const SYMBOL_IS: u64 = 0xFFFF_0000_0000_0002;
-pub const SYMBOL_NOT: u64 = 0xFFFF_0000_0000_0003;
+// Loosely arranged by order of precedence.
+pub const SYMBOL_COMMA: Symbol = Symbol {
+    symbol: 0xFFFF_0000_0000_0013,
+    name: ",",
+    precedence: Some(1)
+};
 
-pub const SYMBOL_LT: u64 = 0xFFFF_0000_0000_0004;
-pub const SYMBOL_LTE: u64 = 0xFFFF_0000_0000_0005;
-pub const SYMBOL_GT: u64 = 0xFFFF_0000_0000_0006;
-pub const SYMBOL_GTE: u64 = 0xFFFF_0000_0000_0007;
+pub const SYMBOL_EQUALS: Symbol = Symbol {
+    symbol: 0xFFFF_0000_0000_000E,
+    name: "=",
+    precedence: Some(2)
+};
 
-pub const SYMBOL_PLUS: u64 = 0xFFFF_0000_0000_0008;
-pub const SYMBOL_MINUS: u64 = 0xFFFF_0000_0000_0009;
-pub const SYMBOL_MULTIPLY: u64 = 0xFFFF_0000_0000_000A;
-pub const SYMBOL_DIVIDE: u64 = 0xFFFF_0000_0000_000B;
+pub const SYMBOL_OR: Symbol = Symbol {
+    symbol: 0xFFFF_0000_0000_0000,
+    name: "or",
+    precedence: Some(3)
+};
 
-pub const SYMBOL_OPEN_PAREN: u64 = 0xFFFF_0000_0000_000C;
-pub const SYMBOL_CLOSE_PAREN: u64 = 0xFFFF_0000_0000_000D;
-pub const SYMBOL_EQUALS: u64 = 0xFFFF_0000_0000_000E;
+pub const SYMBOL_AND: Symbol = Symbol {
+    symbol: 0xFFFF_0000_0000_0001,
+    name: "and",
+    precedence: Some(4)
+};
+
+pub const SYMBOL_NOT: Symbol = Symbol {
+    symbol: 0xFFFF_0000_0000_0003,
+    name: "not",
+    precedence: Some(5)
+};
+
+
+pub const SYMBOL_IS: Symbol = Symbol {
+    symbol: 0xFFFF_0000_0000_0002,
+    name: "is",
+    precedence: Some(10)
+};
+
+
+pub const SYMBOL_LT: Symbol = Symbol {
+    symbol: 0xFFFF_0000_0000_0004,
+    name: "<",
+    precedence: Some(15)
+};
+
+pub const SYMBOL_LTE: Symbol = Symbol {
+    symbol: 0xFFFF_0000_0000_0005,
+    name: "<=",
+    precedence: Some(15)
+};
+
+pub const SYMBOL_GT: Symbol = Symbol {
+    symbol: 0xFFFF_0000_0000_0006,
+    name: ">",
+    precedence: Some(15)
+};
+
+pub const SYMBOL_GTE: Symbol = Symbol {
+    symbol: 0xFFFF_0000_0000_0007,
+    name: ">=",
+    precedence: Some(15)
+};
+
+
+pub const SYMBOL_PLUS: Symbol = Symbol {
+    symbol: 0xFFFF_0000_0000_0008,
+    name: "+",
+    precedence: Some(20)
+};
+
+pub const SYMBOL_MINUS: Symbol = Symbol {
+    symbol: 0xFFFF_0000_0000_0009,
+    name: "-",
+    precedence: Some(20)
+};
+
+pub const SYMBOL_MULTIPLY: Symbol = Symbol {
+    symbol: 0xFFFF_0000_0000_000A,
+    name: "*",
+    precedence: Some(21)
+};
+
+pub const SYMBOL_DIVIDE: Symbol = Symbol {
+    symbol: 0xFFFF_0000_0000_000B,
+    name: "/",
+    precedence: Some(21)
+};
+
+pub const SYMBOL_MODULO: Symbol = Symbol {
+    symbol: 0xFFFF_0000_0000_0017,
+    name: "%",
+    precedence: Some(21)
+};
+
+
+
+pub const SYMBOL_DOT: Symbol = Symbol {
+    symbol: 0xFFFF_0000_0000_0016,
+    name: ".",
+    precedence: Some(25)
+};
+
+
+
+pub const SYMBOL_OPEN_PAREN: Symbol = Symbol {
+    symbol: 0xFFFF_0000_0000_000C,
+    name: "(",
+    precedence: Some(30)
+};
+
+pub const SYMBOL_CLOSE_PAREN: Symbol = Symbol {
+    symbol: 0xFFFF_0000_0000_000D,
+    name: ")",
+    precedence: Some(30)
+};
+
 
 
 // TODO: Precedence order for these
-pub const SYMBOL_OPEN_SQBR: u64 = 0xFFFF_0000_0000_000F;
-pub const SYMBOL_CLOSE_SQBR: u64 = 0xFFFF_0000_0000_0010;
-pub const SYMBOL_OPEN_BRACE: u64 = 0xFFFF_0000_0000_0011;
-pub const SYMBOL_CLOSE_BRACE: u64 = 0xFFFF_0000_0000_0012;
-pub const SYMBOL_COMMA: u64 = 0xFFFF_0000_0000_0013;
-pub const SYMBOL_COLON: u64 = 0xFFFF_0000_0000_0014;
-pub const SYMBOL_SEMI_COLON: u64 = 0xFFFF_0000_0000_0015;
-pub const SYMBOL_DOT: u64 = 0xFFFF_0000_0000_0016;
+pub const SYMBOL_OPEN_SQBR: Symbol = Symbol {
+    symbol: 0xFFFF_0000_0000_000F,
+    name: "[",
+    precedence: None
+};
+
+pub const SYMBOL_CLOSE_SQBR: Symbol = Symbol {
+    symbol: 0xFFFF_0000_0000_0010,
+    name: "]",
+    precedence: None
+};
+
+pub const SYMBOL_OPEN_BRACE: Symbol = Symbol {
+    symbol: 0xFFFF_0000_0000_0011,
+    name: "{",
+    precedence: None
+};
+
+pub const SYMBOL_CLOSE_BRACE: Symbol = Symbol {
+    symbol: 0xFFFF_0000_0000_0012,
+    name: "}",
+    precedence: None
+};
+
+pub const SYMBOL_COLON: Symbol = Symbol {
+    symbol: 0xFFFF_0000_0000_0014,
+    name: ":",
+    precedence: None
+};
+
+pub const SYMBOL_SEMI_COLON: Symbol = Symbol {
+    symbol: 0xFFFF_0000_0000_0015,
+    name: ";",
+    precedence: None
+};
 
 
 

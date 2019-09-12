@@ -74,7 +74,6 @@ lazy_static! {
 
     // Used during lexing
     pub static ref SYMBOL_ID_MAP: FnvHashMap<&'static str, u64> = {
-        // TODO: Sepcify different hasher
         let mut m = FnvHashMap::with_capacity_and_hasher(25, Default::default());
         // Inverting automatically via a function doesn't allow us to automatically uppercase
         // because of unknown size at compile time. So we do it the hard way.

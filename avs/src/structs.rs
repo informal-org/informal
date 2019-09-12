@@ -44,6 +44,13 @@ pub struct SymbolAtom {
     pub atom: Atom
 }
 
+pub struct Symbol {
+    pub symbol: u64, 
+    pub name: &'static str,
+    pub precedence: Option<u8>
+}
+
+
 impl Runtime {
     pub fn new(next_symbol_id: u64) -> Runtime {
         let mut runtime = Runtime {

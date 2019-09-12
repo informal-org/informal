@@ -133,7 +133,7 @@ fn is_delimiter(ch: char) -> bool {
     match ch {
         '(' | ')' | '[' | ']' | '{' | '}' | '"' | '\'' | 
         '.' | ',' | ':' | ';' |
-        '-' | '+' | '*' | '/' |  // Split to support unary -
+        '-' | '+' | '*' | '/' | '%' |
         ' ' | '\t' | '\n' => true,
         _ => false
     }
