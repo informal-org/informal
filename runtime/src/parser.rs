@@ -7,9 +7,9 @@ use super::structs::*;
 
 
 fn get_op_precedence(symbol: u64) -> u8 {
-    let index = truncate_symbol(symbol) as usize;
-    if index < RESERVED_SYMBOLS.len() {
-        let symbol_value = RESERVED_SYMBOLS[index];
+    let index = symbol & PAYLOAD_MASK;
+    if index < (RESERVED_SYMBOLS.len() as u64) {
+        let symbol_value = RESERVED_SYMBOLS[index as usize];
         if let Some(prec) = symbol_value.precedence {
             return prec
         }

@@ -5,6 +5,7 @@ There may be more of a hybrid version in the future,
 with interop with separately compiled modules.
 */
 
+use avs::runtime::RESERVED_SYMBOLS;
 use avs::runtime::ID_SYMBOL_MAP;
 use avs::functions::NativeFn;
 use super::parser;
@@ -62,37 +63,41 @@ pub fn call_function(mut env: &mut Runtime, stack: &mut Vec<u64>) -> u64 {
     }
 }
 
-pub fn apply_operator(mut env: &mut Runtime, operator: u64, mut stack: &mut Vec<u64>) {
+pub fn apply_operator(mut env: &mut Runtime, operator: u64, mut stack: &mut Vec<u64>) -> u64 {
     // println!("Operator: {}", repr(&env, operator));
     // print_stacktrace(env, &stack);
 
-    // Optimization: Could just be an array access rather than hash table
-    let result = if let Some(symbol) = ID_SYMBOL_MAP.get(&operator) {
+    let symbol_index = operator & PAYLOAD_MASK;
+    if symbol_index < (RESERVED_SYMBOLS.len() as u64) {
+        let symbol = RESERVED_SYMBOLS[symbol_index as usize];
         if symbol.operation.is_some() {
             let op_func = symbol.operation.unwrap();
             let b = stack.pop().unwrap();
             let a = stack.pop().unwrap();
-            (op_func)(&mut env, a, b)
+            return (op_func)(&mut env, a, b)
         } else {
             // Handle unary functions and other special cases
-            if **symbol == SYMBOL_CALL_FN {
-                call_function(&mut env, &mut stack)
+            if *symbol == SYMBOL_CALL_FN {
+                return call_function(&mut env, &mut stack)
             }
-            else if **symbol == SYMBOL_NOT {
-                __av_not(&mut env, stack.pop().unwrap())
+            else if *symbol == SYMBOL_NOT {
+                return __av_not(&mut env, stack.pop().unwrap())
             } else {
                 // Emit as value. Ex. True, None, etc.
-                operator
+                return operator
             }
         }
     } else {
         // Symbol not found in operators. Emit as-is as a symbol.
         println!("Unknown symbol {:X}", operator);
-        operator
+        return operator
     };
-    stack.push(result);
     // print_stacktrace(env, &stack);
     // println!("Next");
+}
+
+fn is_keyword(symbol: u64) -> bool {
+    return (symbol & PAYLOAD_MASK) < 255;
 }
 
 
@@ -109,8 +114,9 @@ pub fn interpret_expr(mut env: &mut Runtime, expression: &Expression, context: &
         match token {
             Atom::SymbolValue(kw) => {
                 // TODO: Check if built in operator or an identifier
-                if ID_SYMBOL_MAP.contains_key(kw) {
-                    apply_operator(&mut env, *kw, &mut expr_stack);
+                if is_keyword(*kw) {
+                    let result = apply_operator(&mut env, *kw, &mut expr_stack);
+                    expr_stack.push(result);
                 } else {
                     println!("Looking up symbol {:X}", kw);
                     // Lookup result of symbol
