@@ -4,17 +4,20 @@ use fnv::FnvHashMap;
 
 
 
+// Ordered by their symbol ID for table lookup
 #[cfg(not(target_os = "unknown"))]
-const RESERVED_SYMBOLS: [&'static Symbol; 27] = [ 
-    &SYMBOL_TRUE, &SYMBOL_FALSE, &SYMBOL_NONE,
-    &SYMBOL_OR, &SYMBOL_AND, &SYMBOL_IS, &SYMBOL_NOT, 
+pub const RESERVED_SYMBOLS: [&'static Symbol; 28] = [ 
+    &SYMBOL_COMMA, &SYMBOL_EQUALS,
+    &SYMBOL_OR, &SYMBOL_AND, &SYMBOL_NOT, 
+    &SYMBOL_DBL_EQUALS, &SYMBOL_NOT_EQUALS, 
     &SYMBOL_LT, &SYMBOL_LTE, &SYMBOL_GT, &SYMBOL_GTE,
     &SYMBOL_PLUS, &SYMBOL_MINUS, &SYMBOL_MULTIPLY, &SYMBOL_DIVIDE, &SYMBOL_MODULO,
+    &SYMBOL_DOT, 
     &SYMBOL_OPEN_PAREN, &SYMBOL_CLOSE_PAREN, 
     &SYMBOL_OPEN_SQBR, &SYMBOL_CLOSE_SQBR, 
     &SYMBOL_OPEN_BRACE, &SYMBOL_CLOSE_BRACE, 
-    &SYMBOL_COMMA, &SYMBOL_COLON, &SYMBOL_SEMI_COLON, &SYMBOL_DOT, 
-    &SYMBOL_EQUALS
+    &SYMBOL_COLON, &SYMBOL_SEMI_COLON, 
+    &SYMBOL_TRUE, &SYMBOL_FALSE, &SYMBOL_NONE,
 ];
 
 // Exclude from WASM code
@@ -154,5 +157,27 @@ lazy_static! {
 
         m
     };
+
+}
+
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_symbol_order() {
+        // The RESERVED_SYMBOLS list is meant to be ordered by the symbol ID
+        // so it can be used as a fast lookup table for precedence, function mappings, etc.
+        // Verify this order is preserved in future modifications
+
+        let mut index = 0;
+        for symbol in RESERVED_SYMBOLS.iter() {
+            let symbol_value = symbol.symbol & PAYLOAD_MASK;
+            assert_eq!(symbol_value, index);
+            index += 1;
+        }
+    }
 
 }

@@ -1,34 +1,24 @@
 use avs::constants::*;
+use avs::runtime::RESERVED_SYMBOLS;
 use avs::structs::Atom;
 use avs::utils::truncate_symbol;
 use super::structs::*;
 
 
-// Higher numbers have higher precedence. 
-// Indexes should match with TokenType enum values.
-const KEYWORD_PRECEDENCE: &[u8] = &[
-    1, 2,       // and/or
-    5,          // is (==)
-    6,          // not
-    7, 7, 7, 7, // Comparison
-    9, 9,       // Add/subtract
-    10, 10,     // Multiply, divide
-    11, 11,     // Parens
-    0           // Equals
-];
-
 
 fn get_op_precedence(symbol: u64) -> u8 {
     let index = truncate_symbol(symbol) as usize;
-    if index < KEYWORD_PRECEDENCE.len() {
-        return KEYWORD_PRECEDENCE[index];
+    if index < RESERVED_SYMBOLS.len() {
+        let symbol_value = RESERVED_SYMBOLS[index];
+        if let Some(prec) = symbol_value.precedence {
+            return prec
+        }
     }
-    // TODO: Rearrange precedence to not use 0 then.
-    // Symbols and everything else have a higher precedence so they're evaluated first
-    return 16
+    return 255
 }
 
 pub fn is_operator(symbol: u64) -> bool {
+    // TODO: Verify
     return (symbol & PAYLOAD_MASK) <= 16;
 }
 

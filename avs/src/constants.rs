@@ -71,14 +71,14 @@ pub const VALUE_T_SYM_OBJ: u64 = 0xFFFF_0000_0000_0000;
 // Falsey/empty value symbols 
 // (00-FF reserved for internal symbols for indexing into precedence lookup table)
 pub const SYMBOL_FALSE: Symbol = Symbol {
-    symbol: 0xFFFB_0000_0000_0040,  // 64
+    symbol: 0xFFFB_0000_0000_001A,
     name: "False",
     precedence: None,
     operation: None
 };
 
 pub const SYMBOL_NONE: Symbol = Symbol {
-    symbol: 0xFFFB_0000_0000_0041,
+    symbol: 0xFFFB_0000_0000_001B,
     name: "None",
     precedence: None,
     operation: None
@@ -102,11 +102,12 @@ pub const SYMBOL_SENTINEL_SENTINEL: u64 = 0xFFFB_0000_0000_004C;
 // Like above, 00-FF reserved for precedence lookup. 
 // Note: The reserved keyword numbers should be unique (regardless of truthy/falsey).
 pub const SYMBOL_TRUE: Symbol = Symbol {
-    symbol: 0xFFFF_0000_0000_0080,  // 128
+    symbol: 0xFFFF_0000_0000_0019,
     name: "True",
     precedence: None,
     operation: None
 };
+
 
 
 // Constants for supported symbols within expressions.
@@ -115,72 +116,81 @@ pub const SYMBOL_TRUE: Symbol = Symbol {
 // The IDs represent index into the precedence array.
 // Loosely arranged by order of precedence.
 pub const SYMBOL_COMMA: Symbol = Symbol {
-    symbol: 0xFFFF_0000_0000_0013,
+    symbol: 0xFFFF_0000_0000_0000,
     name: ",",
     precedence: Some(1),
     operation: None
 };
 
 pub const SYMBOL_EQUALS: Symbol = Symbol {
-    symbol: 0xFFFF_0000_0000_000E,
+    symbol: 0xFFFF_0000_0000_0001,
     name: "=",
     precedence: Some(2),
     operation: None
 
 };
 
+
 pub const SYMBOL_OR: Symbol = Symbol {
-    symbol: 0xFFFF_0000_0000_0000,
+    symbol: 0xFFFF_0000_0000_0002,
     name: "or",
     precedence: Some(3),
     operation: Some(__av_or)
 };
 
 pub const SYMBOL_AND: Symbol = Symbol {
-    symbol: 0xFFFF_0000_0000_0001,
+    symbol: 0xFFFF_0000_0000_0003,
     name: "and",
     precedence: Some(4),
     operation: Some(__av_and)
 };
 
 pub const SYMBOL_NOT: Symbol = Symbol {
-    symbol: 0xFFFF_0000_0000_0003,
+    symbol: 0xFFFF_0000_0000_0004,
     name: "not",
     precedence: Some(5),
     operation: None    // Not is a unary, so handle it separately
 };
 
-pub const SYMBOL_IS: Symbol = Symbol {
-    symbol: 0xFFFF_0000_0000_0002,
-    name: "is",
+
+pub const SYMBOL_DBL_EQUALS: Symbol = Symbol {
+    symbol: 0xFFFF_0000_0000_0005,
+    name: "==",
+    precedence: Some(10),
+    operation: None
+};
+
+pub const SYMBOL_NOT_EQUALS: Symbol = Symbol {
+    symbol: 0xFFFF_0000_0000_0006,
+    name: "!=",
     precedence: Some(10),
     operation: None
 };
 
 
 pub const SYMBOL_LT: Symbol = Symbol {
-    symbol: 0xFFFF_0000_0000_0004,
+    symbol: 0xFFFF_0000_0000_0007,
     name: "<",
     precedence: Some(15),
     operation: Some(__av_lt)
 };
 
 pub const SYMBOL_LTE: Symbol = Symbol {
-    symbol: 0xFFFF_0000_0000_0005,
+    symbol: 0xFFFF_0000_0000_0008,
     name: "<=",
     precedence: Some(15),
     operation: Some(__av_lte)
 };
 
 pub const SYMBOL_GT: Symbol = Symbol {
-    symbol: 0xFFFF_0000_0000_0006,
+    symbol: 0xFFFF_0000_0000_0009,
     name: ">",
     precedence: Some(15),
     operation: Some(__av_gt)
 };
 
 pub const SYMBOL_GTE: Symbol = Symbol {
-    symbol: 0xFFFF_0000_0000_0007,
+    symbol: 0xFFFF_0000_0000_000A,
     name: ">=",
     precedence: Some(15),
     operation: Some(__av_gte)
@@ -188,104 +198,102 @@ pub const SYMBOL_GTE: Symbol = Symbol {
 
 
 pub const SYMBOL_PLUS: Symbol = Symbol {
-    symbol: 0xFFFF_0000_0000_0008,
+    symbol: 0xFFFF_0000_0000_000B,
     name: "+",
     precedence: Some(20),
     operation: Some(__av_add)
 };
 
 pub const SYMBOL_MINUS: Symbol = Symbol {
-    symbol: 0xFFFF_0000_0000_0009,
+    symbol: 0xFFFF_0000_0000_000C,
     name: "-",
     precedence: Some(20),
     operation: Some(__av_sub)
 };
 
 pub const SYMBOL_MULTIPLY: Symbol = Symbol {
-    symbol: 0xFFFF_0000_0000_000A,
+    symbol: 0xFFFF_0000_0000_000D,
     name: "*",
     precedence: Some(21),
     operation: Some(__av_mul)
 };
 
 pub const SYMBOL_DIVIDE: Symbol = Symbol {
-    symbol: 0xFFFF_0000_0000_000B,
+    symbol: 0xFFFF_0000_0000_000E,
     name: "/",
     precedence: Some(21),
     operation: Some(__av_div)
 };
 
 pub const SYMBOL_MODULO: Symbol = Symbol {
-    symbol: 0xFFFF_0000_0000_0017,
+    symbol: 0xFFFF_0000_0000_000F,
     name: "%",
     precedence: Some(21),
     operation: None         // TODO
 };
 
+
 pub const SYMBOL_DOT: Symbol = Symbol {
-    symbol: 0xFFFF_0000_0000_0016,
+    symbol: 0xFFFF_0000_0000_0010,
     name: ".",
     precedence: Some(25),
     operation: None         // TODO
-    
 };
 
 
 
 pub const SYMBOL_OPEN_PAREN: Symbol = Symbol {
-    symbol: 0xFFFF_0000_0000_000C,
+    symbol: 0xFFFF_0000_0000_0011,
     name: "(",
     precedence: Some(30), 
     operation: None
 };
 
 pub const SYMBOL_CLOSE_PAREN: Symbol = Symbol {
-    symbol: 0xFFFF_0000_0000_000D,
+    symbol: 0xFFFF_0000_0000_0012,
     name: ")",
     precedence: Some(30),
     operation: None
 };
 
 
-
-// TODO: Precedence order for these
 pub const SYMBOL_OPEN_SQBR: Symbol = Symbol {
-    symbol: 0xFFFF_0000_0000_000F,
+    symbol: 0xFFFF_0000_0000_0013,
     name: "[",
     precedence: None,
     operation: None
 };
 
 pub const SYMBOL_CLOSE_SQBR: Symbol = Symbol {
-    symbol: 0xFFFF_0000_0000_0010,
+    symbol: 0xFFFF_0000_0000_0014,
     name: "]",
     precedence: None,
     operation: None
 };
 
 pub const SYMBOL_OPEN_BRACE: Symbol = Symbol {
-    symbol: 0xFFFF_0000_0000_0011,
+    symbol: 0xFFFF_0000_0000_0015,
     name: "{",
     precedence: None,
     operation: None
 };
 
 pub const SYMBOL_CLOSE_BRACE: Symbol = Symbol {
-    symbol: 0xFFFF_0000_0000_0012,
+    symbol: 0xFFFF_0000_0000_0016,
     name: "}",
     precedence: None,
     operation: None
 };
 
 pub const SYMBOL_COLON: Symbol = Symbol {
-    symbol: 0xFFFF_0000_0000_0014,
+    symbol: 0xFFFF_0000_0000_0017,
     name: ":",
     precedence: None,
     operation: None
 };
 
 pub const SYMBOL_SEMI_COLON: Symbol = Symbol {
-    symbol: 0xFFFF_0000_0000_0015,
+    symbol: 0xFFFF_0000_0000_0018,
     name: ";",
     precedence: None,
     operation: None
