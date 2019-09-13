@@ -273,7 +273,12 @@ pub const AV_CLASS_ENVIRONMENT: u64 = 0xFFFF_0000_0000_1028;
 pub const AV_CLASS_STRING: u64 = 0xFFFF_0000_0000_1029;
 
 
-pub const SYMBOL_CALL_FN: u64 = 0xFFFF_0000_0000_1042;
+pub const SYMBOL_CALL_FN: Symbol = Symbol {
+    symbol: 0xFFFF_0000_0000_1042,
+    name: "__call__",
+    precedence: None
+};
+
 
 
 // Reserve up to 65k symbols for standard library usage. (Classes, functions, etc.)
