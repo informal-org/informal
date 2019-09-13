@@ -100,10 +100,10 @@ pub extern "C" fn __av_as_bool(a: u64) -> bool {
 #[inline(always)]
 pub extern "C" fn __repr_bool(a: bool) -> u64 {
 	if a {
-		return SYMBOL_TRUE
+		return SYMBOL_TRUE.symbol
 	} 
 	else {
-		return SYMBOL_FALSE
+		return SYMBOL_FALSE.symbol
 	}
 }
 
@@ -118,9 +118,9 @@ mod tests {
 	#[test]
     fn test_as_bool() {
 		// Verifies is_truthy as well
-		assert_eq!(is_truthy(SYMBOL_TRUE), true);
-		assert_eq!(is_truthy(SYMBOL_FALSE), false);
-		assert_eq!(is_truthy(SYMBOL_NONE), false);
+		assert_eq!(is_truthy(SYMBOL_TRUE.symbol), true);
+		assert_eq!(is_truthy(SYMBOL_FALSE.symbol), false);
+		assert_eq!(is_truthy(SYMBOL_NONE.symbol), false);
 		assert_eq!(is_truthy(VALUE_ERR), false);
 		assert_eq!(is_truthy(f64::to_bits(1.0)), true);
 		assert_eq!(is_truthy(f64::to_bits(3.0)), true);

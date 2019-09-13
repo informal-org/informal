@@ -8,9 +8,8 @@ use crate::runtime::ID_SYMBOL_MAP;
 
 #[cfg(not(target_os = "unknown"))]
 pub fn repr_symbol(symbol: &u64) -> String {
-    let builtin_name = ID_SYMBOL_MAP.get(symbol);
-    if builtin_name.is_some(){
-        format!("{}", builtin_name.unwrap())
+    if let Some(builtin_name) = ID_SYMBOL_MAP.get(symbol) {
+        format!("{}", builtin_name.name)
     } else {
         format!("{:X}", symbol)
     }

@@ -33,7 +33,7 @@ pub fn apply_operator(mut env: &mut Runtime, operator: u64, stack: &mut Vec<u64>
     // println!("Operator: {}", repr(&env, operator));
     // print_stacktrace(env, &stack);
     let result = match operator {
-        SYMBOL_PLUS => apply_bin_op!(env, __av_add, stack),
+        SYMBOL_PLUS.symbol => apply_bin_op!(env, __av_add, stack),
         SYMBOL_MINUS => apply_bin_op!(env, __av_sub, stack),
         SYMBOL_MULTIPLY => apply_bin_op!(env, __av_mul, stack),
         SYMBOL_DIVIDE => apply_bin_op!(env, __av_div, stack),

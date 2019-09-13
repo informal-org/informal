@@ -47,7 +47,8 @@ pub struct SymbolAtom {
 pub struct Symbol {
     pub symbol: u64, 
     pub name: &'static str,
-    pub precedence: Option<u8>
+    pub precedence: Option<u8>,
+//    pub operation: Option<NativeFn>
 }
 
 
