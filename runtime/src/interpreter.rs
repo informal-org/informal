@@ -28,66 +28,71 @@ macro_rules! apply_bin_op {
     });
 }
 
+pub fn call_function(mut env: &mut Runtime, stack: &mut Vec<u64>) -> u64 {
+    // TODO: Stack bounds checks
+    let func_symbol = stack.pop().unwrap();
+    if let Some(func_atom) = env.get_atom(func_symbol) {
+        match func_atom {
+            Atom::FunctionValue(fval) => {
+                match fval {
+                    NativeFn::Fn2(f2) => {
+                        // TODO: Verify stack size
+                        // Pop in reverse order since stack is in postfix
+                        let b = stack.pop().unwrap();
+                        let a = stack.pop().unwrap();
+                        let fn_result = (f2.func)(&mut env, a, b);
+                        return fn_result
+                    }
+                    NativeFn::Fn1(f1) => {
+                        let a = stack.pop().unwrap();
+                        let fn_result = (f1.func)(&mut env, a);
+                        return fn_result
+                    },
+                    _ => {
+                        return RUNTIME_ERR_FN_UNK
+                    }
+                }
+            }
+            _ => {
+                return RUNTIME_ERR_FN_EXPECTED
+            }
+        }
+    } else {
+        return RUNTIME_ERR_FN_UNK
+    }
+}
 
 pub fn apply_operator(mut env: &mut Runtime, operator: u64, stack: &mut Vec<u64>) {
     // println!("Operator: {}", repr(&env, operator));
     // print_stacktrace(env, &stack);
-    let result = match operator {
-        SYMBOL_PLUS.symbol => apply_bin_op!(env, __av_add, stack),
-        SYMBOL_MINUS => apply_bin_op!(env, __av_sub, stack),
-        SYMBOL_MULTIPLY => apply_bin_op!(env, __av_mul, stack),
-        SYMBOL_DIVIDE => apply_bin_op!(env, __av_div, stack),
-        
-        SYMBOL_AND => apply_bin_op!(env, __av_and, stack),
-        SYMBOL_OR => apply_bin_op!(env, __av_or, stack),
-        SYMBOL_NOT => {
-            __av_not(&mut env, stack.pop().unwrap())
-        },
 
-        SYMBOL_LT => apply_bin_op!(env, __av_lt, stack),
-        SYMBOL_LTE => apply_bin_op!(env, __av_lte, stack),
-        SYMBOL_GT => apply_bin_op!(env, __av_gt, stack),
-        SYMBOL_GTE => apply_bin_op!(env, __av_gte, stack),
-
-        SYMBOL_CALL_FN => {
-            // TODO: Stack exists
-            let func_symbol = stack.pop().unwrap();
-            if let Some(func_atom) = env.get_atom(func_symbol) {
-                match func_atom {
-                    Atom::FunctionValue(fval) => {
-                        match fval {
-                            NativeFn::Fn2(f2) => {
-                                // TODO: Verify stack size
-                                // Pop in reverse order since stack is in postfix
-                                let b = stack.pop().unwrap();
-                                let a = stack.pop().unwrap();
-                                let fn_result = (f2.func)(&mut env, a, b);
-                                fn_result
-                            }
-                            NativeFn::Fn1(f1) => {
-                                let a = stack.pop().unwrap();
-                                let fn_result = (f1.func)(&mut env, a);
-                                fn_result
-                            },
-                            _ => {
-                                RUNTIME_ERR_FN_UNK
-                            }
-                        }
-                    }
-                    _ => {
-                        RUNTIME_ERR_FN_EXPECTED
-                    }
+    // Optimization: Could just be an array access rather than hash table
+    let result = if let Some(symbol) = ID_SYMBOL_MAP.get(&operator) {
+        if symbol.operation.is_some() {
+            let op_func = symbol.operation.unwrap();
+            let b = stack.pop().unwrap();
+            let a = stack.pop().unwrap();
+            (op_func)(&mut env, a, b)
+        } else {
+            // Handle unary functions and other special cases
+            match **symbol {
+                SYMBOL_NOT => {
+                    __av_not(&mut env, stack.pop().unwrap())
+                },
+                SYMBOL_CALL_FN => {
+                    call_function(&mut env, &mut stack)
                 }
-            } else {
-                RUNTIME_ERR_FN_UNK
+                _ => {
+                    // Emit as value. Ex. True, None, etc.
+                    operator
+                }
             }
-        },
-        _ => {
-            // TODO: Is this correct? Or should it be INTERPRETER_ERR?
-            // Unknown symbols are emitted as-is. 
-            println!("Unknown symbol {:X}", operator);
-            operator
+
         }
+    } else {
+        // Symbol not found in operators. Emit as-is as a symbol.
+        println!("Unknown symbol {:X}", operator);
+        operator
     };
     stack.push(result);
     // print_stacktrace(env, &stack);

@@ -48,7 +48,7 @@ pub struct Symbol {
     pub symbol: u64, 
     pub name: &'static str,
     pub precedence: Option<u8>,
-//    pub operation: Option<NativeFn>
+    pub operation: Option<extern "C" fn(&mut Runtime, u64, u64) -> u64>
 }
 
 

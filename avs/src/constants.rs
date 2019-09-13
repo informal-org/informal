@@ -26,7 +26,10 @@ Symbols 0-256 reserved for keywords.
 // Data format
 
 // 8 = 1000 in binary
+use crate::functions::NativeFn2;
 use crate::structs::Symbol;
+use crate::operators::*;
+
 
 pub const SIGNALING_NAN: u64 = 0xFFF8_0000_0000_0000;
 pub const QUITE_NAN: u64 = 0xFFF0_0000_0000_0000;
@@ -70,13 +73,15 @@ pub const VALUE_T_SYM_OBJ: u64 = 0xFFFF_0000_0000_0000;
 pub const SYMBOL_FALSE: Symbol = Symbol {
     symbol: 0xFFFB_0000_0000_0040,  // 64
     name: "False",
-    precedence: None
+    precedence: None,
+    operation: None
 };
 
 pub const SYMBOL_NONE: Symbol = Symbol {
     symbol: 0xFFFB_0000_0000_0041,
     name: "None",
-    precedence: None
+    precedence: None,
+    operation: None
 };
 
 pub const SYMBOL_EMPTY_ARR: u64         = 0xFFFB_0000_0000_0042;
@@ -99,7 +104,8 @@ pub const SYMBOL_SENTINEL_SENTINEL: u64 = 0xFFFB_0000_0000_004C;
 pub const SYMBOL_TRUE: Symbol = Symbol {
     symbol: 0xFFFF_0000_0000_0080,  // 128
     name: "True",
-    precedence: None
+    precedence: None,
+    operation: None
 };
 
 
@@ -111,102 +117,117 @@ pub const SYMBOL_TRUE: Symbol = Symbol {
 pub const SYMBOL_COMMA: Symbol = Symbol {
     symbol: 0xFFFF_0000_0000_0013,
     name: ",",
-    precedence: Some(1)
+    precedence: Some(1),
+    operation: None
 };
 
 pub const SYMBOL_EQUALS: Symbol = Symbol {
     symbol: 0xFFFF_0000_0000_000E,
     name: "=",
-    precedence: Some(2)
+    precedence: Some(2),
+    operation: None
+
 };
 
 pub const SYMBOL_OR: Symbol = Symbol {
     symbol: 0xFFFF_0000_0000_0000,
     name: "or",
-    precedence: Some(3)
+    precedence: Some(3),
+    operation: Some(__av_or)
 };
 
 pub const SYMBOL_AND: Symbol = Symbol {
     symbol: 0xFFFF_0000_0000_0001,
     name: "and",
-    precedence: Some(4)
+    precedence: Some(4),
+    operation: Some(__av_and)
 };
 
 pub const SYMBOL_NOT: Symbol = Symbol {
     symbol: 0xFFFF_0000_0000_0003,
     name: "not",
-    precedence: Some(5)
+    precedence: Some(5),
+    operation: None    // Not is a unary, so handle it separately
 };
-
 
 pub const SYMBOL_IS: Symbol = Symbol {
     symbol: 0xFFFF_0000_0000_0002,
     name: "is",
-    precedence: Some(10)
+    precedence: Some(10),
+    operation: None
 };
 
 
 pub const SYMBOL_LT: Symbol = Symbol {
     symbol: 0xFFFF_0000_0000_0004,
     name: "<",
-    precedence: Some(15)
+    precedence: Some(15),
+    operation: Some(__av_lt)
 };
 
 pub const SYMBOL_LTE: Symbol = Symbol {
     symbol: 0xFFFF_0000_0000_0005,
     name: "<=",
-    precedence: Some(15)
+    precedence: Some(15),
+    operation: Some(__av_lte)
 };
 
 pub const SYMBOL_GT: Symbol = Symbol {
     symbol: 0xFFFF_0000_0000_0006,
     name: ">",
-    precedence: Some(15)
+    precedence: Some(15),
+    operation: Some(__av_gt)
 };
 
 pub const SYMBOL_GTE: Symbol = Symbol {
     symbol: 0xFFFF_0000_0000_0007,
     name: ">=",
-    precedence: Some(15)
+    precedence: Some(15),
+    operation: Some(__av_gte)
 };
 
 
 pub const SYMBOL_PLUS: Symbol = Symbol {
     symbol: 0xFFFF_0000_0000_0008,
     name: "+",
-    precedence: Some(20)
+    precedence: Some(20),
+    operation: Some(__av_add)
 };
 
 pub const SYMBOL_MINUS: Symbol = Symbol {
     symbol: 0xFFFF_0000_0000_0009,
     name: "-",
-    precedence: Some(20)
+    precedence: Some(20),
+    operation: Some(__av_sub)
 };
 
 pub const SYMBOL_MULTIPLY: Symbol = Symbol {
     symbol: 0xFFFF_0000_0000_000A,
     name: "*",
-    precedence: Some(21)
+    precedence: Some(21),
+    operation: Some(__av_mul)
 };
 
 pub const SYMBOL_DIVIDE: Symbol = Symbol {
     symbol: 0xFFFF_0000_0000_000B,
     name: "/",
-    precedence: Some(21)
+    precedence: Some(21),
+    operation: Some(__av_div)
 };
 
 pub const SYMBOL_MODULO: Symbol = Symbol {
     symbol: 0xFFFF_0000_0000_0017,
     name: "%",
-    precedence: Some(21)
+    precedence: Some(21),
+    operation: None         // TODO
 };
-
-
 
 pub const SYMBOL_DOT: Symbol = Symbol {
     symbol: 0xFFFF_0000_0000_0016,
     name: ".",
-    precedence: Some(25)
+    precedence: Some(25),
+    operation: None         // TODO
+    
 };
 
 
@@ -214,13 +235,15 @@ pub const SYMBOL_DOT: Symbol = Symbol {
 pub const SYMBOL_OPEN_PAREN: Symbol = Symbol {
     symbol: 0xFFFF_0000_0000_000C,
     name: "(",
-    precedence: Some(30)
+    precedence: Some(30), 
+    operation: None
 };
 
 pub const SYMBOL_CLOSE_PAREN: Symbol = Symbol {
     symbol: 0xFFFF_0000_0000_000D,
     name: ")",
-    precedence: Some(30)
+    precedence: Some(30),
+    operation: None
 };
 
 
@@ -229,37 +252,43 @@ pub const SYMBOL_CLOSE_PAREN: Symbol = Symbol {
 pub const SYMBOL_OPEN_SQBR: Symbol = Symbol {
     symbol: 0xFFFF_0000_0000_000F,
     name: "[",
-    precedence: None
+    precedence: None,
+    operation: None
 };
 
 pub const SYMBOL_CLOSE_SQBR: Symbol = Symbol {
     symbol: 0xFFFF_0000_0000_0010,
     name: "]",
-    precedence: None
+    precedence: None,
+    operation: None
 };
 
 pub const SYMBOL_OPEN_BRACE: Symbol = Symbol {
     symbol: 0xFFFF_0000_0000_0011,
     name: "{",
-    precedence: None
+    precedence: None,
+    operation: None
 };
 
 pub const SYMBOL_CLOSE_BRACE: Symbol = Symbol {
     symbol: 0xFFFF_0000_0000_0012,
     name: "}",
-    precedence: None
+    precedence: None,
+    operation: None
 };
 
 pub const SYMBOL_COLON: Symbol = Symbol {
     symbol: 0xFFFF_0000_0000_0014,
     name: ":",
-    precedence: None
+    precedence: None,
+    operation: None
 };
 
 pub const SYMBOL_SEMI_COLON: Symbol = Symbol {
     symbol: 0xFFFF_0000_0000_0015,
     name: ";",
-    precedence: None
+    precedence: None,
+    operation: None
 };
 
 
@@ -276,7 +305,8 @@ pub const AV_CLASS_STRING: u64 = 0xFFFF_0000_0000_1029;
 pub const SYMBOL_CALL_FN: Symbol = Symbol {
     symbol: 0xFFFF_0000_0000_1042,
     name: "__call__",
-    precedence: None
+    precedence: None,
+    operation: None
 };
 
 

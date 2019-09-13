@@ -7,7 +7,7 @@ use alloc::borrow::Cow;
 
 
 #[no_mangle]
-pub extern "C" fn __av_add(env: &mut Runtime, a: u64, b: u64) -> u64 {
+pub extern fn __av_add(env: &mut Runtime, a: u64, b: u64) -> u64 {
 	// + is an overloaded operator, allowing combinations across various things
 	// To prevent exponential branching, resolve both elements to Atoms and then do the math.
 	let atom_a = resolve_atom!(env, a);
@@ -38,21 +38,21 @@ pub extern "C" fn __av_add(env: &mut Runtime, a: u64, b: u64) -> u64 {
 }
 
 #[no_mangle]
-pub extern "C" fn __av_sub(_env: &mut Runtime, a: u64, b: u64) -> u64 {
+pub extern fn __av_sub(_env: &mut Runtime, a: u64, b: u64) -> u64 {
 	let f_a: f64 = valid_num!(a);
 	let f_b: f64 = valid_num!(b);
 	return (f_a - f_b).to_bits()
 }
 
 #[no_mangle]
-pub extern "C" fn __av_mul(_env: &mut Runtime, a: u64, b: u64) -> u64 {
+pub extern fn __av_mul(_env: &mut Runtime, a: u64, b: u64) -> u64 {
 	let f_a: f64 = valid_num!(a);
 	let f_b: f64 = valid_num!(b);
 	return (f_a * f_b).to_bits()
 }
 
 #[no_mangle]
-pub extern "C" fn __av_div(_env: &mut Runtime, a: u64, b: u64) -> u64 {
+pub extern fn __av_div(_env: &mut Runtime, a: u64, b: u64) -> u64 {
 	let f_a: f64 = valid_num!(a);
 	let f_b: f64 = valid_num!(b);
 
@@ -65,7 +65,7 @@ pub extern "C" fn __av_div(_env: &mut Runtime, a: u64, b: u64) -> u64 {
 
 
 #[no_mangle]
-pub extern "C" fn __av_and(_env: &mut Runtime, a: u64, b: u64) -> u64 {
+pub extern fn __av_and(_env: &mut Runtime, a: u64, b: u64) -> u64 {
 	let a_bool: bool = __av_as_bool(a);
 	let b_bool: bool = __av_as_bool(b);
 	let result: bool = a_bool && b_bool;
@@ -73,7 +73,7 @@ pub extern "C" fn __av_and(_env: &mut Runtime, a: u64, b: u64) -> u64 {
 }
 
 #[no_mangle]
-pub extern "C" fn __av_or(_env: &mut Runtime, a: u64, b: u64) -> u64 {
+pub extern fn __av_or(_env: &mut Runtime, a: u64, b: u64) -> u64 {
 	let a_bool: bool = __av_as_bool(a);
 	let b_bool: bool = __av_as_bool(b);
 	let result: bool = a_bool || b_bool;
@@ -81,14 +81,14 @@ pub extern "C" fn __av_or(_env: &mut Runtime, a: u64, b: u64) -> u64 {
 }
 
 #[no_mangle]
-pub extern "C" fn __av_not(_env: &mut Runtime, a: u64) -> u64 {
+pub extern fn __av_not(_env: &mut Runtime, a: u64) -> u64 {
 	let a_bool: bool = __av_as_bool(a);
 	let result: bool = !a_bool;
 	return __repr_bool(result);
 }
 
 #[no_mangle]
-pub extern "C" fn __av_gt(_env: &mut Runtime, a: u64, b: u64) -> u64 {
+pub extern fn __av_gt(_env: &mut Runtime, a: u64, b: u64) -> u64 {
 	let f_a: f64 = valid_num!(a);
 	let f_b: f64 = valid_num!(b);
 	let result = f_a > f_b;
@@ -96,7 +96,7 @@ pub extern "C" fn __av_gt(_env: &mut Runtime, a: u64, b: u64) -> u64 {
 }
 
 #[no_mangle]
-pub extern "C" fn __av_gte(_env: &mut Runtime, a: u64, b: u64) -> u64 {
+pub extern fn __av_gte(_env: &mut Runtime, a: u64, b: u64) -> u64 {
 	let f_a: f64 = valid_num!(a);
 	let f_b: f64 = valid_num!(b);
 	let result = f_a >= f_b;
@@ -105,7 +105,7 @@ pub extern "C" fn __av_gte(_env: &mut Runtime, a: u64, b: u64) -> u64 {
 
 
 #[no_mangle]
-pub extern "C" fn __av_lt(_env: &mut Runtime, a: u64, b: u64) -> u64 {
+pub extern fn __av_lt(_env: &mut Runtime, a: u64, b: u64) -> u64 {
 	let f_a: f64 = valid_num!(a);
 	let f_b: f64 = valid_num!(b);
 	let result = f_a < f_b;
@@ -113,7 +113,7 @@ pub extern "C" fn __av_lt(_env: &mut Runtime, a: u64, b: u64) -> u64 {
 }
 
 #[no_mangle]
-pub extern "C" fn __av_lte(_env: &mut Runtime, a: u64, b: u64) -> u64 {
+pub extern fn __av_lte(_env: &mut Runtime, a: u64, b: u64) -> u64 {
 	let f_a: f64 = valid_num!(a);
 	let f_b: f64 = valid_num!(b);
 	let result = f_a <= f_b;
