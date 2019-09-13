@@ -55,94 +55,80 @@ pub fn apply_operator_precedence(context: &Context, id: u64, cell_symbol: u64, i
 
     for token in infix.drain(..) {
         match &token {
-            Atom::SymbolValue(kw) => {
-                match *kw {
-                    SYMBOL_OPEN_PAREN => operator_stack.push(*kw),
-                    SYMBOL_COMMA => {
-                        // Denotes end of one sub-expression. i.e. min(1 * 2, 2 + 2). Flush.
-                        while let Some(op) = operator_stack.last() {
-                            if *op == SYMBOL_COMMA {
-                                operator_stack.pop();
-                            } else if *op == SYMBOL_OPEN_PAREN {
-                                break;
-                            } else {
-                                postfix.push(Atom::SymbolValue(operator_stack.pop().unwrap()))
-                            }
+            Atom::SymbolValue(kw_addr) => {
+                let kw = *kw_addr;
+                if kw == SYMBOL_OPEN_PAREN.symbol {
+                    operator_stack.push(kw)
+                } else if kw == SYMBOL_COMMA.symbol {
+                    // Denotes end of one sub-expression. i.e. min(1 * 2, 2 + 2). Flush.
+                    while let Some(op) = operator_stack.last() {
+                        if *op == SYMBOL_COMMA.symbol {
+                            operator_stack.pop();
+                        } else if *op == SYMBOL_OPEN_PAREN.symbol {
+                            break;
+                        } else {
+                            postfix.push(Atom::SymbolValue(operator_stack.pop().unwrap()))
                         }
-                    },
-                    SYMBOL_CLOSE_PAREN => {
-                        // Pop until you find the matching opening paren
-                        let mut found = false;
-                        while let Some(op) = operator_stack.pop() {
-                            // Sholud always be true since the operator stack only contains keywords
-                            match op {
-                                SYMBOL_OPEN_PAREN => {
-                                    found = true;
-                                    break;
-                                },
-                                // // TODO: Handle function calls separately
-                                // // This currently makes commas optional. It should be required, but ignored.
-                                // SYMBOL_COMMA => {
-                                //     // Eat commas within function calls fn(a, b)
-                                //     continue
-                                // },
-                                _ => postfix.push(Atom::SymbolValue(op))
-                            }
-                        }
-                        if found == false {
-                            // return Err(PARSE_ERR_UNMATCHED_PARENS)
-                            return Expression::err(id, PARSE_ERR_UNMATCHED_PARENS)
-                        }
-                        
-                        // Check for function call
-                        if let Some(maybe_fn) = operator_stack.last() {
-                            if !is_operator(*maybe_fn) {
-                                // TODO: check if function
-                                // TODO: Namespace/module support
-                                postfix.push(Atom::SymbolValue(operator_stack.pop().unwrap()));
-                                postfix.push(Atom::SymbolValue(SYMBOL_CALL_FN));
-                            }
-                        }
-                    },
-                    _ => {
-                        // For all other operators, flush higher or equal level operators
-                        // All operators are left associative in our system right now. (else, equals doesn't get pushed)
-                        let my_precedence = get_op_precedence(*kw);
-                        // if my_precedence <= 16 {
-                            // Is operator. Use precedence.
-                            while operator_stack.len() > 0 {
-                                let op_peek_last = operator_stack.last().unwrap();
-                                // Skip any items that aren't really operators.
-                                if *op_peek_last == SYMBOL_OPEN_PAREN {
-                                    break;
-                                }
-
-
-                                let other_precedence = get_op_precedence(*op_peek_last);
-                                if other_precedence >= my_precedence {        // output any higher priority operators.
-                                    let stack_symbol = operator_stack.pop().unwrap();
-                                    // Dependency is managed at cell/pointer level. Treat built-in symbols as met.
-                                    if is_dependency_symbol(&context, stack_symbol) {
-                                        depends_on.push(stack_symbol);
-                                    }
-                                    
-                                    // // TODO: This makes commas optional. Change to required but ignored.
-                                    // if stack_symbol == SYMBOL_COMMA {
-                                    //     continue
-                                    // }
-
-                                    postfix.push(Atom::SymbolValue(stack_symbol));
-                                } else {
-                                    break;
-                                }
-                            }
-                            // Flushed all operators with higher precedence. Add to op stack.
-                            operator_stack.push(*kw);
-                        // } else {
-                        //     // Is other symbol. Emit as-is.
-                        //     postfix.push(token);
-                        // }
                     }
+                } else if kw == SYMBOL_CLOSE_PAREN.symbol {
+                    // Pop until you find the matching opening paren
+                    let mut found = false;
+                    while let Some(op) = operator_stack.pop() {
+                        // Should always be true since the operator stack only contains keywords
+                        if op == SYMBOL_OPEN_PAREN.symbol {
+                                found = true;
+                                break;
+                        } else {
+                            postfix.push(Atom::SymbolValue(op))
+                        }
+                    }
+                    if found == false {
+                        // return Err(PARSE_ERR_UNMATCHED_PARENS)
+                        return Expression::err(id, PARSE_ERR_UNMATCHED_PARENS)
+                    }
+                    
+                    // Check for function call
+                    if let Some(maybe_fn) = operator_stack.last() {
+                        if !is_operator(*maybe_fn) {
+                            // TODO: check if function
+                            // TODO: Namespace/module support
+                            postfix.push(Atom::SymbolValue(operator_stack.pop().unwrap()));
+                            postfix.push(Atom::SymbolValue(SYMBOL_CALL_FN.symbol));
+                        }
+                    }
+                } else {
+                    // For all other operators, flush higher or equal level operators
+                    // All operators are left associative in our system right now. (else, equals doesn't get pushed)
+                    let my_precedence = get_op_precedence(kw);
+                    // Is operator. Use precedence.
+                    while operator_stack.len() > 0 {
+                        let op_peek_last = operator_stack.last().unwrap();
+                        // Skip any items that aren't really operators.
+                        if *op_peek_last == SYMBOL_OPEN_PAREN.symbol {
+                            break;
+                        }
+
+
+                        let other_precedence = get_op_precedence(*op_peek_last);
+                        if other_precedence >= my_precedence {        // output any higher priority operators.
+                            let stack_symbol = operator_stack.pop().unwrap();
+                            // Dependency is managed at cell/pointer level. Treat built-in symbols as met.
+                            if is_dependency_symbol(&context, stack_symbol) {
+                                depends_on.push(stack_symbol);
+                            }
+                            
+                            // // TODO: This makes commas optional. Change to required but ignored.
+                            // if stack_symbol == SYMBOL_COMMA {
+                            //     continue
+                            // }
+
+                            postfix.push(Atom::SymbolValue(stack_symbol));
+                        } else {
+                            break;
+                        }
+                    }
+                    // Flushed all operators with higher precedence. Add to op stack.
+                    operator_stack.push(kw);
                 }
             },
             Atom::NumericValue(_lit) => postfix.push(token),
@@ -158,13 +144,11 @@ pub fn apply_operator_precedence(context: &Context, id: u64, cell_symbol: u64, i
     operator_stack.reverse();
     for op_kw in operator_stack.drain(..) {
         // All of them should be keywords
-        match op_kw {
-            SYMBOL_OPEN_PAREN => {
-                println!("Invalid paren in drain operator stack");
-                return Expression::err(id, PARSE_ERR_UNMATCHED_PARENS)
-            }
-            _ => {}
+        if op_kw == SYMBOL_OPEN_PAREN.symbol {
+            println!("Invalid paren in drain operator stack");
+            return Expression::err(id, PARSE_ERR_UNMATCHED_PARENS)
         }
+
         postfix.push(Atom::SymbolValue(op_kw));
         // Don't push operators in
         if is_dependency_symbol(&context, op_kw) {
@@ -189,8 +173,8 @@ mod tests {
         // Verify straightforward conversion to postfix
         // 1 + 2
         let mut context = Context::new(APP_SYMBOL_START);
-        let mut input: Vec<Atom> = vec![Atom::NumericValue(1.0), Atom::SymbolValue(SYMBOL_PLUS), Atom::NumericValue(2.0)];
-        let output: Vec<Atom> = vec![Atom::NumericValue(1.0), Atom::NumericValue(2.0), Atom::SymbolValue(SYMBOL_PLUS)];
+        let mut input: Vec<Atom> = vec![Atom::NumericValue(1.0), Atom::SymbolValue(SYMBOL_PLUS.symbol), Atom::NumericValue(2.0)];
+        let output: Vec<Atom> = vec![Atom::NumericValue(1.0), Atom::NumericValue(2.0), Atom::SymbolValue(SYMBOL_PLUS.symbol)];
         assert_eq!(apply_operator_precedence(&context, 0, context.next_symbol_id, &mut input).parsed, output);
     }
 
@@ -201,26 +185,26 @@ mod tests {
         let mut context = Context::new(APP_SYMBOL_START);
         let mut input: Vec<Atom> = vec![
             Atom::NumericValue(1.0), 
-            Atom::SymbolValue(SYMBOL_MULTIPLY), 
+            Atom::SymbolValue(SYMBOL_MULTIPLY.symbol), 
             Atom::NumericValue(2.0),
-            Atom::SymbolValue(SYMBOL_PLUS), 
+            Atom::SymbolValue(SYMBOL_PLUS.symbol), 
             Atom::NumericValue(3.0),
         ];
         let output: Vec<Atom> = vec![
             Atom::NumericValue(1.0), 
             Atom::NumericValue(2.0),
-            Atom::SymbolValue(SYMBOL_MULTIPLY), 
+            Atom::SymbolValue(SYMBOL_MULTIPLY.symbol), 
             Atom::NumericValue(3.0),
-            Atom::SymbolValue(SYMBOL_PLUS),
+            Atom::SymbolValue(SYMBOL_PLUS.symbol),
         ];
         assert_eq!(apply_operator_precedence(&context, 0, context.next_symbol_id, &mut input).parsed, output);
 
         // above test with order reversed. 1 + 2 * 3 = 1 2 3 * +
         let mut input2: Vec<Atom> = vec![
             Atom::NumericValue(1.0), 
-            Atom::SymbolValue(SYMBOL_PLUS), 
+            Atom::SymbolValue(SYMBOL_PLUS.symbol), 
             Atom::NumericValue(2.0),
-            Atom::SymbolValue(SYMBOL_MULTIPLY), 
+            Atom::SymbolValue(SYMBOL_MULTIPLY.symbol), 
             Atom::NumericValue(3.0),
         ];
 
@@ -228,8 +212,8 @@ mod tests {
             Atom::NumericValue(1.0), 
             Atom::NumericValue(2.0),
             Atom::NumericValue(3.0),
-            Atom::SymbolValue(SYMBOL_MULTIPLY),
-            Atom::SymbolValue(SYMBOL_PLUS),
+            Atom::SymbolValue(SYMBOL_MULTIPLY.symbol),
+            Atom::SymbolValue(SYMBOL_PLUS.symbol),
         ];
 
         assert_eq!(apply_operator_precedence(&context, 0, context.next_symbol_id, &mut input2).parsed, output2);
@@ -242,39 +226,39 @@ mod tests {
         let mut context = Context::new(APP_SYMBOL_START);
         let mut input: Vec<Atom> = vec![
             Atom::NumericValue(1.0), 
-            Atom::SymbolValue(SYMBOL_MULTIPLY), 
-            Atom::SymbolValue(SYMBOL_OPEN_PAREN), 
+            Atom::SymbolValue(SYMBOL_MULTIPLY.symbol), 
+            Atom::SymbolValue(SYMBOL_OPEN_PAREN.symbol), 
             Atom::NumericValue(2.0),
-            Atom::SymbolValue(SYMBOL_PLUS), 
+            Atom::SymbolValue(SYMBOL_PLUS.symbol), 
             Atom::NumericValue(3.0),
-            Atom::SymbolValue(SYMBOL_CLOSE_PAREN)
+            Atom::SymbolValue(SYMBOL_CLOSE_PAREN.symbol)
         ];
         let output: Vec<Atom> = vec![
             Atom::NumericValue(1.0), 
             Atom::NumericValue(2.0),
             Atom::NumericValue(3.0),
-            Atom::SymbolValue(SYMBOL_PLUS),
-            Atom::SymbolValue(SYMBOL_MULTIPLY)
+            Atom::SymbolValue(SYMBOL_PLUS.symbol),
+            Atom::SymbolValue(SYMBOL_MULTIPLY.symbol)
         ];
         assert_eq!(apply_operator_precedence(&context, 0, context.next_symbol_id, &mut input).parsed, output);
 
         // above test with order reversed. (1 + 2) * 3 = 1 2 + 3 *
         let mut input2: Vec<Atom> = vec![
-            Atom::SymbolValue(SYMBOL_OPEN_PAREN),
+            Atom::SymbolValue(SYMBOL_OPEN_PAREN.symbol),
             Atom::NumericValue(1.0),
-            Atom::SymbolValue(SYMBOL_PLUS),
+            Atom::SymbolValue(SYMBOL_PLUS.symbol),
             Atom::NumericValue(2.0),
-            Atom::SymbolValue(SYMBOL_CLOSE_PAREN),
-            Atom::SymbolValue(SYMBOL_MULTIPLY),
+            Atom::SymbolValue(SYMBOL_CLOSE_PAREN.symbol),
+            Atom::SymbolValue(SYMBOL_MULTIPLY.symbol),
             Atom::NumericValue(3.0),
         ];
 
         let output2: Vec<Atom> = vec![
             Atom::NumericValue(1.0), 
             Atom::NumericValue(2.0),
-            Atom::SymbolValue(SYMBOL_PLUS),
+            Atom::SymbolValue(SYMBOL_PLUS.symbol),
             Atom::NumericValue(3.0),
-            Atom::SymbolValue(SYMBOL_MULTIPLY),
+            Atom::SymbolValue(SYMBOL_MULTIPLY.symbol),
         ];
 
         assert_eq!(apply_operator_precedence(&context, 0, context.next_symbol_id, &mut input2).parsed, output2);

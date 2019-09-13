@@ -191,26 +191,26 @@ mod tests {
 
     #[test]
     fn test_reval_bool() {
-        read_eval_check!("true", SYMBOL_TRUE);
-        read_eval_check!("false", SYMBOL_FALSE);
-        read_eval_check!("true or false", SYMBOL_TRUE);
-        read_eval_check!("true and false", SYMBOL_FALSE);
+        read_eval_check!("true", SYMBOL_TRUE.symbol);
+        read_eval_check!("false", SYMBOL_FALSE.symbol);
+        read_eval_check!("true or false", SYMBOL_TRUE.symbol);
+        read_eval_check!("true and false", SYMBOL_FALSE.symbol);
     }
 
     #[test]
     fn test_reval_bool_not() {
         // Not is kind of a special case since it's a bit of a unary op
-        read_eval_check!("true and not false", SYMBOL_TRUE);
-        read_eval_check!("not true or false", SYMBOL_FALSE);
+        read_eval_check!("true and not false", SYMBOL_TRUE.symbol);
+        read_eval_check!("not true or false", SYMBOL_FALSE.symbol);
     }
 
     #[test]
     fn test_reval_comparison() {
-        read_eval_check!("1 < 2", SYMBOL_TRUE);
-        read_eval_check!("2 < 1", SYMBOL_FALSE);
-        read_eval_check!("2 > 1", SYMBOL_TRUE);
-        read_eval_check!("1 >= 0", SYMBOL_TRUE);
-        read_eval_check!("-1 > 1", SYMBOL_FALSE);
+        read_eval_check!("1 < 2", SYMBOL_TRUE.symbol);
+        read_eval_check!("2 < 1", SYMBOL_FALSE.symbol);
+        read_eval_check!("2 > 1", SYMBOL_TRUE.symbol);
+        read_eval_check!("1 >= 0", SYMBOL_TRUE.symbol);
+        read_eval_check!("-1 > 1", SYMBOL_FALSE.symbol);
     }
 
 

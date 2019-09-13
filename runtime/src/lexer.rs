@@ -172,7 +172,7 @@ fn reserved_keyword(token: &str) -> Option<Atom> {
     // Returns the token type if the token matches a reserved keyword.
     let token_upcase: &str = &token.to_ascii_uppercase();
     if let Some(&symbol_id) = SYMBOL_ID_MAP.get(token_upcase) {
-        return Some(Atom::SymbolValue(symbol_id))
+        return Some(Atom::SymbolValue(symbol_id.symbol))
     }
     
     return None
@@ -185,7 +185,7 @@ macro_rules! apply_unary_minus {
                 '(' => {
                     // Rewrite A + -(.. => A + -1 * (
                     $tokens.push(Atom::NumericValue( -1.0 ));
-                    Some(Atom::SymbolValue(SYMBOL_MULTIPLY))
+                    Some(Atom::SymbolValue(SYMBOL_MULTIPLY.symbol))
                 },
                 _ => {
                     Some(parse_number(&mut $it, true)?)
@@ -224,7 +224,7 @@ pub fn lex(mut context: &mut Context, expr: &str) -> Result<Vec<Atom>> {
                         },
                         _ => {
                             it.next();
-                            Some(Atom::SymbolValue(SYMBOL_MINUS))
+                            Some(Atom::SymbolValue(SYMBOL_MINUS.symbol))
                         }
                     }
                 } else {
@@ -296,24 +296,24 @@ mod tests {
         // Unary minus is handled at the lexer stage.
         assert_eq!(lex(&mut context, "-1").unwrap(), [numeric_literal!(-1.0)]);
         assert_eq!(lex(&mut context, "-.05").unwrap(), [numeric_literal!(-0.05)]);
-        assert_eq!(lex(&mut context, "5 -.05").unwrap(), [numeric_literal!(5.0), Atom::SymbolValue(SYMBOL_MINUS), numeric_literal!(0.05)]);
-        assert_eq!(lex(&mut context, "5 + -2").unwrap(), [numeric_literal!(5.0), Atom::SymbolValue(SYMBOL_PLUS), numeric_literal!(-2.0)]);
+        assert_eq!(lex(&mut context, "5 -.05").unwrap(), [numeric_literal!(5.0), Atom::SymbolValue(SYMBOL_MINUS.symbol), numeric_literal!(0.05)]);
+        assert_eq!(lex(&mut context, "5 + -2").unwrap(), [numeric_literal!(5.0), Atom::SymbolValue(SYMBOL_PLUS.symbol), numeric_literal!(-2.0)]);
 
-        assert_eq!(lex(&mut context, "5 + -.05").unwrap(), [numeric_literal!(5.0), Atom::SymbolValue(SYMBOL_PLUS), numeric_literal!(-0.05)]);
-        assert_eq!(lex(&mut context, "-(4) + 2").unwrap(), [numeric_literal!(-1.0), Atom::SymbolValue(SYMBOL_MULTIPLY), Atom::SymbolValue(SYMBOL_OPEN_PAREN), 
-         numeric_literal!(4.0), Atom::SymbolValue(SYMBOL_CLOSE_PAREN), Atom::SymbolValue(SYMBOL_PLUS), numeric_literal!(2.0)] );
-        assert_eq!(lex(&mut context, "5 * -(2)").unwrap(), [numeric_literal!(5.0), Atom::SymbolValue(SYMBOL_MULTIPLY), numeric_literal!(-1.0), 
-            Atom::SymbolValue(SYMBOL_MULTIPLY), Atom::SymbolValue(SYMBOL_OPEN_PAREN), numeric_literal!(2.0), Atom::SymbolValue(SYMBOL_CLOSE_PAREN) ]);
+        assert_eq!(lex(&mut context, "5 + -.05").unwrap(), [numeric_literal!(5.0), Atom::SymbolValue(SYMBOL_PLUS.symbol), numeric_literal!(-0.05)]);
+        assert_eq!(lex(&mut context, "-(4) + 2").unwrap(), [numeric_literal!(-1.0), Atom::SymbolValue(SYMBOL_MULTIPLY.symbol), Atom::SymbolValue(SYMBOL_OPEN_PAREN.symbol), 
+         numeric_literal!(4.0), Atom::SymbolValue(SYMBOL_CLOSE_PAREN.symbol), Atom::SymbolValue(SYMBOL_PLUS.symbol), numeric_literal!(2.0)] );
+        assert_eq!(lex(&mut context, "5 * -(2)").unwrap(), [numeric_literal!(5.0), Atom::SymbolValue(SYMBOL_MULTIPLY.symbol), numeric_literal!(-1.0), 
+            Atom::SymbolValue(SYMBOL_MULTIPLY.symbol), Atom::SymbolValue(SYMBOL_OPEN_PAREN.symbol), numeric_literal!(2.0), Atom::SymbolValue(SYMBOL_CLOSE_PAREN.symbol) ]);
     }
 
     #[test]
     fn test_reserved_keyword() {
-        assert_eq!(reserved_keyword("not"), Some(Atom::SymbolValue(SYMBOL_NOT)));
-        assert_eq!(reserved_keyword("And"), Some(Atom::SymbolValue(SYMBOL_AND)));
-        assert_eq!(reserved_keyword("NONE"), Some(Atom::SymbolValue(SYMBOL_NONE)));
-        assert_eq!(reserved_keyword("True"), Some(Atom::SymbolValue(SYMBOL_TRUE)));
-        assert_eq!(reserved_keyword("TRUE"), Some(Atom::SymbolValue(SYMBOL_TRUE)));
-        assert_eq!(reserved_keyword("false"), Some(Atom::SymbolValue(SYMBOL_FALSE)));
+        assert_eq!(reserved_keyword("not"), Some(Atom::SymbolValue(SYMBOL_NOT.symbol)));
+        assert_eq!(reserved_keyword("And"), Some(Atom::SymbolValue(SYMBOL_AND.symbol)));
+        assert_eq!(reserved_keyword("NONE"), Some(Atom::SymbolValue(SYMBOL_NONE.symbol)));
+        assert_eq!(reserved_keyword("True"), Some(Atom::SymbolValue(SYMBOL_TRUE.symbol)));
+        assert_eq!(reserved_keyword("TRUE"), Some(Atom::SymbolValue(SYMBOL_TRUE.symbol)));
+        assert_eq!(reserved_keyword("false"), Some(Atom::SymbolValue(SYMBOL_FALSE.symbol)));
         assert_eq!(reserved_keyword("unreserved"), None);
     }
 

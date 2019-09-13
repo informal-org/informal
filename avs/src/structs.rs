@@ -51,6 +51,12 @@ pub struct Symbol {
     pub operation: Option<extern "C" fn(&mut Runtime, u64, u64) -> u64>
 }
 
+impl PartialEq for Symbol {
+    fn eq(&self, other: &Self) -> bool {
+        self.symbol == other.symbol
+    }
+}
+
 
 impl Runtime {
     pub fn new(next_symbol_id: u64) -> Runtime {

@@ -62,7 +62,7 @@ pub fn call_function(mut env: &mut Runtime, stack: &mut Vec<u64>) -> u64 {
     }
 }
 
-pub fn apply_operator(mut env: &mut Runtime, operator: u64, stack: &mut Vec<u64>) {
+pub fn apply_operator(mut env: &mut Runtime, operator: u64, mut stack: &mut Vec<u64>) {
     // println!("Operator: {}", repr(&env, operator));
     // print_stacktrace(env, &stack);
 
@@ -75,19 +75,15 @@ pub fn apply_operator(mut env: &mut Runtime, operator: u64, stack: &mut Vec<u64>
             (op_func)(&mut env, a, b)
         } else {
             // Handle unary functions and other special cases
-            match **symbol {
-                SYMBOL_NOT => {
-                    __av_not(&mut env, stack.pop().unwrap())
-                },
-                SYMBOL_CALL_FN => {
-                    call_function(&mut env, &mut stack)
-                }
-                _ => {
-                    // Emit as value. Ex. True, None, etc.
-                    operator
-                }
+            if **symbol == SYMBOL_CALL_FN {
+                call_function(&mut env, &mut stack)
             }
-
+            else if **symbol == SYMBOL_NOT {
+                __av_not(&mut env, stack.pop().unwrap())
+            } else {
+                // Emit as value. Ex. True, None, etc.
+                operator
+            }
         }
     } else {
         // Symbol not found in operators. Emit as-is as a symbol.
