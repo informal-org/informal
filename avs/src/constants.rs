@@ -7,7 +7,7 @@ If the number is a NaN, we-re-use the unused bits to pack pointers and compact v
 1 11111111111 1000000000000000000000000000000000000000000000000000 = nan
 Type (3 bits). Payload 48 bits.
 The header type bits are used for:
-Type: [False(0)/True(1)] [Pointer(0)/Symbol(1)] [String(0), Object(1)]
+Type: [False(0)/True(1)] [Pointer(0)/Keyword(1)] [String(0), Object(1)]
 This allows fast boolean checks and type checks for strings.
 
 Small strings up to 6 bytes are stored directly as constant symbols without object overhead.
@@ -17,17 +17,17 @@ String pointer payloads additionally store length (up to 65k) for fast length ac
 length-based inequality check without dereferencing.
 Pointer types can have payloads for ranged pointers or direct access into an object's field.
 
-There's a large Symbol space used to store all keywords, functions & user-defined symbols.
-Symbols generally evaluate to themselves.
+There's a large Keyword space used to store all keywords, functions & user-defined symbols.
+Keywords generally evaluate to themselves.
 Function symbols encode their arity in their payload (max 64 parameters).
-Symbols 0-256 reserved for keywords.
+Keywords 0-256 reserved for keywords.
 */
 
 // Data format
 
 // 8 = 1000 in binary
 use crate::functions::NativeFn2;
-use crate::structs::Symbol;
+use crate::structs::Keyword;
 use crate::operators::*;
 
 
@@ -43,7 +43,7 @@ pub const PAYLOAD_MASK: u64 = 0x0000_FFFF_FFFF_FFFF;
 pub const VALHEAD_MASK: u64 = 0xFFFF_0000_0000_0000;
 // 0 False. 1 True.
 pub const VALHEAD_TRUTHY_MASK: u64  = 0xFFF4_0000_0000_0000;
-// 0 = Pointer. 1 = Symbol.
+// 0 = Pointer. 1 = Keyword.
 pub const VALHEAD_REFTYPE_MASK: u64 = 0xFFF2_0000_0000_0000;
 // 0 = String. 1 = Object.
 pub const VALHEAD_OBJTYPE_MASK: u64 = 0xFFF1_0000_0000_0000;
@@ -56,7 +56,7 @@ pub const VALHEAD_OBJTYPE_MASK: u64 = 0xFFF1_0000_0000_0000;
 pub const VALUE_F_PTR_OBJ: u64 = 0xFFF9_0000_0000_0000;
 // Reserved symbol for empty string for bool & str type checking.
 pub const VALUE_F_SYM_STR: u64 = 0xFFFA_0000_0000_0000;
-// Symbol space for empty values and other "Falsey" symbols.
+// Keyword space for empty values and other "Falsey" symbols.
 pub const VALUE_F_SYM_OBJ: u64 = 0xFFFB_0000_0000_0000;
 // Pointer to full string objects. 16 bit payload of short length. 
 pub const VALUE_T_PTR_STR: u64 = 0xFFFC_0000_0000_0000;
@@ -64,20 +64,20 @@ pub const VALUE_T_PTR_STR: u64 = 0xFFFC_0000_0000_0000;
 pub const VALUE_T_PTR_OBJ: u64 = 0xFFFD_0000_0000_0000;
 // Small strings (up to 6 bytes) encoded directly as payload.
 pub const VALUE_T_SYM_STR: u64 = 0xFFFE_0000_0000_0000;
-// Symbol space (Keywords, user-defined symbols, etc.)
+// Keyword space (Keywords, user-defined symbols, etc.)
 pub const VALUE_T_SYM_OBJ: u64 = 0xFFFF_0000_0000_0000;
 
 
 // Falsey/empty value symbols 
 // (00-FF reserved for internal symbols for indexing into precedence lookup table)
-pub const SYMBOL_FALSE: Symbol = Symbol {
+pub const SYMBOL_FALSE: Keyword = Keyword {
     symbol: 0xFFFB_0000_0000_001A,
     name: "False",
     precedence: None,
     operation: None
 };
 
-pub const SYMBOL_NONE: Symbol = Symbol {
+pub const SYMBOL_NONE: Keyword = Keyword {
     symbol: 0xFFFB_0000_0000_001B,
     name: "None",
     precedence: None,
@@ -101,7 +101,7 @@ pub const SYMBOL_SENTINEL_SENTINEL: u64 = 0xFFFB_0000_0000_004C;
 // Truthy value symbols
 // Like above, 00-FF reserved for precedence lookup. 
 // Note: The reserved keyword numbers should be unique (regardless of truthy/falsey).
-pub const SYMBOL_TRUE: Symbol = Symbol {
+pub const SYMBOL_TRUE: Keyword = Keyword {
     symbol: 0xFFFF_0000_0000_0019,
     name: "True",
     precedence: None,
@@ -115,14 +115,14 @@ pub const SYMBOL_TRUE: Symbol = Symbol {
 // Note: Ensure no ID conflict with the symbols defined in avs
 // The IDs represent index into the precedence array.
 // Loosely arranged by order of precedence.
-pub const SYMBOL_COMMA: Symbol = Symbol {
+pub const SYMBOL_COMMA: Keyword = Keyword {
     symbol: 0xFFFF_0000_0000_0000,
     name: ",",
     precedence: Some(1),
     operation: None
 };
 
-pub const SYMBOL_EQUALS: Symbol = Symbol {
+pub const SYMBOL_EQUALS: Keyword = Keyword {
     symbol: 0xFFFF_0000_0000_0001,
     name: "=",
     precedence: Some(2),
@@ -131,21 +131,21 @@ pub const SYMBOL_EQUALS: Symbol = Symbol {
 };
 
 
-pub const SYMBOL_OR: Symbol = Symbol {
+pub const SYMBOL_OR: Keyword = Keyword {
     symbol: 0xFFFF_0000_0000_0002,
     name: "or",
     precedence: Some(3),
     operation: Some(__av_or)
 };
 
-pub const SYMBOL_AND: Symbol = Symbol {
+pub const SYMBOL_AND: Keyword = Keyword {
     symbol: 0xFFFF_0000_0000_0003,
     name: "and",
     precedence: Some(4),
     operation: Some(__av_and)
 };
 
-pub const SYMBOL_NOT: Symbol = Symbol {
+pub const SYMBOL_NOT: Keyword = Keyword {
     symbol: 0xFFFF_0000_0000_0004,
     name: "not",
     precedence: Some(5),
@@ -153,14 +153,14 @@ pub const SYMBOL_NOT: Symbol = Symbol {
 };
 
 
-pub const SYMBOL_DBL_EQUALS: Symbol = Symbol {
+pub const SYMBOL_DBL_EQUALS: Keyword = Keyword {
     symbol: 0xFFFF_0000_0000_0005,
     name: "==",
     precedence: Some(10),
     operation: None
 };
 
-pub const SYMBOL_NOT_EQUALS: Symbol = Symbol {
+pub const SYMBOL_NOT_EQUALS: Keyword = Keyword {
     symbol: 0xFFFF_0000_0000_0006,
     name: "!=",
     precedence: Some(10),
@@ -168,28 +168,28 @@ pub const SYMBOL_NOT_EQUALS: Symbol = Symbol {
 };
 
 
-pub const SYMBOL_LT: Symbol = Symbol {
+pub const SYMBOL_LT: Keyword = Keyword {
     symbol: 0xFFFF_0000_0000_0007,
     name: "<",
     precedence: Some(15),
     operation: Some(__av_lt)
 };
 
-pub const SYMBOL_LTE: Symbol = Symbol {
+pub const SYMBOL_LTE: Keyword = Keyword {
     symbol: 0xFFFF_0000_0000_0008,
     name: "<=",
     precedence: Some(15),
     operation: Some(__av_lte)
 };
 
-pub const SYMBOL_GT: Symbol = Symbol {
+pub const SYMBOL_GT: Keyword = Keyword {
     symbol: 0xFFFF_0000_0000_0009,
     name: ">",
     precedence: Some(15),
     operation: Some(__av_gt)
 };
 
-pub const SYMBOL_GTE: Symbol = Symbol {
+pub const SYMBOL_GTE: Keyword = Keyword {
     symbol: 0xFFFF_0000_0000_000A,
     name: ">=",
     precedence: Some(15),
@@ -197,35 +197,35 @@ pub const SYMBOL_GTE: Symbol = Symbol {
 };
 
 
-pub const SYMBOL_PLUS: Symbol = Symbol {
+pub const SYMBOL_PLUS: Keyword = Keyword {
     symbol: 0xFFFF_0000_0000_000B,
     name: "+",
     precedence: Some(20),
     operation: Some(__av_add)
 };
 
-pub const SYMBOL_MINUS: Symbol = Symbol {
+pub const SYMBOL_MINUS: Keyword = Keyword {
     symbol: 0xFFFF_0000_0000_000C,
     name: "-",
     precedence: Some(20),
     operation: Some(__av_sub)
 };
 
-pub const SYMBOL_MULTIPLY: Symbol = Symbol {
+pub const SYMBOL_MULTIPLY: Keyword = Keyword {
     symbol: 0xFFFF_0000_0000_000D,
     name: "*",
     precedence: Some(21),
     operation: Some(__av_mul)
 };
 
-pub const SYMBOL_DIVIDE: Symbol = Symbol {
+pub const SYMBOL_DIVIDE: Keyword = Keyword {
     symbol: 0xFFFF_0000_0000_000E,
     name: "/",
     precedence: Some(21),
     operation: Some(__av_div)
 };
 
-pub const SYMBOL_MODULO: Symbol = Symbol {
+pub const SYMBOL_MODULO: Keyword = Keyword {
     symbol: 0xFFFF_0000_0000_000F,
     name: "%",
     precedence: Some(21),
@@ -233,7 +233,7 @@ pub const SYMBOL_MODULO: Symbol = Symbol {
 };
 
 
-pub const SYMBOL_DOT: Symbol = Symbol {
+pub const SYMBOL_DOT: Keyword = Keyword {
     symbol: 0xFFFF_0000_0000_0010,
     name: ".",
     precedence: Some(25),
@@ -242,14 +242,14 @@ pub const SYMBOL_DOT: Symbol = Symbol {
 
 
 
-pub const SYMBOL_OPEN_PAREN: Symbol = Symbol {
+pub const SYMBOL_OPEN_PAREN: Keyword = Keyword {
     symbol: 0xFFFF_0000_0000_0011,
     name: "(",
     precedence: Some(30), 
     operation: None
 };
 
-pub const SYMBOL_CLOSE_PAREN: Symbol = Symbol {
+pub const SYMBOL_CLOSE_PAREN: Keyword = Keyword {
     symbol: 0xFFFF_0000_0000_0012,
     name: ")",
     precedence: Some(30),
@@ -257,42 +257,42 @@ pub const SYMBOL_CLOSE_PAREN: Symbol = Symbol {
 };
 
 
-pub const SYMBOL_OPEN_SQBR: Symbol = Symbol {
+pub const SYMBOL_OPEN_SQBR: Keyword = Keyword {
     symbol: 0xFFFF_0000_0000_0013,
     name: "[",
     precedence: None,
     operation: None
 };
 
-pub const SYMBOL_CLOSE_SQBR: Symbol = Symbol {
+pub const SYMBOL_CLOSE_SQBR: Keyword = Keyword {
     symbol: 0xFFFF_0000_0000_0014,
     name: "]",
     precedence: None,
     operation: None
 };
 
-pub const SYMBOL_OPEN_BRACE: Symbol = Symbol {
+pub const SYMBOL_OPEN_BRACE: Keyword = Keyword {
     symbol: 0xFFFF_0000_0000_0015,
     name: "{",
     precedence: None,
     operation: None
 };
 
-pub const SYMBOL_CLOSE_BRACE: Symbol = Symbol {
+pub const SYMBOL_CLOSE_BRACE: Keyword = Keyword {
     symbol: 0xFFFF_0000_0000_0016,
     name: "}",
     precedence: None,
     operation: None
 };
 
-pub const SYMBOL_COLON: Symbol = Symbol {
+pub const SYMBOL_COLON: Keyword = Keyword {
     symbol: 0xFFFF_0000_0000_0017,
     name: ":",
     precedence: None,
     operation: None
 };
 
-pub const SYMBOL_SEMI_COLON: Symbol = Symbol {
+pub const SYMBOL_SEMI_COLON: Keyword = Keyword {
     symbol: 0xFFFF_0000_0000_0018,
     name: ";",
     precedence: None,
@@ -310,7 +310,7 @@ pub const AV_CLASS_ENVIRONMENT: u64 = 0xFFFF_0000_0000_1028;
 pub const AV_CLASS_STRING: u64 = 0xFFFF_0000_0000_1029;
 
 
-pub const SYMBOL_CALL_FN: Symbol = Symbol {
+pub const SYMBOL_CALL_FN: Keyword = Keyword {
     symbol: 0xFFFF_0000_0000_1042,
     name: "__call__",
     precedence: None,

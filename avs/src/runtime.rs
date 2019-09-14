@@ -1,4 +1,4 @@
-use crate::structs::Symbol;
+use crate::structs::Keyword;
 use crate::constants::*;
 use fnv::FnvHashMap;
 
@@ -6,7 +6,7 @@ use fnv::FnvHashMap;
 
 // Ordered by their symbol ID for table lookup
 #[cfg(not(target_os = "unknown"))]
-pub const RESERVED_SYMBOLS: [&'static Symbol; 28] = [ 
+pub const RESERVED_SYMBOLS: [&'static Keyword; 28] = [ 
     &SYMBOL_COMMA, &SYMBOL_EQUALS,
     &SYMBOL_OR, &SYMBOL_AND, &SYMBOL_NOT, 
     &SYMBOL_DBL_EQUALS, &SYMBOL_NOT_EQUALS, 
@@ -20,13 +20,15 @@ pub const RESERVED_SYMBOLS: [&'static Symbol; 28] = [
     &SYMBOL_TRUE, &SYMBOL_FALSE, &SYMBOL_NONE,
 ];
 
+//pub const BUILTIN_MODULES: []
+
 // Exclude from WASM code
 #[cfg(not(target_os = "unknown"))]
 lazy_static! {
 
 
     // Used during printing
-    pub static ref ID_SYMBOL_MAP: FnvHashMap<u64, &'static Symbol> = {
+    pub static ref ID_SYMBOL_MAP: FnvHashMap<u64, &'static Keyword> = {
         let mut m = FnvHashMap::with_capacity_and_hasher(30, Default::default());
         
         for symbol in RESERVED_SYMBOLS.iter() {
@@ -59,7 +61,7 @@ lazy_static! {
 
 
     // Used during lexing
-    pub static ref SYMBOL_ID_MAP: FnvHashMap<String, &'static Symbol> = {
+    pub static ref SYMBOL_ID_MAP: FnvHashMap<String, &'static Keyword> = {
         let mut m = FnvHashMap::with_capacity_and_hasher(30, Default::default());
         // Inverting automatically via a function doesn't allow us to automatically uppercase
         // because of unknown size at compile time. So we do it the hard way.

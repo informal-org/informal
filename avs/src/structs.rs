@@ -44,14 +44,14 @@ pub struct SymbolAtom {
     pub atom: Atom
 }
 
-pub struct Symbol {
+pub struct Keyword {
     pub symbol: u64, 
     pub name: &'static str,
     pub precedence: Option<u8>,
     pub operation: Option<extern "C" fn(&mut Runtime, u64, u64) -> u64>
 }
 
-impl PartialEq for Symbol {
+impl PartialEq for Keyword {
     fn eq(&self, other: &Self) -> bool {
         self.symbol == other.symbol
     }
