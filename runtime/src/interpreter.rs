@@ -118,12 +118,12 @@ pub fn interpret_expr(mut env: &mut Runtime, expression: &Expression, context: &
                     let result = apply_operator(&mut env, *kw, &mut expr_stack);
                     expr_stack.push(result);
                 } else {
-                    println!("Looking up symbol {:X}", kw);
+                    // println!("Looking up symbol {:X}", kw);
                     // Lookup result of symbol
                     // TODO: Pointer vs symbols
                     // TODO: Scoping rules
                     if let Some(atom) = env.resolve_symbol(*kw) {
-                        println!("Resolved to {:?}", atom);
+                        // println!("Resolved to {:?}", atom);
                         match atom {
                             Atom::NumericValue(num) => {
                                 expr_stack.push(num.to_bits());
@@ -136,7 +136,7 @@ pub fn interpret_expr(mut env: &mut Runtime, expression: &Expression, context: &
                             }
                         }
                     } else {
-                        println!("Unresolved {:X}", kw);
+                        // println!("Unresolved {:X}", kw);
                         expr_stack.push(*kw);
                     }
                 }
@@ -190,11 +190,11 @@ pub fn interpret_all(request: EvalRequest) -> EvalResponse {
 
     init_runtime_input(&mut global_env, &request.input);
 
-    println!("AST: {:?}", ast);
+    // println!("AST: {:?}", ast);
 
     for node in ast.body.iter() {
         let result = interpret_expr(&mut global_env, &node, &ast);
-        println!("Got result {:?}", repr(&global_env, &ast, result));
+        // println!("Got result {:?}", repr(&global_env, &ast, result));
         
         // Don't double-encode symbols
         // let symbol_id = ast.cell_symbols.as_ref().unwrap().get(&node.id).unwrap();

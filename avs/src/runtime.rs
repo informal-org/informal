@@ -1,4 +1,4 @@
-use crate::structs::Keyword;
+use crate::structs::{Module, Keyword};
 use crate::constants::*;
 use fnv::FnvHashMap;
 
@@ -20,7 +20,10 @@ pub const RESERVED_SYMBOLS: [&'static Keyword; 28] = [
     &SYMBOL_TRUE, &SYMBOL_FALSE, &SYMBOL_NONE,
 ];
 
-//pub const BUILTIN_MODULES: []
+pub const BUILTIN_MODULES: [&'static Module; 8] = [
+    &AV_FN_MIN, &AV_FN_MAX, &AV_FN_ABS, &AV_FN_CEIL, 
+    &AV_FN_FLOOR, &AV_FN_TRUNC, &AV_FN_ROUND, &AV_FN_SQRT
+];
 
 // Exclude from WASM code
 #[cfg(not(target_os = "unknown"))]
@@ -130,7 +133,6 @@ lazy_static! {
     // Sympathize with the user. Don't blame them (avoid 'your'). This may be their first exposure to programming.
     // Help them recover if possible. (Largely a TODO once we have error pointers)
     // https://uxplanet.org/how-to-write-good-error-messages-858e4551cd4
-    // Alas - match doesn't work for this. These sholud be ordered by expected frequency.
     pub static ref ERR_MSG_MAP: FnvHashMap<u64, &'static str> = {
         let mut m = FnvHashMap::with_capacity_and_hasher(25, Default::default());
 

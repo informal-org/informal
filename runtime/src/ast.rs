@@ -1,3 +1,4 @@
+use avs::runtime::BUILTIN_MODULES;
 use avs::constants::APP_SYMBOL_START;
 use fnv::FnvHashMap;
 use super::dependency::{get_eval_order};
@@ -54,6 +55,13 @@ pub fn define_symbols(request: &EvalRequest, ast: &mut Context) {
                 // TODO: Handling duplicate names
             }
         }
+    }
+}
+
+pub fn init_builtin(ast: &mut Context) {
+    // Initialize built in modules
+    for m in BUILTIN_MODULES.iter() {
+        // ast.define_cell_name(String::from(trimmed_name), cell_symbol_value);
     }
 }
 

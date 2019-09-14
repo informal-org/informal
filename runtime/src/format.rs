@@ -9,7 +9,7 @@ use avs::format::{repr_atom, repr_number, repr_symbol};
 
 pub fn repr(env: &Runtime, context: &Context, result: u64) -> String {
     let result_type = __av_typeof(result);
-    println!("repr {:X} {:?}", result, result_type);
+    // println!("repr {:X} {:?}", result, result_type);
     match result_type {
         ValueType::NumericType => {
             repr_number(result)

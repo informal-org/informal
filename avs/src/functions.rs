@@ -30,7 +30,7 @@ pub struct NativeFn1 {
 }
 
 impl NativeFn1 {
-    pub fn create_atom(func: fn(&mut Runtime, u64) -> u64) -> Atom {
+    pub const fn create_atom(func: fn(&mut Runtime, u64) -> u64) -> Atom {
         return Atom::FunctionValue(NativeFn::Fn1(NativeFn1 {
             func: func
         }))
@@ -44,7 +44,7 @@ pub struct NativeFn2 {
 }
 
 impl NativeFn2 {
-    pub fn create_atom(func: fn(&mut Runtime, u64, u64) -> u64) -> Atom {
+    pub const fn create_atom(func: fn(&mut Runtime, u64, u64) -> u64) -> Atom {
         return Atom::FunctionValue(NativeFn::Fn2(NativeFn2 {
             func: func
         }))

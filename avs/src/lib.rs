@@ -1,6 +1,8 @@
 // #![no_main]
 // #![no_std]
 #![feature(test)]
+#![feature(const_fn)]
+
 
 pub mod constants;
 pub mod structs;

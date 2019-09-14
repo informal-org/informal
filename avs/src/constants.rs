@@ -27,8 +27,9 @@ Keywords 0-256 reserved for keywords.
 
 // 8 = 1000 in binary
 use crate::functions::NativeFn2;
-use crate::structs::Keyword;
+use crate::structs::{Keyword, Module};
 use crate::operators::*;
+use crate::functions::*;
 
 
 pub const SIGNALING_NAN: u64 = 0xFFF8_0000_0000_0000;
@@ -317,19 +318,58 @@ pub const SYMBOL_CALL_FN: Keyword = Keyword {
     operation: None
 };
 
-
-
 // Reserve up to 65k symbols for standard library usage. (Classes, functions, etc.)
 
-// Based on WASM defined native functions
-pub const AV_FN_MIN: u64 = 0xFFFD_0000_0000_0100;
-pub const AV_FN_MAX: u64 = 0xFFFD_0000_0000_0101;
-pub const AV_FN_ABS: u64 = 0xFFFD_0000_0000_0102;
-pub const AV_FN_CEIL: u64 = 0xFFFD_0000_0000_0103;
-pub const AV_FN_FLOOR: u64 = 0xFFFD_0000_0000_0104;
-pub const AV_FN_TRUNC: u64 = 0xFFFD_0000_0000_0105;
-pub const AV_FN_ROUND: u64 = 0xFFFD_0000_0000_0106;
-pub const AV_FN_SQRT: u64 = 0xFFFD_0000_0000_0107;
+pub const AV_FN_MIN: Module = Module {
+    symbol: 0xFFFD_0000_0000_0100,
+    name: "min",
+    value: NativeFn2::create_atom(__av_min)
+};
+
+pub const AV_FN_MAX: Module = Module {
+    symbol: 0xFFFD_0000_0000_0101,
+    name: "max",
+    value: NativeFn2::create_atom(__av_max)
+};
+
+pub const AV_FN_ABS: Module = Module {
+    symbol: 0xFFFD_0000_0000_0102,
+    name: "abs",
+    value: NativeFn1::create_atom(__av_abs)
+};
+
+pub const AV_FN_CEIL: Module = Module {
+    symbol: 0xFFFD_0000_0000_0103,
+    name: "ceil",
+    value: NativeFn1::create_atom(__av_ceil)
+};
+
+
+pub const AV_FN_FLOOR: Module = Module {
+    symbol: 0xFFFD_0000_0000_0104,
+    name: "floor",
+    value: NativeFn1::create_atom(__av_floor)
+};
+
+// TODO: Rename this to "int"?
+pub const AV_FN_TRUNC: Module = Module {
+    symbol: 0xFFFD_0000_0000_0105,
+    name: "trunc",
+    value: NativeFn1::create_atom(__av_truncate)
+};
+
+pub const AV_FN_ROUND: Module = Module {
+    symbol: 0xFFFD_0000_0000_0106,
+    name: "round",
+    value: NativeFn1::create_atom(__av_round)
+};
+
+pub const AV_FN_SQRT: Module = Module {
+    symbol: 0xFFFD_0000_0000_0107,
+    name: "sqrt",
+    value: NativeFn1::create_atom(__av_sqrt)
+};
+
 
 
 

@@ -57,6 +57,19 @@ impl PartialEq for Keyword {
     }
 }
 
+pub struct Module {
+    pub symbol: u64,
+    pub name: &'static str,
+    pub value: Atom         // Generally to the function
+}
+
+impl PartialEq for Module {
+    fn eq(&self, other: &Self) -> bool {
+        self.symbol == other.symbol
+    }
+}
+
+
 
 impl Runtime {
     pub fn new(next_symbol_id: u64) -> Runtime {
@@ -65,18 +78,6 @@ impl Runtime {
             next_symbol_id: next_symbol_id
         };
         
-        // Initialize global symbols
-        runtime.set_atom(AV_FN_MIN, NativeFn2::create_atom(__av_min));
-        runtime.set_atom(AV_FN_MAX, NativeFn2::create_atom(__av_max));
-
-        runtime.set_atom(AV_FN_ABS, NativeFn1::create_atom(__av_abs));
-        runtime.set_atom(AV_FN_CEIL, NativeFn1::create_atom(__av_ceil));
-        runtime.set_atom(AV_FN_FLOOR, NativeFn1::create_atom(__av_floor));
-        runtime.set_atom(AV_FN_TRUNC, NativeFn1::create_atom(__av_truncate));
-        runtime.set_atom(AV_FN_ROUND, NativeFn1::create_atom(__av_round));
-        runtime.set_atom(AV_FN_SQRT, NativeFn1::create_atom(__av_sqrt));
-
-
         return runtime
     }
 
