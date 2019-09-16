@@ -24,6 +24,7 @@ pub const BUILTIN_MODULES: [&'static Module; 8] = [
     &AV_FN_MIN, &AV_FN_MAX, &AV_FN_ABS, &AV_FN_CEIL, 
     &AV_FN_FLOOR, &AV_FN_TRUNC, &AV_FN_ROUND, &AV_FN_SQRT
 ];
+// todo: path, query
 
 // Exclude from WASM code
 #[cfg(not(target_os = "unknown"))]
@@ -41,24 +42,6 @@ lazy_static! {
         // Internal signal. Defined here for recognition by interpreter. 
         // Not defined in SYMBOL_ID_MAP because it's not meant to be used frontend.
         m.insert(SYMBOL_CALL_FN.symbol, &SYMBOL_CALL_FN);
-
-        // Built in functions
-        // m.insert(AV_FN_MIN, "min");
-        // m.insert(AV_FN_MAX, "max");
-        // m.insert(AV_FN_ABS, "abs");
-        // m.insert(AV_FN_CEIL, "ceil");
-        // m.insert(AV_FN_FLOOR, "floor");
-        // m.insert(AV_FN_TRUNC, "truncate");
-        // m.insert(AV_FN_ROUND, "round");
-        // m.insert(AV_FN_SQRT, "sqrt");
-
-
-        // // Reserved HTTP words -
-        // // TODO: These should be namespace under "request" once we have objects
-        // // and dot notation
-        // m.insert(AV_HTTP_PATH, "path");
-        // m.insert(AV_HTTP_QUERY, "query");
-
         m
     };
 
@@ -72,57 +55,6 @@ lazy_static! {
         for symbol in RESERVED_SYMBOLS.iter() {
             m.insert(symbol.name.to_string().to_uppercase(), *symbol);
         }
-
-
-        // m.insert("OR", SYMBOL_OR);
-        // m.insert("AND", SYMBOL_AND);
-        // m.insert("IS", SYMBOL_IS);
-        // m.insert("NOT", SYMBOL_NOT);
-        
-        // m.insert("<", SYMBOL_LT);
-        // m.insert("<=", SYMBOL_LTE);
-        // m.insert(">", SYMBOL_GT);
-        // m.insert(">=", SYMBOL_GTE);
-
-        // m.insert("+", SYMBOL_PLUS);
-        // m.insert("-", SYMBOL_MINUS);
-        // m.insert("*", SYMBOL_MULTIPLY);
-        // m.insert("/", SYMBOL_DIVIDE);
-
-        // m.insert("(", SYMBOL_OPEN_PAREN);
-        // m.insert(")", SYMBOL_CLOSE_PAREN);
-
-        // m.insert("[", SYMBOL_OPEN_SQBR);
-        // m.insert("]", SYMBOL_CLOSE_SQBR);
-
-        // m.insert("{", SYMBOL_OPEN_BRACE);
-        // m.insert("}", SYMBOL_CLOSE_BRACE);
-
-        // m.insert(",", SYMBOL_COMMA);
-        // m.insert(":", SYMBOL_COLON);
-        // m.insert(";", SYMBOL_SEMI_COLON);
-        // m.insert(".", SYMBOL_DOT);
-
-        // m.insert("=", SYMBOL_EQUALS);
-
-        // m.insert("TRUE", SYMBOL_TRUE);
-        // m.insert("FALSE", SYMBOL_FALSE);
-        // m.insert("NONE", SYMBOL_NONE);
-
-
-
-        // m.insert("MIN", AV_FN_MIN);
-        // m.insert("MAX", AV_FN_MAX);
-        // m.insert("ABS", AV_FN_ABS);
-        // m.insert("CEIL", AV_FN_CEIL);
-        // m.insert("FLOOR", AV_FN_FLOOR);
-        // m.insert("TRUNCATE", AV_FN_TRUNC);
-        // m.insert("ROUND", AV_FN_ROUND);
-        // m.insert("SQRT", AV_FN_SQRT);
-
-        // m.insert("REQUEST", AV_HTTP_REQUEST);
-        // m.insert("PATH", AV_HTTP_PATH);
-        // m.insert("QUERY", AV_HTTP_QUERY);
 
         m
     };

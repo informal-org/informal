@@ -16,7 +16,10 @@ pub mod dependency;
 pub mod ast;
 pub mod constants;
 pub mod structs;
+mod tests;
 
 
 #[macro_use]
 extern crate lazy_static;
+
+
