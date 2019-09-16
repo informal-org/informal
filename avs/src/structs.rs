@@ -30,6 +30,12 @@ pub enum Atom {
     FunctionValue(NativeFn)
 }
 
+pub struct Symbol {
+    pub symbol: u64,
+    pub name: Option<String>,
+    pub value: Option<Atom>
+}
+
 
 // Context available during program execution managing current runtime state
 #[derive(PartialEq,Clone)]

@@ -218,7 +218,7 @@ pub fn interpret_all(request: EvalRequest) -> EvalResponse {
             ValueType::HashMapType => {}
         }
 
-        let result_symbol_id = ast.cell_symbols.as_ref().unwrap().get(&node.id).unwrap();
+        // let result_symbol_id = ast.cell_symbols.as_ref().unwrap().get(&node.id).unwrap();
 
         results.push(CellResponse {
             // id: ["@", &node.id.to_string()].concat(),
