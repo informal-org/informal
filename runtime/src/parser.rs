@@ -156,7 +156,6 @@ pub fn apply_operator_precedence(context: &Context, id: u64, cell_symbol: u64, i
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::constants::*;
 
     #[test]
     fn test_parse_basic() {

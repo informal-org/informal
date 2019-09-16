@@ -10,7 +10,6 @@ pub mod structs;
 pub mod macros;
 pub mod utils;
 pub mod types;
-pub mod memory;
 pub mod operators;
 pub mod format;
 pub mod heap;
@@ -25,20 +24,22 @@ extern crate lazy_static;
 extern crate test;
 
 
-#[allow(non_snake_case)]
-pub mod avfb_generated;
+// #[allow(non_snake_case)]
+// pub mod avfb_generated;
+
+// #[allow(non_snake_case)]
+// pub use crate::avfb_generated::avfb::{AvFbObj, AvFbObjArgs, get_root_as_av_fb_obj};
 
 use structs::*;
 
 #[cfg(target_os = "unknown")]
 use memory::{__av_sized_ptr};
 
+
 extern crate alloc;
 extern crate wee_alloc;
 extern crate flatbuffers;
 
-#[allow(non_snake_case)]
-pub use crate::avfb_generated::avfb::{AvFbObj, AvFbObjArgs, get_root_as_av_fb_obj};
 
 // Use `wee_alloc` as the global allocator.
 // #[global_allocator]

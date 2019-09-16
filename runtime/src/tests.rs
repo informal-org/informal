@@ -8,7 +8,6 @@ mod tests {
     use serde_json::json;
     use crate::lexer;
     use crate::parser;
-    use crate::generator;
     use crate::format;
     // use super::{decode_flatbuf};
 
