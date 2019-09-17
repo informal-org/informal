@@ -67,6 +67,16 @@ pub fn fmt_symbols_map(map: &FnvHashMap<u64, Atom>) -> String {
 }
 
 #[cfg(not(target_os = "unknown"))]
+pub fn fmt_symbols_list(list: &Vec<u64>) -> String {
+    let mut output = vec![];
+    for item in list {
+        output.push(format!("{:X}", item));
+    }
+    return output.join(",");
+}
+
+
+#[cfg(not(target_os = "unknown"))]
 impl fmt::Debug for Atom {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", repr_atom(&self))

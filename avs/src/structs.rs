@@ -30,7 +30,8 @@ pub enum Atom {
     FunctionValue(NativeFn)
 }
 
-pub struct Symbol {
+#[derive(Debug)]
+pub struct Identifier {
     pub symbol: u64,
     pub name: Option<String>,
     pub value: Option<Atom>

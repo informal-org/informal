@@ -184,7 +184,7 @@ pub fn init_runtime_input(runtime: &mut Runtime, input: &Option<AvHttpRequest>) 
 pub fn interpret_all(request: EvalRequest) -> EvalResponse {
     let mut results: Vec<CellResponse> = Vec::with_capacity(request.body.len());
     // External Global ID -> Internal ID
-    let mut ast = construct_ast(&request);
+    let mut ast = construct_ast(&mut request);
     let mut global_env = Runtime::new(ast.next_symbol_id);
 
     init_runtime_input(&mut global_env, &request.input);

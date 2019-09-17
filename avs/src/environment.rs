@@ -1,7 +1,8 @@
 use crate::utils::create_pointer_symbol;
-use fnv::FnvHashMap;
-use crate::structs::{Symbol, Atom};
+use crate::structs::{Identifier, Atom};
 use crate::expression::Expression;
+use core::fmt;
+use fnv::FnvHashMap;
 
 
 // Context (Scope / Global AST)
@@ -15,8 +16,9 @@ pub struct Environment {
     normname_symbols: FnvHashMap<String, u64>,
 
     // Symbol ID -> metadata and values
-    symbols: FnvHashMap<u64, Symbol>,
+    identifiers: FnvHashMap<u64, Identifier>,
 
+    // TODO: Convert this to an ordermap
     // Raw code
     pub body: Vec<Expression>,
 
@@ -30,33 +32,44 @@ impl Environment {
         return Environment {
             parent: Box::new(None),
             normname_symbols: FnvHashMap::default(),
-            symbols: FnvHashMap::default(),
+            identifiers: FnvHashMap::default(),
             body: Vec::with_capacity(0),
             next_symbol_id: next_symbol_id,
         }
     }
 
     pub fn define_keyword(&mut self) -> u64 {
-
+        return 0
     }
 
-    pub fn define_pointer(&mut self) -> u64 {
+    pub fn define_identifier(&mut self) -> u64 {
         let next_symbol: u64 = create_pointer_symbol(self.next_symbol_id);
         self.next_symbol_id += 1;
         return next_symbol;
-
     }
 
+    // Bind a name to an identifier within this scope.
     pub fn bind_name(&mut self, symbol: u64, name: String) {
+        // TODO: Handling existing names
+        let uname = name.to_uppercase();
+        // TODO: name validation (without duplicating)
 
+        if !self.normname_symbols.contains_key(&uname) {
+            self.normname_symbols.insert(uname, symbol);
+        }
     }
 
+    // Bind an identifier to a value
     pub fn bind_value(&mut self, symbol: u64, value: Atom) {
-        // Only for pointers
+        
     }
 
-    pub fn is_name_available(&self, name: String) {
-
+    // Check whether a name has already been used within this scope
+    // Note that it doesn't check whether it's used outside of it.
+    pub fn is_valid_name(&self, name: String) -> bool {
+        // TODO: Other naming criteria check
+        let uname = name.to_uppercase();
+        return self.normname_symbols.contains_key(&uname) == false;
     }
 
     pub fn lookup_name(&self, name: String) -> Option<&u64> {
@@ -65,15 +78,14 @@ impl Environment {
         return self.normname_symbols.get(&norm_name);
     }
 
-    pub fn lookup(&self, symbol: u64) -> Option<&Symbol> {
-
+    pub fn lookup(&self, symbol: u64) -> Option<&Identifier> {
+        return None
     }
 
     // Resolve a symbol to a terminal value by following pointers
     // Terminates at a max depth
-    pub fn deep_resolve(&self, symbol: u64) -> Option<&Symbol> {
-
-
+    pub fn deep_resolve(&self, symbol: u64) -> Option<&Identifier> {
+        return None;
     }
 
 
@@ -99,53 +111,53 @@ impl Environment {
     // pub fn next_pointer(&mut self) -> u64 {
     // }
 
-    pub fn get_or_create_cell_symbol(&mut self, cell_id: u64) -> u64 {
-        if let Some(existing_id) = self.cell_symbols.as_ref().unwrap().get(&cell_id) {
-            *existing_id 
-        } else {
-            let symbol_id = self.next_pointer();
-            self.cell_symbols.as_mut().unwrap().insert(cell_id, symbol_id);
-            self.symbols_cell.as_mut().unwrap().insert(symbol_id, cell_id);
-            symbol_id
-        }
-    }
+    // pub fn get_or_create_cell_symbol(&mut self, cell_id: u64) -> u64 {
+    //     if let Some(existing_id) = self.cell_symbols.as_ref().unwrap().get(&cell_id) {
+    //         *existing_id 
+    //     } else {
+    //         let symbol_id = self.next_pointer();
+    //         self.cell_symbols.as_mut().unwrap().insert(cell_id, symbol_id);
+    //         self.symbols_cell.as_mut().unwrap().insert(symbol_id, cell_id);
+    //         symbol_id
+    //     }
+    // }
 
-    pub fn get_symbol(&self, name: String) -> Option<u64> {
-        let name_upper = name.to_uppercase();
-        let existing_val = self.normname_symbols.get(&name_upper);
-        if existing_val.is_some() {
-            return Some(*existing_val.unwrap());
-        }
-        return None;
-    }
+    // pub fn get_symbol(&self, name: String) -> Option<u64> {
+    //     let name_upper = name.to_uppercase();
+    //     let existing_val = self.normname_symbols.get(&name_upper);
+    //     if existing_val.is_some() {
+    //         return Some(*existing_val.unwrap());
+    //     }
+    //     return None;
+    // }
 
-    // Symbol used in expression
-    pub fn get_or_create_symbol(&mut self, name: String) -> u64 {
-        let name_upper = name.to_uppercase();
-        let existing_val = self.normname_symbols.get(&name_upper);
-        if existing_val.is_some() {
-            return *existing_val.unwrap();
-        }
+    // // Symbol used in expression
+    // pub fn get_or_create_symbol(&mut self, name: String) -> u64 {
+    //     let name_upper = name.to_uppercase();
+    //     let existing_val = self.normname_symbols.get(&name_upper);
+    //     if existing_val.is_some() {
+    //         return *existing_val.unwrap();
+    //     }
 
-        let symbol_id = self.next_value_symbol();
-        self.normname_symbols.insert(name_upper, symbol_id);
-        self.symbols_name.insert(symbol_id, name);
-        symbol_id
-    }
+    //     let symbol_id = self.next_value_symbol();
+    //     self.normname_symbols.insert(name_upper, symbol_id);
+    //     self.symbols_name.insert(symbol_id, name);
+    //     symbol_id
+    // }
 
-    // Symbol used as cell names
-    pub fn define_cell_name(&mut self, trimmed_name: String, symbol: u64) -> Result<u64> {
-        // TODO: Check name validity - no delimiter characters, doesn't start with :
-        let name_upper = trimmed_name.to_uppercase();
-        let existing_val = self.normname_symbols.get(&name_upper);
-        if existing_val.is_some() {
-            return Err(PARSE_ERR_USED_NAME);
-        }
+    // // Symbol used as cell names
+    // pub fn define_cell_name(&mut self, trimmed_name: String, symbol: u64) -> Result<u64> {
+    //     // TODO: Check name validity - no delimiter characters, doesn't start with :
+    //     let name_upper = trimmed_name.to_uppercase();
+    //     let existing_val = self.normname_symbols.get(&name_upper);
+    //     if existing_val.is_some() {
+    //         return Err(PARSE_ERR_USED_NAME);
+    //     }
         
-        self.normname_symbols.insert(name_upper, symbol);
-        self.symbols_name.insert(symbol, trimmed_name);
-        return Ok(symbol);
-    }
+    //     self.normname_symbols.insert(name_upper, symbol);
+    //     self.symbols_name.insert(symbol, trimmed_name);
+    //     return Ok(symbol);
+    // }
 
     // Method for defining external input variables.
     // pub fn define_input(&mut self, trimmed_name: String) -> Result<u64> {
@@ -170,7 +182,7 @@ impl fmt::Debug for Environment {
         let mut parts = vec![];
         parts.push(String::from("Context {\n"));
 
-        parts.push(format!("Cells: {:#?}\n", self.symbols));
+        parts.push(format!("Cells: {:#?}\n", self.identifiers));
         parts.push(format!("Names: {:#?}\n", self.normname_symbols));
         parts.push(format!("Body: {:#?}\n", self.body));
 

@@ -1,12 +1,3 @@
-use avs::utils::{create_string_pointer, create_pointer_symbol, create_value_symbol};
-use avs::structs::Atom;
-use avs::constants::*;
-use fnv::FnvHashMap;
-use crate::Result;
-use crate::format::fmt_symbols_list;
-use core::fmt;
-
-
 #[derive(Serialize, PartialEq, Debug)]
 pub struct CellResponse {
     pub id: u64,
@@ -40,5 +31,3 @@ pub struct EvalRequest {
     pub body: Vec<CellRequest>,
     pub input: Option<AvHttpRequest>
 }
-
-
