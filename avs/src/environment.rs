@@ -63,6 +63,17 @@ impl Environment {
         
     }
 
+    // A lower-level form of bind_value to save the stack result
+    pub fn bind_result(&mut self, symbol: u64, result: u64) {
+        
+    }
+
+    pub fn init_value(&mut self, value: Atom) -> u64 {
+        let symbol_id = self.define_identifier();
+        self.bind_value(symbol_id, value);
+        return symbol_id;
+    }
+
     // Check whether a name has already been used within this scope
     // Note that it doesn't check whether it's used outside of it.
     pub fn is_valid_name(&self, name: String) -> bool {
@@ -71,7 +82,7 @@ impl Environment {
         return self.normname_symbols.contains_key(&uname) == false;
     }
 
-    pub fn lookup_name(&self, name: String) -> Option<&u64> {
+    pub fn lookup_by_name(&self, name: String) -> Option<&u64> {
         // get_name_symbol
         let norm_name = name.trim().to_uppercase();
         return self.normname_symbols.get(&norm_name);

@@ -38,10 +38,14 @@ macro_rules! resolve_atom {
 		if !is_nan(f_val) {
 			Atom::NumericValue(f_val)
 		} else if is_pointer($val) {
-			let symbol_resolution = $env.resolve_symbol($val);
+			let symbol_resolution = $env.deep_resolve($val);
 			println!("Resolved symbol {:X} -> {:?}", $val, symbol_resolution);
-			if symbol_resolution.is_some() {
-				symbol_resolution.unwrap().clone()
+			if let Some(symbol_id) = symbol_resolution {
+				if let Some(symbol_value) = &symbol_id.value {
+					symbol_value.clone()
+				} else {
+					Atom::SymbolValue($val)
+				}
 			} else {
 				Atom::SymbolValue($val)
 			}

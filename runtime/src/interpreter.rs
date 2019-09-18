@@ -5,6 +5,8 @@ There may be more of a hybrid version in the future,
 with interop with separately compiled modules.
 */
 
+use avs::expression::Expression;
+use avs::environment::Environment;
 use avs::runtime::RESERVED_SYMBOLS;
 use avs::runtime::ID_SYMBOL_MAP;
 use avs::functions::NativeFn;
@@ -16,7 +18,7 @@ use super::ast::*;
 use avs::operators::*;
 use avs::types::*;
 use avs::constants::*;
-use avs::structs::{ValueType, AvObject, Atom, Runtime};
+use avs::structs::{ValueType, AvObject, Atom};
 
 
 macro_rules! apply_bin_op {
@@ -28,12 +30,12 @@ macro_rules! apply_bin_op {
     });
 }
 
-pub fn call_function(mut env: &mut Runtime, stack: &mut Vec<u64>) -> u64 {
+pub fn call_function(mut env: &mut Environment, stack: &mut Vec<u64>) -> u64 {
     // TODO: Stack bounds checks
     let func_symbol = stack.pop().unwrap();
-    if let Some(func_atom) = env.get_atom(func_symbol) {
-        match func_atom {
-            Atom::FunctionValue(fval) => {
+    if let Some(func_id) = env.lookup(func_symbol) {
+        match func_id.value {
+            Some(Atom::FunctionValue(fval)) => {
                 match fval {
                     NativeFn::Fn2(f2) => {
                         // TODO: Verify stack size
@@ -62,7 +64,7 @@ pub fn call_function(mut env: &mut Runtime, stack: &mut Vec<u64>) -> u64 {
     }
 }
 
-pub fn apply_operator(mut env: &mut Runtime, operator: u64, mut stack: &mut Vec<u64>) -> u64 {
+pub fn apply_operator(mut env: &mut Environment, operator: u64, mut stack: &mut Vec<u64>) -> u64 {
     // println!("Operator: {}", repr(&env, operator));
     // print_stacktrace(env, &stack);
 
@@ -100,7 +102,7 @@ fn is_keyword(symbol: u64) -> bool {
 }
 
 
-pub fn interpret_expr(mut env: &mut Runtime, expression: &Expression, context: &Context) -> u64 {
+pub fn interpret_expr(mut env: &mut Environment, expression: &Expression) -> u64 {
     // Propagate prior errors up.
     if expression.result.is_some() {
         return expression.result.unwrap();
@@ -121,14 +123,14 @@ pub fn interpret_expr(mut env: &mut Runtime, expression: &Expression, context: &
                     // Lookup result of symbol
                     // TODO: Pointer vs symbols
                     // TODO: Scoping rules
-                    if let Some(atom) = env.resolve_symbol(*kw) {
+                    if let Some(identifier) = env.deep_resolve(*kw) {
                         // println!("Resolved to {:?}", atom);
-                        match atom {
-                            Atom::NumericValue(num) => {
+                        match identifier.value {
+                            Some(Atom::NumericValue(num)) => {
                                 expr_stack.push(num.to_bits());
                             },
-                            Atom::SymbolValue(sym) => {
-                                expr_stack.push(*sym);
+                            Some(Atom::SymbolValue(sym)) => {
+                                expr_stack.push(sym);
                             }, 
                             _ => {
                                 expr_stack.push(*kw);
@@ -147,7 +149,7 @@ pub fn interpret_expr(mut env: &mut Runtime, expression: &Expression, context: &
             Atom::StringValue(val) => {
                 // Save object to heap and return pointer
                 // TODO: Non-copying version
-                let symbol_id = env.save_string(Atom::StringValue(val.to_string()));
+                let symbol_id = env.init_value(Atom::StringValue(val.to_string()));
                 expr_stack.push(symbol_id);
             },
             _ => {
@@ -159,60 +161,45 @@ pub fn interpret_expr(mut env: &mut Runtime, expression: &Expression, context: &
     return expr_stack.pop().unwrap();
 }
 
-pub fn interpret_one(input: String) -> u64 {
-    let mut ast = Context::new(APP_SYMBOL_START);
-    println!("Input: {:?}", input);
-    let mut lexed = lex(&mut ast, &input).unwrap();
-    println!("Lexed: {:?}", lexed);
-    let parsed = parser::apply_operator_precedence(&ast, 0, ast.next_symbol_id, &mut lexed).parsed;
-    println!("parsed: {:?}", parsed);
-    // TODO: A base, shared global namespace.
-    
-    let mut node = Expression::new(0);
-    node.parsed = parsed;
-    let mut env = Runtime::new(ast.next_symbol_id);
-    return interpret_expr(&mut env, &node, &ast);
-}
-
-pub fn init_runtime_input(runtime: &mut Runtime, input: &Option<AvHttpRequest>) {
-    if let Some(request) = input {
-        runtime.set_atom(AV_HTTP_PATH, Atom::StringValue(request.path.to_string()));
-    }
-}
+// pub fn init_runtime_input(runtime: &mut Runtime, input: &Option<AvHttpRequest>) {
+//     if let Some(request) = input {
+//         runtime.set_atom(AV_HTTP_PATH, Atom::StringValue(request.path.to_string()));
+//     }
+// }
 
 
 pub fn interpret_all(request: EvalRequest) -> EvalResponse {
     let mut results: Vec<CellResponse> = Vec::with_capacity(request.body.len());
     // External Global ID -> Internal ID
-    let mut ast = construct_ast(&mut request);
-    let mut global_env = Runtime::new(ast.next_symbol_id);
+    let mut env = construct_ast(&mut request);
 
-    init_runtime_input(&mut global_env, &request.input);
+    // TODO: re-enable
+    // init_runtime_input(&mut global_env, &request.input);
 
     // println!("AST: {:?}", ast);
 
-    for node in ast.body.iter() {
-        let result = interpret_expr(&mut global_env, &node, &ast);
+    for node in env.body.iter() {
+        let result = interpret_expr(&mut env, &node);
         // println!("Got result {:?}", repr(&global_env, &ast, result));
         
         // Don't double-encode symbols
         // let symbol_id = ast.cell_symbols.as_ref().unwrap().get(&node.id).unwrap();
-        let symbol_id = node.cell_symbol;
-        global_env.set_value(symbol_id, result);
+        let symbol_id = node.symbol;
+        env.bind_result(symbol_id, result);
 
         let mut output = String::from("");
         let mut err = String::from("");
         
         match __av_typeof(result){
             ValueType::NumericType | ValueType::StringType | ValueType::SymbolType => {
-                output = repr(&global_env, &ast, result);
+                output = repr(&env, result);
             },
             ValueType::ObjectType => {
                 if is_error(result) {
                     // Errors returned in different field.
                     err = repr_error(result);
                 } else {
-                    output = repr(&global_env, &ast, result);
+                    output = repr(&env, result);
                 }
             },
             ValueType::HashMapType => {}
@@ -222,7 +209,7 @@ pub fn interpret_all(request: EvalRequest) -> EvalResponse {
 
         results.push(CellResponse {
             // id: ["@", &node.id.to_string()].concat(),
-            id: node.id,
+            id: node.cell_id,
             output: output,
             error: err
         });

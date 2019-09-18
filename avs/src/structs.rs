@@ -1,3 +1,4 @@
+use crate::environment::Environment;
 use crate::types::is_symbol;
 use crate::types::__av_typeof;
 use alloc::rc::Rc;
@@ -39,11 +40,11 @@ pub struct Identifier {
 
 
 // Context available during program execution managing current runtime state
-#[derive(PartialEq,Clone)]
-pub struct Runtime {
-    pub symbols: FnvHashMap<u64, Atom>,
-    pub next_symbol_id: u64
-}
+// #[derive(PartialEq,Clone)]
+// pub struct Runtime {
+//     pub symbols: FnvHashMap<u64, Atom>,
+//     pub next_symbol_id: u64
+// }
 
 // Tuple of symbol -> value for storage
 pub struct SymbolAtom {
@@ -55,7 +56,7 @@ pub struct Keyword {
     pub symbol: u64, 
     pub name: &'static str,
     pub precedence: Option<u8>,
-    pub operation: Option<extern "C" fn(&mut Runtime, u64, u64) -> u64>
+    pub operation: Option<extern "C" fn(&mut Environment, u64, u64) -> u64>
 }
 
 impl PartialEq for Keyword {
@@ -78,136 +79,136 @@ impl PartialEq for Module {
 
 
 
-impl Runtime {
-    pub fn new(next_symbol_id: u64) -> Runtime {
-        let mut runtime = Runtime {
-            symbols: FnvHashMap::with_capacity_and_hasher(25, Default::default()),
-            next_symbol_id: next_symbol_id
-        };
+// impl Runtime {
+//     pub fn new(next_symbol_id: u64) -> Runtime {
+//         let mut runtime = Runtime {
+//             symbols: FnvHashMap::with_capacity_and_hasher(25, Default::default()),
+//             next_symbol_id: next_symbol_id
+//         };
         
-        return runtime
-    }
+//         return runtime
+//     }
 
-    // TODO: Load module for imports
+//     // TODO: Load module for imports
 
-    /// Saves an object into the symbol table and returns the symbol
-    pub fn save_atom(&mut self, atom: Atom) -> u64 {
-        let next_id = create_pointer_symbol(self.next_symbol_id);
-        self.symbols.insert(next_id, atom);
-        self.next_symbol_id += 1;
-        return next_id
-    }
+//     /// Saves an object into the symbol table and returns the symbol
+//     pub fn save_atom(&mut self, atom: Atom) -> u64 {
+//         let next_id = create_pointer_symbol(self.next_symbol_id);
+//         self.symbols.insert(next_id, atom);
+//         self.next_symbol_id += 1;
+//         return next_id
+//     }
 
-    pub fn save_string(&mut self, atom: Atom) -> u64 {
-        let next_id = create_string_pointer(self.next_symbol_id);
-        self.symbols.insert(next_id, atom);
-        self.next_symbol_id += 1;
-        return next_id
-    }    
+//     pub fn save_string(&mut self, atom: Atom) -> u64 {
+//         let next_id = create_string_pointer(self.next_symbol_id);
+//         self.symbols.insert(next_id, atom);
+//         self.next_symbol_id += 1;
+//         return next_id
+//     }    
 
-    /// Replace the value of an existing symbol in the symbol table
-    pub fn set_atom(&mut self, symbol: u64, atom: Atom) {
-        self.symbols.insert(symbol, atom);
-    }
+//     /// Replace the value of an existing symbol in the symbol table
+//     pub fn set_atom(&mut self, symbol: u64, atom: Atom) {
+//         self.symbols.insert(symbol, atom);
+//     }
 
-    /// Set a symbol value, with automatic casting of value
-    pub fn set_value(&mut self, symbol: u64, value: u64) {
-        let atom: Atom = match __av_typeof(value){
-            ValueType::NumericType => {
-                Atom::NumericValue(f64::from_bits(value))
-            },
-            ValueType::SymbolType => {
-                if let Some(resolved) = self.resolve_symbol(value) {
-                    println!("Setting {:X} to {:X} -> {:?}", symbol, value, resolved);
-                    // Partial implementation of a copy
-                    match resolved {
-                        Atom::NumericValue(val) => Atom::NumericValue(*val),
-                        Atom::StringValue(val) => Atom::StringValue(val.to_string()),
-                        _ => Atom::SymbolValue(value)
-                    }
-                } else {
-                    // May just be a built-in symbol? 
-                    println!("Could not resolve symbol {:X}", value);
-                    Atom::SymbolValue(value)
-                }
-            },
-            _ => {
-                Atom::SymbolValue(value)
-            }
-        };
-        self.set_atom(symbol, atom);
-    }
+//     /// Set a symbol value, with automatic casting of value
+//     pub fn set_value(&mut self, symbol: u64, value: u64) {
+//         let atom: Atom = match __av_typeof(value){
+//             ValueType::NumericType => {
+//                 Atom::NumericValue(f64::from_bits(value))
+//             },
+//             ValueType::SymbolType => {
+//                 if let Some(resolved) = self.resolve_symbol(value) {
+//                     println!("Setting {:X} to {:X} -> {:?}", symbol, value, resolved);
+//                     // Partial implementation of a copy
+//                     match resolved {
+//                         Atom::NumericValue(val) => Atom::NumericValue(*val),
+//                         Atom::StringValue(val) => Atom::StringValue(val.to_string()),
+//                         _ => Atom::SymbolValue(value)
+//                     }
+//                 } else {
+//                     // May just be a built-in symbol? 
+//                     println!("Could not resolve symbol {:X}", value);
+//                     Atom::SymbolValue(value)
+//                 }
+//             },
+//             _ => {
+//                 Atom::SymbolValue(value)
+//             }
+//         };
+//         self.set_atom(symbol, atom);
+//     }
     
-    pub fn get_atom(&self, symbol: u64) -> Option<&Atom> {
-        // TODO: Not found
-        // return Rc::clone(&obj_arr.get())
-        return self.symbols.get(&symbol);
-    }
+//     pub fn get_atom(&self, symbol: u64) -> Option<&Atom> {
+//         // TODO: Not found
+//         // return Rc::clone(&obj_arr.get())
+//         return self.symbols.get(&symbol);
+//     }
 
-    /// Resolve a symbol to their final destination, following links up to a max depth
-    pub fn resolve_symbol(&self, symbol: u64) -> Option<&Atom> {
-        let mut count = 0;
-        let mut current_symbol = symbol;
-        // println!("{}", fmt_symbols_map(&self.symbols));
+//     /// Resolve a symbol to their final destination, following links up to a max depth
+//     pub fn resolve_symbol(&self, symbol: u64) -> Option<&Atom> {
+//         let mut count = 0;
+//         let mut current_symbol = symbol;
+//         // println!("{}", fmt_symbols_map(&self.symbols));
         
-        while count < 1000 {
-            if let Some(atom) = self.symbols.get(&current_symbol) {
-                match atom {
-                    Atom::SymbolValue(next_symbol) => {
-                        // Terminal symbol
-                        if is_symbol(*next_symbol) {
-                            return Some(atom)
-                        }
+//         while count < 1000 {
+//             if let Some(atom) = self.symbols.get(&current_symbol) {
+//                 match atom {
+//                     Atom::SymbolValue(next_symbol) => {
+//                         // Terminal symbol
+//                         if is_symbol(*next_symbol) {
+//                             return Some(atom)
+//                         }
 
-                        // Check for circular pointers
-                        if *next_symbol == current_symbol || *next_symbol == symbol {
-                            println!("Cyclic symbol reference");
-                            // Terminate on cycles
-                            return None
-                        }
-                        current_symbol = *next_symbol
-                    }, 
-                    _ => return Some(atom)
-                }
-            } else {
-                println!("symbol not found");
-                return None
-            }
-            count += 1;
-        }
-        println!("Max depth exceeded");
-        // Max search depth, terminate
-        return None
-    }
+//                         // Check for circular pointers
+//                         if *next_symbol == current_symbol || *next_symbol == symbol {
+//                             println!("Cyclic symbol reference");
+//                             // Terminate on cycles
+//                             return None
+//                         }
+//                         current_symbol = *next_symbol
+//                     }, 
+//                     _ => return Some(atom)
+//                 }
+//             } else {
+//                 println!("symbol not found");
+//                 return None
+//             }
+//             count += 1;
+//         }
+//         println!("Max depth exceeded");
+//         // Max search depth, terminate
+//         return None
+//     }
 
-    pub fn get_string(&self, symbol: u64) -> Option<&String> {
-        // TODO: Not found
-        // return Rc::clone(&obj_arr.get())
-        let atom = self.get_atom(symbol);
-        if let Some(atom_val) = atom {
-            match atom_val {
-                Atom::StringValue(str_val) => return Some(str_val),
-                _ => return None
-            }
-        }
-        return None;
-    }
+//     pub fn get_string(&self, symbol: u64) -> Option<&String> {
+//         // TODO: Not found
+//         // return Rc::clone(&obj_arr.get())
+//         let atom = self.get_atom(symbol);
+//         if let Some(atom_val) = atom {
+//             match atom_val {
+//                 Atom::StringValue(str_val) => return Some(str_val),
+//                 _ => return None
+//             }
+//         }
+//         return None;
+//     }
 
 
-    pub fn get_number(&self, symbol: u64) -> Option<&f64> {
-        // TODO: Not found
-        // return Rc::clone(&obj_arr.get())
-        let atom = self.get_atom(symbol);
-        if let Some(atom_val) = atom {
-            match atom_val {
-                Atom::NumericValue(num_val) => return Some(num_val),
-                _ => return None
-            }
-        }
-        return None;
-    }
+//     pub fn get_number(&self, symbol: u64) -> Option<&f64> {
+//         // TODO: Not found
+//         // return Rc::clone(&obj_arr.get())
+//         let atom = self.get_atom(symbol);
+//         if let Some(atom_val) = atom {
+//             match atom_val {
+//                 Atom::NumericValue(num_val) => return Some(num_val),
+//                 _ => return None
+//             }
+//         }
+//         return None;
+//     }
 
-}
+// }
 
 
 
@@ -275,9 +276,9 @@ mod tests {
 
     #[test]
     fn test_symbol_type() {
-        let mut env = Runtime::new(APP_SYMBOL_START);
+        let mut env = Environment::new(APP_SYMBOL_START);
         // TODO: Test longer vs shorter string
-        let symbol_id = env.save_string(Atom::StringValue("Hello".to_string()));
+        let symbol_id = env.init_value(Atom::StringValue("Hello".to_string()));
         let symbol_header = symbol_id & VALHEAD_MASK;
         assert_eq!(symbol_header, VALUE_T_PTR_STR);
     }

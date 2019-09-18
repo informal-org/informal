@@ -14,6 +14,24 @@ mod tests {
     // pub use avs::avfb_generated::avfb::{get_root_as_av_fb_obj};
     pub use avs::structs::{AvObject, Runtime};
 
+
+    fn interpret_one(input: String) -> u64 {
+        let mut ast = Context::new(APP_SYMBOL_START);
+        println!("Input: {:?}", input);
+        let mut lexed = lex(&mut ast, &input).unwrap();
+        println!("Lexed: {:?}", lexed);
+        let parsed = parser::apply_operator_precedence(&ast, 0, ast.next_symbol_id, &mut lexed).parsed;
+        println!("parsed: {:?}", parsed);
+        // TODO: A base, shared global namespace.
+        
+        let mut node = Expression::new(0);
+        node.parsed = parsed;
+        let mut env = Runtime::new(ast.next_symbol_id);
+        return interpret_expr(&mut env, &node, &ast);
+    }
+
+
+
     macro_rules! read_eval {
         ($e:expr) => ({
             eval(read(String::from($e)))[0]

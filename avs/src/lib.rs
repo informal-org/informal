@@ -31,6 +31,7 @@ extern crate test;
 // #[allow(non_snake_case)]
 // pub use crate::avfb_generated::avfb::{AvFbObj, AvFbObjArgs, get_root_as_av_fb_obj};
 
+use crate::environment::Environment;
 use structs::*;
 
 #[cfg(target_os = "unknown")]
@@ -57,15 +58,17 @@ extern {
 
 #[no_mangle]
 #[inline(never)]
-pub extern "C" fn __av_save(env: &mut Runtime, id: u64, value: Atom) { 
-	env.set_atom(id, value);
+pub extern "C" fn __av_save(env: &mut Environment, symbol: u64, value: Atom) { 
+	env.bind_value(symbol, value);
 }
 
 
 #[no_mangle]
 #[inline(never)]
-pub extern "C" fn __av_get(env: &mut Runtime, id: u64) -> Option<&Atom> { 
-	return env.get_atom(id);
+pub extern "C" fn __av_get(env: &mut Environment, id: u64) -> Option<&Atom> { 
+	// return env.get_atom(id);
+	// TODO 
+	return None
 }
 
 
