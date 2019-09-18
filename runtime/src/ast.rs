@@ -11,27 +11,23 @@ use avs::constants::{RUNTIME_ERR_UNK_VAL};
 
 
 
-pub fn update_used_by(expr: &mut Expression, env: &mut Environment) {
+pub fn update_used_by(expr_map: &mut FnvHashMap<u64, Expression>, expr: &mut Expression) {
     // Build reverse side of the dependency map
-    for dep in &expr.depends_on {
-        if let Some(&dep_node_id) = env.lookup(&dep) {
-            let dep_node = node_list.get_mut(dep_node_id).unwrap();
-            dep_node.used_by.push(ast_node.symbol);
+    for dep in expr.depends_on.iter() {
+        if let Some(&dep_node) = expr_map.get(&dep) {
+            dep_node.used_by.push(expr.symbol);
         } else {
-            // This shouldn't happen
+            // This shouldn't happen as we create all expression nodes in define_symbols
             panic!("Couldn't find the referenced dependency node");
         }
-    }
-
-    // If this node has any buffered up used_by entries, save it.
-    if used_by_buffer.contains_key(&ast_node.symbol) {
-        ast_node.used_by = used_by_buffer.remove(&ast_node.symbol).unwrap();
     }
 }
 
 
-pub fn define_symbols(request: &mut EvalRequest, ast: &mut Environment) {
+pub fn define_symbols(request: &mut EvalRequest, ast: &mut Environment) -> FnvHashMap<u64, Expression> {
     // We may encounter these symbols and names while lexing, so do a pass to define names
+    let expr_map: FnvHashMap<u64, Expression> = FnvHashMap::with_capacity_and_hasher(request.body.len(), Default::default());
+
     for cell in request.body.iter() {
         // Attempt to parse ID of cell and save result "@42" -> 42
         let mut node = Expression::new(cell.id, cell.input);
@@ -47,8 +43,9 @@ pub fn define_symbols(request: &mut EvalRequest, ast: &mut Environment) {
             }
         }
         
-        ast.body.push(node);
+        expr_map.insert(node.symbol, node);
     }
+    return expr_map;
 }
 
 pub fn init_builtin(ast: &mut Environment) {
@@ -72,7 +69,7 @@ pub fn construct_ast(request: &mut EvalRequest) -> Environment {
     // Cell ID -> Internal Symbol ID for results
     
     let mut ast = Environment::new(APP_SYMBOL_START);
-    define_symbols(&mut request, &mut ast);
+    let mut expr_map = define_symbols(&mut request, &mut ast);
 
     // At this point, we no longer need to deal with the raw request. 
     // Everything's in Environment.body
@@ -85,8 +82,7 @@ pub fn construct_ast(request: &mut EvalRequest) -> Environment {
         if lex_result.is_ok() {
             let mut lexed = lex_result.unwrap();
             apply_operator_precedence(&mut expr, &mut lexed);
-            // TODO: Change this to be expr, env. Used by buffer's no longer needed either.
-            update_used_by(&mut expr, &mut cell_list, &mut cell_index_map, &mut used_by_buffer);
+            update_used_by(&mut expr_map, &mut expr);
         } else {
             expr.set_result(lex_result.err().unwrap());
         };
@@ -94,7 +90,7 @@ pub fn construct_ast(request: &mut EvalRequest) -> Environment {
     // Do a pass over all the nodes to resolve used_by. You could partially do this inline using a hashmap
     // Assert - used_by_buffer empty by now.
 
-    ast.body = get_eval_order(&mut ast.body);
+    ast.body = get_eval_order(&mut expr_map);
     // ast.cell_symbols = Some(cell_symbol_map);
     // ast.symbols_index = cell_index_map;
     // let node_len = cell_list.len();

@@ -1,3 +1,4 @@
+use avs::expression::Expression;
 use fnv::{FnvHashMap, FnvHashSet};
 use std::collections::VecDeque;
 
@@ -6,29 +7,26 @@ use super::structs::*;
 
 // Dependency tree resolution
 
-pub fn get_eval_order(cells: &mut Vec<Expression>) -> Vec<Expression> {
+pub fn get_eval_order(cells: &mut FnvHashMap<u64, Expression>) -> Vec<Expression> {
     // Perform a topological sort of the node dependencies to get the evaluation order
     // Errors on any cyclical dependencies
 
     let mut eval_order: Vec<Expression> = Vec::with_capacity(cells.len());
+
     // Use a VecDeque to efficiently get the first elements to preserve ordering
     let mut leafs: VecDeque<Expression> = VecDeque::with_capacity(cells.len());
 
     // ID -> Count
     let mut depend_count: FnvHashMap<u64, Expression> = FnvHashMap::with_capacity_and_hasher(cells.len(), Default::default());
 
-
     // Find leafs
-    for mut cell in cells.drain(..) {
-        match cell.depends_on.len() {
-            0 => {
-                leafs.push_back(cell);
-            },
-            _ => {
-                cell.unmet_depend_count = cell.depends_on.len() as i32;
-                depend_count.insert(cell.cell_symbol, cell);
-            }
-        };
+    for (_, cell) in cells.drain() {
+        cell.unmet_depend_count = cell.depends_on.len() as i32;
+        if cell.unmet_depend_count == 0 {
+            leafs.push_back(cell);
+        } else {
+            depend_count.insert(cell.symbol, cell);
+        }
     }
 
     // Iterate over leafs repeatedly building up eval order
@@ -49,6 +47,7 @@ pub fn get_eval_order(cells: &mut Vec<Expression>) -> Vec<Expression> {
     }
     
     // Mark any elements remaining with unmet dependencies as having circular dependencies.
+    // TODO: Recursion support
     for (dep_count, mut unmet_dep) in depend_count.drain() {
         println!("Found unmet dep");
         // Only treat other cells/pointers as unmet dependency
@@ -66,15 +65,15 @@ mod tests {
 
     macro_rules! add_dep {
         ($a:expr, $b:expr) => ({
-            $a.depends_on.push($b.id);
-            $b.used_by.push($a.id);
+            $a.depends_on.push($b.symbol);
+            $b.used_by.push($a.symbol);
         });
     }
 
     fn index_of(vec: &Vec<Expression>, target: &Expression) -> i32 {
         let mut i = 0;
         for node in vec {
-            if node.id == target.id {
+            if node.symbol == target.symbol {
                 return i
             }
             i += 1;
@@ -83,22 +82,24 @@ mod tests {
         return i;        
     }
 
+    macro_rules! create_test_expr {
+        ($a:expr) => ({
+            let mut e = Expression::new($a, String::from(""));
+            e.symbol = $a;
+            e
+        });
+    }
+
 
     // TODO: Implement this without Clone
     #[test]
     fn test_eval_order() {
-        let mut a = Expression::new(1);
-        a.cell_symbol = 1;
-        let mut b = Expression::new(2);
-        b.cell_symbol = 2;
-        let mut c = Expression::new(3);
-        c.cell_symbol = 3;
-        let mut d = Expression::new(4);
-        d.cell_symbol = 4;
-        let mut e = Expression::new(5);
-        e.cell_symbol = 5;
-        let mut f = Expression::new(6);
-        f.cell_symbol = 6;
+        let mut a = create_test_expr!(1);
+        let mut b = create_test_expr!(2);
+        let mut c = create_test_expr!(3);
+        let mut d = create_test_expr!(4);
+        let mut e = create_test_expr!(5);
+        let mut f = create_test_expr!(6);
 
     /*
     // #       a
@@ -113,7 +114,14 @@ mod tests {
         add_dep!(d, e);
         add_dep!(d, f);
 
-        let mut cells = vec![a.clone(), b.clone(), c.clone(), d.clone(), e.clone(), f.clone()];
+        let mut cells: FnvHashMap<u64, Expression> = FnvHashMap::default();
+        cells.insert(a.symbol, a);
+        cells.insert(b.symbol, b);
+        cells.insert(c.symbol, c);
+        cells.insert(d.symbol, d);
+        cells.insert(e.symbol, e);
+        cells.insert(f.symbol, f);
+        
         let count = cells.len();
         let order = get_eval_order(&mut cells);
 

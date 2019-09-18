@@ -18,7 +18,6 @@ pub struct Environment {
     // Symbol ID -> metadata and values
     identifiers: FnvHashMap<u64, Identifier>,
 
-    // TODO: Convert this to an ordermap
     // Raw code
     pub body: Vec<Expression>,
 
