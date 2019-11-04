@@ -3,11 +3,14 @@ use fnv::{FnvHashMap, FnvHashSet};
 use std::collections::VecDeque;
 
 use avs::constants::{RUNTIME_ERR_CIRCULAR_DEP};
+use std::rc::Rc;
+use std::cell::RefCell;
+
 use super::structs::*;
 
 // Dependency tree resolution
 
-pub fn get_eval_order(cells: &mut FnvHashMap<u64, Expression>) -> Vec<Expression> {
+pub fn get_eval_order(cells: &mut FnvHashMap<u64, Rc<RefCell<Expression>>>) -> Vec<Expression> {
     // Perform a topological sort of the node dependencies to get the evaluation order
     // Errors on any cyclical dependencies
 
@@ -20,7 +23,8 @@ pub fn get_eval_order(cells: &mut FnvHashMap<u64, Expression>) -> Vec<Expression
     let mut depend_count: FnvHashMap<u64, Expression> = FnvHashMap::with_capacity_and_hasher(cells.len(), Default::default());
 
     // Find leafs
-    for (_, cell) in cells.drain() {
+    for (_, cell_wrapper) in cells.drain() {
+        let mut cell = *cell_wrapper.into_inner();
         cell.unmet_depend_count = cell.depends_on.len() as i32;
         if cell.unmet_depend_count == 0 {
             leafs.push_back(cell);

@@ -34,7 +34,7 @@ pub fn call_function(mut env: &mut Environment, stack: &mut Vec<u64>) -> u64 {
     // TODO: Stack bounds checks
     let func_symbol = stack.pop().unwrap();
     if let Some(func_id) = env.lookup(func_symbol) {
-        match func_id.value {
+        match &func_id.value {
             Some(Atom::FunctionValue(fval)) => {
                 match fval {
                     NativeFn::Fn2(f2) => {
@@ -168,7 +168,7 @@ pub fn interpret_expr(mut env: &mut Environment, expression: &Expression) -> u64
 // }
 
 
-pub fn interpret_all(request: EvalRequest) -> EvalResponse {
+pub fn interpret_all(mut request: EvalRequest) -> EvalResponse {
     let mut results: Vec<CellResponse> = Vec::with_capacity(request.body.len());
     // External Global ID -> Internal ID
     let mut env = construct_ast(&mut request);
@@ -178,7 +178,7 @@ pub fn interpret_all(request: EvalRequest) -> EvalResponse {
 
     // println!("AST: {:?}", ast);
 
-    for node in env.body.iter() {
+    for node in env.body.iter_mut() {
         let result = interpret_expr(&mut env, &node);
         // println!("Got result {:?}", repr(&global_env, &ast, result));
         
@@ -192,14 +192,14 @@ pub fn interpret_all(request: EvalRequest) -> EvalResponse {
         
         match __av_typeof(result){
             ValueType::NumericType | ValueType::StringType | ValueType::SymbolType => {
-                output = repr(&env, result);
+                output = repr(&mut env, result);
             },
             ValueType::ObjectType => {
                 if is_error(result) {
                     // Errors returned in different field.
                     err = repr_error(result);
                 } else {
-                    output = repr(&env, result);
+                    output = repr(&mut env, result);
                 }
             },
             ValueType::HashMapType => {}

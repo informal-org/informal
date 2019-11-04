@@ -2,7 +2,7 @@ use avs::environment::Environment;
 use std::collections::HashMap;
 use avs::runtime::ERR_MSG_MAP;
 use avs::types::{__av_typeof, is_error};
-use avs::structs::{ValueType, Runtime, Atom};
+use avs::structs::{ValueType, Atom};
 use avs::constants::*;
 use avs::runtime::{ID_SYMBOL_MAP};
 use avs::format::{repr_atom, repr_number, repr_symbol};
