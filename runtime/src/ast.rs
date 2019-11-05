@@ -12,10 +12,10 @@ use std::rc::Rc;
 use std::cell::RefCell;
 
 
-pub fn update_used_by(expr_map: &mut FnvHashMap<u64, Rc<RefCell<Expression>>>, expr: &Expression) {
+pub fn update_used_by(expr_map: &FnvHashMap<u64, Rc<RefCell<Expression>>>, expr: &Expression) {
     // Build reverse side of the dependency map
     for dep in expr.depends_on.iter() {
-        if let Some(dep_node) = expr_map.get_mut(dep) {
+        if let Some(dep_node) = expr_map.get(dep) {
             dep_node.borrow_mut().used_by.push(expr.symbol);
         } else {
             // This shouldn't happen as we create all expression nodes in define_symbols
@@ -31,8 +31,9 @@ pub fn define_symbols(request: &mut EvalRequest, ast: &mut Environment) -> FnvHa
 
     for cell in request.body.iter() {
         // Attempt to parse ID of cell and save result "@42" -> 42
-        let mut node = Expression::new(cell.id, cell.input);
-        node.symbol = ast.define_identifier();
+        let mut node = Expression::new(cell.id, cell.input.clone());
+        let symbol = ast.define_identifier();
+        node.symbol = symbol;
         
         if cell.name.is_some() {
             let cell_name: &String = cell.name.as_ref().unwrap();
@@ -46,7 +47,7 @@ pub fn define_symbols(request: &mut EvalRequest, ast: &mut Environment) -> FnvHa
         
         let wrapper = Rc::new(RefCell::new(node));
 
-        expr_map.insert(node.symbol, wrapper);
+        expr_map.insert(symbol, wrapper);
     }
     return expr_map;
 }
@@ -80,14 +81,14 @@ pub fn construct_ast(mut request: &mut EvalRequest) -> Environment {
 
     // The lexer already needs to know the meaning of symbols so it can create new ones
     // So it should just return used by as well in a single pass.
-    for (mut id, mut expr_wrapper) in expr_map.iter_mut() {
+    for (mut id, mut expr_wrapper) in expr_map.iter() {
         let mut expr = expr_wrapper.borrow_mut();
         let lex_result = lex(&mut ast, &expr.input);
         
         if lex_result.is_ok() {
             let mut lexed = lex_result.unwrap();
             apply_operator_precedence(&mut expr, &mut lexed);
-            update_used_by(&mut expr_map, &expr);
+            update_used_by(&expr_map, &expr);
         } else {
             expr.set_result(lex_result.err().unwrap());
         };

@@ -12,7 +12,7 @@ pub fn repr(env: &Environment, result: u64) -> String {
     // let result_type = __av_typeof(result);
     // println!("repr {:X} {:?}", result, result_type);
     if let Some(identifier) = env.lookup(result) {
-        if let Some(atom) = identifier.value {
+        if let Some(atom) = &identifier.value {
             return repr_atom(&atom);
         }
     }
