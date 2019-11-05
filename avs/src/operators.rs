@@ -17,7 +17,13 @@ pub extern fn __av_add(env: &mut Environment, a: u64, b: u64) -> u64 {
 	match atom_a {
 		Atom::NumericValue(f_a) => {
 			match atom_b {
-				Atom::NumericValue(f_b) => return (f_a + f_b).to_bits(),
+				Atom::NumericValue(f_b) => {
+					println!("Both are numbers");
+					println!("{:?} + {:?}", f_a, f_b);
+					let result = (f_a + f_b);
+					println!("{:?} {:?}", result, result.to_bits());
+					return result.to_bits();
+				},
 				_ => return RUNTIME_ERR_EXPECTED_NUM
 			}
 		},

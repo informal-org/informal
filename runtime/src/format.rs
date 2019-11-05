@@ -9,13 +9,27 @@ use avs::format::{repr_atom, repr_number, repr_symbol};
 
 // TODO: just move this to avs
 pub fn repr(env: &Environment, result: u64) -> String {
-    // let result_type = __av_typeof(result);
+    let result_type = __av_typeof(result);
     // println!("repr {:X} {:?}", result, result_type);
-    if let Some(identifier) = env.lookup(result) {
-        if let Some(atom) = &identifier.value {
-            return repr_atom(&atom);
+
+    match result_type {
+        ValueType::NumericType => {
+            return repr_number(result)
+        },
+        ValueType::SymbolType => {
+            return repr_symbol(&result)
+        },
+        _ => {
+            if let Some(identifier) = env.lookup(result) {
+                println!("repr is identifier");
+                if let Some(atom) = &identifier.value {
+                    return repr_atom(&atom);
+                }
+            }
         }
     }
+
+
 
     // Unknown symbol
     return repr_symbol(&result);

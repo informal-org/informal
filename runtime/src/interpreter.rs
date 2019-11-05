@@ -65,7 +65,7 @@ pub fn call_function(mut env: &mut Environment, stack: &mut Vec<u64>) -> u64 {
 }
 
 pub fn apply_operator(mut env: &mut Environment, operator: u64, mut stack: &mut Vec<u64>) -> u64 {
-    // println!("Operator: {}", repr(&env, operator));
+    println!("Operator: {}", repr(&env, operator));
     // print_stacktrace(env, &stack);
 
     let symbol_index = operator & PAYLOAD_MASK;
@@ -117,7 +117,9 @@ pub fn interpret_expr(mut env: &mut Environment, expression: &Expression) -> u64
                 // TODO: Check if built in operator or an identifier
                 if is_keyword(*kw) {
                     let result = apply_operator(&mut env, *kw, &mut expr_stack);
+                    println!("Apply operator returned {:?}", result);
                     expr_stack.push(result);
+                    println!("expr stack immediate {:?} ", expr_stack);
                 } else {
                     // println!("Looking up symbol {:X}", kw);
                     // Lookup result of symbol
@@ -157,6 +159,7 @@ pub fn interpret_expr(mut env: &mut Environment, expression: &Expression) -> u64
             }
         }
     }
+    println!("expr stack {:?} ", expr_stack);
     // Assert - only one value on expr stack
     return expr_stack.pop().unwrap();
 }
@@ -176,12 +179,12 @@ pub fn interpret_all(mut request: EvalRequest) -> EvalResponse {
     // TODO: re-enable
     // init_runtime_input(&mut global_env, &request.input);
 
-    // println!("AST: {:?}", ast);
+    println!("AST: {:?}", env);
 
     // Need a clone here to avoid multiple references to env.body - though it's kinda silly.
     for node in env.body.clone().iter() {
         let result = interpret_expr(&mut env, &node);
-        // println!("Got result {:?}", repr(&global_env, &ast, result));
+        println!("Got result {:?} {:?}", result, repr(&env, result));
         
         // Don't double-encode symbols
         // let symbol_id = ast.cell_symbols.as_ref().unwrap().get(&node.id).unwrap();

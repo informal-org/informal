@@ -118,13 +118,13 @@ mod tests {
         add_dep!(d, e);
         add_dep!(d, f);
 
-        let mut cells: FnvHashMap<u64, Expression> = FnvHashMap::default();
-        cells.insert(a.symbol, a);
-        cells.insert(b.symbol, b);
-        cells.insert(c.symbol, c);
-        cells.insert(d.symbol, d);
-        cells.insert(e.symbol, e);
-        cells.insert(f.symbol, f);
+        let mut cells: FnvHashMap<u64, Rc<RefCell<Expression>>> = FnvHashMap::default();
+        cells.insert(a.symbol, Rc::new(RefCell::new(a.clone())));
+        cells.insert(b.symbol, Rc::new(RefCell::new(b.clone())));
+        cells.insert(c.symbol, Rc::new(RefCell::new(c.clone())));
+        cells.insert(d.symbol, Rc::new(RefCell::new(d.clone())));
+        cells.insert(e.symbol, Rc::new(RefCell::new(e.clone())));
+        cells.insert(f.symbol, Rc::new(RefCell::new(f.clone())));
         
         let count = cells.len();
         let order = get_eval_order(&mut cells);

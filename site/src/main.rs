@@ -5,6 +5,10 @@ use runtime::format;
 use runtime::interpreter::{interpret_all};
 use runtime::structs::{CellResponse, EvalRequest, EvalResponse};
 
+// const TEMPLATE_ROOT = "/var/www/arevelcom/templates/";
+// const STATIC_ROOT = "/var/www/arevelcom/static/";
+
+
 fn landing(_req: HttpRequest) -> actix_web::Result<NamedFile> {
     // let path: PathBuf = req.match_info().query("filename").parse().unwrap();
     return Ok(NamedFile::open("/var/www/arevelcom/templates/landing.html")?)
@@ -43,7 +47,7 @@ pub fn main() {
         .route("/slides", web::get().to(slides))
         .route("/_info/health", web::get().to(health))
         .route("/api/evaluate", web::post().to(evaluate))
-        .service(fs::Files::new("/static", "/var/www/arevelcom/static/"))  // static/dist/static
+        .service(fs::Files::new("/static", "static/dist/static"))  //    // /var/www/arevelcom/static/
     })
     .bind("0.0.0.0:9080")
     .expect("Can not bind to port 9080")

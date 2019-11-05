@@ -8,6 +8,7 @@ use crate::runtime::ID_SYMBOL_MAP;
 
 #[cfg(not(target_os = "unknown"))]
 pub fn repr_symbol(symbol: &u64) -> String {
+    println!("repr symbol");
     if let Some(builtin_name) = ID_SYMBOL_MAP.get(symbol) {
         format!("{}", builtin_name.name)
     } else {
