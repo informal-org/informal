@@ -96,7 +96,7 @@ pub fn construct_ast(mut request: &mut EvalRequest) -> Environment {
     // Assert - used_by_buffer empty by now.
 
     let ordered = get_eval_order(&mut expr_map);
-    ast.body = Rc::new(RefCell::new(ordered));
+    ast.body = ordered;
     // ast.cell_symbols = Some(cell_symbol_map);
     // ast.symbols_index = cell_index_map;
     // let node_len = cell_list.len();

@@ -15,13 +15,15 @@ pub struct Environment {
     parent: Box<Option<Environment>>,
     
     // Normalized upper case name -> Symbol ID for things defined in this scope
+    // names
     normname_symbols: FnvHashMap<String, u64>,
 
     // Symbol ID -> metadata and values
+    // values
     identifiers: FnvHashMap<u64, Identifier>,
 
     // Raw code
-    pub body: Rc<RefCell<Vec<Expression>>>,
+    pub body: Vec<Expression>,
 
     // TODO: Allocation when there's multiple sub-environments.
     pub next_symbol_id: u64,
@@ -34,7 +36,7 @@ impl Environment {
             parent: Box::new(None),
             normname_symbols: FnvHashMap::default(),
             identifiers: FnvHashMap::default(),
-            body: Rc::new(RefCell::new(Vec::with_capacity(0))),
+            body: Vec::with_capacity(0),
             next_symbol_id: next_symbol_id,
         }
     }
