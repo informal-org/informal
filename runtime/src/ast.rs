@@ -95,7 +95,8 @@ pub fn construct_ast(mut request: &mut EvalRequest) -> Environment {
     // Do a pass over all the nodes to resolve used_by. You could partially do this inline using a hashmap
     // Assert - used_by_buffer empty by now.
 
-    ast.body = get_eval_order(&mut expr_map);
+    let ordered = get_eval_order(&mut expr_map);
+    ast.body = Rc::new(RefCell::new(ordered));
     // ast.cell_symbols = Some(cell_symbol_map);
     // ast.symbols_index = cell_index_map;
     // let node_len = cell_list.len();

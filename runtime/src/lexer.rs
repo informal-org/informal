@@ -198,7 +198,7 @@ macro_rules! apply_unary_minus {
     });
 }
 
-pub fn lex(mut context: &mut Environment, expr: &str) -> Result<Vec<Atom>> {
+pub fn lex(context: &mut Environment, expr: &str) -> Result<Vec<Atom>> {
     let mut it = expr.chars().peekable();
     // Split into lexemes based on some known operators
     let mut tokens: Vec<Atom> = vec![];

@@ -178,7 +178,7 @@ pub fn interpret_all(mut request: EvalRequest) -> EvalResponse {
 
     // println!("AST: {:?}", ast);
 
-    for node in env.body.iter_mut() {
+    for node in env.body.borrow_mut().iter_mut() {
         let result = interpret_expr(&mut env, &node);
         // println!("Got result {:?}", repr(&global_env, &ast, result));
         

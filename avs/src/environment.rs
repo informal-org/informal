@@ -3,6 +3,8 @@ use crate::structs::{Identifier, Atom};
 use crate::expression::Expression;
 use core::fmt;
 use fnv::FnvHashMap;
+use std::rc::Rc;
+use std::cell::RefCell;
 
 
 // Context (Scope / Global AST)
@@ -19,7 +21,7 @@ pub struct Environment {
     identifiers: FnvHashMap<u64, Identifier>,
 
     // Raw code
-    pub body: Vec<Expression>,
+    pub body: Rc<RefCell<Vec<Expression>>>,
 
     // TODO: Allocation when there's multiple sub-environments.
     pub next_symbol_id: u64,
@@ -32,7 +34,7 @@ impl Environment {
             parent: Box::new(None),
             normname_symbols: FnvHashMap::default(),
             identifiers: FnvHashMap::default(),
-            body: Vec::with_capacity(0),
+            body: Rc::new(RefCell::new(Vec::with_capacity(0))),
             next_symbol_id: next_symbol_id,
         }
     }

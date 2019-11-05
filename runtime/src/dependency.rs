@@ -24,7 +24,7 @@ pub fn get_eval_order(cells: &mut FnvHashMap<u64, Rc<RefCell<Expression>>>) -> V
 
     // Find leafs
     for (_, cell_wrapper) in cells.drain() {
-        let mut cell = *cell_wrapper.into_inner();
+        let mut cell = Rc::try_unwrap(cell_wrapper).unwrap().into_inner();
         cell.unmet_depend_count = cell.depends_on.len() as i32;
         if cell.unmet_depend_count == 0 {
             leafs.push_back(cell);
