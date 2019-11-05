@@ -8,7 +8,7 @@ use std::io::{stdin,stdout,Write};
 use avs::constants::*;
 
 extern crate flatbuffers;
-pub use avs::avfb_generated::avfb::{AvFbObj, AvFbObjArgs, get_root_as_av_fb_obj};
+// pub use avs::avfb_generated::avfb::{AvFbObj, AvFbObjArgs, get_root_as_av_fb_obj};
 
 
 // fn repl_it() {
