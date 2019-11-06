@@ -16,12 +16,8 @@ pub fn repr(env: &Environment, result: u64) -> String {
         ValueType::NumericType => {
             return repr_number(result)
         },
-        ValueType::SymbolType => {
-            return repr_symbol(&result)
-        },
         _ => {
             if let Some(identifier) = env.lookup(result) {
-                println!("repr is identifier");
                 if let Some(atom) = &identifier.value {
                     return repr_atom(&atom);
                 }

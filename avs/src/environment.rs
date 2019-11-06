@@ -1,10 +1,15 @@
 use crate::utils::create_pointer_symbol;
 use crate::structs::{Identifier, Atom};
 use crate::expression::Expression;
+use crate::types::{is_pointer, is_nan};
+use crate::constants::*;
+use crate::macros::*;
+
 use core::fmt;
 use fnv::FnvHashMap;
 use std::rc::Rc;
 use std::cell::RefCell;
+
 
 
 // Context (Scope / Global AST)
@@ -60,16 +65,38 @@ impl Environment {
         if !self.normname_symbols.contains_key(&uname) {
             self.normname_symbols.insert(uname, symbol);
         }
+
+        if let Some(existing) = self.identifiers.get_mut(&symbol) {
+            existing.name = Some(name);
+        } else {
+            let variable = Identifier {
+                symbol: symbol,
+                name: Some(name),
+                value: None
+            };
+            self.identifiers.insert(symbol, variable);
+        }
     }
 
     // Bind an identifier to a value
     pub fn bind_value(&mut self, symbol: u64, value: Atom) {
-        
+        // self.identifiers.insert(symbol, value)
+        if let Some(existing) = self.identifiers.get_mut(&symbol) {
+            existing.value = Some(value);
+        } else {
+            let variable = Identifier {
+                symbol: symbol,
+                name: None,
+                value: Some(value)
+            };
+            self.identifiers.insert(symbol, variable);
+        }
     }
 
     // A lower-level form of bind_value to save the stack result
     pub fn bind_result(&mut self, symbol: u64, result: u64) {
-        
+        let atom = resolve_atom!(&self, result);
+        self.bind_value(symbol, atom);
     }
 
     pub fn init_value(&mut self, value: Atom) -> u64 {

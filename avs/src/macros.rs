@@ -50,9 +50,10 @@ macro_rules! resolve_atom {
 				Atom::SymbolValue($val)
 			}
 		} else {
-			println!("is symbol false");
-			// Encountered other NaN Type
-			return RUNTIME_ERR_EXPECTED_NUM
+			// println!("is symbol false");
+			// // Encountered other NaN Type
+			// return RUNTIME_ERR_EXPECTED_NUM
+			Atom::NumericValue(f_val)
 		}
 	})
 }

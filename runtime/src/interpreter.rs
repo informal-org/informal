@@ -117,9 +117,7 @@ pub fn interpret_expr(mut env: &mut Environment, expression: &Expression) -> u64
                 // TODO: Check if built in operator or an identifier
                 if is_keyword(*kw) {
                     let result = apply_operator(&mut env, *kw, &mut expr_stack);
-                    println!("Apply operator returned {:?}", result);
                     expr_stack.push(result);
-                    println!("expr stack immediate {:?} ", expr_stack);
                 } else {
                     // println!("Looking up symbol {:X}", kw);
                     // Lookup result of symbol
