@@ -120,13 +120,14 @@ impl Environment {
     }
 
     pub fn lookup(&self, symbol: u64) -> Option<&Identifier> {
-        return None
+        return self.identifiers.get(&symbol)
     }
 
     // Resolve a symbol to a terminal value by following pointers
     // Terminates at a max depth
     pub fn deep_resolve(&self, symbol: u64) -> Option<&Identifier> {
-        return None;
+        // TODO: Implement the recursive part of this
+        return self.lookup(symbol);
     }
 
 
