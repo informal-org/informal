@@ -6,7 +6,7 @@ use fnv::FnvHashMap;
 
 // Ordered by their symbol ID for table lookup
 #[cfg(not(target_os = "unknown"))]
-pub const RESERVED_SYMBOLS: [&'static Keyword; 28] = [ 
+pub const RESERVED_SYMBOLS: [&'static Keyword; 29] = [ 
     &SYMBOL_COMMA, &SYMBOL_EQUALS,
     &SYMBOL_OR, &SYMBOL_AND, &SYMBOL_NOT, 
     &SYMBOL_DBL_EQUALS, &SYMBOL_NOT_EQUALS, 
@@ -18,6 +18,7 @@ pub const RESERVED_SYMBOLS: [&'static Keyword; 28] = [
     &SYMBOL_OPEN_BRACE, &SYMBOL_CLOSE_BRACE, 
     &SYMBOL_COLON, &SYMBOL_SEMI_COLON, 
     &SYMBOL_TRUE, &SYMBOL_FALSE, &SYMBOL_NONE,
+    &SYMBOL_CALL_FN
 ];
 
 pub const BUILTIN_MODULES: [&'static Module; 8] = [

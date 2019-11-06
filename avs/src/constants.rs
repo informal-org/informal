@@ -109,6 +109,14 @@ pub const SYMBOL_TRUE: Keyword = Keyword {
     operation: None
 };
 
+pub const SYMBOL_CALL_FN: Keyword = Keyword {
+    symbol: 0xFFFF_0000_0000_001C,
+    name: "__call__",
+    precedence: None,
+    operation: None
+};
+
+
 
 
 // Constants for supported symbols within expressions.
@@ -310,13 +318,6 @@ pub const AV_CLASS_FUNCTION: u64 = 0xFFFF_0000_0000_1027;
 pub const AV_CLASS_ENVIRONMENT: u64 = 0xFFFF_0000_0000_1028;
 pub const AV_CLASS_STRING: u64 = 0xFFFF_0000_0000_1029;
 
-
-pub const SYMBOL_CALL_FN: Keyword = Keyword {
-    symbol: 0xFFFF_0000_0000_1042,
-    name: "__call__",
-    precedence: None,
-    operation: None
-};
 
 // Reserve up to 65k symbols for standard library usage. (Classes, functions, etc.)
 

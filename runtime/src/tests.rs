@@ -288,126 +288,126 @@ mod tests {
     }
 
 
-    // #[test]
-    // fn test_reval_string_literals() {
-    //     let cell_a = CellRequest {id: 1, name: Some(String::from("one")), input: String::from("\"hello\"")};
-    //     // Can't just have single value inputs anymore, need cells as inputs
-    //     let mut program = EvalRequest {
-    //         body: vec![cell_a],
-    //         input: None
-    //     };
-    //     let i_result = interpreter::interpret_all(program);
-    //     println!("{:?}", i_result);
-    //     // assert_eq!(true, false);
-    // }
+    #[test]
+    fn test_reval_string_literals() {
+        let cell_a = CellRequest {id: 1, name: Some(String::from("one")), input: String::from("\"hello\"")};
+        // Can't just have single value inputs anymore, need cells as inputs
+        let mut program = EvalRequest {
+            body: vec![cell_a],
+            input: None
+        };
+        let i_result = interpreter::interpret_all(program);
+        println!("{:?}", i_result);
+        // assert_eq!(true, false);
+    }
 
-    // #[test]
-    // fn test_symbol_ref() {
-    //     // Can't just have single value inputs anymore, need cells as inputs
-    //     let program = EvalRequest {
-    //         body: vec![
-    //             CellRequest {id: 1, name: Some(String::from("one")), input: String::from("True")},
-    //             CellRequest {id: 2, name: Some(String::from("two")), input: String::from("one")}
-    //         ],
-    //         input: None
-    //     };
-    //     let i_result = interpreter::interpret_all(program);
-    //     println!("{:?}", i_result);
-    //     let expected_results = vec![
-    //         CellResponse { id: 1, output: String::from("True"), error: String::from("") },
-    //         CellResponse { id: 2, output: String::from("True"), error: String::from("") },
-    //     ];
-    //     assert_eq!(i_result.results, expected_results);
-    // }
-
-
-    // #[test]
-    // fn test_builtin_fncall() {
-    //     let program = EvalRequest {
-    //         body: vec![
-    //             CellRequest {id: 1, name: Some(String::from("one")), input: String::from("min(4, 3)")},
-    //             CellRequest {id: 2, name: Some(String::from("two")), input: String::from("min(3, 4)")}
-    //         ],
-    //         input: None
-    //     };
-    //     let i_result = interpreter::interpret_all(program);
-    //     let expected_results = vec![
-    //         CellResponse { id: 1, output: String::from("3"), error: String::from("") },
-    //         CellResponse { id: 2, output: String::from("3"), error: String::from("") },
-    //     ];
-    //     assert_eq!(i_result.results, expected_results);
-    // }
+    #[test]
+    fn test_symbol_ref() {
+        // Can't just have single value inputs anymore, need cells as inputs
+        let program = EvalRequest {
+            body: vec![
+                CellRequest {id: 1, name: Some(String::from("one")), input: String::from("True")},
+                CellRequest {id: 2, name: Some(String::from("two")), input: String::from("one")}
+            ],
+            input: None
+        };
+        let i_result = interpreter::interpret_all(program);
+        println!("{:?}", i_result);
+        let expected_results = vec![
+            CellResponse { id: 1, output: String::from("True"), error: String::from("") },
+            CellResponse { id: 2, output: String::from("True"), error: String::from("") },
+        ];
+        assert_eq!(i_result.results, expected_results);
+    }
 
 
-    // #[test]
-    // fn test_builtin_fn_argeval() {
-    //     let program = EvalRequest {
-    //         body: vec![
-    //             CellRequest {id: 1, name: Some(String::from("one")), input: String::from("min(2 * 2, 2 + 1)")},
-    //             CellRequest {id: 2, name: Some(String::from("two")), input: String::from("min(2, max(1, 4))")}
-    //         ],
-    //         input: None
-    //     };
-    //     let i_result = interpreter::interpret_all(program);
-    //     let expected_results = vec![
-    //         CellResponse { id: 1, output: String::from("3"), error: String::from("") },
-    //         CellResponse { id: 2, output: String::from("2"), error: String::from("") },
-    //     ];
-    //     assert_eq!(i_result.results, expected_results);
-    // }
+    #[test]
+    fn test_builtin_fncall() {
+        let program = EvalRequest {
+            body: vec![
+                CellRequest {id: 1, name: Some(String::from("one")), input: String::from("min(4, 3)")},
+                CellRequest {id: 2, name: Some(String::from("two")), input: String::from("min(3, 4)")}
+            ],
+            input: None
+        };
+        let i_result = interpreter::interpret_all(program);
+        let expected_results = vec![
+            CellResponse { id: 1, output: String::from("3"), error: String::from("") },
+            CellResponse { id: 2, output: String::from("3"), error: String::from("") },
+        ];
+        assert_eq!(i_result.results, expected_results);
+    }
 
 
-    // #[test]
-    // fn test_builtin_math_fn() {
-    //     let program = EvalRequest {
-    //         body: vec![
-    //             CellRequest {id: 1, name: None, input: String::from("abs(-23)")},
-    //             CellRequest {id: 2, name: None, input: String::from("ceil(2.3)")},
-    //             CellRequest {id: 3, name: None, input: String::from("floor(2.3)")},
-    //             CellRequest {id: 4, name: None, input: String::from("round(2.5)")},
-    //             CellRequest {id: 5, name: None, input: String::from("round(-2.5)")},
-    //             CellRequest {id: 6, name: None, input: String::from("truncate(-2.5)")},
-    //             CellRequest {id: 7, name: None, input: String::from("sqrt(25)")},
-    //         ],
-    //         input: None
-    //     };
-    //     let i_result = interpreter::interpret_all(program);
-    //     let expected_results = vec![
-    //         CellResponse { id: 1, output: String::from("23"), error: String::from("") },
-    //         CellResponse { id: 2, output: String::from("3"), error: String::from("") },
-    //         CellResponse { id: 3, output: String::from("2"), error: String::from("") },
-    //         CellResponse { id: 4, output: String::from("3"), error: String::from("") },
-    //         CellResponse { id: 5, output: String::from("-3"), error: String::from("") },
-    //         CellResponse { id: 6, output: String::from("-2"), error: String::from("") },
-    //         CellResponse { id: 7, output: String::from("5"), error: String::from("") },
-    //     ];
-    //     assert_eq!(i_result.results, expected_results);
-    // }
+    #[test]
+    fn test_builtin_fn_argeval() {
+        let program = EvalRequest {
+            body: vec![
+                CellRequest {id: 1, name: Some(String::from("one")), input: String::from("min(2 * 2, 2 + 1)")},
+                CellRequest {id: 2, name: Some(String::from("two")), input: String::from("min(2, max(1, 4))")}
+            ],
+            input: None
+        };
+        let i_result = interpreter::interpret_all(program);
+        let expected_results = vec![
+            CellResponse { id: 1, output: String::from("3"), error: String::from("") },
+            CellResponse { id: 2, output: String::from("2"), error: String::from("") },
+        ];
+        assert_eq!(i_result.results, expected_results);
+    }
+
+
+    #[test]
+    fn test_builtin_math_fn() {
+        let program = EvalRequest {
+            body: vec![
+                CellRequest {id: 1, name: None, input: String::from("abs(-23)")},
+                CellRequest {id: 2, name: None, input: String::from("ceil(2.3)")},
+                CellRequest {id: 3, name: None, input: String::from("floor(2.3)")},
+                CellRequest {id: 4, name: None, input: String::from("round(2.5)")},
+                CellRequest {id: 5, name: None, input: String::from("round(-2.5)")},
+                CellRequest {id: 6, name: None, input: String::from("truncate(-2.5)")},
+                CellRequest {id: 7, name: None, input: String::from("sqrt(25)")},
+            ],
+            input: None
+        };
+        let i_result = interpreter::interpret_all(program);
+        let expected_results = vec![
+            CellResponse { id: 1, output: String::from("23"), error: String::from("") },
+            CellResponse { id: 2, output: String::from("3"), error: String::from("") },
+            CellResponse { id: 3, output: String::from("2"), error: String::from("") },
+            CellResponse { id: 4, output: String::from("3"), error: String::from("") },
+            CellResponse { id: 5, output: String::from("-3"), error: String::from("") },
+            CellResponse { id: 6, output: String::from("-2"), error: String::from("") },
+            CellResponse { id: 7, output: String::from("5"), error: String::from("") },
+        ];
+        assert_eq!(i_result.results, expected_results);
+    }
 
 
 
 
-    // #[test]
-    // fn test_reval_string_concat() {
-    //     let cell_a = CellRequest {id: 1, name: Some(String::from("one")), input: String::from("\"Hello\"")};
-    //     let cell_b = CellRequest {id: 2, name: Some(String::from("two")), input: String::from("one + \" Arevel\"")};
-    //     let cell_c = CellRequest {id: 3, name: Some(String::from("three")), input: String::from("\"Arevel \" + one")};
-    //     // Can't just have single value inputs anymore, need cells as inputs
-    //     let mut program = EvalRequest {
-    //         body: vec![cell_a, cell_b, cell_c],
-    //         input: None
-    //     };
+    #[test]
+    fn test_reval_string_concat() {
+        let cell_a = CellRequest {id: 1, name: Some(String::from("one")), input: String::from("\"Hello\"")};
+        let cell_b = CellRequest {id: 2, name: Some(String::from("two")), input: String::from("one + \" Arevel\"")};
+        let cell_c = CellRequest {id: 3, name: Some(String::from("three")), input: String::from("\"Arevel \" + one")};
+        // Can't just have single value inputs anymore, need cells as inputs
+        let mut program = EvalRequest {
+            body: vec![cell_a, cell_b, cell_c],
+            input: None
+        };
         
-    //     let i_result = interpreter::interpret_all(program);
+        let i_result = interpreter::interpret_all(program);
 
-    //     let expected_results = vec![
-    //         CellResponse { id: 1, output: String::from("\"Hello\""), error: String::from("") },
-    //         CellResponse { id: 2, output: String::from("\"Hello Arevel\""), error: String::from("") },
-    //         CellResponse { id: 3, output: String::from("\"Arevel Hello\""), error: String::from("") },
-    //     ];
+        let expected_results = vec![
+            CellResponse { id: 1, output: String::from("\"Hello\""), error: String::from("") },
+            CellResponse { id: 2, output: String::from("\"Hello Arevel\""), error: String::from("") },
+            CellResponse { id: 3, output: String::from("\"Arevel Hello\""), error: String::from("") },
+        ];
 
-    //     println!("{:?}", i_result);
-    //     assert_eq!(i_result.results, expected_results);
-    // }
+        println!("{:?}", i_result);
+        assert_eq!(i_result.results, expected_results);
+    }
 
 }

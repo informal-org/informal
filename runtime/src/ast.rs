@@ -55,29 +55,19 @@ pub fn define_symbols(request: &mut EvalRequest, ast: &mut Environment) -> FnvHa
 pub fn init_builtin(ast: &mut Environment) {
     // Initialize built in modules
     for m in BUILTIN_MODULES.iter() {
+        // let ident = ast.define_identifier();
+        ast.bind_name(m.symbol, m.name.to_string());
+        ast.bind_value(m.symbol, m.value.clone());
         // ast.define_cell_name(String::from(trimmed_name), cell_symbol_value);
     }
 }
 
 
 pub fn construct_ast(mut request: &mut EvalRequest) -> Environment {
-    // let mut ast = AST::new();
-    // let mut nodes: Vec<ASTNode> = Vec::with_capacity(request.body.len());
-    // TODO: Define a root scope
-    // // ID -> Node
-    // let mut cell_list: Vec<Expression> = Vec::new();
-    // // Cell ID -> index of elem in node list above (because borrowing rules)
-    // let mut cell_index_map: FnvHashMap<u64, usize> = FnvHashMap::with_capacity_and_hasher(request.body.len(), Default::default());
-    // // For nodes that aren't fully created yet, store usages for later.
-    // let mut used_by_buffer: FnvHashMap<u64, Vec<u64>> = FnvHashMap::default();
-    // Cell ID -> Internal Symbol ID for results
-    
     let mut ast = Environment::new(APP_SYMBOL_START);
+    init_builtin(&mut ast);
 
     let mut expr_map = define_symbols(&mut request, &mut ast);
-
-    // At this point, we no longer need to deal with the raw request. 
-    // Everything's in Environment.body
 
     // The lexer already needs to know the meaning of symbols so it can create new ones
     // So it should just return used by as well in a single pass.
@@ -93,19 +83,8 @@ pub fn construct_ast(mut request: &mut EvalRequest) -> Environment {
             expr.set_result(lex_result.err().unwrap());
         };
     }
-    // Do a pass over all the nodes to resolve used_by. You could partially do this inline using a hashmap
-    // Assert - used_by_buffer empty by now.
 
     let ordered = get_eval_order(&mut expr_map);
     ast.body = ordered;
-    // ast.cell_symbols = Some(cell_symbol_map);
-    // ast.symbols_index = cell_index_map;
-    // let node_len = cell_list.len();
-    // let mut values: Vec<u64> = Vec::with_capacity(node_len);
-    // for _ in 0..node_len {
-    //     // If you dereference a value before it's set, it's an error
-    //     values.push(RUNTIME_ERR_UNK_VAL);
-    // }
-    // ast.cell_results = values;
     return ast;
 }

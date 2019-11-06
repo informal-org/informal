@@ -112,6 +112,7 @@ pub fn interpret_expr(mut env: &mut Environment, expression: &Expression) -> u64
     let mut expr_stack: Vec<u64> = Vec::with_capacity(expression.parsed.len());
 
     for token in expression.parsed.iter() {
+        println!("token {:?}", token);
         match token {
             Atom::SymbolValue(kw) => {
                 // TODO: Check if built in operator or an identifier

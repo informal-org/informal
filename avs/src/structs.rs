@@ -280,6 +280,7 @@ mod tests {
         // TODO: Test longer vs shorter string
         let symbol_id = env.init_value(Atom::StringValue("Hello".to_string()));
         let symbol_header = symbol_id & VALHEAD_MASK;
-        assert_eq!(symbol_header, VALUE_T_PTR_STR);
+        // assert_eq!(symbol_header, VALUE_T_PTR_STR);
+        assert_eq!(symbol_header, VALUE_T_PTR_OBJ);
     }
 }
