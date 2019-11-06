@@ -355,7 +355,7 @@ pub const AV_FN_FLOOR: Module = Module {
 // TODO: Rename this to "int"?
 pub const AV_FN_TRUNC: Module = Module {
     symbol: 0xFFFD_0000_0000_0105,
-    name: "trunc",
+    name: "truncate",
     value: NativeFn1::create_atom(__av_truncate)
 };
 

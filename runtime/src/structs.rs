@@ -1,4 +1,4 @@
-#[derive(Serialize, PartialEq, Debug)]
+#[derive(Serialize, PartialEq, Debug, Eq, Ord, PartialOrd)]
 pub struct CellResponse {
     pub id: u64,
     pub output: String,

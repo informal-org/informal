@@ -371,7 +371,7 @@ mod tests {
             ],
             input: None
         };
-        let i_result = interpreter::interpret_all(program);
+        let mut i_result = interpreter::interpret_all(program);
         let expected_results = vec![
             CellResponse { id: 1, output: String::from("23"), error: String::from("") },
             CellResponse { id: 2, output: String::from("3"), error: String::from("") },
@@ -381,6 +381,8 @@ mod tests {
             CellResponse { id: 6, output: String::from("-2"), error: String::from("") },
             CellResponse { id: 7, output: String::from("5"), error: String::from("") },
         ];
+
+        i_result.results.sort_by(|a, b| a.id.cmp(&b.id));
         assert_eq!(i_result.results, expected_results);
     }
 
