@@ -51,12 +51,6 @@ impl Expression {
         }
     }
 
-    // pub fn err(cell_id: u64, error: u64) -> Expression {
-    //     let mut node = Expression::new(cell_id);
-    //     node.result = Some(error);
-    //     return node;
-    // }
-
     pub fn set_result(&mut self, result: u64) {
         // Set result only if it wasn't previously set to avoid clobbering errors.
         if self.result.is_none() {

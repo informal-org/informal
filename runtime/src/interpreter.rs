@@ -93,8 +93,6 @@ pub fn apply_operator(mut env: &mut Environment, operator: u64, mut stack: &mut 
         println!("Unknown symbol {:X}", operator);
         return operator
     };
-    // print_stacktrace(env, &stack);
-    // println!("Next");
 }
 
 fn is_keyword(symbol: u64) -> bool {
@@ -208,10 +206,7 @@ pub fn interpret_all(mut request: EvalRequest) -> EvalResponse {
             ValueType::HashMapType => {}
         }
 
-        // let result_symbol_id = ast.cell_symbols.as_ref().unwrap().get(&node.id).unwrap();
-
         results.push(CellResponse {
-            // id: ["@", &node.id.to_string()].concat(),
             id: node.cell_id,
             output: output,
             error: err

@@ -151,101 +151,113 @@ pub fn apply_operator_precedence(expression: &mut Expression, infix: &mut Vec<At
 }
 
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-//     #[test]
-//     fn test_parse_basic() {
-//         // Verify straightforward conversion to postfix
-//         // 1 + 2
-//         let mut input: Vec<Atom> = vec![Atom::NumericValue(1.0), Atom::SymbolValue(SYMBOL_PLUS.symbol), Atom::NumericValue(2.0)];
+    #[test]
+    fn test_parse_basic() {
+        // Verify straightforward conversion to postfix
+        // 1 + 2
+        let mut input: Vec<Atom> = vec![Atom::NumericValue(1.0), Atom::SymbolValue(SYMBOL_PLUS.symbol), Atom::NumericValue(2.0)];
 
-//         let output: Vec<Atom> = vec![Atom::NumericValue(1.0), Atom::NumericValue(2.0), Atom::SymbolValue(SYMBOL_PLUS.symbol)];
-//         assert_eq!(apply_operator_precedence(0, APP_SYMBOL_START, &mut input).parsed, output);
-//     }
+        let output: Vec<Atom> = vec![Atom::NumericValue(1.0), Atom::NumericValue(2.0), Atom::SymbolValue(SYMBOL_PLUS.symbol)];
+        let mut expr = Expression::new(APP_SYMBOL_START, "".to_string());
+        apply_operator_precedence(&mut expr, &mut input);
+        assert_eq!(expr.parsed, output);
+    }
 
-//     #[test]
-//     fn test_parse_add_mult() {
-//         // Verify order of operands - multiply before addition
-//         // 1 * 2 + 3 = 1 2 * 3 +
-//         let mut input: Vec<Atom> = vec![
-//             Atom::NumericValue(1.0), 
-//             Atom::SymbolValue(SYMBOL_MULTIPLY.symbol), 
-//             Atom::NumericValue(2.0),
-//             Atom::SymbolValue(SYMBOL_PLUS.symbol), 
-//             Atom::NumericValue(3.0),
-//         ];
-//         let output: Vec<Atom> = vec![
-//             Atom::NumericValue(1.0), 
-//             Atom::NumericValue(2.0),
-//             Atom::SymbolValue(SYMBOL_MULTIPLY.symbol), 
-//             Atom::NumericValue(3.0),
-//             Atom::SymbolValue(SYMBOL_PLUS.symbol),
-//         ];
-//         assert_eq!(apply_operator_precedence( 0, APP_SYMBOL_START, &mut input).parsed, output);
+    #[test]
+    fn test_parse_add_mult() {
+        // Verify order of operands - multiply before addition
+        // 1 * 2 + 3 = 1 2 * 3 +
+        let mut input: Vec<Atom> = vec![
+            Atom::NumericValue(1.0), 
+            Atom::SymbolValue(SYMBOL_MULTIPLY.symbol), 
+            Atom::NumericValue(2.0),
+            Atom::SymbolValue(SYMBOL_PLUS.symbol), 
+            Atom::NumericValue(3.0),
+        ];
+        let output: Vec<Atom> = vec![
+            Atom::NumericValue(1.0), 
+            Atom::NumericValue(2.0),
+            Atom::SymbolValue(SYMBOL_MULTIPLY.symbol), 
+            Atom::NumericValue(3.0),
+            Atom::SymbolValue(SYMBOL_PLUS.symbol),
+        ];
+        
+        let mut expr = Expression::new(APP_SYMBOL_START, "".to_string());
+        apply_operator_precedence(&mut expr, &mut input);
+        assert_eq!(expr.parsed, output);
 
-//         // above test with order reversed. 1 + 2 * 3 = 1 2 3 * +
-//         let mut input2: Vec<Atom> = vec![
-//             Atom::NumericValue(1.0), 
-//             Atom::SymbolValue(SYMBOL_PLUS.symbol), 
-//             Atom::NumericValue(2.0),
-//             Atom::SymbolValue(SYMBOL_MULTIPLY.symbol), 
-//             Atom::NumericValue(3.0),
-//         ];
 
-//         let output2: Vec<Atom> = vec![
-//             Atom::NumericValue(1.0), 
-//             Atom::NumericValue(2.0),
-//             Atom::NumericValue(3.0),
-//             Atom::SymbolValue(SYMBOL_MULTIPLY.symbol),
-//             Atom::SymbolValue(SYMBOL_PLUS.symbol),
-//         ];
+        // above test with order reversed. 1 + 2 * 3 = 1 2 3 * +
+        let mut input2: Vec<Atom> = vec![
+            Atom::NumericValue(1.0), 
+            Atom::SymbolValue(SYMBOL_PLUS.symbol), 
+            Atom::NumericValue(2.0),
+            Atom::SymbolValue(SYMBOL_MULTIPLY.symbol), 
+            Atom::NumericValue(3.0),
+        ];
 
-//         assert_eq!(apply_operator_precedence(0, APP_SYMBOL_START, &mut input2).parsed, output2);
-//     }
+        let output2: Vec<Atom> = vec![
+            Atom::NumericValue(1.0), 
+            Atom::NumericValue(2.0),
+            Atom::NumericValue(3.0),
+            Atom::SymbolValue(SYMBOL_MULTIPLY.symbol),
+            Atom::SymbolValue(SYMBOL_PLUS.symbol),
+        ];
 
-//     #[test]
-//     fn test_parse_add_mult_paren() {
-//         // Verify order of operands - multiply before addition
-//         // 1 * (2 + 3) = 1 2 3 + *
-//         let mut input: Vec<Atom> = vec![
-//             Atom::NumericValue(1.0), 
-//             Atom::SymbolValue(SYMBOL_MULTIPLY.symbol), 
-//             Atom::SymbolValue(SYMBOL_OPEN_PAREN.symbol), 
-//             Atom::NumericValue(2.0),
-//             Atom::SymbolValue(SYMBOL_PLUS.symbol), 
-//             Atom::NumericValue(3.0),
-//             Atom::SymbolValue(SYMBOL_CLOSE_PAREN.symbol)
-//         ];
-//         let output: Vec<Atom> = vec![
-//             Atom::NumericValue(1.0), 
-//             Atom::NumericValue(2.0),
-//             Atom::NumericValue(3.0),
-//             Atom::SymbolValue(SYMBOL_PLUS.symbol),
-//             Atom::SymbolValue(SYMBOL_MULTIPLY.symbol)
-//         ];
-//         assert_eq!(apply_operator_precedence(0, APP_SYMBOL_START, &mut input).parsed, output);
+        let mut expr2 = Expression::new(APP_SYMBOL_START, "".to_string());
+        apply_operator_precedence(&mut expr2, &mut input2);
+        assert_eq!(expr2.parsed, output2);
+    }
 
-//         // above test with order reversed. (1 + 2) * 3 = 1 2 + 3 *
-//         let mut input2: Vec<Atom> = vec![
-//             Atom::SymbolValue(SYMBOL_OPEN_PAREN.symbol),
-//             Atom::NumericValue(1.0),
-//             Atom::SymbolValue(SYMBOL_PLUS.symbol),
-//             Atom::NumericValue(2.0),
-//             Atom::SymbolValue(SYMBOL_CLOSE_PAREN.symbol),
-//             Atom::SymbolValue(SYMBOL_MULTIPLY.symbol),
-//             Atom::NumericValue(3.0),
-//         ];
+    #[test]
+    fn test_parse_add_mult_paren() {
+        // Verify order of operands - multiply before addition
+        // 1 * (2 + 3) = 1 2 3 + *
+        let mut input: Vec<Atom> = vec![
+            Atom::NumericValue(1.0), 
+            Atom::SymbolValue(SYMBOL_MULTIPLY.symbol), 
+            Atom::SymbolValue(SYMBOL_OPEN_PAREN.symbol), 
+            Atom::NumericValue(2.0),
+            Atom::SymbolValue(SYMBOL_PLUS.symbol), 
+            Atom::NumericValue(3.0),
+            Atom::SymbolValue(SYMBOL_CLOSE_PAREN.symbol)
+        ];
+        let output: Vec<Atom> = vec![
+            Atom::NumericValue(1.0), 
+            Atom::NumericValue(2.0),
+            Atom::NumericValue(3.0),
+            Atom::SymbolValue(SYMBOL_PLUS.symbol),
+            Atom::SymbolValue(SYMBOL_MULTIPLY.symbol)
+        ];
+        let mut expr = Expression::new(APP_SYMBOL_START, "".to_string());
+        apply_operator_precedence(&mut expr, &mut input);
+        assert_eq!(expr.parsed, output);
 
-//         let output2: Vec<Atom> = vec![
-//             Atom::NumericValue(1.0), 
-//             Atom::NumericValue(2.0),
-//             Atom::SymbolValue(SYMBOL_PLUS.symbol),
-//             Atom::NumericValue(3.0),
-//             Atom::SymbolValue(SYMBOL_MULTIPLY.symbol),
-//         ];
+        // above test with order reversed. (1 + 2) * 3 = 1 2 + 3 *
+        let mut input2: Vec<Atom> = vec![
+            Atom::SymbolValue(SYMBOL_OPEN_PAREN.symbol),
+            Atom::NumericValue(1.0),
+            Atom::SymbolValue(SYMBOL_PLUS.symbol),
+            Atom::NumericValue(2.0),
+            Atom::SymbolValue(SYMBOL_CLOSE_PAREN.symbol),
+            Atom::SymbolValue(SYMBOL_MULTIPLY.symbol),
+            Atom::NumericValue(3.0),
+        ];
 
-//         assert_eq!(apply_operator_precedence(0, APP_SYMBOL_START, &mut input2).parsed, output2);
-//     }
-// }
+        let output2: Vec<Atom> = vec![
+            Atom::NumericValue(1.0), 
+            Atom::NumericValue(2.0),
+            Atom::SymbolValue(SYMBOL_PLUS.symbol),
+            Atom::NumericValue(3.0),
+            Atom::SymbolValue(SYMBOL_MULTIPLY.symbol),
+        ];
+
+        let mut expr2 = Expression::new(APP_SYMBOL_START, "".to_string());
+        apply_operator_precedence(&mut expr2, &mut input2);
+        assert_eq!(expr2.parsed, output2);
+    }
+}

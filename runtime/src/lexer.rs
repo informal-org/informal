@@ -271,62 +271,62 @@ mod tests {
         });
     }
 
-    // #[test]
-    // fn test_lex_float() {
-    //     let mut context = Context::new(APP_SYMBOL_START);
-    //     // Floating point numbers should be grouped together
-    //     assert_eq!(lex(&mut context, "3.1415").unwrap(), [numeric_literal!(3.1415)]);
+    #[test]
+    fn test_lex_float() {
+        let mut context = Environment::new(APP_SYMBOL_START);
+        // Floating point numbers should be grouped together
+        assert_eq!(lex(&mut context, "3.1415").unwrap(), [numeric_literal!(3.1415)]);
 
-    //     // Note: Numeric literals converted to float in lexer. Handled separately in parser.
-    //     assert_eq!(lex(&mut context, "9 .75 9").unwrap(), [numeric_literal!(9.0), numeric_literal!(0.75), numeric_literal!(9.0)]);
-    //     assert_eq!(lex(&mut context, "9 1e10").unwrap(), [numeric_literal!(9.0), numeric_literal!(1e10)]);
-    //     assert_eq!(lex(&mut context, "1e-10").unwrap(), [numeric_literal!(1e-10)]);
-    //     assert_eq!(lex(&mut context, "123e+10").unwrap(), [numeric_literal!(123e+10)]);
-    //     assert_eq!(lex(&mut context, "4.237e+101").unwrap(), [numeric_literal!(4.237e+101)]);
+        // Note: Numeric literals converted to float in lexer. Handled separately in parser.
+        assert_eq!(lex(&mut context, "9 .75 9").unwrap(), [numeric_literal!(9.0), numeric_literal!(0.75), numeric_literal!(9.0)]);
+        assert_eq!(lex(&mut context, "9 1e10").unwrap(), [numeric_literal!(9.0), numeric_literal!(1e10)]);
+        assert_eq!(lex(&mut context, "1e-10").unwrap(), [numeric_literal!(1e-10)]);
+        assert_eq!(lex(&mut context, "123e+10").unwrap(), [numeric_literal!(123e+10)]);
+        assert_eq!(lex(&mut context, "4.237e+101").unwrap(), [numeric_literal!(4.237e+101)]);
 
-    //     // Error on undefined exponents.
-    //     assert_eq!(lex(&mut context, "5.1e").unwrap_err(), PARSE_ERR_INVALID_FLOAT);
-    //     assert_eq!(lex(&mut context, "5.1e ").unwrap_err(), PARSE_ERR_INVALID_FLOAT);
-    //     // 30_000_000 syntax support? Stick to standard valid floats for now.
-    // }
+        // Error on undefined exponents.
+        assert_eq!(lex(&mut context, "5.1e").unwrap_err(), PARSE_ERR_INVALID_FLOAT);
+        assert_eq!(lex(&mut context, "5.1e ").unwrap_err(), PARSE_ERR_INVALID_FLOAT);
+        // 30_000_000 syntax support? Stick to standard valid floats for now.
+    }
 
-    // #[test]
-    // fn test_lex_unary_minus() {
-    //     let mut context = Context::new(APP_SYMBOL_START);
-    //     // Unary minus is handled at the lexer stage.
-    //     assert_eq!(lex(&mut context, "-1").unwrap(), [numeric_literal!(-1.0)]);
-    //     assert_eq!(lex(&mut context, "-.05").unwrap(), [numeric_literal!(-0.05)]);
-    //     assert_eq!(lex(&mut context, "5 -.05").unwrap(), [numeric_literal!(5.0), Atom::SymbolValue(SYMBOL_MINUS.symbol), numeric_literal!(0.05)]);
-    //     assert_eq!(lex(&mut context, "5 + -2").unwrap(), [numeric_literal!(5.0), Atom::SymbolValue(SYMBOL_PLUS.symbol), numeric_literal!(-2.0)]);
+    #[test]
+    fn test_lex_unary_minus() {
+        let mut context = Environment::new(APP_SYMBOL_START);
+        // Unary minus is handled at the lexer stage.
+        assert_eq!(lex(&mut context, "-1").unwrap(), [numeric_literal!(-1.0)]);
+        assert_eq!(lex(&mut context, "-.05").unwrap(), [numeric_literal!(-0.05)]);
+        assert_eq!(lex(&mut context, "5 -.05").unwrap(), [numeric_literal!(5.0), Atom::SymbolValue(SYMBOL_MINUS.symbol), numeric_literal!(0.05)]);
+        assert_eq!(lex(&mut context, "5 + -2").unwrap(), [numeric_literal!(5.0), Atom::SymbolValue(SYMBOL_PLUS.symbol), numeric_literal!(-2.0)]);
 
-    //     assert_eq!(lex(&mut context, "5 + -.05").unwrap(), [numeric_literal!(5.0), Atom::SymbolValue(SYMBOL_PLUS.symbol), numeric_literal!(-0.05)]);
-    //     assert_eq!(lex(&mut context, "-(4) + 2").unwrap(), [numeric_literal!(-1.0), Atom::SymbolValue(SYMBOL_MULTIPLY.symbol), Atom::SymbolValue(SYMBOL_OPEN_PAREN.symbol), 
-    //      numeric_literal!(4.0), Atom::SymbolValue(SYMBOL_CLOSE_PAREN.symbol), Atom::SymbolValue(SYMBOL_PLUS.symbol), numeric_literal!(2.0)] );
-    //     assert_eq!(lex(&mut context, "5 * -(2)").unwrap(), [numeric_literal!(5.0), Atom::SymbolValue(SYMBOL_MULTIPLY.symbol), numeric_literal!(-1.0), 
-    //         Atom::SymbolValue(SYMBOL_MULTIPLY.symbol), Atom::SymbolValue(SYMBOL_OPEN_PAREN.symbol), numeric_literal!(2.0), Atom::SymbolValue(SYMBOL_CLOSE_PAREN.symbol) ]);
-    // }
+        assert_eq!(lex(&mut context, "5 + -.05").unwrap(), [numeric_literal!(5.0), Atom::SymbolValue(SYMBOL_PLUS.symbol), numeric_literal!(-0.05)]);
+        assert_eq!(lex(&mut context, "-(4) + 2").unwrap(), [numeric_literal!(-1.0), Atom::SymbolValue(SYMBOL_MULTIPLY.symbol), Atom::SymbolValue(SYMBOL_OPEN_PAREN.symbol), 
+         numeric_literal!(4.0), Atom::SymbolValue(SYMBOL_CLOSE_PAREN.symbol), Atom::SymbolValue(SYMBOL_PLUS.symbol), numeric_literal!(2.0)] );
+        assert_eq!(lex(&mut context, "5 * -(2)").unwrap(), [numeric_literal!(5.0), Atom::SymbolValue(SYMBOL_MULTIPLY.symbol), numeric_literal!(-1.0), 
+            Atom::SymbolValue(SYMBOL_MULTIPLY.symbol), Atom::SymbolValue(SYMBOL_OPEN_PAREN.symbol), numeric_literal!(2.0), Atom::SymbolValue(SYMBOL_CLOSE_PAREN.symbol) ]);
+    }
 
-    // #[test]
-    // fn test_reserved_keyword() {
-    //     assert_eq!(reserved_keyword("not"), Some(Atom::SymbolValue(SYMBOL_NOT.symbol)));
-    //     assert_eq!(reserved_keyword("And"), Some(Atom::SymbolValue(SYMBOL_AND.symbol)));
-    //     assert_eq!(reserved_keyword("NONE"), Some(Atom::SymbolValue(SYMBOL_NONE.symbol)));
-    //     assert_eq!(reserved_keyword("True"), Some(Atom::SymbolValue(SYMBOL_TRUE.symbol)));
-    //     assert_eq!(reserved_keyword("TRUE"), Some(Atom::SymbolValue(SYMBOL_TRUE.symbol)));
-    //     assert_eq!(reserved_keyword("false"), Some(Atom::SymbolValue(SYMBOL_FALSE.symbol)));
-    //     assert_eq!(reserved_keyword("unreserved"), None);
-    // }
+    #[test]
+    fn test_reserved_keyword() {
+        assert_eq!(reserved_keyword("not"), Some(Atom::SymbolValue(SYMBOL_NOT.symbol)));
+        assert_eq!(reserved_keyword("And"), Some(Atom::SymbolValue(SYMBOL_AND.symbol)));
+        assert_eq!(reserved_keyword("NONE"), Some(Atom::SymbolValue(SYMBOL_NONE.symbol)));
+        assert_eq!(reserved_keyword("True"), Some(Atom::SymbolValue(SYMBOL_TRUE.symbol)));
+        assert_eq!(reserved_keyword("TRUE"), Some(Atom::SymbolValue(SYMBOL_TRUE.symbol)));
+        assert_eq!(reserved_keyword("false"), Some(Atom::SymbolValue(SYMBOL_FALSE.symbol)));
+        assert_eq!(reserved_keyword("unreserved"), None);
+    }
 
-    // #[test]
-    // fn test_lex_string() {
-    //     assert_eq!(parse_string(&mut r#""hello world""#.chars().peekable()).unwrap(), Atom::StringValue(String::from("hello world")) );
-    //     // Terminates at end of quote
-    //     assert_eq!(parse_string(&mut r#""hello world" test"#.chars().peekable()).unwrap(), Atom::StringValue(String::from("hello world")) );
-    //     // Matches quotes
-    //     assert_eq!(parse_string(&mut r#"'hello " world' test"#.chars().peekable()).unwrap(), Atom::StringValue(String::from("hello \" world")) );
-    //     // Error on unterminated string
-    //     assert_eq!(parse_string(&mut r#"'hello"#.chars().peekable()).unwrap_err(), PARSE_ERR_UNTERM_STR);
-    // }
+    #[test]
+    fn test_lex_string() {
+        assert_eq!(parse_string(&mut r#""hello world""#.chars().peekable()).unwrap(), Atom::StringValue(String::from("hello world")) );
+        // Terminates at end of quote
+        assert_eq!(parse_string(&mut r#""hello world" test"#.chars().peekable()).unwrap(), Atom::StringValue(String::from("hello world")) );
+        // Matches quotes
+        assert_eq!(parse_string(&mut r#"'hello " world' test"#.chars().peekable()).unwrap(), Atom::StringValue(String::from("hello \" world")) );
+        // Error on unterminated string
+        assert_eq!(parse_string(&mut r#"'hello"#.chars().peekable()).unwrap_err(), PARSE_ERR_UNTERM_STR);
+    }
 
 
     // #[test]

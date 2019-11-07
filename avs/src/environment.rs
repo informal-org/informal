@@ -1,3 +1,4 @@
+use crate::types::is_symbol;
 use crate::utils::create_pointer_symbol;
 use crate::structs::{Identifier, Atom};
 use crate::expression::Expression;
@@ -44,10 +45,6 @@ impl Environment {
             body: Vec::with_capacity(0),
             next_symbol_id: next_symbol_id,
         }
-    }
-
-    pub fn define_keyword(&mut self) -> u64 {
-        return 0
     }
 
     pub fn define_identifier(&mut self) -> u64 {
@@ -126,95 +123,38 @@ impl Environment {
     // Resolve a symbol to a terminal value by following pointers
     // Terminates at a max depth
     pub fn deep_resolve(&self, symbol: u64) -> Option<&Identifier> {
-        // TODO: Implement the recursive part of this
-        return self.lookup(symbol);
+        let mut count = 0;
+        let mut current_symbol = symbol;
+
+        while count < 1000 {
+            if let Some(ident) = self.lookup(current_symbol) {
+                
+                if let Some(value) = &ident.value {
+                    if let Atom::SymbolValue(next_symbol) = value {
+                        // Not a pointer, so terminal value
+                        if is_symbol(*next_symbol) {
+                            return Some(ident)
+                        }
+
+                        // Check for circular pointers
+                        if *next_symbol == current_symbol || *next_symbol == symbol {
+                            println!("Cyclic symbol reference");
+                            return None
+                        }
+                        current_symbol = *next_symbol
+                    }
+                    else {
+                        return Some(ident)
+                    }
+                } else {
+                    return None
+                }
+            }
+
+            count += 1;
+        }
+        return None
     }
-
-
-
-    
-
-    // pub fn get_name_symbol(&self, name: String) -> Option<&u64> {
-    //     
-    //     
-    // }    
-
-    // pub fn get_symbol_repr(&self, symbol: u64) -> Option<&String> {
-    //     return self.symbols_name.get(&symbol);
-    // }
-
-    // pub fn next_value_symbol(&mut self) -> u64 {
-    //     // These symbols reference themselves
-    //     let next_symbol: u64 = create_value_symbol( self.next_symbol_id );
-    //     self.next_symbol_id += 1;
-    //     return next_symbol;
-    // }
-    
-    // pub fn next_pointer(&mut self) -> u64 {
-    // }
-
-    // pub fn get_or_create_cell_symbol(&mut self, cell_id: u64) -> u64 {
-    //     if let Some(existing_id) = self.cell_symbols.as_ref().unwrap().get(&cell_id) {
-    //         *existing_id 
-    //     } else {
-    //         let symbol_id = self.next_pointer();
-    //         self.cell_symbols.as_mut().unwrap().insert(cell_id, symbol_id);
-    //         self.symbols_cell.as_mut().unwrap().insert(symbol_id, cell_id);
-    //         symbol_id
-    //     }
-    // }
-
-    // pub fn get_symbol(&self, name: String) -> Option<u64> {
-    //     let name_upper = name.to_uppercase();
-    //     let existing_val = self.normname_symbols.get(&name_upper);
-    //     if existing_val.is_some() {
-    //         return Some(*existing_val.unwrap());
-    //     }
-    //     return None;
-    // }
-
-    // // Symbol used in expression
-    // pub fn get_or_create_symbol(&mut self, name: String) -> u64 {
-    //     let name_upper = name.to_uppercase();
-    //     let existing_val = self.normname_symbols.get(&name_upper);
-    //     if existing_val.is_some() {
-    //         return *existing_val.unwrap();
-    //     }
-
-    //     let symbol_id = self.next_value_symbol();
-    //     self.normname_symbols.insert(name_upper, symbol_id);
-    //     self.symbols_name.insert(symbol_id, name);
-    //     symbol_id
-    // }
-
-    // // Symbol used as cell names
-    // pub fn define_cell_name(&mut self, trimmed_name: String, symbol: u64) -> Result<u64> {
-    //     // TODO: Check name validity - no delimiter characters, doesn't start with :
-    //     let name_upper = trimmed_name.to_uppercase();
-    //     let existing_val = self.normname_symbols.get(&name_upper);
-    //     if existing_val.is_some() {
-    //         return Err(PARSE_ERR_USED_NAME);
-    //     }
-        
-    //     self.normname_symbols.insert(name_upper, symbol);
-    //     self.symbols_name.insert(symbol, trimmed_name);
-    //     return Ok(symbol);
-    // }
-
-    // Method for defining external input variables.
-    // pub fn define_input(&mut self, trimmed_name: String) -> Result<u64> {
-    //     let name_upper = trimmed_name.to_uppercase();
-    //     let existing_val = self.normname_symbols.get(&name_upper);
-    //     if existing_val.is_some() {
-    //         return Err(PARSE_ERR_USED_NAME);
-    //     }
-    //     let symbol = self.next_pointer();
-        
-    //     self.normname_symbols.insert(name_upper, symbol);
-    //     self.symbols_name.insert(symbol, trimmed_name);
-    //     return Ok(symbol);
-    // }
-
 }
 
 

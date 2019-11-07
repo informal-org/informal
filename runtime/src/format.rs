@@ -31,27 +31,9 @@ pub fn repr(env: &Environment, result: u64) -> String {
     return repr_symbol(&result);
 }
 
-// pub fn repr_known_symbol(env: &Runtime, context: &Context, symbol: u64) -> String {
-//     return repr_symbol(&symbol);
-// }
-
-// pub fn print_stacktrace(env: &Runtime, stack: &Vec<u64>) {
-//     println!("----------Stack----------");
-//     for val in stack {
-//         println!("{:?}", repr(env, *val));
-//     }
-//     println!("-------------------------");
-// }
-
-// pub fn repr_object(obj: &Runtime) -> String {
-//     format!("(Object)")
-// }
-
 pub fn repr_error(result: u64) -> String {
     // TODO: Return this as Error rather than Ok?
     // TODO: Log most common errors
-
-
     println!("{:X}", result);
 
     if let Some(msg) = ERR_MSG_MAP.get(&result) {
