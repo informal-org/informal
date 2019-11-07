@@ -15,7 +15,8 @@ fn landing(_req: HttpRequest) -> actix_web::Result<NamedFile> {
 }
 
 fn arevel(_req: HttpRequest) -> actix_web::Result<NamedFile> {
-    return Ok(NamedFile::open("/var/www/arevelcom/templates/index.html")?)
+    // return Ok(NamedFile::open("/var/www/arevelcom/templates/index.html")?)
+    return Ok(NamedFile::open("templates/index.html")?)
 }
 
 fn slides(_req: HttpRequest) -> impl Responder {

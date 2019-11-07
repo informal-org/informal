@@ -197,3 +197,21 @@ a {
 
 /* Extra Large (xl) */
 @screen xl { /* ... */ }
+
+
+.aa-root {
+  display: flex;
+}
+
+.aa-sidebar {
+  position: static;
+  width: 20%;
+  height: 100vh;
+  background-color: #ccc;
+  display: block;
+}
+
+.aa-body {
+  width: 75%;
+  position: static;
+}
