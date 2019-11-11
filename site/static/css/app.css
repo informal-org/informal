@@ -207,11 +207,15 @@ a {
   position: static;
   width: 20%;
   height: 100vh;
-  background-color: #ccc;
+  border-right: 1px solid #ebedf0;
   display: block;
 }
 
 .aa-body {
   width: 75%;
   position: static;
+}
+
+.aa-sidebar label {
+  font-weight: bold;
 }
