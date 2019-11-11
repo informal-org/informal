@@ -205,13 +205,17 @@ a {
 
 #aa-sidebar {
   position: static;
-  width: 20%;
+  min-width: 180px;
+  max-width: 256px;
+  width: 100%;
+
+  min-height: 100vh;
   height: 100vh;
   display: block;
 }
 
 #aa-body {
-  width: 75%;
+  width: 100%;
   position: static;
 }
 
