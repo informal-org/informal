@@ -203,11 +203,10 @@ a {
   display: flex;
 }
 
-.aa-sidebar {
+#aa-sidebar {
   position: static;
   width: 20%;
   height: 100vh;
-  border-right: 1px solid #ebedf0;
   display: block;
 }
 
@@ -216,6 +215,6 @@ a {
   position: static;
 }
 
-.aa-sidebar label {
+#aa-sidebar label {
   font-weight: bold;
 }
