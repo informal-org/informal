@@ -3,6 +3,8 @@ import GridCell from "./GridCell.js"
 import GridList from "./GridList.js"
 import ActionBar from "./ActionBar.js"
 
+import { PageHeader, Button, Descriptions } from 'antd';
+
 export default class Grid extends React.Component {
     constructor(props) {
         super(props);
@@ -111,12 +113,24 @@ export default class Grid extends React.Component {
         }).filter((r) => r !== undefined) // Filter out un-rendered cells
         
         return <div>
-            <ActionBar 
-            incWidth={this.incWidth}
-            decWidth={this.decWidth}
-            incHeight={this.incHeight}
-            decHeight={this.decHeight}
-            ></ActionBar>
+
+<PageHeader
+      ghost={false}
+      onBack={() => window.history.back()}
+      title="Signup"
+      subTitle="Sign up page"
+      extra={[
+        <Button key="2">Preview</Button>,
+        <Button key="1" type="primary">
+          Publish
+        </Button>,
+      ]}
+    >
+      <Descriptions size="small" column={3}>
+        <Descriptions.Item label="Methods">GET</Descriptions.Item>
+        <Descriptions.Item label="Permissions">None</Descriptions.Item>
+      </Descriptions>
+    </PageHeader>            
         
             <div className="Grid">
                 {cells}

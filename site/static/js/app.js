@@ -58,7 +58,7 @@ class Sidebar extends React.Component {
         mode="inline"
         openKeys={this.state.openKeys}
         onOpenChange={this.onOpenChange}
-        style={{ width: 256 }}
+        style={{ width: "100%", maxWidth: 256, height: "100%" }}
       >
         <SubMenu
           key="views"

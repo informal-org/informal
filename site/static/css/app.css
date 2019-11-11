@@ -210,7 +210,7 @@ a {
   display: block;
 }
 
-.aa-body {
+#aa-body {
   width: 75%;
   position: static;
 }
