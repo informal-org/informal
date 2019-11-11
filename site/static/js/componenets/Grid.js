@@ -118,7 +118,7 @@ export default class Grid extends React.Component {
       ghost={false}
       onBack={() => window.history.back()}
       title="Signup"
-      subTitle="Sign up page"
+      subTitle="New account creation page."
       extra={[
         <Button key="2">Preview</Button>,
         <Button key="1" type="primary">
@@ -127,7 +127,8 @@ export default class Grid extends React.Component {
       ]}
     >
       <Descriptions size="small" column={3}>
-        <Descriptions.Item label="Methods">GET</Descriptions.Item>
+        <Descriptions.Item label="Route">/accounts/signup</Descriptions.Item>
+        <Descriptions.Item label="Methods">GET, POST</Descriptions.Item>
         <Descriptions.Item label="Permissions">None</Descriptions.Item>
       </Descriptions>
     </PageHeader>            

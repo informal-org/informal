@@ -6,19 +6,19 @@ import { CELL_MAX_WIDTH, CELL_MAX_HEIGHT } from './constants.js'
 const initialState = {
     cells: {
         byId: {
-            1: {
-                id: 1,
-                type: "cell",
-                name: "Count",
-                input: "1 + 1"
-            },
-            2: {
-                id: 2,
-                type: "cell",
-                name: "Name",
-                input: "true"
-//                input: "@1 + 3"
-            },
+//             1: {
+//                 id: 1,
+//                 type: "cell",
+//                 name: "Count",
+//                 input: "1 + 1"
+//             },
+//             2: {
+//                 id: 2,
+//                 type: "cell",
+//                 name: "Name",
+//                 input: "true"
+// //                input: "@1 + 3"
+//             },
             // "@3": {
             //     id: "@3",
             //     type: "list",
@@ -45,14 +45,14 @@ const initialState = {
             //     parent: "3"
             // },
         },
-        allIds: [1, 2 ], //"@3", "@4", "@5", "@6", 
+        allIds: [], //"@3", "@4", "@5", "@6", 
         focus: null,  // ID of the element selected
         modified: true,  // Allow initial evaluation
     }
 }
 
 // 280
-for(var i = 7; i < 240; i++){
+for(var i = 1; i < 240; i++){
     let id = i
     
     initialState.cells.byId[id] = {
