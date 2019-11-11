@@ -35,18 +35,15 @@ class Sidebar extends React.Component {
     openKeys: ['views', 'data'],
   };
 
+  // Navbar sub menu open/close
   onOpenChange = openKeys => {
-    const latestOpenKey = openKeys.find(key => this.state.openKeys.indexOf(key) === -1);
-    if (this.rootSubmenuKeys.indexOf(latestOpenKey) === -1) {
-      this.setState({ openKeys });
-    } else {
-      this.setState({
-        openKeys: latestOpenKey ? [latestOpenKey] : [],
-      });
-    }
+    this.setState({
+        openKeys: openKeys
+    })
   };
 
-    onSelect = (selectedKeys, info) => {
+  // Tree menu select
+  onSelect = (selectedKeys, info) => {
     console.log('selected', selectedKeys, info);
   };
 
