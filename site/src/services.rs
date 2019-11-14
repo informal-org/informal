@@ -80,7 +80,6 @@ pub fn resolve(pg_conn: &PgConnection, q_method: String, q_host: String, q_path:
         return None;
     }
     let mut views: Vec<(View, Route)> = views_result.unwrap();
-    // let views = views_result;
 
     println!("PG result {:?}", views);
     

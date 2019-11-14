@@ -95,21 +95,6 @@ fn serve(req: HttpRequest, data: AasmData) -> HttpResponse {
 
 
 pub fn main() {
-    // HttpServer::new(|| {
-    //     App::new()
-    //     .route("/", web::get().to(landing))
-    //     .route("/arevel", web::get().to(arevel))
-    //     .route("/slides", web::get().to(slides))
-    //     .route("/_info/health", web::get().to(health))
-    //     .route("/api/evaluate", web::post().to(evaluate))
-    //     .service(fs::Files::new("/static", "static/dist/static"))  //    // /var/www/arevelcom/static/
-    // })
-    // .bind("0.0.0.0:9080")
-    // .expect("Can not bind to port 9080")
-    // .run()
-    // .unwrap();
-
-
     let connection_pool = establish_connection();
     let state = AasmState { id: 1, db: connection_pool };
 
@@ -117,9 +102,15 @@ pub fn main() {
     .data(
         state.clone()
     )
+    .route("/", web::get().to(landing))
+    .route("/arevel", web::get().to(arevel))
+    .route("/slides", web::get().to(slides))
+    .route("/_info/health", web::get().to(health))
+    .route("/api/evaluate", web::post().to(evaluate))    
     .service(
         web::resource("*").to(serve))
     )
-    .bind("127.0.0.1:9080").unwrap()
-    .run();    
+    .bind("127.0.0.1:9080")
+    .expect("Can not bind to port 9080")
+    .run();
 }
