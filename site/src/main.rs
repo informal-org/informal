@@ -5,6 +5,28 @@ use runtime::format;
 use runtime::interpreter::{interpret_all};
 use runtime::structs::{CellResponse, EvalRequest, EvalResponse};
 
+
+#[macro_use]
+pub mod schema;
+pub mod models;
+pub mod services;
+pub mod timing;
+
+
+use crate::services::{resolve, dispatch, establish_connection};
+use futures::future::{ok, Future};
+use actix_web::{web, App, Responder, HttpServer, HttpRequest, HttpResponse};
+use diesel::pg::PgConnection;
+
+use std::sync::Arc;
+use mozjs::rust::JSEngine;
+
+use crate::services::{ DBPool, AasmData, AasmState };
+use actix_web::http::StatusCode;
+use actix_web::dev::Body;
+
+
+
 // const TEMPLATE_ROOT = "/var/www/arevelcom/templates/";
 // const STATIC_ROOT = "/var/www/arevelcom/static/";
 
@@ -40,18 +62,57 @@ fn evaluate(req: web::Json<EvalRequest>) -> impl Responder {
     return web::Json(eval_res)
 }
 
+
+
+fn serve(req: HttpRequest, data: AasmData) -> HttpResponse {
+    println!("Data is {:?}", data.id);
+
+    let host = req.headers().get("host").unwrap().to_str().unwrap().to_string();
+    let method = req.method().to_string();
+    let path = req.uri().path().to_string();
+
+    let pg_conn = &data.db.get().unwrap();
+    let maybe_view = resolve(&pg_conn, method, host, path);
+
+    if let Some(view) = maybe_view {
+        return dispatch(view, data.js.clone());
+    } else {
+        // let mut response = Response::new(Body::from("Not Found"));
+        // let status = resp.status_mut();
+        // *response.status_mut() = StatusCode::NOT_FOUND;
+        // return "Not Found";
+        return HttpResponse::with_body(StatusCode::NOT_FOUND, Body::from("Not Found"))
+    }
+}
+
+}
+
 pub fn main() {
-    HttpServer::new(|| {
-        App::new()
-        .route("/", web::get().to(landing))
-        .route("/arevel", web::get().to(arevel))
-        .route("/slides", web::get().to(slides))
-        .route("/_info/health", web::get().to(health))
-        .route("/api/evaluate", web::post().to(evaluate))
-        .service(fs::Files::new("/static", "static/dist/static"))  //    // /var/www/arevelcom/static/
-    })
-    .bind("0.0.0.0:9080")
-    .expect("Can not bind to port 9080")
-    .run()
-    .unwrap();
+    // HttpServer::new(|| {
+    //     App::new()
+    //     .route("/", web::get().to(landing))
+    //     .route("/arevel", web::get().to(arevel))
+    //     .route("/slides", web::get().to(slides))
+    //     .route("/_info/health", web::get().to(health))
+    //     .route("/api/evaluate", web::post().to(evaluate))
+    //     .service(fs::Files::new("/static", "static/dist/static"))  //    // /var/www/arevelcom/static/
+    // })
+    // .bind("0.0.0.0:9080")
+    // .expect("Can not bind to port 9080")
+    // .run()
+    // .unwrap();
+
+
+    let connection_pool = establish_connection();
+    let state = AasmState { id: 1, db: connection_pool };
+
+    HttpServer::new(move || App::new()
+    .data(
+        state.clone()
+    )
+    .service(
+        web::resource("*").to(serve))
+    )
+    .bind("127.0.0.1:9080").unwrap()
+    .run();    
 }
