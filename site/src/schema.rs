@@ -1,4 +1,3 @@
-
 table! {
     apps (id) {
         id -> Int4,

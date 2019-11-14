@@ -80,6 +80,7 @@ fn serve(req: HttpRequest, data: AasmData) -> HttpResponse {
 
     let pg_conn = &data.db.get().unwrap();
     let maybe_view = resolve(&pg_conn, method, host, path);
+    
 
     if let Some(view) = maybe_view {
         return dispatch(view);

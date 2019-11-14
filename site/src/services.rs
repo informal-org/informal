@@ -58,21 +58,34 @@ pub fn resolve(pg_conn: &PgConnection, q_method: String, q_host: String, q_path:
     println!("Method: {} host {} path {}", q_method, q_host, q_path);
     let host_lower = q_host.to_lowercase();
 
-    let app_filter = apps::table.filter(apps::domain.eq(host_lower)).first::<App>(pg_conn).unwrap();
-    let mut results: Vec<(View, Route)> = View::belonging_to(&app_filter).inner_join(
+    let app_filter_result = apps::table.filter(apps::domain.eq(host_lower)).first::<App>(pg_conn);
+    if let Err(err) = app_filter_result {
+        println!("Error loading apps");
+        return None;
+    }
+    let app_filter = app_filter_result.unwrap();
+
+
+    let mut views_result = View::belonging_to(&app_filter).inner_join(
         routes::table.on(
             views::id.eq(routes::view_id).and(
                 routes::pattern.eq(q_path)
             )
         )
     ).limit(1)
-    .load(pg_conn)
-    .expect("Error loading apps");
+    .load(pg_conn);
 
-    // println!("PG result {:?}", results);
+    if let Err(err) = views_result {
+        println!("Error loading view");
+        return None;
+    }
+    let mut views: Vec<(View, Route)> = views_result.unwrap();
+    // let views = views_result;
+
+    println!("PG result {:?}", views);
     
-    if results.len() > 0 {
-        let result = results.pop().unwrap();
+    if views.len() > 0 {
+        let result = views.pop().unwrap();
         return Some(result.0);
     }
 
