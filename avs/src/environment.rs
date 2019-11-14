@@ -17,6 +17,7 @@ use std::cell::RefCell;
 // Primary AST linked list structure
 // Pure functions are scoped to their parameters. i.e. null parent.
 // You can reference parent, but never child or sibiling data.
+#[repr(C)]
 pub struct Environment {
     parent: Box<Option<Environment>>,
     

@@ -29,10 +29,11 @@ pub struct View {
 
 
 #[derive(Identifiable, Queryable, PartialEq, Debug, Associations)]
-#[belongs_to(App, Route)]
+#[belongs_to(App, View)]
 pub struct Route {
     pub id: i32,
     pub app_id: i32, 
+    pub view_id: i32,
     pub route_name: Option<String>,
     
     pub pattern: String,
@@ -40,8 +41,6 @@ pub struct Route {
 
     pub method_get: bool, 
     pub method_post: bool, 
-    pub extra_methods: Option<Vec<i16>>,
-
-    pub view_id: i32
+    pub extra_methods: Option<Vec<i16>>
 }
 

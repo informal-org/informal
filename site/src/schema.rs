@@ -1,3 +1,4 @@
+
 table! {
     apps (id) {
         id -> Int4,
@@ -19,7 +20,7 @@ table! {
         pattern_regex -> Varchar,
         method_get -> Bool,
         method_post -> Bool,
-        extra_methods -> Nullable<Array<Int2>>
+        extra_methods -> Nullable<Array<Int2>>,
     }
 }
 

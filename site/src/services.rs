@@ -12,12 +12,11 @@ use actix_web::web::Data;
 
 use crate::schema;
 use crate::models::*;
-use crate::js::exec_js;
 use std::sync::Arc;
-use mozjs::rust::JSEngine;
 
 use actix_web::HttpResponse;
 use actix_web::dev::Body;
+
 
 
 
@@ -80,17 +79,19 @@ pub fn resolve(pg_conn: &PgConnection, q_method: String, q_host: String, q_path:
     return None;
 }
 
-pub fn dispatch(view: View, js: Arc<JSEngine>) -> HttpResponse {
+pub fn dispatch(view: View) -> HttpResponse {
     if view.mime_type == "text/html" {
         // let mut response = Response::new();
         // response.headers_mut().insert(header::CONTENT_TYPE, "text/html; charset=UTF-8".parse().unwrap());
         // return response;
         let content = view.content.unwrap();
         return HttpResponse::with_body(StatusCode::OK, Body::from(content));
-    } else if view.mime_type == "application/javascript" {
-        let content = exec_js(js, view);
-        return HttpResponse::with_body(StatusCode::OK, Body::from(content))
-    } else {
+    }
+    //  else if view.mime_type == "application/javascript" {
+    //     let content = exec_view(view);
+    //     return HttpResponse::with_body(StatusCode::OK, Body::from(content))
+    // }
+     else {
         // Should not happen
         // let mut response = Response::new(Body::from("AppAssembly Server Error"));
         // return response;

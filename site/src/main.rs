@@ -1,3 +1,19 @@
+#[macro_use]
+extern crate diesel;
+extern crate dotenv;
+
+#[macro_use]
+extern crate lazy_static;
+
+#[macro_use]
+extern crate serde_derive;
+
+#[macro_use]
+pub mod schema;
+pub mod models;
+pub mod services;
+pub mod timing;
+
 use actix_files as fs;
 use actix_files::NamedFile;
 use actix_web::{web, App, HttpRequest, HttpServer, Responder, HttpResponse};
@@ -6,20 +22,11 @@ use runtime::interpreter::{interpret_all};
 use runtime::structs::{CellResponse, EvalRequest, EvalResponse};
 
 
-#[macro_use]
-pub mod schema;
-pub mod models;
-pub mod services;
-pub mod timing;
-
-
 use crate::services::{resolve, dispatch, establish_connection};
 use futures::future::{ok, Future};
-use actix_web::{web, App, Responder, HttpServer, HttpRequest, HttpResponse};
 use diesel::pg::PgConnection;
 
 use std::sync::Arc;
-use mozjs::rust::JSEngine;
 
 use crate::services::{ DBPool, AasmData, AasmState };
 use actix_web::http::StatusCode;
@@ -75,7 +82,7 @@ fn serve(req: HttpRequest, data: AasmData) -> HttpResponse {
     let maybe_view = resolve(&pg_conn, method, host, path);
 
     if let Some(view) = maybe_view {
-        return dispatch(view, data.js.clone());
+        return dispatch(view);
     } else {
         // let mut response = Response::new(Body::from("Not Found"));
         // let status = resp.status_mut();
@@ -85,7 +92,6 @@ fn serve(req: HttpRequest, data: AasmData) -> HttpResponse {
     }
 }
 
-}
 
 pub fn main() {
     // HttpServer::new(|| {
