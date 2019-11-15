@@ -2,11 +2,11 @@
 extern crate diesel;
 extern crate dotenv;
 
-#[macro_use]
-extern crate lazy_static;
+// #[macro_use]
+// extern crate lazy_static;
 
-#[macro_use]
-extern crate serde_derive;
+// #[macro_use]
+// extern crate serde_derive;
 
 #[macro_use]
 pub mod schema;
@@ -14,21 +14,13 @@ pub mod models;
 pub mod services;
 pub mod timing;
 
-use actix_files as fs;
 use actix_files::NamedFile;
 use actix_web::{web, App, HttpRequest, HttpServer, Responder, HttpResponse};
-use runtime::format;
 use runtime::interpreter::{interpret_all};
-use runtime::structs::{CellResponse, EvalRequest, EvalResponse};
+use runtime::structs::{CellResponse, EvalRequest};
 
+use crate::services::{AasmData, AasmState, resolve, dispatch, establish_connection};
 
-use crate::services::{resolve, dispatch, establish_connection};
-use futures::future::{ok, Future};
-use diesel::pg::PgConnection;
-
-use std::sync::Arc;
-
-use crate::services::{ DBPool, AasmData, AasmState };
 use actix_web::http::StatusCode;
 use actix_web::dev::Body;
 
@@ -58,7 +50,7 @@ fn health() -> impl Responder {
 
 fn evaluate(req: web::Json<EvalRequest>) -> impl Responder {
     // println!("{:?}", req);
-    let mut results: Vec<CellResponse> = Vec::new();
+    let results: Vec<CellResponse> = Vec::new();
 
     let mut inputs: Vec<String> = Vec::with_capacity(results.len());
     for cell in &req.body {
@@ -112,5 +104,5 @@ pub fn main() {
     )
     .bind("127.0.0.1:9080")
     .expect("Can not bind to port 9080")
-    .run();
+    .run().unwrap();
 }

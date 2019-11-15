@@ -1,11 +1,5 @@
 use crate::environment::Environment;
-use crate::types::is_symbol;
-use crate::types::__av_typeof;
-use alloc::rc::Rc;
-use alloc::string::String;
-use alloc::vec::Vec;
-use crate::constants::*;
-use crate::functions::*;
+use crate::functions::NativeFn;
 use crate::utils::{create_string_pointer, create_pointer_symbol, truncate_symbol};
 use fnv::FnvHashMap;
 
@@ -115,6 +109,7 @@ impl AvObject {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::constants::*;
     extern crate test;
 
     use test::Bencher;

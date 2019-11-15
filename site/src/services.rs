@@ -1,11 +1,9 @@
-use actix_web::{HttpRequest, Responder, http::StatusCode};
-use diesel::query_builder::functions::sql_query;
+use actix_web::http::StatusCode;
 use diesel::prelude::*;
 // use diesel::pg::PgConnection;
 use dotenv::dotenv;
 use std::env;
 use diesel::prelude::*;
-use diesel::sql_types::Text;
 use diesel::result::Error as err;
 use diesel::r2d2::{self, ConnectionManager};
 use actix_web::web::Data;
@@ -59,14 +57,14 @@ pub fn resolve(pg_conn: &PgConnection, q_method: String, q_host: String, q_path:
     let host_lower = q_host.to_lowercase();
 
     let app_filter_result = apps::table.filter(apps::domain.eq(host_lower)).first::<App>(pg_conn);
-    if let Err(err) = app_filter_result {
+    if let Err(_) = app_filter_result {
         println!("Error loading apps");
         return None;
     }
     let app_filter = app_filter_result.unwrap();
 
 
-    let mut views_result = View::belonging_to(&app_filter).inner_join(
+    let views_result = View::belonging_to(&app_filter).inner_join(
         routes::table.on(
             views::id.eq(routes::view_id).and(
                 routes::pattern.eq(q_path)
@@ -75,7 +73,7 @@ pub fn resolve(pg_conn: &PgConnection, q_method: String, q_host: String, q_path:
     ).limit(1)
     .load(pg_conn);
 
-    if let Err(err) = views_result {
+    if let Err(_) = views_result {
         println!("Error loading view");
         return None;
     }
