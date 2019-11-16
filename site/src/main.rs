@@ -5,14 +5,15 @@ extern crate dotenv;
 // #[macro_use]
 // extern crate lazy_static;
 
-// #[macro_use]
-// extern crate serde_derive;
+#[macro_use]
+extern crate serde_derive;
 
 #[macro_use]
 pub mod schema;
 pub mod models;
 pub mod services;
 pub mod timing;
+pub mod coreapi;
 
 use actix_files::NamedFile;
 use actix_web::{web, App, HttpRequest, HttpServer, Responder, HttpResponse};
@@ -98,7 +99,7 @@ pub fn main() {
     .route("/arevel", web::get().to(arevel))
     .route("/slides", web::get().to(slides))
     .route("/_info/health", web::get().to(health))
-    .route("/api/evaluate", web::post().to(evaluate))    
+    .route("/api/evaluate", web::post().to(evaluate))
     .service(
         web::resource("*").to(serve))
     )

@@ -1,7 +1,7 @@
 use std::time::SystemTime;
 use crate::schema::*;
 
-#[derive(Identifiable, Queryable, PartialEq, Debug)]
+#[derive(Identifiable, Queryable, PartialEq, Debug, AsChangeset, Serialize, Deserialize)]
 pub struct App {
     pub id: i32,
     pub app_name: String,
@@ -12,7 +12,7 @@ pub struct App {
     pub updated_at: SystemTime,
 }
 
-#[derive(Identifiable, Queryable, PartialEq, Debug, Associations)]
+#[derive(Identifiable, Queryable, PartialEq, Debug, Associations, AsChangeset, Serialize, Deserialize)]
 #[belongs_to(App)]
 pub struct View {
     pub id: i32,
@@ -28,7 +28,7 @@ pub struct View {
 }
 
 
-#[derive(Identifiable, Queryable, PartialEq, Debug, Associations)]
+#[derive(Identifiable, Queryable, PartialEq, Debug, Associations, AsChangeset, Serialize, Deserialize)]
 #[belongs_to(App, View)]
 pub struct Route {
     pub id: i32,
