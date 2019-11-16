@@ -25,7 +25,7 @@ use crate::services::{AasmData, AasmState, resolve, dispatch, establish_connecti
 use actix_web::http::StatusCode;
 use actix_web::dev::Body;
 
-
+use crate::coreapi::*;
 
 // const TEMPLATE_ROOT = "/var/www/arevelcom/templates/";
 // const STATIC_ROOT = "/var/www/arevelcom/static/";
@@ -87,6 +87,30 @@ fn serve(req: HttpRequest, data: AasmData) -> HttpResponse {
 }
 
 
+/*
+
+        app.put(prefix + 'apps', Core.createApp)
+        app.get(prefix + 'apps', Core.getApps)
+        app.get(prefix + 'apps/:appId', Core.getApp)
+        app.post(prefix + 'apps/:appId', Core.updateApp)
+        app.delete(prefix + 'apps/:appId', Core.deleteApp)
+        
+        app.put(prefix + 'views', Core.createView)
+        app.get(prefix + 'views', Core.getViews)
+        app.get(prefix + 'views/:viewId', Core.getView)
+        app.post(prefix + 'views/:viewId', Core.updateView)
+        app.delete(prefix + 'views/:viewId', Core.deleteView)
+        
+        app.put(prefix + 'routes', Core.createRoute)
+        app.get(prefix + 'routes', Core.getRoutes)
+        app.get(prefix + 'routes/:routeId', Core.getRoute)
+        app.post(prefix + 'routes/:routeId', Core.updateRoute)
+        app.delete(prefix + 'routes/:routeId', Core.deleteRoute)
+
+*/
+
+
+
 pub fn main() {
     let connection_pool = establish_connection();
     let state = AasmState { id: 1, db: connection_pool };
@@ -100,6 +124,7 @@ pub fn main() {
     .route("/slides", web::get().to(slides))
     .route("/_info/health", web::get().to(health))
     .route("/api/evaluate", web::post().to(evaluate))
+    .route("/private/coreapi/apps", web::get().to(get_apps))
     .service(
         web::resource("*").to(serve))
     )

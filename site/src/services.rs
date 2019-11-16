@@ -3,7 +3,6 @@ use diesel::prelude::*;
 // use diesel::pg::PgConnection;
 use dotenv::dotenv;
 use std::env;
-use diesel::prelude::*;
 use diesel::r2d2::{self, ConnectionManager};
 use actix_web::web::Data;
 

@@ -1,5 +1,8 @@
 use std::time::SystemTime;
 use crate::schema::*;
+use diesel::pg::PgConnection;
+use diesel::prelude::*;
+
 
 #[derive(Identifiable, Queryable, PartialEq, Debug, AsChangeset, Serialize, Deserialize)]
 pub struct App {
@@ -11,6 +14,13 @@ pub struct App {
     pub created_at: SystemTime,
     pub updated_at: SystemTime,
 }
+
+impl App {
+    pub static fn read(conn: &PgConnection) -> Vec<App> {
+        return apps::table.limit(10).load::<App>(conn).unwrap()
+    }
+}
+
 
 #[derive(Identifiable, Queryable, PartialEq, Debug, Associations, AsChangeset, Serialize, Deserialize)]
 #[belongs_to(App)]
