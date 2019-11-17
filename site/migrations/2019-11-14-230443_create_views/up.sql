@@ -1,10 +1,10 @@
 CREATE TABLE views (
     id SERIAL PRIMARY KEY, 
     app_id integer REFERENCES apps NOT NULL,
-    view_name VARCHAR(64),
+    view_name Text,
     
     mime_type VARCHAR(64) NOT NULL,
-    asset_url VARCHAR(255),
+    asset_url Text,
     content TEXT,
 
     created_at timestamp default current_timestamp NOT NULL,

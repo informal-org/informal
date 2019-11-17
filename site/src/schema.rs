@@ -1,9 +1,9 @@
 table! {
     apps (id) {
         id -> Int4,
-        app_name -> Varchar,
+        app_name -> Text,
         domain -> Varchar,
-        environment -> Int2,
+        environment -> Varchar,
         created_at -> Timestamp,
         updated_at -> Timestamp,
     }
@@ -14,12 +14,12 @@ table! {
         id -> Int4,
         app_id -> Int4,
         view_id -> Int4,
-        route_name -> Nullable<Varchar>,
+        route_name -> Nullable<Text>,
         pattern -> Varchar,
         pattern_regex -> Varchar,
         method_get -> Bool,
         method_post -> Bool,
-        extra_methods -> Nullable<Array<Int2>>,
+        extra_methods -> Nullable<Array<Text>>,
     }
 }
 
@@ -27,9 +27,9 @@ table! {
     views (id) {
         id -> Int4,
         app_id -> Int4,
-        view_name -> Nullable<Varchar>,
+        view_name -> Nullable<Text>,
         mime_type -> Varchar,
-        asset_url -> Nullable<Varchar>,
+        asset_url -> Nullable<Text>,
         content -> Nullable<Text>,
         created_at -> Timestamp,
         updated_at -> Timestamp,

@@ -9,7 +9,7 @@ pub struct App {
     pub id: i32,
     pub app_name: String,
     pub domain: String,
-    pub environment: i16,
+    pub environment: String,
     
     #[serde(with = "serde_millis")]
     pub created_at: SystemTime,
@@ -19,6 +19,10 @@ pub struct App {
 }
 
 impl App {
+    pub fn create(conn: &PgConnection, name: String, domain: String, environment: i16) -> App {
+
+    }
+
     pub fn read(conn: &PgConnection) -> Vec<App> {
         return apps::table.limit(10).load::<App>(conn).unwrap()
     }
@@ -57,6 +61,6 @@ pub struct Route {
 
     pub method_get: bool, 
     pub method_post: bool, 
-    pub extra_methods: Option<Vec<i16>>
+    pub extra_methods: Option<Vec<String>>
 }
 
