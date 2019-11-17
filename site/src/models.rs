@@ -11,12 +11,15 @@ pub struct App {
     pub domain: String,
     pub environment: i16,
     
+    #[serde(with = "serde_millis")]
     pub created_at: SystemTime,
+    
+    #[serde(with = "serde_millis")]
     pub updated_at: SystemTime,
 }
 
 impl App {
-    pub static fn read(conn: &PgConnection) -> Vec<App> {
+    pub fn read(conn: &PgConnection) -> Vec<App> {
         return apps::table.limit(10).load::<App>(conn).unwrap()
     }
 }
@@ -33,7 +36,10 @@ pub struct View {
     pub asset_url: Option<String>,
     pub content: Option<String>,
     
+    #[serde(with = "serde_millis")]
     pub created_at: SystemTime,
+    
+    #[serde(with = "serde_millis")]
     pub updated_at: SystemTime,
 }
 

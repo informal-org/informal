@@ -2,6 +2,8 @@
 extern crate diesel;
 extern crate dotenv;
 
+extern crate serde_millis;
+
 // #[macro_use]
 // extern crate lazy_static;
 
