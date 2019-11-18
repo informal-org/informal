@@ -26,7 +26,7 @@ pub struct AppSummary {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ViewSummary {
     pub id: i32,
-    pub view_name: Option<String>
+    pub view_name: Option<String>,
     pub mime_type: String,
     pub asset_url: Option<String>,
     pub routes: Vec<RouteSummary>
