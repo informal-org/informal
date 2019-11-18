@@ -8,10 +8,29 @@ use actix_web::web::Data;
 
 use crate::schema;
 use crate::models::*;
+use crate::schema::{apps, views, routes};
+
 
 use actix_web::HttpResponse;
 use actix_web::dev::Body;
 
+
+
+#[derive(Insertable)]
+#[table_name="views"]
+pub struct NewView {
+    pub app_id: i32,
+    pub view_name: Option<String>,
+    pub mime_type: String
+}
+
+
+#[derive(Insertable)]
+#[table_name="apps"]
+pub struct NewApp {
+    pub app_name: String,
+    pub domain: String,
+}
 
 
 
@@ -104,3 +123,19 @@ pub fn dispatch(view: View) -> HttpResponse {
     }
 }
 
+
+
+pub fn create_view(conn: &PgConnection, app_id: i32, view_name: Option<String>, mime_type: String) -> View {
+    use crate::schema::views;
+
+    let new_view = NewView {
+        app_id: app_id,
+        view_name: view_name,
+        mime_type: mime_type
+    };
+
+    diesel::insert_into(views::table)
+        .values(&new_view)
+        .get_result(conn)
+        .expect("Error saving new view")
+}
