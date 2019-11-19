@@ -7,6 +7,8 @@ authors = ["Feni <feni727@gmail.com>"]
 [tool.poetry.dependencies]
 python = "^3.7"
 django = "^2.2"
+python-dotenv = "^0.10.3"
+psycopg2 = "^2.8"
 
 [tool.poetry.dev-dependencies]
 
