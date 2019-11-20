@@ -1,0 +1,44 @@
+{
+  "repository": {},
+  "license": "MIT",
+  "scripts": {
+    "deploy": "webpack --mode production",
+    "debugbuild": "webpack --mode production --display-error-details",
+    "watch": "webpack --mode development --watch",
+    "tail": "npx tailwind build css/app.css -o dist/static/css/app.css",
+    "purge": "purgecss --css dist/static/css/*.css --content ../templates/*.html -o css"
+  },
+  "dependencies": {
+    "antd": "^3.19.3",
+    "jsep": "^0.3.4",
+    "npm": "^6.9.0",
+    "react": "^16.8.6",
+    "react-dom": "^16.8.6",
+    "react-redux": "^7.0.3",
+    "react-window": "^1.8.1",
+    "redux": "^4.0.1"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.0.0",
+    "@babel/plugin-proposal-class-properties": "^7.4.4",
+    "@babel/preset-env": "^7.0.0",
+    "@babel/preset-react": "^7.0.0",
+    "@fullhuman/postcss-purgecss": "^1.2.0",
+    "autoprefixer": "^9.5.1",
+    "babel-loader": "^8.0.0",
+    "babel-preset-react-app": "^3.1.2",
+    "copy-webpack-plugin": "^4.5.0",
+    "css-loader": "^2.1.1",
+    "mini-css-extract-plugin": "^0.4.0",
+    "optimize-css-assets-webpack-plugin": "^5.0.1",
+    "postcss-loader": "^3.0.0",
+    "purgecss": "^1.3.0",
+    "redux-devtools": "^3.5.0",
+    "redux-starter-kit": "^0.5.1",
+    "style-loader": "^0.23.1",
+    "tailwindcss": "^1.0.0-beta.8",
+    "uglifyjs-webpack-plugin": "^1.2.4",
+    "webpack": "4.4.0",
+    "webpack-cli": "^3.3.2"
+  }
+}

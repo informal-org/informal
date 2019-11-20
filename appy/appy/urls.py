@@ -15,7 +15,16 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from editor.views import *
 
 urlpatterns = [
     path('/private/admin/', admin.site.urls),
+
+    url(r'^$', hello, name='hello'),
+
+    # url(r'^create$', CreateTableView.as_view()),
+    # url(r'^(?P<table_id>[-\w]+)$', DashTableView.as_view()),
+    # url(r'^(?P<table_id>[-\w]+)/add$', DataViewAdd.as_view()),
+    # url(r'^(?P<table_id>[-\w]+)/edit/new$', CreateFieldView.as_view()),
+
 ]
