@@ -15,12 +15,19 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from django.views.generic import TemplateView
+from django.conf import settings
+from django.conf.urls.static import static
+
 from editor.views import *
 
 urlpatterns = [
+    path('', TemplateView.as_view(template_name="index.html")),
+    path('editor', TemplateView.as_view(template_name="editor/index.html")),
     path('/private/admin/', admin.site.urls),
+    
 
-    url(r'^$', hello, name='hello'),
+    # url(r'^$', hello, name='hello'),
 
     # url(r'^create$', CreateTableView.as_view()),
     # url(r'^(?P<table_id>[-\w]+)$', DashTableView.as_view()),
