@@ -1,15 +1,18 @@
 from django.db import models
 from django.contrib.auth.models import User
+import random
+import string
+
 
 # Create your models here.
 class App(models.Model):
     name = models.CharField(max_length=64)
-    domain = models.CharField(max_length=64, db_index=True)
+    # domain is used as the public identifier
+    domain = models.CharField(max_length=64, db_index=True, unique=True)
     # environment
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
 
 class AppOwner(models.Model):
     """
@@ -22,6 +25,7 @@ class AppOwner(models.Model):
 class View(models.Model):
     app = models.ForeignKey(App, on_delete=models.CASCADE)
     name = models.CharField(max_length=64, blank=True)
+    slug = models.SlugField(max_length=64)
 
     mime_type = models.CharField(max_length=64)
     remote_url = models.URLField(null=True)
@@ -32,6 +36,7 @@ class View(models.Model):
 
 
 class Route(models.Model):
+    # FK to app for querying efficiency without the additional join over view
     app = models.ForeignKey(App, on_delete=models.CASCADE)
     view = models.ForeignKey(View, on_delete=models.CASCADE)
 

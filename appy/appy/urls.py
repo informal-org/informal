@@ -26,7 +26,9 @@ urlpatterns = [
     path('editor', TemplateView.as_view(template_name="editor/index.html")),
     path('private/admin/', admin.site.urls),
 
-    path('hello', hello),
+    path('apps', AppListView.as_view()),
+    path('apps', AppListView.as_view()),
+    
     
 
     
