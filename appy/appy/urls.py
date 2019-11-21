@@ -24,10 +24,12 @@ from editor.views import *
 urlpatterns = [
     path('', TemplateView.as_view(template_name="index.html")),
     path('editor', TemplateView.as_view(template_name="editor/index.html")),
-    path('/private/admin/', admin.site.urls),
+    path('private/admin/', admin.site.urls),
+
+    path('hello', hello),
     
 
-    # url(r'^$', hello, name='hello'),
+    
 
     # url(r'^create$', CreateTableView.as_view()),
     # url(r'^(?P<table_id>[-\w]+)$', DashTableView.as_view()),
