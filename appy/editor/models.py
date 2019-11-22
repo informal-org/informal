@@ -25,6 +25,9 @@ class App(models.Model):
     def __str__(self):
         return self.domain
 
+    def get_absolute_url(self):
+        return '/apps/' + str(self.id)
+
 
 class View(models.Model):
     app = models.ForeignKey(App, on_delete=models.CASCADE)

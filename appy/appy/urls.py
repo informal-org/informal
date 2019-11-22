@@ -14,7 +14,7 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include, re_path
 from django.views.generic import TemplateView
 from django.conf import settings
 from django.conf.urls.static import static
@@ -23,19 +23,15 @@ from editor.views import *
 
 urlpatterns = [
     path('', TemplateView.as_view(template_name="index.html")),
-    path('editor', TemplateView.as_view(template_name="editor/index.html")),
+    path('editor', editor),
+    path('api/v1/', include('api.urls')),
     path('private/admin/', admin.site.urls),
 
-    path('apps', AppListView.as_view()),
-    path('apps', AppListView.as_view()),
-    
-    
-
-    
+    # path('apps', AppListView.as_view()),
+    # path('apps', AppListView.as_view()),
 
     # url(r'^create$', CreateTableView.as_view()),
     # url(r'^(?P<table_id>[-\w]+)$', DashTableView.as_view()),
     # url(r'^(?P<table_id>[-\w]+)/add$', DataViewAdd.as_view()),
     # url(r'^(?P<table_id>[-\w]+)/edit/new$', CreateFieldView.as_view()),
-
 ]
