@@ -15,25 +15,6 @@ use actix_web::HttpResponse;
 use actix_web::dev::Body;
 
 
-
-#[derive(Insertable)]
-#[table_name="views"]
-pub struct NewView {
-    pub app_id: i32,
-    pub view_name: Option<String>,
-    pub mime_type: String
-}
-
-
-#[derive(Insertable)]
-#[table_name="apps"]
-pub struct NewApp {
-    pub app_name: String,
-    pub domain: String,
-}
-
-
-
 #[derive(Clone)]
 pub struct AasmState {
     pub id: i32,
@@ -125,7 +106,15 @@ pub fn dispatch(view: View) -> HttpResponse {
 
 
 
-pub fn create_view(conn: &PgConnection, app_id: i32, view_name: Option<String>, mime_type: String) -> View {
+#[derive(Insertable)]
+#[table_name="views"]
+pub struct NewView {
+    pub app_id: i32,
+    pub view_name: Option<String>,
+    pub mime_type: String
+}
+
+pub fn new_view(conn: &PgConnection, app_id: i32, view_name: Option<String>, mime_type: String) -> View {
     use crate::schema::views;
 
     let new_view = NewView {
@@ -139,3 +128,12 @@ pub fn create_view(conn: &PgConnection, app_id: i32, view_name: Option<String>, 
         .get_result(conn)
         .expect("Error saving new view")
 }
+
+
+#[derive(Insertable)]
+#[table_name="apps"]
+pub struct NewApp {
+    pub app_name: String,
+    pub domain: String,
+}
+

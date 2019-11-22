@@ -72,7 +72,11 @@ pub fn delete_app(req: HttpRequest, data: AasmData) -> impl Responder {
 // Note: Routes and views are intertwined in our implementation.
 
 pub fn create_view(req: HttpRequest, data: AasmData) -> impl Responder {
-    return HttpResponse::with_body(StatusCode::OK, Body::from("OK"))
+    let pg_conn = &data.db.get().unwrap();
+
+    let v = new_view(&conn, 1, Some(String::from("Test")), String::from("text/html"))
+
+    return web::Json(v);
 }
 
 pub fn get_views(req: HttpRequest, data: AasmData) -> impl Responder {
