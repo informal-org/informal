@@ -26,12 +26,4 @@ urlpatterns = [
     path('editor', TemplateView.as_view(template_name="editor/index.html")),
     path('api/v1/', include('api.urls')),
     path('private/admin/', admin.site.urls),
-
-    # path('apps', AppListView.as_view()),
-    # path('apps', AppListView.as_view()),
-
-    # url(r'^create$', CreateTableView.as_view()),
-    # url(r'^(?P<table_id>[-\w]+)$', DashTableView.as_view()),
-    # url(r'^(?P<table_id>[-\w]+)/add$', DataViewAdd.as_view()),
-    # url(r'^(?P<table_id>[-\w]+)/edit/new$', CreateFieldView.as_view()),
 ]
