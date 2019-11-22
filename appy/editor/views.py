@@ -12,6 +12,3 @@ def hello(request):
 class AppListView(ListView):
     model = App
     
-class AppCreateView(CreateView):
-    model = App
-    fields = ['name']
