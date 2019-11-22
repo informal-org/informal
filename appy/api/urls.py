@@ -3,17 +3,12 @@ from django.contrib.auth.models import User
 from editor.models import App, View
 from rest_framework import routers, serializers, viewsets
 
-# Serializers define the API representation.
-class UserSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = ['url', 'username']
-
-# TODO: View summary serializer
+# TODO: Separate view summary serializer without the content field for compactness
 class ViewSerializer(serializers.ModelSerializer):
     class Meta:
         model = View
         fields = ['id', 'name', 'mime_type', 'remote_url', 'content', 'pattern', 'method_get', 'method_post']
+        read_only_fields = ['id']
 
 
 class AppSerializer(serializers.ModelSerializer):
@@ -21,12 +16,7 @@ class AppSerializer(serializers.ModelSerializer):
     class Meta:
         model = App
         fields = ['name', 'domain', 'view_set']
-
-
-# ViewSets define the view behavior.
-class UserViewSet(viewsets.ModelViewSet):
-    queryset = User.objects.all()
-    serializer_class = UserSerializer
+        read_only_fields = ['view_set']
 
 
 class AppViewSet(viewsets.ModelViewSet):
@@ -47,9 +37,8 @@ class ViewViewSet(viewsets.ModelViewSet):
 
 # Routers provide an easy way of automatically determining the URL conf.
 router = routers.DefaultRouter()
-router.register(r'users', UserViewSet)
 router.register(r'apps', AppViewSet)
-router.register(r'views', AppViewSet)
+router.register(r'views', ViewViewSet)
 
 # Wire up our API using automatic URL routing.
 # Additionally, we include login URLs for the browsable API.
