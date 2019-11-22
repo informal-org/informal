@@ -32,8 +32,29 @@ class Sidebar extends React.Component {
   rootSubmenuKeys = ['views', 'data'];
 
   state = {
+    views: [],
     openKeys: ['views', 'data'],
   };
+
+  componentWillMount = () => {
+    console.log("Component will mount called")
+
+    let parent = this;
+    fetch('/api/v1/apps/?format=json').then((data) => {
+      console.log("got response");
+      return data.json();
+    }).then((apps) => {
+      console.log("apps");
+      console.log(apps);
+
+      parent.setState({
+        'views': apps[0]['view_set'],
+        'openKeys': parent.state.openKeys
+      })
+      
+
+    })
+  }
 
   // Navbar sub menu open/close
   onOpenChange = openKeys => {
@@ -47,7 +68,27 @@ class Sidebar extends React.Component {
     console.log('selected', selectedKeys, info);
   };
 
+  renderViews() {
+    // TODO: Nest these properly
+    let elements = [];
+    let id = 0;
+    this.state.views.forEach((view) => {
+      let key = '0-' + id;
+      let elem = <TreeNode title={view.name} key={key}></TreeNode>
+      id+=1;
+      elements.push(elem);
+    })
 
+    return <Tree
+      showLine
+      switcherIcon={<Icon type="down" />}
+      defaultExpandedKeys={['0-0-0']}
+      onSelect={this.onSelect}
+      style={{ paddingLeft: 24 }}
+    >
+    {elements}
+    </Tree>
+  }
 
   render() {
     return (
@@ -65,26 +106,7 @@ class Sidebar extends React.Component {
             </span>
           }
         >
-
-       <Tree
-        showLine
-        switcherIcon={<Icon type="down" />}
-        defaultExpandedKeys={['0-0-0']}
-        onSelect={this.onSelect}
-        style={{ paddingLeft: 24 }}
-      >
-        <TreeNode title="accounts" key="0-0">
-          <TreeNode title="signup" key="0-0-0"></TreeNode>
-          <TreeNode title="login" key="0-0-1"></TreeNode>
-          <TreeNode title="settings" key="0-0-2">
-            <TreeNode title="contact" key="0-0-2-0" />
-            <TreeNode title="privacy" key="0-0-2-1" />
-          </TreeNode>
-        </TreeNode>
-      </Tree>
-
-
-
+          {this.renderViews()}
 
         </SubMenu>
         <SubMenu

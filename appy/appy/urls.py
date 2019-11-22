@@ -23,7 +23,7 @@ from editor.views import *
 
 urlpatterns = [
     path('', TemplateView.as_view(template_name="index.html")),
-    path('editor', editor),
+    path('editor', TemplateView.as_view(template_name="editor/index.html")),
     path('api/v1/', include('api.urls')),
     path('private/admin/', admin.site.urls),
 

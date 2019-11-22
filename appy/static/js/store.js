@@ -1,6 +1,6 @@
 import { configureStore, createSlice } from 'redux-starter-kit'
 import { modifySize, parseEverything } from './controller.js'
-import { apiPost } from './utils.js'
+import { apiPost, apiPatch } from './utils.js'
 import { CELL_MAX_WIDTH, CELL_MAX_HEIGHT } from './constants.js'
 
 const initialState = {
@@ -139,6 +139,10 @@ const reEvaluate = () => {
             return
         }
         let parsed = parseEverything(state.cellsReducer.byId);
+        apiPatch("/api/v1/views/2/?format=json", {
+            'content': JSON.stringify(parsed)
+        })
+
         parsed.input = {
             'path': '/hello',
             'method': 'GET',
@@ -152,6 +156,8 @@ const reEvaluate = () => {
             'content_type': ''  // content-type header
             // TODO: post payload
         }
+
+        
 
         apiPost("/api/evaluate", parsed)
         .then(json => {
