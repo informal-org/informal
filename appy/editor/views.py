@@ -26,17 +26,9 @@ def check_app_permission(app, user):
 
 
 def evaluate(request):
-    print("Data:")
-    print(request)
-    body = json.loads(request.body)
-    print(body)
     r = requests.post('http://localhost:9080/api/evaluate', 
-        json = body,
+        data = request.body,
         headers = {
             'Content-Type': 'application/json'
         })
-    print("Request is")
-    print(r)
-    print(r.content)
-    # return JsonResponse(r.json())
     return HttpResponse(r.content, content_type="application/json")
