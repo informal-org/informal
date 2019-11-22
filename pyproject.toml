@@ -12,6 +12,7 @@ psycopg2 = "^2.8"
 djangorestframework = "^3.10"
 django-filter = "^2.2"
 markdown = "^3.1"
+requests = "^2.22"
 
 [tool.poetry.dev-dependencies]
 

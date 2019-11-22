@@ -7,7 +7,8 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect
 from editor.models import App, View
-
+import requests
+import json
 
 # Create your views here.
 def hello(request):
@@ -22,3 +23,20 @@ def hello(request):
 
 def check_app_permission(app, user):
     return app.user == user
+
+
+def evaluate(request):
+    print("Data:")
+    print(request)
+    body = json.loads(request.body)
+    print(body)
+    r = requests.post('http://localhost:9080/api/evaluate', 
+        json = body,
+        headers = {
+            'Content-Type': 'application/json'
+        })
+    print("Request is")
+    print(r)
+    print(r.content)
+    # return JsonResponse(r.json())
+    return HttpResponse(r.content, content_type="application/json")

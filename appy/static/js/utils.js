@@ -36,6 +36,7 @@ export function getCookie(name) {
 export function apiPost(url = '', data = {}) {
     return fetch(url, {
         method: 'POST',
+//        mode: "no-cors",    // TODO: TEMPORARY WORKAROUND FOR LOCALHOST RUST. DISABLE THIS!!
         headers: {
             'Content-Type': 'application/json',
             'X-CSRFToken': getCookie('csrftoken')

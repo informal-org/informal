@@ -159,7 +159,7 @@ const reEvaluate = () => {
 
         
         // TODO: This would be done by the backend
-        apiPost("http://localhost:9080/api/evaluate", parsed)
+        apiPost("/api/evaluate", parsed)
         .then(json => {
             // Find the cells and save the value.;
             dispatch(saveOutput({
