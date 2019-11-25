@@ -16,6 +16,10 @@ pub mod services;
 pub mod timing;
 pub mod coreapi;
 
+use crate::services::AasmData;
+use crate::services::resolve;
+use crate::services::AasmState;
+use crate::services::establish_connection;
 use actix_files::NamedFile;
 use actix_web::{web, App, HttpRequest, HttpServer, Responder, HttpResponse};
 use runtime::interpreter::{interpret_all};
@@ -68,69 +72,59 @@ fn evaluate(req: web::Json<EvalRequest>) -> impl Responder {
 
 
 
-// fn serve(req: HttpRequest, data: AasmData) -> HttpResponse {
-//     println!("Data is {:?}", data.id);
+fn serve(req: HttpRequest, data: AasmData) -> HttpResponse {
+    
+    let host = req.headers().get("host").unwrap().to_str().unwrap().to_string();
+    let method = req.method().to_string();
+    let path = req.uri().path().to_string();
 
-//     let host = req.headers().get("host").unwrap().to_str().unwrap().to_string();
-//     let method = req.method().to_string();
-//     let path = req.uri().path().to_string();
+    println!("Serving {:?} {:?}", host, path);
 
-//     let pg_conn = &data.db.get().unwrap();
-//     let maybe_view = resolve(&pg_conn, method, host, path);
+    let mut pg_client = data.db.get().unwrap();
+    let maybe_view = resolve(&mut pg_client, method, host, path);
     
 
-//     if let Some(view) = maybe_view {
-//         return dispatch(view);
-//     } else {
-//         // let mut response = Response::new(Body::from("Not Found"));
-//         // let status = resp.status_mut();
-//         // *response.status_mut() = StatusCode::NOT_FOUND;
-//         // return "Not Found";
-//         return HttpResponse::with_body(StatusCode::NOT_FOUND, Body::from("Not Found"))
-//     }
+    if let Some(view) = maybe_view {
+        // return dispatch(view);
+        
+        return HttpResponse::with_body(StatusCode::NOT_FOUND, Body::from("Found"))
+    } else {
+        // let mut response = Response::new(Body::from("Not Found"));
+        // let status = resp.status_mut();
+        // *response.status_mut() = StatusCode::NOT_FOUND;
+        // return "Not Found";
+        return HttpResponse::with_body(StatusCode::NOT_FOUND, Body::from("Not Found"))
+    }
+}
+
+
+// for row in client.query("select * from editor_view", &[]).unwrap() {
+//     let id: u32 = row.get(0);
+//     println!("DB query result {:?}", id);
 // }
-
-
-/*
-
-        app.put(prefix + 'apps', Core.createApp)
-        app.get(prefix + 'apps', Core.getApps)
-        app.get(prefix + 'apps/:appId', Core.getApp)
-        app.post(prefix + 'apps/:appId', Core.updateApp)
-        app.delete(prefix + 'apps/:appId', Core.deleteApp)
-        
-        app.put(prefix + 'views', Core.createView)
-        app.get(prefix + 'views', Core.getViews)
-        app.get(prefix + 'views/:viewId', Core.getView)
-        app.post(prefix + 'views/:viewId', Core.updateView)
-        app.delete(prefix + 'views/:viewId', Core.deleteView)
-        
-        app.put(prefix + 'routes', Core.createRoute)
-        app.get(prefix + 'routes', Core.getRoutes)
-        app.get(prefix + 'routes/:routeId', Core.getRoute)
-        app.post(prefix + 'routes/:routeId', Core.updateRoute)
-        app.delete(prefix + 'routes/:routeId', Core.deleteRoute)
-
-*/
 
 
 
 pub fn main() {
-    // let connection_pool = establish_connection();
-    // let state = AasmState { id: 1, db: connection_pool };
+    let connection_pool = establish_connection();
+    let mut client = connection_pool.clone().get().unwrap();
+
+    
+    let state = AasmState { id: 1, db: connection_pool };
 
     HttpServer::new(move || App::new()
-        // .data(
-        //     state.clone()
-        // )
+        .data(
+            state.clone()
+        )
         .route("/", web::get().to(landing))
         .route("/arevel", web::get().to(arevel))
         .route("/slides", web::get().to(slides))
         .route("/_info/health", web::get().to(health))
         .route("/api/evaluate", web::post().to(evaluate))
-        // .service(
-        //     web::resource("*").to(serve))
-        // )
+        .service(
+            web::resource("*").to(serve)
+        )
+        
     )
     .bind("127.0.0.1:9080")
     .expect("Can not bind to port 9080")
