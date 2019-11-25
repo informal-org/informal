@@ -16,6 +16,7 @@ pub mod services;
 pub mod timing;
 pub mod coreapi;
 
+use crate::services::dispatch;
 use crate::services::AasmData;
 use crate::services::resolve;
 use crate::services::AasmState;
@@ -85,9 +86,7 @@ fn serve(req: HttpRequest, data: AasmData) -> HttpResponse {
     
 
     if let Some(view) = maybe_view {
-        // return dispatch(view);
-        
-        return HttpResponse::with_body(StatusCode::NOT_FOUND, Body::from("Found"))
+        return dispatch(view);
     } else {
         // let mut response = Response::new(Body::from("Not Found"));
         // let status = resp.status_mut();

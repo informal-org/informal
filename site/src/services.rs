@@ -1,17 +1,16 @@
-// use actix_web::http::StatusCode;
-use dotenv::dotenv;
-use std::env;
-use actix_web::web::Data;
-// use r2d2_postgres::PostgresConnectionManager;
-// use postgres::{NoTls, Client};
-
+use runtime::interpreter::interpret_all;
+use runtime::structs::CellResponse;
+use runtime::structs::EvalRequest;
 pub use r2d2;
 use r2d2_postgres::PostgresConnectionManager;
-use r2d2::ManageConnection;
 use postgres::{NoTls, Client};
-
+use dotenv::dotenv;
+use std::env;
 use actix_web::HttpResponse;
+use actix_web::web::Data;
+use actix_web::http::StatusCode;
 use actix_web::dev::Body;
+
 
 #[derive(Clone)]
 pub struct AasmState {
@@ -55,7 +54,7 @@ pub fn establish_connection() -> DBPool {
     return pool
 } 
 
-// , 
+
 const Q_VIEW_RESOLVE: &'static str = "SELECT editor_view.id, editor_view.name, editor_view.mime_type, editor_view.remote_url, 
 editor_view.content, editor_view.pattern, editor_view.pattern_regex, editor_view.method_get, editor_view.method_post 
 FROM editor_view 
@@ -82,69 +81,35 @@ pub fn resolve(pg_client: &mut Client, q_method: String, q_host: String, q_path:
         return Some(view)
     }
     return None
-
 }
 
     
+pub fn dispatch(view: View) -> HttpResponse {
+    if view.mime_type == "text/html" {
+        let content = view.content.unwrap();
+        return HttpResponse::with_body(StatusCode::OK, Body::from(content));
+    }
+     else if view.mime_type == "application/aasm" && view.content.is_some() {
+        let req: EvalRequest = serde_json::from_str(&view.content.unwrap()).unwrap();
+        let results: Vec<CellResponse> = Vec::new();
 
-
-
-//     // use schema::apps::dsl::*;
-//     // use schema::routes::dsl::*;
-//     // use schema::views::dsl::*;
-//     use schema::*;
-
-//     println!("Method: {} host {} path {}", q_method, q_host, q_path);
-//     let host_lower = q_host.to_lowercase();
-
-//     let app_filter_result = apps::table.filter(apps::domain.eq(host_lower)).first::<App>(pg_conn);
-//     if let Err(_) = app_filter_result {
-//         println!("Error loading apps");
-//         return None;
-//     }
-//     let app_filter = app_filter_result.unwrap();
-
-
-//     let views_result = View::belonging_to(&app_filter).inner_join(
-//         routes::table.on(
-//             views::id.eq(routes::view_id).and(
-//                 routes::pattern.eq(q_path)
-//             )
-//         )
-//     ).limit(1)
-//     .load(pg_conn);
-
-//     if let Err(_) = views_result {
-//         println!("Error loading view");
-//         return None;
-//     }
-//     let mut views: Vec<(View, Route)> = views_result.unwrap();
-
-//     println!("PG result {:?}", views);
+        let mut inputs: Vec<String> = Vec::with_capacity(results.len());
+        for cell in &req.body {
+            inputs.push(cell.input.clone())
+        }
     
-//     if views.len() > 0 {
-//         let result = views.pop().unwrap();
-//         return Some(result.0);
-//     }
-
-//     return None;
-// }
-
-// pub fn dispatch(view: View) -> HttpResponse {
-//     if view.mime_type == "text/html" {
-//         let content = view.content.unwrap();
-//         return HttpResponse::with_body(StatusCode::OK, Body::from(content));
-//     }
-//     //  else if view.mime_type == "application/javascript" {
-//     //     let content = exec_view(view);
-//     //     return HttpResponse::with_body(StatusCode::OK, Body::from(content))
-//     // }
-//      else {
-//         // Should not happen
-//         // let mut response = Response::new(Body::from("AppAssembly Server Error"));
-//         // return response;
-//         // return String::from("AppAssembly Server Error");
-//         return HttpResponse::with_body(StatusCode::OK, Body::from("AppAssembly Server Error"))
-//     }
-// }
+        let eval_res = interpret_all(req);
+        println!("{:?}", eval_res);
+        
+        let response_content = serde_json::to_string(&eval_res).unwrap();
+        return HttpResponse::with_body(StatusCode::OK, Body::from(response_content))
+    }
+     else {
+        // Should not happen
+        // let mut response = Response::new(Body::from("AppAssembly Server Error"));
+        // return response;
+        // return String::from("AppAssembly Server Error");
+        return HttpResponse::with_body(StatusCode::OK, Body::from("AppAssembly Server Error"))
+    }
+}
 
