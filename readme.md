@@ -13,3 +13,9 @@ poetry add mydependency
 
 
 Create a .env in appy dir with the environment variables.
+
+docker ps -a
+docker run <imagename>
+docker run -it --entrypoint /bin/bash <imageid>
+
+docker build -t appy:latest .
