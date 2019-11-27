@@ -19,3 +19,10 @@ docker run <imagename>
 docker run -it --entrypoint /bin/bash <imageid>
 
 docker build -t appy:latest .
+
+
+docker run appy -p 8000:8000 -p 5432:5432
+
+docker tag appy gcr.io/arevel-209217/appy:latest
+
+docker tag appy us.gcr.io/arevel-209217/appy:latest
