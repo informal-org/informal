@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: appy-deployment
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: appy
+  minReadySeconds: 5
+  template:
+    metadata:
+      labels:
+        app: appy
+    spec:
+      containers:
+      - name: appy
+        image: us.gcr.io/appassembly/appy:latest
+        env:
+          - name: MY_POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: MY_POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: MY_POD_IP
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP
+          - name: DATABASE_NAME
+            value: app_db
+          - name: DATABASE_USER
+            value: app_db_user
+          - name: DATABASE_PASSWORD
+            value: app_db_pw
+        ports:
+        - containerPort: 8000
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: appy-service
+  labels:
+    name: appy
+spec:
+  ports:
+  - port: 80
+    targetPort: 8000
+  selector:
+    app: appy
+  type: LoadBalancer

@@ -26,3 +26,29 @@ docker run appy -p 8000:8000 -p 5432:5432
 docker tag appy gcr.io/arevel-209217/appy:latest
 
 docker tag appy us.gcr.io/arevel-209217/appy:latest
+
+
+--------------------------
+
+docker build -t us.gcr.io/appassembly/appy-app:latest .
+
+
+gcloud config set compute/zone us-central1-c
+
+gcloud container clusters get-credentials aa-cluster-1
+
+# Push image to docker
+docker build -t appy:latest .
+
+docker tag appy:latest us.gcr.io/appassembly/appy:latest
+
+docker push us.gcr.io/appassembly/appy:latest
+
+
+# Create deployment
+kubectl apply -f kubernetes/deployment.yaml
+
+
+# Update the deployment
+
+kubectl rollout restart deployment/appy-deployment
