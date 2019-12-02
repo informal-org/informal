@@ -55,3 +55,9 @@ kubectl rollout restart deployment/appy-deployment
 
 # Setting secret values
 kubectl create secret generic backend-user --from-literal backend-username='backend-admin'
+
+
+# Migrations
+kubectl get pods
+kubectl exec <pod-name> -- python /app/manage.py migrate
+
