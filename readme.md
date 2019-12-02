@@ -52,3 +52,6 @@ kubectl apply -f kubernetes/deployment.yaml
 # Update the deployment
 
 kubectl rollout restart deployment/appy-deployment
+
+# Setting secret values
+kubectl create secret generic backend-user --from-literal backend-username='backend-admin'

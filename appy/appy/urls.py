@@ -27,4 +27,7 @@ urlpatterns = [
     path('api/evaluate', evaluate),
     path('api/v1/', include('api.urls')),
     path('private/admin/', admin.site.urls),
+    path('private/error/', error_view),
+    path('private/config/', config_view),
+    path('private/db_test', db_test),
 ]

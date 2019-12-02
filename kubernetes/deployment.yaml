@@ -17,24 +17,39 @@ spec:
       - name: appy
         image: us.gcr.io/appassembly/appy:latest
         env:
-          - name: MY_POD_NAME
+          - name: ENVIRONMENT
+            value: PROD
+          - name: K8_POD_NAME
             valueFrom:
               fieldRef:
                 fieldPath: metadata.name
-          - name: MY_POD_NAMESPACE
+          - name: K8_POD_NAMESPACE
             valueFrom:
               fieldRef:
                 fieldPath: metadata.namespace
-          - name: MY_POD_IP
+          - name: K8_POD_IP
             valueFrom:
               fieldRef:
                 fieldPath: status.podIP
-          - name: DATABASE_NAME
-            value: app_db
-          - name: DATABASE_USER
-            value: app_db_user
-          - name: DATABASE_PASSWORD
-            value: app_db_pw
+          - name: PGDATABASE
+            value: aadb
+          - name: PGUSER
+            value: appy
+          - name: PGHOST
+            valueFrom:
+              secretKeyRef:
+                name: appy-secrets
+                key: PGHOST
+          - name: PGPASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: appy-secrets
+                key: PGPASSWORD
+          - name: SECRET_KEY
+            valueFrom:
+              secretKeyRef:
+                name: appy-secrets
+                key: SECRET_KEY
         ports:
         - containerPort: 8000
 
