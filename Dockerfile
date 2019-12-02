@@ -11,10 +11,11 @@ RUN pip install --upgrade pip
 RUN mkdir -p /app
 WORKDIR /app
 
+# Add requirements file separately so dependencies are cached.
+ADD ./requirements.txt /app/requirements.txt
+RUN pip install -r /app/requirements.txt
+
 ADD ./appy /app
 
-# TODO: Poetry vs pip. Doesn't seem to pick up poetry installed deps
-RUN pip install .
-
 # CMD python manage.py runserver
-CMD gunicorn -b :8000 appy.wsgi
+CMD gunicorn -b :8000 --capture-output --enable-stdio-inheritance appy.wsgi
