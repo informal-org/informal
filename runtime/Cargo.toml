@@ -8,7 +8,7 @@ include = [
 ]
 
 [dependencies]
-wabt = "0.7.4"
+# wabt = "0.7.4"
 lexical = "2.2.1"   # Floating point parsing
 lazy_static = "1.3.0"
 avs = { path = "../avs" }
