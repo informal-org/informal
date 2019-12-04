@@ -105,28 +105,28 @@ fn serve(req: HttpRequest, data: AasmData) -> HttpResponse {
 
 
 pub fn main() {
-    let connection_pool = establish_connection();
-    let mut client = connection_pool.clone().get().unwrap();
+    // let connection_pool = establish_connection();
+    // let mut client = connection_pool.clone().get().unwrap();
 
     
-    let state = AasmState { id: 1, db: connection_pool };
+    // let state = AasmState { id: 1, db: connection_pool };
 
     HttpServer::new(move || App::new()
-        .data(
-            state.clone()
-        )
+        // .data(
+        //     state.clone()
+        // )
         .route("/", web::get().to(landing))
         .route("/arevel", web::get().to(arevel))
         .route("/slides", web::get().to(slides))
         .route("/_info/health", web::get().to(health))
         .route("/api/evaluate", web::post().to(evaluate))
-        .service(
-            web::resource("*").to(serve)
-        )
-        
+        // .service(
+        //     web::resource("*").to(serve)
+        // )
     )
-    .bind("127.0.0.1:9080")
-    .expect("Can not bind to port 9080")
+    //.bind("127.0.0.1:9080")
+    .bind("0.0.0.0:8000")
+    .expect("Can not bind to port 8000")
     .run().unwrap();
 
 
