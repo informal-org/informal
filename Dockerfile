@@ -30,12 +30,11 @@ RUN cargo build --release
 
 
 WORKDIR /usr/src/site
-# RUN cargo install --path .
+RUN cargo install --path .
 COPY site/src /usr/src/site/src
 RUN cargo build --release
 
 
-ENV DATABASE_URL=postgres://aasm:pw@localhost/aasmdb
 WORKDIR /usr/src/site/target/release
 CMD ["./site"]
 

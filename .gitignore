@@ -5,3 +5,4 @@ avs/pkg/*
 site/static/node_modules/*
 dist/
 .env
+.docker_env
