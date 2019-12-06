@@ -30,4 +30,6 @@ urlpatterns = [
     path('private/error/', error_view),
     path('private/config/', config_view),
     path('private/db_test', db_test),
+
+    path('_info/health', healthcheck),
 ]

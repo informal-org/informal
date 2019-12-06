@@ -52,3 +52,6 @@ def config_view(request):
 def db_test(request):
     elem = User.objects.first()
     return HttpResponse("OK")
+
+def healthcheck(request):
+    return HttpResponse("OK")
