@@ -38,6 +38,14 @@ spec:
                 key: DATABASE_URL
         ports:
         - containerPort: 9080
+        readinessProbe:
+            httpGet:
+              path: /_info/health
+              port: 9080
+        livenessProbe:
+            httpGet:
+              path: /_info/health
+              port: 9080
 
 ---
 
@@ -49,20 +57,21 @@ metadata:
     name: aasm
 spec:
   ports:
-  - port: 80
+  - port: 9080
     targetPort: 9080
   selector:
     app: aasm
-  type: LoadBalancer
+  type: NodePort
 
 ---
 
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
     name: aa-ingress
     annotations:
         nginx.ingress.kubernetes.io/rewrite-target: /
+        kubernetes.io/ingress.global-static-ip-name: aa-public
 spec:
     rules:
     - host: appassembly.io
@@ -70,10 +79,9 @@ spec:
         paths:
         - backend:
             serviceName: appy-service
-            servicePort: 80
+            servicePort: 8000
     - http:
         paths:
         - backend:
             serviceName: aasm-service
-            servicePort: 80
-
+            servicePort: 9080
