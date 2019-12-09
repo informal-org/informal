@@ -73,9 +73,11 @@ kind: Ingress
 metadata:
     name: aa-ingress
     annotations:
+        kubernetes.io/ingress.global-static-ip-name: aa-public
+        certmanager.k8s.io/cluster-issuer: letsencrypt-prod
+        certmanager.k8s.io/acme-http01-edit-in-place: "true"
         kubernetes.io/ingress.class: nginx
         nginx.ingress.kubernetes.io/rewrite-target: /
-        kubernetes.io/ingress.global-static-ip-name: aa-public
 spec:
     rules:
     - host: appassembly.io
