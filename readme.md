@@ -34,7 +34,8 @@ docker exec <imageid> -it /bin/bash
 
 docker build -t us.gcr.io/appassembly/appy-app:latest .
 
-
+# Setup google cloud
+gcloud config set project appassembly
 gcloud config set compute/zone us-central1-c
 
 gcloud container clusters get-credentials aa-cluster-1
