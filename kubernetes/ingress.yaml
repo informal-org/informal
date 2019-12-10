@@ -144,7 +144,6 @@ metadata:
 spec:
     type: NodePort
     externalTrafficPolicy: Local
-    # loadBalancerIP: 35.241.35.111
     selector:
         app.kubernetes.io/name: ingress-nginx
         app.kubernetes.io/part-of: ingress-nginx
@@ -157,7 +156,7 @@ spec:
           port: 443
           protocol: TCP
           targetPort: https
-        - name: ngxhc
+        - name: ngxhc       # This port doesn't really have to be exposed... 
           port: 10254
           protocol: TCP
           targetPort: 10254
