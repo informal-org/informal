@@ -43,7 +43,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: nginx-ingress-controller
-  namespace: ingress-nginx
+  namespace: default
   labels:
     app.kubernetes.io/name: ingress-nginx
     app.kubernetes.io/part-of: ingress-nginx
@@ -134,13 +134,13 @@ kind: Service
 apiVersion: v1
 metadata:
     name: ngx-service
-    namespace: ingress-nginx
+    namespace: default
     labels:
         app.kubernetes.io/name: ingress-nginx
         app.kubernetes.io/part-of: ingress-nginx
-    # annotations:
-    #    cloud.google.com/app-protocols: '{"https":"HTTPS","http":"HTTP"}'
-    #     cloud.google.com/neg: '{"ingress": true}' # Creates a NEG after an Ingress is created
+    annotations:
+        cloud.google.com/app-protocols: '{"https":"HTTPS","http":"HTTP"}'
+        cloud.google.com/neg: '{"ingress": true}' # Creates a NEG after an Ingress is created
 spec:
     type: LoadBalancer
     externalTrafficPolicy: Local
@@ -157,28 +157,35 @@ spec:
           port: 443
           protocol: TCP
           targetPort: https
+        - name: ngxhc
+          port: 10254
+          protocol: TCP
+          targetPort: 10254
     
 ---
 
-# apiVersion: extensions/v1beta1
-# kind: Ingress
-# metadata:
-#   name: aa-lb
-#   namespace: default
-#   annotations:
-#     kubernetes.io/ingress.class: "gce"
-#     kubernetes.io/ingress.global-static-ip-name: "aa-public"
-#     ingress.kubernetes.io/rewrite-target: /
-# spec:
-#   backend:
-#     serviceName: ngx-service
-#     servicePort: http
-#   tls:
-#     - hosts:
-#       - appassembly.io
-#       secretName: appassembly-io-tls
-#     - hosts:
-#       - '*.aasm.app'
-#       secretName: aasm-app-tls
+# Note: The automatically created healthcheck points to / instead of /healthz in gcp. Must configure manually
+
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: aa-lb
+  namespace: default
+  annotations:
+    kubernetes.io/ingress.class: "gce"
+    kubernetes.io/ingress.global-static-ip-name: "aa-public"
+    certmanager.k8s.io/cluster-issuer: letsencrypt-prod
+    ingress.kubernetes.io/rewrite-target: /
+spec:
+  backend:
+    serviceName: ngx-service
+    servicePort: http
+  tls:
+    - hosts:
+      - appassembly.io
+      secretName: appassembly-io-tls
+    - hosts:
+      - '*.aasm.app'
+      secretName: aasm-app-tls
   
 # ---
