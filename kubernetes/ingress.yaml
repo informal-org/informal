@@ -1,12 +1,12 @@
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
-    name: aa-ingress
+    name: aa-ngx-ingress
     annotations:
 #        kubernetes.io/ingress.allow-http: "false"
-        kubernetes.io/ingress.global-static-ip-name: "aa-public"
-        certmanager.k8s.io/cluster-issuer: letsencrypt-prod
 #        certmanager.k8s.io/acme-http01-edit-in-place: "true"
+        nginx.ingress.kubernetes.io/ssl-redirect: "false"
+        certmanager.k8s.io/cluster-issuer: letsencrypt-prod
         kubernetes.io/ingress.class: nginx
         nginx.ingress.kubernetes.io/rewrite-target: /
     namespace: default
@@ -43,7 +43,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: nginx-ingress-controller
-  namespace: ingress-nginx
+  namespace: default
   labels:
     app.kubernetes.io/name: ingress-nginx
     app.kubernetes.io/part-of: ingress-nginx
@@ -129,30 +129,55 @@ spec:
                   - /wait-shutdown
 
 ---
-
 # https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/static/provider/cloud-generic.yaml
 kind: Service
 apiVersion: v1
 metadata:
-  name: ingress-nginx
-  namespace: ingress-nginx
-  labels:
-    app.kubernetes.io/name: ingress-nginx
-    app.kubernetes.io/part-of: ingress-nginx
+    name: ngx-service
+    namespace: default
+    labels:
+        app.kubernetes.io/name: ingress-nginx
+        app.kubernetes.io/part-of: ingress-nginx
+    annotations:
+        cloud.google.com/neg: '{"ingress": true}' # Creates a NEG after an Ingress is created
+        cloud.google.com/app-protocols: '{"https":"HTTPS","http":"HTTP"}'
 spec:
-  externalTrafficPolicy: Local
-  type: LoadBalancer
-  selector:
-    app.kubernetes.io/name: ingress-nginx
-    app.kubernetes.io/part-of: ingress-nginx
-  ports:
-    - name: http
-      port: 80
-      protocol: TCP
-      targetPort: http
-    - name: https
-      port: 443
-      protocol: TCP
-      targetPort: https
+    type: NodePort
+    externalTrafficPolicy: Local
+    selector:
+        app.kubernetes.io/name: ingress-nginx
+        app.kubernetes.io/part-of: ingress-nginx
+    ports:
+        - name: http
+          port: 80
+          protocol: TCP
+          targetPort: http
+        - name: https
+          port: 443
+          protocol: TCP
+          targetPort: https
+    
+---
 
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: aa-lb
+  namespace: default
+  annotations:
+    kubernetes.io/ingress.class: "gce"
+    kubernetes.io/ingress.global-static-ip-name: "aa-public"
+    ingress.kubernetes.io/rewrite-target: /
+spec:
+  backend:
+    serviceName: ngx-service
+    servicePort: http
+  tls:
+    - hosts:
+      - appassembly.io
+      secretName: appassembly-io-tls
+    - hosts:
+      - '*.aasm.app'
+      secretName: aasm-app-tls
+  
 ---
