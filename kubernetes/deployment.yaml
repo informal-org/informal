@@ -54,11 +54,11 @@ spec:
         - containerPort: 8000
         readinessProbe:
           httpGet:
-            path: /_info/health
+            path: /healthz
             port: 8000
         livenessProbe:
           httpGet:
-            path: /_info/health
+            path: /healthz
             port: 8000
 
 ---
@@ -73,6 +73,7 @@ spec:
   ports:
   - port: 8000
     targetPort: 8000
+    name: appy-port
   selector:
     app: appy
   type: NodePort
