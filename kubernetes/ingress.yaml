@@ -142,7 +142,7 @@ metadata:
         cloud.google.com/app-protocols: '{"https":"HTTPS","http":"HTTP"}'
         cloud.google.com/neg: '{"ingress": true}' # Creates a NEG after an Ingress is created
 spec:
-    type: LoadBalancer
+    type: NodePort
     externalTrafficPolicy: Local
     # loadBalancerIP: 35.241.35.111
     selector:
