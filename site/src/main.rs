@@ -110,7 +110,7 @@ pub fn main() {
             state.clone()
         )
         .route("/", web::get().to(landing))
-        .route("/_info/health", web::get().to(health))
+        .route("/healthz", web::get().to(health))
         .route("/api/evaluate", web::post().to(evaluate))
         .service(
             web::resource("*").to(serve)

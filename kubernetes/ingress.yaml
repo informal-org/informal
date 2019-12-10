@@ -138,9 +138,9 @@ metadata:
     labels:
         app.kubernetes.io/name: ingress-nginx
         app.kubernetes.io/part-of: ingress-nginx
-    annotations:
-        cloud.google.com/neg: '{"ingress": true}' # Creates a NEG after an Ingress is created
-        cloud.google.com/app-protocols: '{"https":"HTTPS","http":"HTTP"}'
+    # annotations:
+    #    cloud.google.com/app-protocols: '{"https":"HTTPS","http":"HTTP"}'
+    #     cloud.google.com/neg: '{"ingress": true}' # Creates a NEG after an Ingress is created
 spec:
     type: NodePort
     externalTrafficPolicy: Local
