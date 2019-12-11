@@ -1,3 +1,5 @@
+{% load static %}
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -12,7 +14,7 @@
     <link href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,700" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.8.2/css/all.min.css" rel="stylesheet">
       
-      <link href="static/css/app.css" rel="stylesheet">
+      <link href="{% static 'css/app.css' %}" rel="stylesheet">
       
   </head>
   <body class="font-sans leading-tight">
@@ -23,7 +25,7 @@
 
       <div class="w-full max-w-screen-xl relative mx-auto">
         <div class="logo lg:w-1/4 xl:w-1/5 pr-6 lg:pr-8">
-          <img class="block" width="130px" height="18.4167px" src="static/images/appassembly_logo1.png" alt="appassembly logo"/>
+          <img class="block" width="130px" height="18.4167px" src="{% static 'images/appassembly_logo1.png' %}" alt="appassembly logo"/>
         </div>
       </div>
 
@@ -52,7 +54,7 @@
   </div>
 
 
-    <script type="text/javascript" src="static/js/app.js"></script>
+    <script type="text/javascript" src="{% static 'static/js/app.js' %}"></script>
 
   </body>
 </html>
