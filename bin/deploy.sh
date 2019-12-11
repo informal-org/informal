@@ -1,5 +1,4 @@
 #!/bin/bash
-cd ..
 docker build -t appy:latest .
 docker tag appy:latest us.gcr.io/appassembly/appy:latest
 docker push us.gcr.io/appassembly/appy:latest
