@@ -5,8 +5,7 @@
     "deploy": "webpack --mode production",
     "debugbuild": "webpack --mode production --display-error-details",
     "watch": "webpack --mode development --watch",
-    "tail": "npx tailwind build css/app.css -o dist/static/css/app.css",
-    "purge": "purgecss --css dist/static/css/*.css --content ../templates/*.html -o css"
+    "buildcss": "npx tailwind build css/base.css -o dist/static/tmpcss/base.css && npx tailwind build css/app.css -o dist/static/tmpcss/app.css && purgecss --css dist/static/tmpcss/*.css --content ../templates/*.html -o dist/static/css"
   },
   "dependencies": {
     "antd": "^3.19.3",

@@ -28,8 +28,8 @@ module.exports = (env, options) => ({
       './js/app.js': ['./js/app.js'].concat(glob.sync('./vendor/**/*.js'))
   },
   output: {
-    filename: 'static/js/app.js',
-    // path: path.resolve('dist/static/js/')
+    filename: '[name].js',
+    path: path.resolve('dist/static/js/')
   },
   module: {
     rules: [

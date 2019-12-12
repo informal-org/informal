@@ -8,6 +8,54 @@ h4{font-size: 1.8rem; letter-spacing: -.05rem; line-height: 1.5}
 h5{font-size: 1.6rem; letter-spacing: 0; line-height: 1.4}
 h6{font-size: 1.4rem; letter-spacing: 0; line-height: 1.2} */
 
+@tailwind base;
+
+@tailwind components;
+
+@tailwind utilities;
+
+@tailwind screens;
+
+@tailwind tailwind;
+
+
+
+html, body {
+    color: #212529;
+}
+
+h1 {
+  @apply text-4xl;
+}
+h2 {
+  @apply text-2xl;
+}
+h3 {
+  @apply text-lg;
+}
+a {
+  @apply text-blue-600 underline;
+}
+
+
+.btn {
+  @apply font-bold py-2 px-4 rounded;
+  
+  cursor: pointer;
+}
+
+.btn-primary {
+  @apply bg-blue-500 text-white;
+}
+
+
+.form-control {
+  @apply shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight;
+}
+
+.form-control:focus {
+  @apply outline-none shadow-outline;
+}
 
 
 
