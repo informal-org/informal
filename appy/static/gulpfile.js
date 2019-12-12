@@ -1,4 +1,4 @@
-const { src, dest, parallel } = require('gulp');
+const { src, dest, parallel, watch } = require('gulp');
 const postcss = require('gulp-postcss');
 const purgecss = require('gulp-purgecss');
 const minifyCSS = require('gulp-csso');
@@ -14,6 +14,12 @@ function css() {
     .pipe(minifyCSS())
     .pipe(dest('dist/static/css'))
 }
+
+
+
+watch(['css/*.css'], function(cb) {
+  css();
+})
 
 
 // exports.js = js;
