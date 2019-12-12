@@ -18,7 +18,14 @@ function css() {
 
 
 watch(['css/*.css'], function(cb) {
-  css();
+  // Same as above, but without the purge because we may be using new html
+  return src('css/*.css')
+    .pipe(postcss())
+    // .pipe(purgecss({
+    //     content: ['../templates/**/*.html']
+    // }))
+    // .pipe(minifyCSS())
+    .pipe(dest('dist/static/css'))
 })
 
 
