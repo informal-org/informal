@@ -28,7 +28,7 @@
 }
 
 .fg-base {
-  color: rgba(0, 0, 0, 0.65);
+  color: rgba(0, 0, 0, 0.67);
 }
 
 .fg-secondary {
@@ -153,4 +153,15 @@ h6{font-size: 1.4rem; letter-spacing: 0; line-height: 1.2} */
   .contentWrapper {
     @apply px-16;
   }  
+}
+
+
+.btn-cta {
+  transition: background-color 0.125s linear;
+  @apply bg-orange-500 text-lg text-white font-bold py-4 px-8 rounded shadow-md;
+}
+
+.btn-cta:hover {
+  transition: all 0.125s linear;
+  @apply bg-orange-600 shadow-none;
 }
