@@ -141,3 +141,16 @@ h6{font-size: 1.4rem; letter-spacing: 0; line-height: 1.2} */
 
 .Cell-cellValue {
 }
+
+.contentWrapper {
+  @apply px-5;
+  @apply max-w-6xl;
+  margin: auto;
+}
+
+/* md+ */
+@media (min-width: 768px) {
+  .contentWrapper {
+    @apply px-16;
+  }  
+}

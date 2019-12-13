@@ -16,21 +16,21 @@ function css() {
 }
 
 
+function watch_css() {
+  watch(['css/*.css'], function(cb) {
+    // Same as above, but without the purge because we may be using new html
+    return src('css/*.css')
+      .pipe(postcss())
+      // .pipe(purgecss({
+      //     content: ['../templates/**/*.html']
+      // }))
+      // .pipe(minifyCSS())
+      .pipe(dest('dist/static/css'))
+  })  
+}
 
-watch(['css/*.css'], function(cb) {
-  // Same as above, but without the purge because we may be using new html
-  return src('css/*.css')
-    .pipe(postcss())
-    // .pipe(purgecss({
-    //     content: ['../templates/**/*.html']
-    // }))
-    // .pipe(minifyCSS())
-    .pipe(dest('dist/static/css'))
-})
+// // exports.js = js;
+exports.watch = watch_css;
 
-
-// exports.js = js;
-exports.css = css;
-
-// exports.default = parallel(css, js);
-exports.default = parallel(css);
+// // exports.default = parallel(css, js);
+// exports.default = parallel(css);
