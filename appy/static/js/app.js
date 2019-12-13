@@ -23,8 +23,14 @@ ReactDOM.render(
 
 
 
-import { Menu, Tree, Icon } from 'antd';
-import "antd/dist/antd.css";
+// import { Menu, Tree, Icon } from 'antd';
+// import Menu from 'antd/es/menu';
+// import Tree from 'antd/es/tree';
+// import Icon from 'antd/es/icon';
+
+import { Menu } from 'antd';
+import { Tree } from 'antd';
+
 const { SubMenu } = Menu;
 const { TreeNode } = Tree;
 
@@ -81,7 +87,7 @@ class Sidebar extends React.Component {
 
     return <Tree
       showLine
-      switcherIcon={<Icon type="down" />}
+      switcherIcon={<span>&#x2304;</span>}
       defaultExpandedKeys={['0-0-0']}
       onSelect={this.onSelect}
       style={{ paddingLeft: 24 }}

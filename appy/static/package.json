@@ -5,16 +5,15 @@
     "deploy": "webpack --mode production",
     "debugbuild": "webpack --mode production --display-error-details",
     "watch": "webpack --mode development --watch",
-    "buildcss": "npx tailwind build css/base.css -o dist/static/tmpcss/base.css && npx tailwind build css/app.css -o dist/static/tmpcss/app.css && purgecss --css dist/static/tmpcss/*.css --content ../templates/*.html -o dist/static/css"
+    "buildcss": "npx tailwind build css/base.css -o dist/static/tmpcss/base.css && npx tailwind build css/app.css -o dist/static/tmpcss/app.css && purgecss --css dist/static/tmpcss/*.css --content ../templates/*.html -o dist/static/css",
+    "stats": "webpack --profile --json > stats.json"
   },
   "dependencies": {
     "antd": "^3.19.3",
-    "jsep": "^0.3.4",
-    "npm": "^6.9.0",
+    "npm": "^6.13.4",
     "react": "^16.8.6",
     "react-dom": "^16.8.6",
     "react-redux": "^7.0.3",
-    "react-window": "^1.8.1",
     "redux": "^4.0.1"
   },
   "devDependencies": {
@@ -25,6 +24,7 @@
     "@fullhuman/postcss-purgecss": "^1.2.0",
     "autoprefixer": "^9.5.1",
     "babel-loader": "^8.0.0",
+    "babel-plugin-import": "^1.13.0",
     "babel-preset-react-app": "^3.1.2",
     "clean-css": "^4.2.1",
     "copy-webpack-plugin": "^4.5.0",
@@ -43,7 +43,8 @@
     "style-loader": "^0.23.1",
     "tailwindcss": "^1.0.0-beta.8",
     "uglifyjs-webpack-plugin": "^1.2.4",
-    "webpack": "4.4.0",
+    "webpack": "^4.41.2",
+    "webpack-bundle-analyzer": "^3.6.0",
     "webpack-cli": "^3.3.2"
   }
 }

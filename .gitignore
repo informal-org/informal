@@ -140,3 +140,4 @@ dmypy.json
 appy/static/node_modules/*
 dist/
 kubernetes/secret.yaml
+stats.json

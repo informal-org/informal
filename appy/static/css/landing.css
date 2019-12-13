@@ -35,6 +35,10 @@
   color: rgba(0, 0, 0, .45);
 }
 
+.fg-inverse {
+  color: rgba(255, 255, 255, 0.85);
+}
+
 .fg-disabled {
   color: rgba(0, 0, 0, .25);
 }
@@ -158,10 +162,15 @@ h6{font-size: 1.4rem; letter-spacing: 0; line-height: 1.2} */
 
 .btn-cta {
   transition: background-color 0.125s linear;
-  @apply bg-orange-500 text-lg text-white font-bold py-4 px-8 rounded shadow-md;
+  background-color: #E74C3C;
+  @apply text-lg text-white font-bold py-4 px-8 rounded shadow-lg;
 }
 
 .btn-cta:hover {
   transition: all 0.125s linear;
-  @apply bg-orange-600 shadow-none;
+  background-color: #EF4B39;
+  @apply shadow-none;
+}
+
+.landing-footer {
 }

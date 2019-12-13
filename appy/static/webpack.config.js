@@ -28,8 +28,7 @@ module.exports = (env, options) => ({
       './js/app.js': ['./js/app.js'].concat(glob.sync('./vendor/**/*.js'))
   },
   output: {
-    filename: '[name].js',
-    path: path.resolve('dist/static/js/')
+    filename: 'static/js/app.js',  // [name]
   },
   module: {
     rules: [
@@ -52,12 +51,18 @@ module.exports = (env, options) => ({
       }
     ]
   },
+  resolve: {
+    // S/O 48721290 - Minimize antd icon bundle size
+    alias: {
+      '@ant-design/icons/lib/dist$': path.resolve(__dirname, './js/icons.js')
+    }
+  },
   plugins: [
     // new MiniCssExtractPlugin({ filename: '../css/app.css' }),
     // new CopyWebpackPlugin([{ from: 'js/', to: 'dist/js/' }])
     new CopyWebpackPlugin([
       { from: 'images/', to: 'static/images/' },
-      { from: 'css/', to: 'static/css/' },
+      // { from: 'css/', to: 'static/css/' },
   ])
   ]
 });
