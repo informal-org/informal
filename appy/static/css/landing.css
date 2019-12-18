@@ -156,7 +156,13 @@ h6{font-size: 1.4rem; letter-spacing: 0; line-height: 1.2} */
 @media (min-width: 768px) {
   .contentWrapper {
     @apply px-16;
-  }  
+  }
+}
+
+@media (max-width: 768px) {
+  .splash-image {
+    padding-top: 48px;
+  }
 }
 
 
@@ -173,4 +179,17 @@ h6{font-size: 1.4rem; letter-spacing: 0; line-height: 1.2} */
 }
 
 .landing-footer {
+}
+
+.splash-text {
+  min-width: 400px;
+}
+
+.splash-image {
+  min-width: 300px;
+}
+
+.headerSplash {
+  display: flex;
+  flex-wrap: wrap;
 }

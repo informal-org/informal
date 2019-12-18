@@ -32,8 +32,9 @@
     </header>
       
     <section class="bg-white">
-        <div class="contentWrapper relative pt-32 pb-32 md:pb-24">
-            <div class="inline-block pb-16">
+        <div class="contentWrapper headerSplash relative pt-32 pb-32 md:pb-24 pb-16">
+
+              <div class="inline-block splash-text">
                 <h1 class="fg-primary text-5xl inline-block max-w-lg font-sans font-bold pb-6">Build. Launch. <br>Grow.</h1> <br>
                 <h2 class="fg-base text-xl max-w-md inline-block">
                   AppAssembly is a rapid development platform to help you create and run dynamic web applications. 
@@ -45,12 +46,16 @@
                     Get started
                   </button>
                 </a>
+
+              </div>
+                
+                  <!-- shadow-lg my-8 border border-gray-500 rounded-lg -->
+
+              <div class="inline-block md:my-8 splash-image">
+                <img src="{% static 'images/editor_mbp.png' %}" class="float-right"/>
+              </div>
                 
 
-                <img src="{% static 'images/aa_editor_screen.png' %}"/>
-                
-
-            </div>
         
             <!-- <img class="shadow-lg xl:mx-12 vertical-top max-width-sm inline-block" width="450px" src="static/images/screenshot.png"/> -->
 
