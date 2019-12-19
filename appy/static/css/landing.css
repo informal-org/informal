@@ -163,6 +163,11 @@ h6{font-size: 1.4rem; letter-spacing: 0; line-height: 1.2} */
   .splash-image {
     padding-top: 48px;
   }
+
+  .flex-element {
+    flex-basis: 1;
+    flex-wrap: wrap;
+  }
 }
 
 
@@ -192,4 +197,14 @@ h6{font-size: 1.4rem; letter-spacing: 0; line-height: 1.2} */
 .headerSplash {
   display: flex;
   flex-wrap: wrap;
+}
+
+.flex-row {
+  display: flex;
+  flex-wrap: wrap;  
+}
+
+.flex-element {
+  flex-grow: 1;
+  flex-basis: 0;
 }
