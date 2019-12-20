@@ -34,5 +34,5 @@ urlpatterns = [
     path('healthz', healthcheck),
 
 
-    path(r'^accounts/', include('allauth.urls')),
+    path(r'accounts/', include('allauth.urls')),
 ]
