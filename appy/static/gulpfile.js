@@ -17,10 +17,10 @@ function build_css() {
 }
 
 function build_sass() {
-  return gulp.src('css/**/*.scss')
+  return src('css/**/*.scss')
   .pipe(sass().on('error',sass.logError))
   .pipe(postcss())
-  .pipe(gulp.dest('dist/static/css'));
+  .pipe(dest('dist/static/css'));
 
 }
 

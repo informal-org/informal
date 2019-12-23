@@ -32,4 +32,7 @@ urlpatterns = [
     path('private/db_test', db_test),
 
     path('healthz', healthcheck),
+
+
+    path(r'accounts/', include('allauth.urls')),
 ]

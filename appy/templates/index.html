@@ -29,30 +29,36 @@
 
       </nav>
     </header>
-      
+     
     <!-- contentWrapper headerSplash relative pt-32 pb-32 md:pb-24 pb-16 -->
-    <section class="bg-white">
-      <div class="flex-element splash-text">
-        <h1 class="fg-primary text-5xl inline-block max-w-lg font-sans font-bold pb-6">Build. Launch. <br>Grow.</h1> <br>
-        <h2 class="fg-base text-xl max-w-md inline-block">
-          AppAssembly is a rapid development platform to help you create and run dynamic web applications. 
-        </h2>
 
-        <br><br><br>
-        <a href="https://forms.gle/BMuovMfLD6JF5MfcA">
-          <button class="btn-cta">
-            Get started
-          </button>
-        </a>
+    <section class="container md:my-48 my-24">
+      <div class="row">
+        <div class="col-md-6 splash-text">
+          <h1 class="fg-primary text-5xl inline-block max-w-lg font-sans font-bold pb-6">Build. Launch. <br>Grow.</h1> <br>
+          <h2 class="fg-base text-xl max-w-md inline-block">
+            AppAssembly is a rapid development platform to help you create and run dynamic web applications. 
+          </h2>
+
+          <br><br><br>
+          <a href="https://forms.gle/BMuovMfLD6JF5MfcA">
+            <button class="btn-cta">
+              Get started
+            </button>
+          </a>
+        </div>
+          
+        <!-- shadow-lg my-8 border border-gray-500 rounded-lg -->
+
+        <div class="col-md-6 md:my-8 md:flex-shrink-0">
+          <img src="{% static 'images/editor_mbp.png' %}" class="float-right"/>
+        </div>
+
       </div>
-        
-      <!-- shadow-lg my-8 border border-gray-500 rounded-lg -->
-
-      <div class="flex-element md:my-8 md:flex-shrink-0">
-        <img src="{% static 'images/editor_mbp.png' %}" class="float-right"/>
-      </div>
-
     </section>
+
+
+  <div class="container-fluid">  
            
     
     <div class="bg-gray-100">
@@ -96,13 +102,16 @@
     </div>
 
 
-    <footer class="landing-footer bg-black fg-inverse">
+    <footer class="row landing-footer bg-black fg-inverse">
 
       <div class="contentWrapper py-16">
         &copy; 2020 AppAssembly
       </div>
 
     </footer>
+
+
+  </div>
 
 
   </body>
