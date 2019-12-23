@@ -33,6 +33,9 @@ urlpatterns = [
 
     path('healthz', healthcheck),
 
-
     path(r'accounts/', include('allauth.urls')),
+
+    path(r'terms', TemplateView.as_view(template_name="legal/terms.html")),
+    path(r'privacy', TemplateView.as_view(template_name="legal/privacy.html")),
+
 ]
