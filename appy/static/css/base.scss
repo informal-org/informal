@@ -185,12 +185,6 @@ Imported from arevel
   padding: 0.5rem 1.5rem;
 }
 
-.pull-right {
-  float: right;
-}
-
-
-
 .navbar-nav {
   flex-direction: row;
 }
@@ -207,14 +201,6 @@ ul.unstyled {
   list-style-type: none;
 }
 
-.italics {
-  font-style: italic;
-}
-
-.centered {
-  text-align: center;
-}
-
 .blockquote {
   font-style: italic;
   padding: 1.25rem 0;
@@ -226,28 +212,23 @@ ul.unstyled {
   margin-bottom: 3rem;
 }
 
-footer {
-  margin-top: 60px;
-  margin-bottom: 30px;
-  text-align: center;
-  background-color: transparent;
-}
-
 .btn-outline-primary:hover a {
   color: white;
 }
 
+.SpotlightContainer {
+  max-width: 540px;
+}
 
 /* Mobile */
 @media only screen and (max-width: 600px) {
-  .DataValue {
-      width: 100%;
-      margin-left: 0;
-      display: block;
-  }
-
   .SpotlightContainer {
       margin: 0 auto 30px auto;
   }
 }
 
+
+/* App base style */
+.djaaform .form-group {
+  margin: 1rem 0;
+}

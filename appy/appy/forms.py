@@ -6,11 +6,16 @@ from django.contrib.auth.models import User
 
 
 class ArevelSignupForm(SignupForm):
-    first_name = forms.CharField(max_length=30, label='First Name')
-    last_name = forms.CharField(max_length=30, label='Last Name', required=False)
+    full_name = forms.CharField(max_length=100, label='Full name')
+
+    field_order = ['full_name', 'email', 'password1']
 
     def signup(self, request, user):
-        user.first_name = self.cleaned_data['first_name']
-        user.last_name = self.cleaned_data.get('last_name', '')
+        full_name = self.cleaned_data['full_name']
+        parts = full_name.split(" ")
+        first_name = parts[0]
+        last_name = " ".join(parts[1:])
+        user.first_name = first_name
+        user.last_name = last_name
         user.save()
         return user

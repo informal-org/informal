@@ -19,15 +19,18 @@
       
   </head>
   <body>
+    {% block body %}
 
     {% block navbar %}
       {% include "_navbar.html" %}
     {% endblock %}
-      
+    
     {% block content %}
     {% endblock %}
 
     {% block extra_js %}
+    {% endblock %}
+
     {% endblock %}
 
   </body>
