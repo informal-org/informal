@@ -1,12 +1,9 @@
 {% load account %}
-Welcome to Arevel!
+Welcome to AppAssembly!
 
-Thank you for signing up for the Arevel programming environment!
-
-To verify your account, please go to {{ activate_url }}.
-
+AppAssembly is to rapid development platform to help you build and launch your web app.
+To complete your registration, verify your email by going to: 
+{{ activate_url }}
 
 If you have any questions for us, just reply to this email and we will get right back to you.
-
-
 

@@ -5,7 +5,7 @@ from django.forms import ModelForm
 from django.contrib.auth.models import User
 
 
-class ArevelSignupForm(SignupForm):
+class AppySignupForm(SignupForm):
     full_name = forms.CharField(max_length=100, label='Full name')
 
     field_order = ['full_name', 'email', 'password1']
