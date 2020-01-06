@@ -8,7 +8,7 @@ import string
 # Create your models here.
 class App(models.Model):
     name = models.CharField(max_length=64)
-    # slug = models.SlugField(max_length=64, unique=True)
+    slug = models.SlugField(max_length=30, unique=True, db_index=True)
     domain = models.CharField(max_length=64, db_index=True, unique=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     # environment

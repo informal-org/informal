@@ -23,6 +23,11 @@ from editor.views import *
 
 urlpatterns = [
     path('', TemplateView.as_view(template_name="index.html")),
+
+    path('apps', AppListView.as_view()),
+    path('apps/create', AppCreateView.as_view()),
+    path('apps/<slug:slug>/edit', AppEditView.as_view()),
+
     path('editor', TemplateView.as_view(template_name="editor/index.html")),
     path('api/evaluate', evaluate),
     path('api/v1/', include('api.urls')),
@@ -37,5 +42,6 @@ urlpatterns = [
 
     path(r'terms', TemplateView.as_view(template_name="legal/terms.html")),
     path(r'privacy', TemplateView.as_view(template_name="legal/privacy.html")),
+
 
 ]

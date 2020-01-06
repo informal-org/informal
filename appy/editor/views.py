@@ -3,7 +3,7 @@ from django.http import HttpResponse, JsonResponse, HttpResponseServerError
 from django.views.generic.list import ListView
 from django.views.generic.detail import DetailView
 from django.views.generic.edit import CreateView, UpdateView
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -19,12 +19,25 @@ load_dotenv()
 def hello(request):
     return HttpResponse("hello")
 
-# class AppListView(LoginRequiredMixin, ListView):
-#     model = App
+class AppListView(LoginRequiredMixin, ListView):
+    model = App
 
-#     def get_queryset(self):
-#         return App.objects.filter(user=self.request.user)
-    
+    def get_queryset(self):
+        return App.objects.filter(user=self.request.user)
+
+
+class AppPermissionMixin(UserPassesTestMixin):
+    def test_func(self):
+        return self.get_object().user == self.request.user
+
+class AppEditView(LoginRequiredMixin, DetailView, AppPermissionMixin):
+    model = App
+
+class AppCreateView(LoginRequiredMixin, CreateView, AppPermissionMixin):
+    model = App
+    fields = ['name', 'slug']
+
+
 
 def check_app_permission(app, user):
     return app.user == user
@@ -38,6 +51,9 @@ def evaluate(request):
         })
     return HttpResponse(r.content, content_type="application/json")
 
+
+def create_app(request):
+    return HttpResponse("OK")
 
 def error_view(request):
     raise Exception("Intentionally thrown Error View")
