@@ -231,3 +231,19 @@ ul.unstyled {
 .djaaform .form-group {
   margin: 1rem 0;
 }
+
+.full-page {
+  min-height: 100%;
+  height: 100vh;
+}
+
+.content-card {
+  padding: 3rem;
+  border-radius: 5px;
+}
+
+.neu-shadow {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  
+  box-shadow: -6px -6px 26px 0 rgba(255, 255, 255, 0.83), 6px 6px 16px 0 rgba(210, 213, 214, 0.51);
+}
