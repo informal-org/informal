@@ -36,10 +36,27 @@ const cellsSlice = createSlice({
             state.byId[id] = {
                 "id": cell.id,
                 "input": cell.input,
+                "name": cell.name,
                 "type": "cell"
             };
             state.allIds.push(id);
             // Don't set state.modified since this is initialization
+        },
+        addCell: (state, action) => {
+            console.log("in add cell");
+            let id = 1;
+            if(state.allIds.length > 0) {
+                // Find the ID of the last cell and increment
+                id = state.allIds[state.allIds.length - 1] + 1;
+            }
+            console.log(id);
+            state.byId[id] = {
+                "id": id,
+                "name": "",
+                "input": "",
+                "type": "cell"
+            }
+            state.allIds.push(id);
         },
         setModified: (state, action) => {
             state.modified = true;
@@ -89,6 +106,7 @@ const setFocus = cellsSlice.actions.setFocus;
 const moveFocus = cellsSlice.actions.moveFocus;
 const setModified = cellsSlice.actions.setModified;
 const initCell = cellsSlice.actions.initCell;
+export const addCell = cellsSlice.actions.addCell;
 
 export const loadView = () => {
     return (dispatch, getState) => {
@@ -179,4 +197,4 @@ export const mapStateToProps = (state /*, ownProps*/) => {
     }
 }
 
-export const mapDispatchToProps = {setFocus, setInput, setName, reEvaluate, incWidth, incHeight, moveFocus, setModified, initCell}
+export const mapDispatchToProps = {setFocus, setInput, setName, reEvaluate, incWidth, incHeight, moveFocus, setModified, initCell, addCell}

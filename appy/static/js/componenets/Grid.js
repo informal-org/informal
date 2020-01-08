@@ -2,6 +2,7 @@ import React from "react";
 import GridCell from "./GridCell.js"
 import GridList from "./GridList.js"
 import ActionBar from "./ActionBar.js"
+import { addCell } from "../store.js"
 
 import { PageHeader, Button, Descriptions } from 'antd';
 
@@ -63,6 +64,12 @@ export default class Grid extends React.Component {
         if(this.props.focus){
             this.props.incHeight({id: this.props.focus, amt: -1})
         }
+    }
+    addCellClick = () => {
+        console.log("Doing add cell click")
+        console.log(addCell);
+        console.log(window.store);
+        window.store.dispatch(addCell())
     }
     isFocused = (cell) => {
         return this.props.focus === cell.id;
@@ -135,6 +142,8 @@ export default class Grid extends React.Component {
         
             <div className="Grid">
                 {cells}
+
+                <button className="btn btn-primary" onClick={this.addCellClick}> + </button>
             </div>
 
         </div>
