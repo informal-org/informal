@@ -50,6 +50,21 @@ spec:
               secretKeyRef:
                 name: appy-secrets
                 key: SECRET_KEY
+          - name: SENDGRID_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: appy-secrets
+              key: SENDGRID_API_KEY
+          - name: GOOG_OAUTH_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: appy-secrets
+              key: GOOG_OAUTH_CLIENT_ID
+          - name: GOOG_OAUTH_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: appy-secrets
+              key: GOOG_OAUTH_SECRET
         ports:
         - containerPort: 8000
         readinessProbe:
