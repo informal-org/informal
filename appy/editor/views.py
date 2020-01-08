@@ -38,7 +38,6 @@ class AppCreateView(LoginRequiredMixin, CreateView, AppPermissionMixin):
     fields = ['name', 'slug']
 
 
-
 def check_app_permission(app, user):
     return app.user == user
 

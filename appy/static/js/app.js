@@ -30,6 +30,7 @@ ReactDOM.render(
 
 import { Menu } from 'antd';
 import { Tree } from 'antd';
+import { loadView } from './store.js'
 
 const { SubMenu } = Menu;
 const { TreeNode } = Tree;
@@ -52,9 +53,13 @@ class Sidebar extends React.Component {
     }).then((apps) => {
       console.log("apps");
       console.log(apps);
+      window._aa_app = apps;
+      window._aa_viewid = apps['view_set'][0]['uuid'];
+
+      store.dispatch(loadView());
 
       parent.setState({
-        'views': apps[0]['view_set'],
+        'views': apps['view_set'],
         'openKeys': parent.state.openKeys
       })
       

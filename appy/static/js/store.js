@@ -5,65 +5,12 @@ import { CELL_MAX_WIDTH, CELL_MAX_HEIGHT } from './constants.js'
 
 const initialState = {
     cells: {
-        byId: {
-//             1: {
-//                 id: 1,
-//                 type: "cell",
-//                 name: "Count",
-//                 input: "1 + 1"
-//             },
-//             2: {
-//                 id: 2,
-//                 type: "cell",
-//                 name: "Name",
-//                 input: "true"
-// //                input: "@1 + 3"
-//             },
-            // "@3": {
-            //     id: "@3",
-            //     type: "list",
-            //     name: "List",
-            //     length: 3,
-            //     values: ["@4", "@5", "@6"]
-            // },
-            // "@4": {
-            //     id: "@4",
-            //     type: "listcell",
-            //     input: "1",
-            //     parent: "@3"
-            // },
-            // "@5": {
-            //     id: "@5",
-            //     type: "listcell",
-            //     input: "2",
-            //     parent: "3"
-            // },
-            // "@6": {
-            //     id: "@6",
-            //     type: "listcell",
-            //     input: "3",
-            //     parent: "3"
-            // },
-        },
+        byId: {},
         allIds: [], //"@3", "@4", "@5", "@6", 
         focus: null,  // ID of the element selected
-        modified: true,  // Allow initial evaluation
+        modified: false,  // Allow initial evaluation
     }
 }
-
-// 280
-for(var i = 1; i < 240; i++){
-    let id = i
-    
-    initialState.cells.byId[id] = {
-        "id": id,
-        "input": "",
-        "type": "cell"
-    }
-    initialState.cells.allIds.push(id);
-}
-
-
 
 const cellsSlice = createSlice({
     slice: 'cells',
@@ -82,7 +29,18 @@ const cellsSlice = createSlice({
             console.log(cell);
             cell.name = action.payload.name;
             state.modified = true;
-        },        
+        },
+        initCell: (state, action) => {
+            let id = action.payload.id;
+            let cell = action.payload;
+            state.byId[id] = {
+                "id": cell.id,
+                "input": cell.input,
+                "type": "cell"
+            };
+            state.allIds.push(id);
+            // Don't set state.modified since this is initialization
+        },
         setModified: (state, action) => {
             state.modified = true;
         },
@@ -130,7 +88,30 @@ const incHeight = cellsSlice.actions.incHeight;
 const setFocus = cellsSlice.actions.setFocus;
 const moveFocus = cellsSlice.actions.moveFocus;
 const setModified = cellsSlice.actions.setModified;
+const initCell = cellsSlice.actions.initCell;
 
+export const loadView = () => {
+    return (dispatch, getState) => {
+        fetch('/api/v1/views/' + window._aa_viewid + '?format=json').then((data) => {
+            return data.json();
+        }).then((view) => {
+            console.log("view is");
+            console.log(view);
+            window._aa_view = view;
+
+            var content = JSON.parse(view.content);
+            var body = content['body']
+    
+            for(var i = 0; i < body.length; i++) {
+                dispatch(initCell(body[i]))
+            }
+            dispatch(setModified())
+
+            dispatch(reEvaluate())
+        });
+        
+    }
+}
 
 const reEvaluate = () => {
     return (dispatch, getState) => {
@@ -139,8 +120,8 @@ const reEvaluate = () => {
             return
         }
         let parsed = parseEverything(state.cellsReducer.byId);
-        
-        apiPatch("/api/v1/views/2/?format=json", {
+
+        apiPatch("/api/v1/views/" + window._aa_viewid + "/?format=json", {
             'content': JSON.stringify(parsed)
         })
 
@@ -188,7 +169,7 @@ export const store = configureStore({
 window.store = store;
 
 // Initial evaluation
-store.dispatch(reEvaluate())
+
 
 export const mapStateToProps = (state /*, ownProps*/) => {
     return {
@@ -198,4 +179,4 @@ export const mapStateToProps = (state /*, ownProps*/) => {
     }
 }
 
-export const mapDispatchToProps = {setFocus, setInput, setName, reEvaluate, incWidth, incHeight, moveFocus, setModified}
+export const mapDispatchToProps = {setFocus, setInput, setName, reEvaluate, incWidth, incHeight, moveFocus, setModified, initCell}
