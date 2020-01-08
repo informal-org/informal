@@ -1,9 +1,35 @@
 {% extends "base.html" %}
+{% load static %}
+
+
+{% block extra_css %}
+<link href="{% static 'css/app.css' %}" rel="stylesheet">
+{% endblock %}
 
 {% block content %}
-<section class="bg-gray-100 full-page">
-    <div class="bg-white px-5 py-3">
-        <h1>App Detail</h1>
-    </div>
-</section>
+<div class="aa-root">
+    <section id="aa-sidebar">
+      <!-- <label>Views</label>
+      <div id="aa-sidebar-views"></div>
+
+      <label>Data</label>
+      <ul class="px-3">
+        <li>Users</li>
+        <li>Posts</li>
+      </ul>
+     -->
+    </section>
+        
+    <section id="aa-body"">
+        <div id="root"></div>
+    </section>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    window._aa_appid = "{{ object.slug|escapejs }}";
+</script>
+<script type="text/javascript" src="{% static 'js/app.js' %}"></script>
 {% endblock %}

@@ -3,7 +3,7 @@ from django.contrib.auth.models import User
 from django.utils.text import slugify
 import random
 import string
-
+import uuid
 
 # Create your models here.
 class App(models.Model):
@@ -26,13 +26,13 @@ class App(models.Model):
         return self.domain
 
     def get_absolute_url(self):
-        return '/apps/' + str(self.id)
+        return '/apps/' + str(self.slug) + "/edit"
 
 
 class View(models.Model):
     app = models.ForeignKey(App, on_delete=models.CASCADE)
     name = models.CharField(max_length=64, blank=True)
-    # slug = models.SlugField(max_length=64)
+    uuid = models.UUIDField(db_index=True, default=uuid.uuid4, editable=False)
 
     mime_type = models.CharField(max_length=64)
     remote_url = models.URLField(null=True, blank=True)

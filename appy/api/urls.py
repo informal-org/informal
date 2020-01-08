@@ -7,21 +7,25 @@ from rest_framework import routers, serializers, viewsets
 class ViewSerializer(serializers.ModelSerializer):
     class Meta:
         model = View
-        fields = ['id', 'name', 'mime_type', 'remote_url', 'content', 'pattern', 'method_get', 'method_post']
-        read_only_fields = ['id']
+        fields = ['name', 'mime_type', 'remote_url', 'content', 'pattern', 'method_get', 'method_post']
+        read_only_fields = ['uuid']
+        lookup_field = 'uuid'
 
 
 class AppSerializer(serializers.ModelSerializer):
     view_set = ViewSerializer(many=True)
     class Meta:
         model = App
-        fields = ['name', 'domain', 'view_set']
+        fields = ['name', 'slug', 'domain', 'view_set']
         read_only_fields = ['view_set']
+        lookup_field = 'slug'
 
 
 class AppViewSet(viewsets.ModelViewSet):
     queryset = App.objects.all()
     serializer_class = AppSerializer
+    # Restrict APP modification via the API
+    http_method_names = ['get', 'head']
 
     def get_queryset(self):
         return App.objects.filter(user=self.request.user)
