@@ -46,7 +46,7 @@ class Sidebar extends React.Component {
     console.log("Component will mount called")
 
     let parent = this;
-    fetch('/api/v1/apps/?format=json').then((data) => {
+    fetch('/api/v1/apps/' + window._aa_appid + '?format=json').then((data) => {
       console.log("got response");
       return data.json();
     }).then((apps) => {
@@ -58,7 +58,6 @@ class Sidebar extends React.Component {
         'openKeys': parent.state.openKeys
       })
       
-
     })
   }
 

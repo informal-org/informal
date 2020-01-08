@@ -7,13 +7,22 @@ from rest_framework import routers, serializers, viewsets
 class ViewSerializer(serializers.ModelSerializer):
     class Meta:
         model = View
-        fields = ['name', 'mime_type', 'remote_url', 'content', 'pattern', 'method_get', 'method_post']
+        fields = ['uuid', 'name', 'mime_type', 'remote_url', 'content', 'pattern', 'method_get', 'method_post']
         read_only_fields = ['uuid']
         lookup_field = 'uuid'
+        extra_kwargs = {
+            'url': {'lookup_field': 'slug'}
+        }
 
+class ViewSetSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = View
+        fields = ['uuid', 'name', 'mime_type', 'remote_url', 'method_get', 'method_post']
+        lookup_field = 'uuid'
+        read_only_fields = ['uuid']
 
 class AppSerializer(serializers.ModelSerializer):
-    view_set = ViewSerializer(many=True)
+    view_set = ViewSetSerializer(many=True)
     class Meta:
         model = App
         fields = ['name', 'slug', 'domain', 'view_set']
@@ -26,13 +35,16 @@ class AppViewSet(viewsets.ModelViewSet):
     serializer_class = AppSerializer
     # Restrict APP modification via the API
     http_method_names = ['get', 'head']
+    lookup_field = 'slug'
 
     def get_queryset(self):
         return App.objects.filter(user=self.request.user)
 
+
 class ViewViewSet(viewsets.ModelViewSet):
     queryset = View.objects.all()
     serializer_class = ViewSerializer
+    lookup_field = 'uuid'
 
     def get_queryset(self):
         return View.objects.filter(app__user=self.request.user)

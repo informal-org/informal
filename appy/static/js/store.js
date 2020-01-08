@@ -139,6 +139,7 @@ const reEvaluate = () => {
             return
         }
         let parsed = parseEverything(state.cellsReducer.byId);
+        
         apiPatch("/api/v1/views/2/?format=json", {
             'content': JSON.stringify(parsed)
         })
