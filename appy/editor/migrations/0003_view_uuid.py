@@ -4,6 +4,14 @@ from django.db import migrations, models
 import uuid
 
 
+# S/O 35281003: Setting up uuid by default will result in duplicate values
+def create_uuid(apps, schema_editor):
+    View = apps.get_model('editor', 'View')
+    for view in View.objects.all():
+        view.uuid = uuid.uuid4()
+        view.save()
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -14,6 +22,12 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='view',
             name='uuid',
-            field=models.UUIDField(db_index=True, default=uuid.uuid4, editable=False),
+            field=models.UUIDField(blank=True, null=True),
+        ),
+        migrations.RunPython(create_uuid),
+        migrations.AlterField(
+            model_name='view',
+            name='uuid',
+            field=models.UUIDField(db_index=True, default=uuid.uuid4, editable=False, unique=True),
         ),
     ]

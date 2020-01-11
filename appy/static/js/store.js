@@ -117,12 +117,31 @@ export const loadView = () => {
             console.log(view);
             window._aa_view = view;
 
-            var content = JSON.parse(view.content);
-            var body = content['body']
+            var content;
+            var body;
+            
+            if(view.content.length > 0) {
+                content = JSON.parse(view.content);
+                body = content['body']    
+            } else {
+                content = {}
+                body = []
+
+            }
     
             for(var i = 0; i < body.length; i++) {
                 dispatch(initCell(body[i]))
             }
+
+            for(var i = body.length; i < 255; i++) [
+                dispatch(initCell({
+                    'id': i, 
+                    'name': "",
+                    'input': '',
+                    'type': 'cell'
+                }))
+            ]
+
             dispatch(setModified())
 
             dispatch(reEvaluate())
