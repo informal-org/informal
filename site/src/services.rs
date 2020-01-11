@@ -91,6 +91,17 @@ pub fn dispatch(view: View) -> HttpResponse {
     }
      else if view.mime_type == "application/aasm" && view.content.is_some() {
         let req: EvalRequest = serde_json::from_str(&view.content.unwrap()).unwrap();
+        
+        let mut response_id: u64 = 0;
+        for cell in req.body.iter() {
+            if let Some(name) = &cell.name {
+                println!("{:?}", name);
+                if (name == "response") {
+                    response_id = cell.id;
+                }
+            }
+        }
+
         let results: Vec<CellResponse> = Vec::new();
 
         let mut inputs: Vec<String> = Vec::with_capacity(results.len());
@@ -101,7 +112,14 @@ pub fn dispatch(view: View) -> HttpResponse {
         let eval_res = interpret_all(req);
         println!("{:?}", eval_res);
         
-        let response_content = serde_json::to_string(&eval_res).unwrap();
+        let mut response_content = serde_json::to_string(&eval_res).unwrap();
+
+        for cell in eval_res.results.iter() {
+            if(cell.id == response_id) {
+                response_content = cell.output.clone();
+            }
+        }
+
         return HttpResponse::with_body(StatusCode::OK, Body::from(response_content))
     }
      else {
