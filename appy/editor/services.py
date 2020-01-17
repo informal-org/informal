@@ -1,3 +1,5 @@
+from editor.models import View
+
 def get_user_ip(request):
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
     if x_forwarded_for:
@@ -30,3 +32,13 @@ def get_user_properties(request, user=None):
         context["is_staff"] = user.is_staff
 
     return context
+
+
+def create_home_view(app):
+    view = View.objects.create(
+        app=app, 
+        name="home",
+        mime_type="application/aasm",
+        pattern="/",
+        pattern_regex="/")
+    return view

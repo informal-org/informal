@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<section class="bg-gray-100 full-page">
+    
+    <div class="bg-white container px-5 py-3 content-card">
+
+        <div class="max-w-md mx-auto">
+            <h1 class="">Create App</h1>
+
+            <form method="post" class="">
+                {% csrf_token %}
+
+                {{ form.non_field_errors }}
+
+                {{ form.source.errors }}
+                {{ form.source }}
+
+                {{ form | crispy }}
+
+
+
+
+                <input class="btn btn-primary my-4" type="submit" value="Create app">
+            </form>
+        </div>
+    </div>
+</section>
+{% endblock %}

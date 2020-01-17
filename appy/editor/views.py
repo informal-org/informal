@@ -9,6 +9,8 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.shortcuts import redirect
 from editor.models import App, View
+from editor.forms import CreateAppForm
+from editor.services import create_home_view
 import requests
 import json
 import os
@@ -35,7 +37,17 @@ class AppEditView(LoginRequiredMixin, DetailView, AppPermissionMixin):
 
 class AppCreateView(LoginRequiredMixin, CreateView, AppPermissionMixin):
     model = App
-    fields = ['name', 'slug']
+    form_class = CreateAppForm
+
+    def form_valid(self, form):
+        obj = form.save(commit=False)
+        obj.user = self.request.user
+        obj.domain = obj.slug + ".aasm.app"
+        response = super(AppCreateView, self).form_valid(form)
+        
+        create_home_view(obj)
+
+        return response
 
 
 def check_app_permission(app, user):
