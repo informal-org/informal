@@ -75,6 +75,7 @@ export default class Grid extends React.Component {
         return this.props.focus === cell.id;
     }
     render() {
+        console.log(this.props.view);
         const cells = this.props.cells.map((cell) => {
 
             if(cell.type === "cell"){
@@ -124,7 +125,7 @@ export default class Grid extends React.Component {
 <PageHeader
       ghost={false}
       onBack={() => window.history.back()}
-      title="Signup"
+      title={this.props.view}
       subTitle="New account creation page."
       extra={[
         <Button key="2">Preview</Button>,

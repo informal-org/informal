@@ -9,6 +9,13 @@ const initialState = {
         allIds: [], //"@3", "@4", "@5", "@6", 
         focus: null,  // ID of the element selected
         modified: false,  // Allow initial evaluation
+    },
+    view: {
+        uuid: '',
+        name: '',
+        pattern: '',
+        method_get: true,
+        method_post: true
     }
 }
 
@@ -16,6 +23,34 @@ const cellsSlice = createSlice({
     slice: 'cells',
     initialState: initialState.cells,
     reducers: {
+        initCell: (state, action) => {
+            let id = action.payload.id;
+            let cell = action.payload;
+            state.byId[id] = {
+                "id": cell.id,
+                "input": cell.input,
+                "name": cell.name,
+                "type": "cell"
+            };
+            state.allIds.push(id);
+            // Don't set state.modified since this is initialization
+        },
+        initCells: (state, action) => {
+            let cells = action.payload;
+            cells.forEach((cell) => {
+                let id = cell.id;
+
+                state.byId[id] = {
+                    "id": cell.id,
+                    "input": cell.input,
+                    "name": cell.name,
+                    "type": "cell"
+                };
+                state.allIds.push(id);                
+            });
+            
+            // Don't set state.modified since this is initialization
+        },        
         setInput: (state, action) => {
             let cell = state.byId[action.payload.id]
             console.log(action.payload.id);
@@ -29,18 +64,6 @@ const cellsSlice = createSlice({
             console.log(cell);
             cell.name = action.payload.name;
             state.modified = true;
-        },
-        initCell: (state, action) => {
-            let id = action.payload.id;
-            let cell = action.payload;
-            state.byId[id] = {
-                "id": cell.id,
-                "input": cell.input,
-                "name": cell.name,
-                "type": "cell"
-            };
-            state.allIds.push(id);
-            // Don't set state.modified since this is initialization
         },
         addCell: (state, action) => {
             console.log("in add cell");
@@ -93,7 +116,24 @@ const cellsSlice = createSlice({
             }
         }
     }
-})
+});
+
+const viewSlice = createSlice({
+    slice: 'view',
+    initialState: initialState.view,
+    reducers: {
+        initView: (state, action) => {
+            let view = action.payload;
+            console.log("Init view ");
+            console.log(view);
+            state.uuid = view.uuid;
+            state.name = view.name;
+            state.pattern = view.pattern;
+            state.method_get = view.method_get;
+            state.method_post = view.method_post;
+        }
+    }
+});
 
 
 const setInput = cellsSlice.actions.setInput;
@@ -106,7 +146,10 @@ const setFocus = cellsSlice.actions.setFocus;
 const moveFocus = cellsSlice.actions.moveFocus;
 const setModified = cellsSlice.actions.setModified;
 const initCell = cellsSlice.actions.initCell;
+const initCells = cellsSlice.actions.initCells;
 export const addCell = cellsSlice.actions.addCell;
+
+export const initView = viewSlice.actions.initView;
 
 export const loadView = () => {
     return (dispatch, getState) => {
@@ -116,6 +159,7 @@ export const loadView = () => {
             console.log("view is");
             console.log(view);
             window._aa_view = view;
+            dispatch(initView(view));
 
             var content;
             var body;
@@ -126,21 +170,25 @@ export const loadView = () => {
             } else {
                 content = {}
                 body = []
-
             }
+
+            let newCells = [];
+
     
             for(var i = 0; i < body.length; i++) {
-                dispatch(initCell(body[i]))
+                newCells.push(body[i]);
             }
 
-            for(var i = body.length; i < 255; i++) [
-                dispatch(initCell({
+            for(var i = body.length; i < 255; i++) {
+                newCells.push({
                     'id': i, 
                     'name': "",
                     'input': '',
                     'type': 'cell'
-                }))
-            ]
+                });
+            }
+
+            dispatch(initCells(newCells));
 
             dispatch(setModified())
 
@@ -197,9 +245,11 @@ const reEvaluate = () => {
 }
 
 const cellsReducer = cellsSlice.reducer;
+const viewReducer = viewSlice.reducer;
 export const store = configureStore({
   reducer: {
-    cellsReducer
+    cellsReducer,
+    viewReducer
   }
 })
 
@@ -212,8 +262,10 @@ export const mapStateToProps = (state /*, ownProps*/) => {
     return {
         cells: state.cellsReducer.allIds.map((id) => state.cellsReducer.byId[id]),
         byId: state.cellsReducer.byId,
-        focus: state.cellsReducer.focus
+        focus: state.cellsReducer.focus,
+        view: state.viewReducer.view
     }
 }
 
-export const mapDispatchToProps = {setFocus, setInput, setName, reEvaluate, incWidth, incHeight, moveFocus, setModified, initCell, addCell}
+export const mapDispatchToProps = {setFocus, setInput, setName, reEvaluate, incWidth, incHeight, 
+    moveFocus, setModified, initCell, addCell, initView}
