@@ -2,6 +2,7 @@ import React from "react";
 import GridCell from "./GridCell.js"
 import GridList from "./GridList.js"
 import ActionBar from "./ActionBar.js"
+import EditableLabel from "./EditableLabel.js"
 import { addCell } from "../store.js"
 
 import { PageHeader, Button, Descriptions } from 'antd';
@@ -74,8 +75,16 @@ export default class Grid extends React.Component {
     isFocused = (cell) => {
         return this.props.focus === cell.id;
     }
+    setMethodGet = (event) => {
+        console.log(event);
+    }
+    setMethodPost = (event) => {
+        console.log(event);
+    }
+    setViewName = (event) => {
+        console.log("set view name called")
+    }
     render() {
-        console.log(this.props.view);
         const cells = this.props.cells.map((cell) => {
 
             if(cell.type === "cell"){
@@ -121,23 +130,28 @@ export default class Grid extends React.Component {
         }).filter((r) => r !== undefined) // Filter out un-rendered cells
         
         return <div>
-
 <PageHeader
       ghost={false}
+      backIcon={false}  // Don't display back button
       onBack={() => window.history.back()}
-      title={this.props.view}
-      subTitle="New account creation page."
+      title={<EditableLabel 
+        value={this.props.view_name}
+        onSave={this.setViewName}
+      ></EditableLabel>}
+      subTitle=""
       extra={[
         <Button key="2">Preview</Button>,
-        <Button key="1" type="primary">
-          Publish
-        </Button>,
+        <Button key="1" type="primary">Publish</Button>,
       ]}
     >
       <Descriptions size="small" column={3}>
-        <Descriptions.Item label="Route">/accounts/signup</Descriptions.Item>
-        <Descriptions.Item label="Methods">GET, POST</Descriptions.Item>
-        <Descriptions.Item label="Permissions">None</Descriptions.Item>
+        <Descriptions.Item label="Route">{this.props.view_pattern}</Descriptions.Item>
+        <Descriptions.Item label="Methods">
+            <input type="checkbox" checked={this.props.view_m_get} onChange={this.setMethodGet}></input> GET &nbsp;
+            <input type="checkbox" checked={this.props.view_m_post} onChange={this.setMethodPost}></input> POST
+            
+        </Descriptions.Item>
+      
       </Descriptions>
     </PageHeader>            
         

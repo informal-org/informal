@@ -167,3 +167,8 @@
 #aa-sidebar label {
   font-weight: bold;
 }
+
+.edit-label {
+  font-size: 0.75rem;
+  padding-left: 0.75rem;
+}

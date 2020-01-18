@@ -263,7 +263,10 @@ export const mapStateToProps = (state /*, ownProps*/) => {
         cells: state.cellsReducer.allIds.map((id) => state.cellsReducer.byId[id]),
         byId: state.cellsReducer.byId,
         focus: state.cellsReducer.focus,
-        view: state.viewReducer.view
+        view_name: state.viewReducer.name,
+        view_pattern: state.viewReducer.pattern,
+        view_m_get: state.viewReducer.method_get,
+        view_m_post: state.viewReducer.method_post
     }
 }
 
