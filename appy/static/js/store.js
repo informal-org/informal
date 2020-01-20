@@ -131,6 +131,24 @@ const viewSlice = createSlice({
             state.pattern = view.pattern;
             state.method_get = view.method_get;
             state.method_post = view.method_post;
+        },
+        patchView: (state, action) => {
+            // Allow patching multiple fields in a single call
+            let mod = action.payload;
+            if ("name" in mod) {
+                state.name = mod.name;
+            }
+            if ("pattern" in mod) {
+                state.pattern = mod.pattern;
+            }
+            if ("method_get" in mod){
+                state.method_get = mod.method_get;
+            }
+            if ("method_post" in mod) {
+                state.method_post = mod.method_post;
+            }
+
+            apiPatch("/api/v1/views/" + window._aa_viewid + "/?format=json", action.payload)
         }
     }
 });
@@ -150,6 +168,7 @@ const initCells = cellsSlice.actions.initCells;
 export const addCell = cellsSlice.actions.addCell;
 
 export const initView = viewSlice.actions.initView;
+export const patchView = viewSlice.actions.patchView;
 
 export const loadView = () => {
     return (dispatch, getState) => {
@@ -271,4 +290,4 @@ export const mapStateToProps = (state /*, ownProps*/) => {
 }
 
 export const mapDispatchToProps = {setFocus, setInput, setName, reEvaluate, incWidth, incHeight, 
-    moveFocus, setModified, initCell, addCell, initView}
+    moveFocus, setModified, initCell, addCell, initView, patchView}

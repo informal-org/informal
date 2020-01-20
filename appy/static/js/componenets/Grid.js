@@ -3,7 +3,7 @@ import GridCell from "./GridCell.js"
 import GridList from "./GridList.js"
 import ActionBar from "./ActionBar.js"
 import EditableLabel from "./EditableLabel.js"
-import { addCell } from "../store.js"
+import { addCell, patchView } from "../store.js"
 
 import { PageHeader, Button, Descriptions } from 'antd';
 
@@ -81,8 +81,11 @@ export default class Grid extends React.Component {
     setMethodPost = (event) => {
         console.log(event);
     }
-    setViewName = (event) => {
+    setViewName = (newName) => {
         console.log("set view name called")
+        window.store.dispatch(patchView({
+            "name": newName
+        }));
     }
     render() {
         const cells = this.props.cells.map((cell) => {
@@ -135,6 +138,7 @@ export default class Grid extends React.Component {
       backIcon={false}  // Don't display back button
       onBack={() => window.history.back()}
       title={<EditableLabel 
+        key={this.props.view_name}      // Ensure component is re-rendered when name is fetched
         value={this.props.view_name}
         onSave={this.setViewName}
       ></EditableLabel>}

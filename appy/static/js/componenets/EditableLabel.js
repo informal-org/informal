@@ -3,8 +3,11 @@ import React from "react";
 export default class EditableLabel extends React.Component {
     constructor(props) {
         super(props);
+        console.log("initializing");
+        console.log(props);
         this.state = {
-            isEdit: false
+            isEdit: false,
+            editValue: this.props.value
         }
     }
     setEdit = () => {
@@ -12,17 +15,25 @@ export default class EditableLabel extends React.Component {
             isEdit: true
         })
     }
-    saveInput = () => {
-        this.props.onSave();
+    saveInput = (event) => {
+        this.props.onSave(this.state.editValue);
         this.setState({
             isEdit: false
+        })
+
+        event.preventDefault();
+        return true;
+    }
+    editInput = (event) => {
+        this.setState({
+            editValue: event.target.value
         })
     }
     render() {
         if(this.state.isEdit) {
-            return <form>
-                <input type="text" value={this.props.input}></input>
-                <input type="submit" onSubmit={this.saveInput}/>
+            return <form className="form-group editable-label" onSubmit={this.saveInput}>
+                <input type="text" value={this.state.editValue} onChange={this.editInput} className="form-control inline-block w-auto mx-4"></input>
+                <input type="submit" value="Save" className="btn btn-secondary"/>
             </form>
         } else {
             var editStyle = {
