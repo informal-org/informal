@@ -67,9 +67,6 @@ export default class Grid extends React.Component {
         }
     }
     addCellClick = () => {
-        console.log("Doing add cell click")
-        console.log(addCell);
-        console.log(window.store);
         window.store.dispatch(addCell())
     }
     isFocused = (cell) => {
@@ -85,6 +82,11 @@ export default class Grid extends React.Component {
         console.log("set view name called")
         window.store.dispatch(patchView({
             "name": newName
+        }));
+    }
+    setViewPattern = (newPattern) => {
+        window.store.dispatch(patchView({
+            "pattern": newPattern
         }));
     }
     render() {
@@ -149,7 +151,13 @@ export default class Grid extends React.Component {
       ]}
     >
       <Descriptions size="small" column={3}>
-        <Descriptions.Item label="Route">{this.props.view_pattern}</Descriptions.Item>
+        <Descriptions.Item label="Route">
+        <EditableLabel 
+        key={this.props.view_pattern}      // Ensure component is re-rendered when name is fetched
+        value={this.props.view_pattern}
+        onSave={this.setViewPattern}
+      ></EditableLabel>
+        </Descriptions.Item>
         <Descriptions.Item label="Methods">
             <input type="checkbox" checked={this.props.view_m_get} onChange={this.setMethodGet}></input> GET &nbsp;
             <input type="checkbox" checked={this.props.view_m_post} onChange={this.setMethodPost}></input> POST

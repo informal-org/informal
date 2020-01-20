@@ -31,9 +31,11 @@ export default class EditableLabel extends React.Component {
     }
     render() {
         if(this.state.isEdit) {
-            return <form className="form-group editable-label" onSubmit={this.saveInput}>
-                <input type="text" value={this.state.editValue} onChange={this.editInput} className="form-control inline-block w-auto mx-4"></input>
-                <input type="submit" value="Save" className="btn btn-secondary"/>
+            return <form className="form-group container editable-label" onSubmit={this.saveInput}>
+                <div className="row">
+                    <input type="text" value={this.state.editValue} onChange={this.editInput} className="form-control inline-block col-md-9"></input>
+                    <input type="submit" value="Save" className="btn btn-secondary col-md-3"/>
+                </div>
             </form>
         } else {
             var editStyle = {
