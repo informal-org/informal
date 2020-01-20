@@ -38,7 +38,7 @@ pub fn repr_atom(atom: &Atom) -> String {
             format!("{}", repr_float(*num))
         },
         Atom::StringValue(str_val) => {
-            format!("\"{}\"", str_val)
+            format!("{}", str_val)      // "\"{}\""
         }
         Atom::SymbolValue(symbol) => {
             repr_symbol(symbol)
