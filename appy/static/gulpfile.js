@@ -1,4 +1,4 @@
-const { src, dest, parallel, watch } = require('gulp');
+const { src, dest, parallel, series, watch } = require('gulp');
 const postcss = require('gulp-postcss');
 const purgecss = require('gulp-purgecss');
 const sass = require('gulp-sass');
@@ -6,22 +6,26 @@ const minifyCSS = require('gulp-csso');
 const concat = require('gulp-concat');
 
 
-function build_css() {
+async function build_css() {
+  console.log("Build css");
   return src('css/*.css')
     .pipe(postcss())
     .pipe(minifyCSS())
     .pipe(dest('dist/static/css'))
 }
 
-function build_sass() {
+async function build_sass() {
+  console.log("Build sass");
   return src('css/**/*.scss')
   .pipe(sass().on('error',sass.logError))
   .pipe(postcss())
+  .pipe(minifyCSS())
   .pipe(dest('dist/static/css'));
 }
 
-function deploy_sass() {
-  src('css/**/*.scss')
+async function deploy_sass() {
+  console.log("Deploy sass");
+  await src('css/**/*.scss')
   .pipe(sass().on('error',sass.logError))
   .pipe(postcss())
   .pipe(minifyCSS())
@@ -41,19 +45,23 @@ function deploy_sass() {
 
 }
 
-function watch_css() {
+async function watch_css() {
   watch(['css/*.css'], build_css);  
   watch(['css/*.scss'], build_sass);
 }
 
-function deploy_css(cb) {
-  parallel(deploy_sass, build_css);
+async function deploy_css(cb) {
+  console.log("Deploying css.")
+  //   series('deploy_sass', 'build_css');
+  await deploy_sass();
+  await build_css();
   cb();
 }
 
 // // exports.js = js;
 exports.watch = watch_css;
-
+exports.deploy_sass = deploy_sass;
+exports.build_css = build_css;
 exports.deploy = deploy_css;
 
 // // exports.default = parallel(css, js);
