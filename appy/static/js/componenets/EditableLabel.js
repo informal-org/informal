@@ -3,8 +3,6 @@ import React from "react";
 export default class EditableLabel extends React.Component {
     constructor(props) {
         super(props);
-        console.log("initializing");
-        console.log(props);
         this.state = {
             isEdit: false,
             editValue: this.props.value
@@ -39,8 +37,8 @@ export default class EditableLabel extends React.Component {
             </form>
         } else {
             var editStyle = {
-                fontSize: "0.75rem",
-                paddingLeft: "0.75rem"
+                fontSize: "0.65rem",
+                paddingLeft: "0.65rem"
             }
 
             return <div>

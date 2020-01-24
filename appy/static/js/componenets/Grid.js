@@ -158,12 +158,14 @@ export default class Grid extends React.Component {
         onSave={this.setViewPattern}
       ></EditableLabel>
         </Descriptions.Item>
-        <Descriptions.Item label="Methods">
+
+        {/*
+         // Routing methods disabled for MVP currently
+         <Descriptions.Item label="Methods">
             <input type="checkbox" checked={this.props.view_m_get} onChange={this.setMethodGet}></input> GET &nbsp;
             <input type="checkbox" checked={this.props.view_m_post} onChange={this.setMethodPost}></input> POST
-            
         </Descriptions.Item>
-      
+       */}
       </Descriptions>
     </PageHeader>            
         
