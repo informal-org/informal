@@ -77,12 +77,20 @@ class Sidebar extends React.Component {
     console.log('selected', selectedKeys, info);
   };
 
+  createViewBtn() {
+    return <form method="POST"
+          action={"/apps/" + window._aa_appid + "/views/create"}>
+            <button className="pull-right ant-btn btn-primary" type="submit">New View</button>
+          </form>
+  }
+
   renderViews() {
     // TODO: Nest these properly
     let elements = [];
     let id = 0;
     this.state.views.forEach((view) => {
       let key = '0-' + id;
+      let link = <a href={"/apps/" + window._aa_app + "views/" + view.uuid} >{view.name}</a>
       let elem = <TreeNode title={view.name} key={key}></TreeNode>
       id+=1;
       elements.push(elem);
@@ -96,6 +104,7 @@ class Sidebar extends React.Component {
       style={{ paddingLeft: 24 }}
     >
     {elements}
+    <TreeNode key="create" title={this.createViewBtn()}></TreeNode>
     </Tree>
   }
 

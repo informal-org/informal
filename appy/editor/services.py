@@ -1,4 +1,5 @@
 from editor.models import View
+import shortuuid
 
 def get_user_ip(request):
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
@@ -42,3 +43,4 @@ def create_home_view(app):
         pattern="/",
         pattern_regex="/")
     return view
+

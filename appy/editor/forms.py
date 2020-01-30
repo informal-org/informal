@@ -10,4 +10,4 @@ class CreateAppForm(ModelForm):
     class Meta:
         model = App
         fields = ['name', 'slug']
-    
+

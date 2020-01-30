@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils.text import slugify
+from editor.utils import *
 import random
 import string
 import uuid
@@ -49,6 +50,10 @@ class View(models.Model):
 
     def __str__(self):
         return self.name
+
+    def get_edit_url(self):
+        return "/apps/%s/views/%s/edit" % (str(self.app.slug), str(encode_uuid(self.uuid)))
+
 
 
 # class Route(models.Model):

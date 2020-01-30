@@ -27,6 +27,11 @@ urlpatterns = [
     path('apps', AppListView.as_view()),
     path('apps/create', AppCreateView.as_view()),
     path('apps/<slug:slug>/edit', AppEditView.as_view()),
+    path('apps/<slug:slug>/views/create', ViewCreateView.as_view()),
+
+    # apps/test/edit
+    # apps/test/views/create
+    # apps/test/views/e123c32c/edit
     
     path('api/evaluate', evaluate),
     path('api/v1/', include('api.urls')),

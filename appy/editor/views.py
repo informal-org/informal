@@ -49,6 +49,22 @@ class AppCreateView(LoginRequiredMixin, CreateView, AppPermissionMixin):
 
         return response
 
+class ViewCreateView(LoginRequiredMixin, DetailView, AppPermissionMixin):
+    model = App
+    
+    def post(self):
+        app = self.get_object()
+        view = View.objects.create(
+            app=app, 
+            name="New View",
+            mime_type="application/aasm",
+            pattern="/new_view",
+            pattern_regex="/new_view")
+            
+        return redirect(view.get_edit_url())
+
+
+
 
 def check_app_permission(app, user):
     return app.user == user
