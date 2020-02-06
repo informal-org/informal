@@ -56,6 +56,13 @@ const cellsSlice = createSlice({
             console.log(action.payload.id);
             console.log(cell);
             cell.input = action.payload.input;
+
+            // Clear output for any emptied cells which would be excluded in the response
+            if(cell.input.trim() === "") {
+                cell.output = "";
+                cell.error = "";
+            }
+
             state.modified = true;
         },
         setName: (state, action) => {
