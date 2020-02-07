@@ -65,3 +65,6 @@ kubectl get pods
 kubectl exec <pod-name> -- python /app/manage.py migrate
 
 
+# DNS debug
+kubectl exec -ti dnsutils -- nslookup aasm-service.default
+
