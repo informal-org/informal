@@ -39,7 +39,7 @@ class Sidebar extends React.Component {
 
   state = {
     views: [],
-    openKeys: ['views', 'data'],
+//    openKeys: ['views', 'data'],
   };
 
   componentWillMount = () => {
@@ -59,18 +59,18 @@ class Sidebar extends React.Component {
 
       parent.setState({
         'views': apps['view_set'],
-        'openKeys': parent.state.openKeys
+//        'openKeys': parent.state.openKeys
       })
       
     })
   }
 
-  // Navbar sub menu open/close
-  onOpenChange = openKeys => {
-    this.setState({
-        openKeys: openKeys
-    })
-  };
+  // // Navbar sub menu open/close
+  // onOpenChange = openKeys => {
+  //   this.setState({
+  //       openKeys: openKeys
+  //   })
+  // };
 
   // Tree menu select
   onSelect = (selectedKeys, info) => {
@@ -90,8 +90,8 @@ class Sidebar extends React.Component {
     let id = 0;
     this.state.views.forEach((view) => {
       let key = '0-' + id;
-      let link = <a href={"/apps/" + window._aa_app + "views/" + view.uuid} >{view.name}</a>
-      let elem = <TreeNode title={view.name} key={key}></TreeNode>
+      let link = <a href={"/apps/" + window._aa_appid + "/views/" + view.uuid} >{view.name}</a>
+      let elem = <TreeNode title={link} key={key}></TreeNode>
       id+=1;
       elements.push(elem);
     })
@@ -109,37 +109,78 @@ class Sidebar extends React.Component {
   }
 
   render() {
+    // Width 180-256
     return (
-      <Menu
-        mode="inline"
-        openKeys={this.state.openKeys}
-        onOpenChange={this.onOpenChange}
-        style={{ width: "100%", minWidth: 180, maxWidth: 256, height: "100%" }}
-      >
-        <SubMenu
-          key="views"
-          title={
-            <span>
-              <span>Views</span>
-            </span>
-          }
-        >
-          {this.renderViews()}
+      <nav id="aa-sidebar">
+        <section>
+          <h3 class="aa-sidebar-section">Views</h3>
+          <ul class="list-unstyled">
+            <li>One</li>
+            <li>Two</li>
+            <li>Two</li>
+          </ul>
+        </section>
+        <ul class="list-unstyled">
+            <li class="active">
+                <a href="#homeSubmenu" data-toggle="collapse" aria-expanded="false" class="dropdown-toggle">Home</a>
+                <ul class="collapse list-unstyled" id="homeSubmenu">
+                    <li>
+                        <a href="#">Home 1</a>
+                    </li>
+                    <li>
+                        <a href="#">Home 2</a>
+                    </li>
+                    <li>
+                        <a href="#">Home 3</a>
+                    </li>
+                </ul>
+            </li>
+            <li>
+                <a href="#">About</a>
+            </li>
+            <li>
+                <a href="#pageSubmenu" data-toggle="collapse" aria-expanded="false" class="dropdown-toggle">Pages</a>
+                <ul class="collapse list-unstyled" id="pageSubmenu">
+                    <li>
+                        <a href="#">Page 1</a>
+                    </li>
+                    <li>
+                        <a href="#">Page 2</a>
+                    </li>
+                    <li>
+                        <a href="#">Page 3</a>
+                    </li>
+                </ul>
+            </li>
+            <li>
+                <a href="#">Portfolio</a>
+            </li>
+            <li>
+                <a href="#">Contact</a>
+            </li>
+        </ul>
 
-        </SubMenu>
-        <SubMenu
-          key="data"
-          title={
-            <span>
-              <span>Data</span>
-            </span>
-          }
-        >
-          <Menu.Item key="5">Users</Menu.Item>
-          <Menu.Item key="6">Posts</Menu.Item>
-          <Menu.Item key="7">Comments</Menu.Item>
-        </SubMenu>
-      </Menu>
+        
+      </nav>
+
+      // <Menu
+      //   mode="inline"
+      //   openKeys={this.state.openKeys}
+      //   onOpenChange={this.onOpenChange}
+      //   style={{ width: "100%", minWidth: 180, maxWidth: 256, height: "100%" }}
+      // >
+      //   <SubMenu
+      //     key="views"
+      //     title={
+      //       <span>
+      //         <span>Views</span>
+      //       </span>
+      //     }
+      //   >
+      //     {this.renderViews()}
+
+      //   </SubMenu>
+      // </Menu>
     );
   }
 }
@@ -179,4 +220,4 @@ class Sidebar extends React.Component {
 //   }
 // }
 
-ReactDOM.render(<Sidebar />, document.getElementById('aa-sidebar'));
+ReactDOM.render(<Sidebar />, document.getElementById('aa-sidebar-wrapper'));

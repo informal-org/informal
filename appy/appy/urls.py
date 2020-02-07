@@ -40,6 +40,8 @@ urlpatterns = [
     path('private/config/', config_view),
     path('private/db_test', db_test),
 
+    path('private/aasm_test', aasm_test),
+
     path('healthz', healthcheck),
 
     path(r'accounts/', include('allauth.urls')),

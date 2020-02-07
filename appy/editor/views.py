@@ -71,7 +71,7 @@ def check_app_permission(app, user):
 
 
 def evaluate(request):
-    r = requests.post('http://localhost:9080/api/evaluate', 
+    r = requests.post(settings.AASM_INTERNAL_HOST + '/api/evaluate', 
         data = request.body,
         headers = {
             'Content-Type': 'application/json'
@@ -95,6 +95,10 @@ def config_view(request):
 def db_test(request):
     elem = User.objects.first()
     return HttpResponse("OK")
+
+def aasm_test(request):
+    r = requests.get(settings.AASM_INTERNAL_HOST)
+    return HttpResponse(r.content)
 
 def healthcheck(request):
     return HttpResponse("OK")

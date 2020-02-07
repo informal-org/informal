@@ -172,3 +172,49 @@
   font-size: 0.75rem;
   padding-left: 0.75rem;
 }
+
+
+#aa-sidebar-wrapper {
+  display: flex;
+  align-items: stretch;
+}
+
+#aa-sidebar {
+  min-width: 180px;
+  max-width: 256px;
+  min-height: 100vh;
+  height: 100vh;
+
+  border-right: 1px solid #e8e8e8;
+
+  font-size: 14px;
+
+}
+
+#aa-sidebar.active {
+  margin-left: -250px;
+}
+
+.aa-sidebar-section {
+  font-size: 14px;
+  font-weight: normal;
+  padding-left: 24px;
+  padding-right: 35px;
+  line-height: 40px;
+}
+
+.aa-sidebar-section h3 {
+  line-height: 40px;
+  height: 40px;
+}
+
+
+/* Hide sidebar by default on small screens */
+@media (max-width: 768px) {
+  #aa-sidebar {
+      margin-left: -250px;
+  }
+  #aa-sidebar.active {
+      margin-left: 0;
+  }
+}
