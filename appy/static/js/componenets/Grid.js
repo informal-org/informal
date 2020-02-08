@@ -89,9 +89,15 @@ export default class Grid extends React.Component {
             "pattern": newPattern
         }));
     }
+    getPreviewUrl = () => {
+        if(window._aa_app && window._aa_view) {
+            var protocol = window._aa_app.domain === "localhost:9080" ? "http://" : "https://";
+            return protocol + window._aa_app.domain + window._aa_view.pattern
+        }
+        return ""
+    }
     render() {
         const cells = this.props.cells.map((cell) => {
-
             if(cell.type === "cell"){
                 return <GridCell 
                 cell={cell}
@@ -146,8 +152,7 @@ export default class Grid extends React.Component {
       ></EditableLabel>}
       subTitle=""
       extra={[
-        <Button key="2">Preview</Button>,
-        <Button key="1" type="primary">Publish</Button>,
+        <a href={ this.getPreviewUrl() } target="_blank" key="1"><Button type="primary">Preview</Button></a>
       ]}
     >
       <Descriptions size="small" column={3}>
