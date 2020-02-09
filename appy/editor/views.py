@@ -55,11 +55,11 @@ class AppEditView(LoginRequiredMixin, DetailView, ViewPermissionMixin):
             self._cached_obj = View.objects.filter(app__slug=self.kwargs["app"]).first()
             return self._cached_obj
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        serialized_view = ViewSerializer(self.get_object())
-        context["view_json"] = json.dumps(serialized_view.data)
-        return context
+    # def get_context_data(self, **kwargs):
+    #     context = super().get_context_data(**kwargs)
+    #     serialized_view = ViewSerializer(self.get_object())
+    #     context["view_json"] = json.dumps(serialized_view.data)
+    #     return context
 
 class AppCreateView(LoginRequiredMixin, CreateView, AppPermissionMixin):
     model = App
