@@ -29,9 +29,9 @@ WORKDIR /usr/src/runtime
 RUN cargo build --release
 
 
+COPY site/src /usr/src/site/src
 WORKDIR /usr/src/site
 RUN cargo install --path .
-COPY site/src /usr/src/site/src
 RUN cargo build --release
 
 
