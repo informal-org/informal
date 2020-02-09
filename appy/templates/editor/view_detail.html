@@ -3,7 +3,7 @@
 
 
 {% block extra_css %}
-<link href="{% static 'css/app.css' %}" rel="stylesheet">
+<link href="{% static 'css/app.css' %}?v=1" rel="stylesheet">
 {% endblock %}
 
 {% block content %}
@@ -36,7 +36,7 @@
     window._aa_viewid = "{{ object.uuid }}";
 
 </script>
-<script type="text/javascript" src="{% static 'js/app.js' %}"></script>
+<script type="text/javascript" src="{% static 'js/app.js' %}?v=1"></script>
 {% endblock %}
 
 
