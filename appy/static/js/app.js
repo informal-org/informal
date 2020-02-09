@@ -53,7 +53,6 @@ class Sidebar extends React.Component {
       console.log("apps");
       console.log(apps);
       window._aa_app = apps;
-
       store.dispatch(loadView());
 
       parent.setState({
