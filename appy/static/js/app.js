@@ -53,7 +53,6 @@ class Sidebar extends React.Component {
       console.log("apps");
       console.log(apps);
       window._aa_app = apps;
-      window._aa_viewid = apps['view_set'][0]['uuid'];
 
       store.dispatch(loadView());
 
@@ -80,6 +79,7 @@ class Sidebar extends React.Component {
   createViewBtn() {
     return <form method="POST"
           action={"/apps/" + window._aa_appid + "/views/create"}>
+            <input type='hidden' name='csrfmiddlewaretoken' value={ window._csrf_token } />
             <button className="pull-right ant-btn btn-primary" type="submit">New View</button>
           </form>
   }
@@ -90,77 +90,27 @@ class Sidebar extends React.Component {
     let id = 0;
     this.state.views.forEach((view) => {
       let key = '0-' + id;
-      let link = <a href={"/apps/" + window._aa_appid + "/views/" + view.uuid} >{view.name}</a>
-      let elem = <TreeNode title={link} key={key}></TreeNode>
+      let link = <li key={view.shortuuid}><a href={"/apps/" + window._aa_appid + "/views/" + view.shortuuid + "/edit"}>{view.name}</a></li>
       id+=1;
-      elements.push(elem);
+      elements.push(link);
     })
 
-    return <Tree
-      showLine
-      switcherIcon={<span>&#x2304;</span>}
-      defaultExpandedKeys={['0-0-0']}
-      onSelect={this.onSelect}
-      style={{ paddingLeft: 24 }}
-    >
+    return <ul className="list-unstyled sidebar-list">
     {elements}
-    <TreeNode key="create" title={this.createViewBtn()}></TreeNode>
-    </Tree>
+    {this.createViewBtn()}
+    </ul>
   }
 
   render() {
     // Width 180-256
     return (
       <nav id="aa-sidebar">
-        <section>
-          <h3 class="aa-sidebar-section">Views</h3>
-          <ul class="list-unstyled">
-            <li>One</li>
-            <li>Two</li>
-            <li>Two</li>
-          </ul>
-        </section>
-        <ul class="list-unstyled">
-            <li class="active">
-                <a href="#homeSubmenu" data-toggle="collapse" aria-expanded="false" class="dropdown-toggle">Home</a>
-                <ul class="collapse list-unstyled" id="homeSubmenu">
-                    <li>
-                        <a href="#">Home 1</a>
-                    </li>
-                    <li>
-                        <a href="#">Home 2</a>
-                    </li>
-                    <li>
-                        <a href="#">Home 3</a>
-                    </li>
-                </ul>
-            </li>
-            <li>
-                <a href="#">About</a>
-            </li>
-            <li>
-                <a href="#pageSubmenu" data-toggle="collapse" aria-expanded="false" class="dropdown-toggle">Pages</a>
-                <ul class="collapse list-unstyled" id="pageSubmenu">
-                    <li>
-                        <a href="#">Page 1</a>
-                    </li>
-                    <li>
-                        <a href="#">Page 2</a>
-                    </li>
-                    <li>
-                        <a href="#">Page 3</a>
-                    </li>
-                </ul>
-            </li>
-            <li>
-                <a href="#">Portfolio</a>
-            </li>
-            <li>
-                <a href="#">Contact</a>
-            </li>
-        </ul>
+        <section className="aa-sidebar-section">
+          <h3>Views</h3>
+          
+            {this.renderViews()}
 
-        
+        </section>        
       </nav>
 
       // <Menu

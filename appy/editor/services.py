@@ -1,4 +1,5 @@
 from editor.models import View
+from editor.constants import DEFAULT_CONTENT
 import shortuuid
 
 def get_user_ip(request):
@@ -35,12 +36,16 @@ def get_user_properties(request, user=None):
     return context
 
 
+
+
+
 def create_home_view(app):
     view = View.objects.create(
         app=app, 
         name="home",
         mime_type="application/aasm",
         pattern="/",
-        pattern_regex="/")
+        pattern_regex="/",
+        content=DEFAULT_CONTENT)
     return view
 

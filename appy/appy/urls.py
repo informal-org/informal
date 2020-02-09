@@ -26,8 +26,10 @@ urlpatterns = [
 
     path('apps', AppListView.as_view()),
     path('apps/create', AppCreateView.as_view()),
-    path('apps/<slug:slug>/edit', AppEditView.as_view()),
+    path('apps/<slug:app>/edit', AppEditView.as_view()),
     path('apps/<slug:slug>/views/create', ViewCreateView.as_view()),
+
+    path('apps/<slug:app>/views/<slug:view>/edit', AppEditView.as_view()),
 
     # apps/test/edit
     # apps/test/views/create

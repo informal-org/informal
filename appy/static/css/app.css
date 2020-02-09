@@ -197,15 +197,25 @@
 
 .aa-sidebar-section {
   font-size: 14px;
-  font-weight: normal;
-  padding-left: 24px;
-  padding-right: 35px;
-  line-height: 40px;
+  padding: 0 24px;
 }
 
 .aa-sidebar-section h3 {
-  line-height: 40px;
-  height: 40px;
+  font-size: 16px;
+  margin-top: 24px;
+  margin-bottom: 0;
+  padding-bottom: 0;
+  
+  line-height: 30px;
+  font-weight: bold;
+}
+
+.sidebar-list li {
+  padding-left: 14px;
+}
+
+.aa-sidebar-section button {
+  margin-top: 14px;
 }
 
 

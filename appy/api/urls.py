@@ -1,25 +1,38 @@
 from django.conf.urls import url, include
 from django.contrib.auth.models import User
 from editor.models import App, View
+from editor.utils import encode_uuid
 from rest_framework import routers, serializers, viewsets
 
 # TODO: Separate view summary serializer without the content field for compactness
 class ViewSerializer(serializers.ModelSerializer):
+    shortuuid = serializers.SerializerMethodField()
+
     class Meta:
         model = View
-        fields = ['uuid', 'name', 'mime_type', 'remote_url', 'content', 'pattern', 'method_get', 'method_post']
+        fields = ['uuid', 'shortuuid', 'name', 'mime_type', 'remote_url', 'content', 'pattern', 'method_get', 'method_post']
         read_only_fields = ['uuid']
         lookup_field = 'uuid'
         extra_kwargs = {
             'url': {'lookup_field': 'slug'}
         }
 
+    def get_shortuuid(self, obj):
+        return encode_uuid(obj.uuid)
+
+
 class ViewSetSerializer(serializers.ModelSerializer):
+    shortuuid = serializers.SerializerMethodField()
+
     class Meta:
         model = View
-        fields = ['uuid', 'name', 'mime_type', 'remote_url', 'method_get', 'method_post']
+        fields = ['uuid',  'shortuuid', 'name', 'mime_type', 'remote_url', 'method_get', 'method_post']
         lookup_field = 'uuid'
         read_only_fields = ['uuid']
+    
+    def get_shortuuid(self, obj):
+        return encode_uuid(obj.uuid)
+
 
 class AppSerializer(serializers.ModelSerializer):
     view_set = ViewSetSerializer(many=True)

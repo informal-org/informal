@@ -11,6 +11,9 @@ from django.shortcuts import redirect
 from editor.models import App, View
 from editor.forms import CreateAppForm
 from editor.services import create_home_view
+from editor.constants import DEFAULT_CONTENT
+from editor.utils import decode_uuid
+from api.urls import ViewSerializer
 import requests
 import json
 import os
@@ -27,13 +30,36 @@ class AppListView(LoginRequiredMixin, ListView):
     def get_queryset(self):
         return App.objects.filter(user=self.request.user)
 
-
 class AppPermissionMixin(UserPassesTestMixin):
     def test_func(self):
         return self.get_object().user == self.request.user
 
-class AppEditView(LoginRequiredMixin, DetailView, AppPermissionMixin):
-    model = App
+class ViewPermissionMixin(UserPassesTestMixin):
+    def test_func(self):
+        return self.get_object().app.user == self.request.user
+
+class AppEditView(LoginRequiredMixin, DetailView, ViewPermissionMixin):
+    model = View
+
+    def get_object(self):
+        # return App.objects.filter(slug=self.kwargs["app"])
+        if hasattr(self, '_cached_obj'):
+            return self._cached_obj
+        
+        if 'view' in self.kwargs:
+            view_uuid = decode_uuid(self.kwargs['view'])
+            self._cached_obj = View.objects.filter(app__slug=self.kwargs["app"], 
+            uuid=view_uuid).first()
+            return self._cached_obj
+        else:
+            self._cached_obj = View.objects.filter(app__slug=self.kwargs["app"]).first()
+            return self._cached_obj
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        serialized_view = ViewSerializer(self.get_object())
+        context["view_json"] = json.dumps(serialized_view.data)
+        return context
 
 class AppCreateView(LoginRequiredMixin, CreateView, AppPermissionMixin):
     model = App
@@ -49,17 +75,20 @@ class AppCreateView(LoginRequiredMixin, CreateView, AppPermissionMixin):
 
         return response
 
+    
+
 class ViewCreateView(LoginRequiredMixin, DetailView, AppPermissionMixin):
     model = App
     
-    def post(self):
+    def post(self, *args, **kwargs):
         app = self.get_object()
         view = View.objects.create(
             app=app, 
             name="New View",
             mime_type="application/aasm",
             pattern="/new_view",
-            pattern_regex="/new_view")
+            pattern_regex="/new_view",
+            content=DEFAULT_CONTENT)
             
         return redirect(view.get_edit_url())
 

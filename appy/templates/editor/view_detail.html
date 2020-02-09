@@ -31,7 +31,14 @@
 
 {% block extra_js %}
 <script>
-    window._aa_appid = "{{ object.slug|escapejs }}";
+    window._aa_appid = "{{ object.app.slug|escapejs }}";
+    window._csrf_token = "{{ csrf_token }}";
+    window._aa_viewid = "{{ object.uuid }}";
+
 </script>
 <script type="text/javascript" src="{% static 'js/app.js' %}"></script>
 {% endblock %}
+
+
+
+

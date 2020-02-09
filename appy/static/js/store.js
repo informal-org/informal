@@ -12,6 +12,7 @@ const initialState = {
     },
     view: {
         uuid: '',
+        shortuuid: '',
         name: '',
         pattern: '',
         method_get: true,
@@ -134,6 +135,7 @@ const viewSlice = createSlice({
             console.log("Init view ");
             console.log(view);
             state.uuid = view.uuid;
+            state.shortuuid = view.shortuuid;
             state.name = view.name;
             state.pattern = view.pattern;
             state.method_get = view.method_get;
@@ -191,6 +193,7 @@ export const loadView = () => {
             var body;
             
             if(view.content.length > 0) {
+                console.log(view.content);
                 content = JSON.parse(view.content);
                 body = content['body']    
             } else {
