@@ -20,7 +20,7 @@
   */
 
   /* display: block; */
-  display: grid;
+  display: block;
   font-size: 13px;
   font-family: Arial;  
   grid-template-columns: repeat(auto-fill, 133px);
@@ -48,6 +48,11 @@
 
 .Cell-cellName {
   font-weight: bold;
+  display: inline-block;
+  width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .Cell.Cell--focused {
@@ -65,6 +70,7 @@
 
 .Cell-cellValue {
   white-space: pre-line;
+  display: inline-block;
 }
 
 .Cell-cellValue--edit {

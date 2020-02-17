@@ -27,8 +27,7 @@ export default class GridCell extends AbstractBaseCell {
 
     render() {
         let className = "Cell";
-        className += " Cell--width" + cellGet(this.props.cell, "width", 1);
-        className += " Cell--height" + cellGet(this.props.cell, "height", 1);
+
         if(this.props.isFocused){
             className += " Cell--focused";
         }
@@ -38,7 +37,13 @@ export default class GridCell extends AbstractBaseCell {
             className += " Cell--error";
             cellResults = <div className="Cell-cellError">{error}</div>
         } else {
-            cellResults = <div className="Cell-cellValue">{this.formatOutput()}</div>
+            let formattedOutput = this.formatOutput();
+            if(formattedOutput) {
+                cellResults = <div className="Cell-cellValue">{formattedOutput}</div>
+            } else {
+                cellResults = <div className="Cell-cellValue"> &nbsp; </div>
+            }
+            
         }
 
         let cellBody = null;
@@ -46,7 +51,7 @@ export default class GridCell extends AbstractBaseCell {
             cellBody = <form onSubmit={this.saveCell}>
             <i className="fas fa-expand float-right text-gray-700 maximize"></i>
             <input className="Cell-cellName block Cell-cellName--edit" placeholder="Name" type="text" onChange={this.changeName} value={this.state.name}></input> 
-            <input className="Cell-cellValue bg-blue-100 block Cell-cellValue--edit" type="text" onChange={this.changeInput} value={this.state.input}></input>
+            <input className="Cell-cellValue bg-blue-100 block Cell-cellValue--edit" placeholder="Value" type="text" onChange={this.changeInput} value={this.state.input}></input>
             <input type="submit" className="hidden"/>
           </form>
         } else {

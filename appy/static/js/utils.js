@@ -85,17 +85,6 @@ export function cellGet(cell, attr) {
     }
     
     let type = cell["type"];                        // Assume this always exists
-    if(attr === "width") {
-        if(cell["error"]) {
-            return 2;
-        } else if(cell["output"] && cell["output"].toString().length > 10){
-            return 2;
-        }
-    } else if(attr == "height") {
-        if(cell["error"] && cell["error"].length > 10) {
-            return 2;
-        }
-    }
 
     if(type in typeDefaults && attr in typeDefaults[type]){
         return typeDefaults[type][attr];
@@ -107,7 +96,7 @@ export function cellGet(cell, attr) {
 export function formatCellOutput(cell) {
     let output = cellGet(cell, "output");
     if(output === undefined){
-        return " "
+        return ""
     }
     else if(output === true) {
         return "True"
