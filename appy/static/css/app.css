@@ -32,7 +32,6 @@
 }
 
 .Cell {
-  @apply px-20 py-8;
   /* width: 180px;
   height: 100px; */
   padding: 0.5rem 1rem;
@@ -43,21 +42,26 @@
   text-overflow: ellipsis;
   position: relative;
   /* outline: 1px solid #a0aec0; */
-  outline: 1px dotted rgba(160, 174, 192, 0.55);
+  /* outline: 1px dotted rgba(160, 174, 192, 0.55); */
 }
 
 .Cell-cellName {
   font-weight: bold;
   display: inline-block;
-  width: 100px;
+  width: 150px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  vertical-align: middle;
+  background-color: transparent;
+  color: #718096;   /* Grey-600 */
 }
 
 .Cell.Cell--focused {
-  @apply py-0 px-0;
-  border: 1px solid #4299e1;
+  padding: 0;
+  background-color: #EBF8FF;  /* Blue 100 */
+  border: none;
+  outline: none;
 }
 
 .Cell.Cell--error {
@@ -71,10 +75,12 @@
 .Cell-cellValue {
   white-space: pre-line;
   display: inline-block;
+  background-color: transparent;
 }
 
 .Cell-cellValue--edit {
-  padding: 5px 7px;
+  /* padding: 5px 7px; */
+  padding: 0.5rem 1rem;
   width: 100%;
 }
 
@@ -83,7 +89,9 @@
 }
 
 .Cell-cellName--edit {
-  padding: 3px 7px;
+  /* padding: 3px 7px; */
+  padding: 0.5rem 1rem;
+  padding-right: 0.25rem;
 }
 
 .Cell--focused .Cell-cellResult {
