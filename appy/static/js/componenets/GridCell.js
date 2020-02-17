@@ -52,6 +52,7 @@ export default class GridCell extends AbstractBaseCell {
             <i className="fas fa-expand float-right text-gray-700 maximize"></i>
             <input className="Cell-cellName block Cell-cellName--edit" placeholder="Name" type="text" onChange={this.changeName} value={this.state.name}></input> 
             <input className="Cell-cellValue bg-blue-100 block Cell-cellValue--edit" placeholder="Value" type="text" onChange={this.changeInput} value={this.state.input}></input>
+            <div className="Cell-cellResult">{cellResults}</div>
             <input type="submit" className="hidden"/>
           </form>
         } else {

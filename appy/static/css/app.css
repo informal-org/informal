@@ -41,6 +41,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   position: relative;
+
   /* outline: 1px solid #a0aec0; */
   /* outline: 1px dotted rgba(160, 174, 192, 0.55); */
 }
@@ -57,11 +58,16 @@
   color: #718096;   /* Grey-600 */
 }
 
+.Cell-cellResult {
+  background-color: white;
+}
+
 .Cell.Cell--focused {
   padding: 0;
   background-color: #EBF8FF;  /* Blue 100 */
   border: none;
   outline: none;
+  border-left: 3px solid #3182CE;
 }
 
 .Cell.Cell--error {
@@ -95,7 +101,8 @@
 }
 
 .Cell--focused .Cell-cellResult {
-  padding: 0 7px;
+  padding: 0.5rem;
+  padding-left: 166px;
 }
 
 .Cell-cellResult {
@@ -105,35 +112,6 @@
   width: 100%;
 }
 
-.Cell--height1 .Cell-cellResult {
-  overflow: hidden;
-  white-space: nowrap;
-}
-
-
-.Cell--width2 { grid-column-end: span 2; }
-.Cell--width3 { grid-column-end: span 3; }
-.Cell--width4 { grid-column-end: span 4; }
-.Cell--width5 { grid-column-end: span 5; }
-.Cell--width6 { grid-column-end: span 6; }
-.Cell--width7 { grid-column-end: span 7; }
-.Cell--width8 { grid-column-end: span 8; }
-
-.Cell--height2 { grid-row-end: span 2; }
-.Cell--height3 { grid-row-end: span 3; }
-.Cell--height4 { grid-row-end: span 4; }
-.Cell--height5 { grid-row-end: span 5; }
-.Cell--height6 { grid-row-end: span 6; }
-.Cell--height7 { grid-row-end: span 7; }
-.Cell--height8 { grid-row-end: span 8; }
-
-.Cell--height2 .Cell-cellResult { height: 80px; }
-.Cell--height3 .Cell-cellResult { height: 145px; }
-.Cell--height4 .Cell-cellResult { height: 210px; }
-.Cell--height5 .Cell-cellResult { height: 277px; }
-.Cell--height6 .Cell-cellResult { height: 342px; }
-.Cell--height7 .Cell-cellResult { height: 410px; }
-.Cell--height8 .Cell-cellResult { height: 490px; }
 
 .maximize {
   position: absolute;
