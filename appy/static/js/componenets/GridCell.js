@@ -43,7 +43,6 @@ export default class GridCell extends AbstractBaseCell {
             } else {
                 cellResults = <div className="Cell-cellValue"> &nbsp; </div>
             }
-            
         }
 
         let cellBody = null;

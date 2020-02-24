@@ -54,7 +54,6 @@ export default class GridList extends AbstractBaseCell {
                 setInput={this.props.setInput}
                 setName={this.props.setName}
                 reEvaluate={this.props.reEvaluate}
-                recomputeCell = {this.recomputeCell}
                 />
         })
 

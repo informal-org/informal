@@ -1,7 +1,6 @@
 import React from "react";
 import GridCell from "./GridCell.js"
 import GridList from "./GridList.js"
-import ActionBar from "./ActionBar.js"
 import EditableLabel from "./EditableLabel.js"
 import { addCell, patchView } from "../store.js"
 
@@ -10,61 +9,6 @@ import { PageHeader, Button, Descriptions } from 'antd';
 export default class Grid extends React.Component {
     constructor(props) {
         super(props);
-    }
-    recomputeCells = () => {
-        var allParsed = parseEverything(this.state.cells)
-        this.state.cells.forEach((cell) => {
-            console.log(cell.input);
-        })
-
-        apiPost("/api/evaluate", allParsed)
-        .then(json => {
-            // Find the cells and save the value.
-            let results = json["body"];
-            this.setState((state, props) => {
-                let cells = state.cells
-                for(var i = 0; i < cells.length; i++){
-                    let cell = cells[i];
-                    if(cell.id in results){
-                        cell.output = results[cell.id].output
-                    }
-                }
-                return {
-                    cells: cells
-                }
-            })
-            
-            // let results = json.map((cell))
-            // this.setState(cells, json)
-        })
-        .catch(error => {
-            // document.getElementById("result").textContent = "Error : " + error
-            console.log("Error")
-            console.log(error);
-        });
-    }
-    recomputeCell = (cell) => {
-        this.recomputeCells()
-    }
-    incWidth = () => {
-        if(this.props.focus){
-            this.props.incWidth({id: this.props.focus, amt: 1})
-        }
-    }
-    decWidth = () => {
-        if(this.props.focus){
-            this.props.incWidth({id: this.props.focus, amt: -1})
-        }
-    }
-    incHeight = () => {
-        if(this.props.focus){
-            this.props.incHeight({id: this.props.focus, amt: 1})
-        }
-    }
-    decHeight = () => {
-        if(this.props.focus){
-            this.props.incHeight({id: this.props.focus, amt: -1})
-        }
     }
     addCellClick = () => {
         window.store.dispatch(addCell())
@@ -110,7 +54,6 @@ export default class Grid extends React.Component {
                 setInput={this.props.setInput}
                 setName={this.props.setName}
                 reEvaluate={this.props.reEvaluate}
-                recomputeCell = {this.recomputeCell}
                 />
             }else if (cell.type === "list") {
                 let values = [];
@@ -130,7 +73,6 @@ export default class Grid extends React.Component {
                 setInput={this.props.setInput}
                 setName={this.props.setName}
                 reEvaluate={this.props.reEvaluate}
-                recomputeCell = {this.recomputeCell}
                 values = {values}
                 />
             }
