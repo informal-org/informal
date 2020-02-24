@@ -9,12 +9,33 @@ function computeDeps() {
 
 }
 
-function generateCode(cell) {
+function generateCode(expr) {
     // {id, name, input}
     // TODO: Generate safe names
-    var variable_name = cell.name;
+    // var variable_name = cell.name;
 
-    return `var ${variable_name} = ${cell.input}; ${cell.input}`;
+    // return `var ${variable_name} = ${cell.input}; ${cell.input}`;
+
+    function ctx_init() {
+        var ctx = {};
+        return {
+            set: function(k, v) { ctx[k] = v; },
+            get: function(k) { return ctx[k]; },
+            all: function() { return ctx }
+        };
+    };
+
+    var code = "" + ctx_init.toString() + "\n; var ctx = ctx_init();";
+    expr.body.forEach((cell) => {
+        var variable_name = cell.name;
+        code += `var ${variable_name} = ${cell.input};\n`;
+        code += `ctx.set(${cell.id}, ${variable_name});\n`;
+    })
+
+    code += "ctx.all();\n"
+
+    console.log(code);
+    return code;
 }
 
 function execCode(code) {
@@ -25,20 +46,31 @@ function execCode(code) {
 export function evaluate(expr) {
     console.log("Evaluating");
     console.log(expr);
-    console.log(expr.body[0]);
-
+    
     // 0: {id: 0, output: "Hello 2", error: ""}
     let output = [];
-    expr.body.forEach(element => {
-        let code = generateCode(element);
-        let result = execCode(code);
+    let code = generateCode(expr);
+    let result = execCode(code);
+    console.log("Final result");
+    console.log(result);
 
+    expr.body.forEach((element) => {
         output.push({
             id: element.id,
-            output: result,
+            output: result[element.id],
             error: ""
         });
     });
+    // expr.body.forEach(element => {
+    //     let code = generateCode(element);
+    //     let result = execCode(code);
+
+    //     output.push({
+    //         id: element.id,
+    //         output: result,
+    //         error: ""
+    //     });
+    // });
     console.log(output);
 
     return {'results': output}
