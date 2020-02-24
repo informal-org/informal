@@ -1,7 +1,8 @@
 import { configureStore, createSlice } from 'redux-starter-kit'
-import { modifySize, parseEverything } from './controller.js'
+import { parseEverything } from './controller.js'
 import { apiPost, apiPatch } from './utils.js'
 import { CELL_MAX_WIDTH, CELL_MAX_HEIGHT } from './constants.js'
+import { evaluate } from "./engine/engine.js"
 
 const initialState = {
     cells: {
@@ -105,12 +106,6 @@ const cellsSlice = createSlice({
             // Short-circuit re-evaluation until a change happens.
             state.modified = false;
         },
-        incWidth: (state, action) => {
-            modifySize(state.byId[action.payload.id], "width", 1, CELL_MAX_WIDTH, action.payload.amt);
-        }, 
-        incHeight: (state, action) => {
-            modifySize(state.byId[action.payload.id], "height", 1, CELL_MAX_HEIGHT, action.payload.amt);
-        },
         setFocus: (state, action) => {
             state.focus = action.payload
         },
@@ -166,9 +161,6 @@ const viewSlice = createSlice({
 const setInput = cellsSlice.actions.setInput;
 const setName = cellsSlice.actions.setName;
 const saveOutput = cellsSlice.actions.saveOutput;
-// const reEvaluate = cellsSlice.actions.reEvaluate;
-const incWidth = cellsSlice.actions.incWidth;
-const incHeight = cellsSlice.actions.incHeight;
 const setFocus = cellsSlice.actions.setFocus;
 const moveFocus = cellsSlice.actions.moveFocus;
 const setModified = cellsSlice.actions.setModified;
@@ -239,37 +231,30 @@ const reEvaluate = () => {
             'content': JSON.stringify(parsed)
         })
 
-        parsed.input = {
-            'path': '/hello',
-            'method': 'GET',
-            'query': 'v=1&message=hello',
-            'get': {        // query & query_string in actix
-                'v': 1,
-                'message': 'hello'
-            },
-            'cookies': 'sid=12312',
-            'headers': '',
-            'content_type': ''  // content-type header
-            // TODO: post payload
-        }
+        var result = evaluate(parsed);
+        dispatch(saveOutput({
+            'status': true,
+            'response': result
+        }));
 
-        
-        // TODO: This would be done by the backend
-        apiPost("/api/evaluate", parsed)
-        .then(json => {
-            // Find the cells and save the value.;
-            dispatch(saveOutput({
-                'status': true,
-                'response': json
-            }))
-        })
-        .catch(error => {
-            // document.getElementById("result").textContent = "Error : " + error
-            console.log("Error")
-            console.log(error);
-            // TODO error state 
-            // This happens separate from an individual cell failing.
-        });
+        // // TODO: This would be done by the backend
+        // apiPost("/api/evaluate", parsed)
+        // .then(json => {
+        //     console.log("Server eval response");
+        //     console.log(json);
+        //     // Find the cells and save the value.;
+        //     dispatch(saveOutput({
+        //         'status': true,
+        //         'response': json
+        //     }))
+        // })
+        // .catch(error => {
+        //     // document.getElementById("result").textContent = "Error : " + error
+        //     console.log("Error")
+        //     console.log(error);
+        //     // TODO error state 
+        //     // This happens separate from an individual cell failing.
+        // });
     }
 }
 
@@ -299,5 +284,5 @@ export const mapStateToProps = (state /*, ownProps*/) => {
     }
 }
 
-export const mapDispatchToProps = {setFocus, setInput, setName, reEvaluate, incWidth, incHeight, 
+export const mapDispatchToProps = {setFocus, setInput, setName, reEvaluate,
     moveFocus, setModified, initCell, addCell, initView, patchView}
