@@ -63,28 +63,27 @@ export default class GridCell extends AbstractBaseCell {
             <div className="Cell-inputs col-sm-2">
                 <div className="btn btn-placeholder">Add Input</div>
             </div>
+            
             <div className="Cell-outputs col-sm-10">
                 {/* <input className="Cell-cellValue bg-blue-100 block Cell-cellValue--edit" placeholder="Value" type="text" onChange={this.changeInput} value={this.state.input}></input> */}
 
-                <ul className="list-group">
+
+                <ul className="list-group col-sm-10">
                     <li className="list-group-item">
-                <Editor
-        value={this.state.input}
-        onValueChange={this.changeInput}
-        highlight={code => highlight(code, languages.js)}
-        padding={10}
-        style={{
-          fontFamily: '"Fira code", "Fira Mono", monospace',
-          fontSize: 12,
-        }}
-      />
-      </li>
+                        <Editor
+                            value={this.state.input}
+                            onValueChange={this.changeInput}
+                            highlight={code => highlight(code, languages.js)}
+                            padding={10}
+                            style={{
+                            fontFamily: '"Fira code", "Fira Mono", monospace',
+                            fontSize: 12,
+                            }}
+                        />
+                    </li>
+                    <li className="list-group-item btn btn-placeholder w-full">+ Add row </li>
+                </ul>
 
-
-
-            <li className="list-group-item btn btn-placeholder w-full">+ Add row </li>
-
-            </ul>
             </div>
 
             </div>
