@@ -4,6 +4,25 @@ import { apiPost, apiPatch } from './utils.js'
 import { CELL_MAX_WIDTH, CELL_MAX_HEIGHT } from './constants.js'
 import { evaluate } from "./engine/engine.js"
 
+
+/* Schema
+{
+    id: shortuuid,
+    name: valid_string_name,
+    params: [cells],    // Basic - just a list of names. Complex - nested cells.
+    body: [cells],      // Private function body
+    value: value | [values] | [cells]   - Ordered as list, but may represent a dictionary
+    computed: {
+        error: _,
+        value: _
+    },
+    parsed: _,
+    depends_on: []
+    used_by: []
+}
+*/
+
+
 const initialState = {
     cells: {
         byId: {},

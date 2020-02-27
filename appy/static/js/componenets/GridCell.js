@@ -61,7 +61,7 @@ export default class GridCell extends AbstractBaseCell {
 
             <div className="row">
             <div className="Cell-inputs col-sm-2">
-                <div className="btn btn-placeholder">Add Input</div>
+                <div className="btn btn-placeholder">+ Add Input</div>
             </div>
             
             <div className="Cell-outputs col-sm-10">
