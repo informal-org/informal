@@ -2,7 +2,6 @@ import React from "react";
 import ReactDOM from "react-dom";
 import AbstractBaseCell from "./AbstractBaseCell.js"
 import { cellGet, formatCellOutput } from "../utils.js"
-import Prism from "prismjs"
 
 import Editor from 'react-simple-code-editor';
 import { highlight, languages } from 'prismjs/components/prism-core';

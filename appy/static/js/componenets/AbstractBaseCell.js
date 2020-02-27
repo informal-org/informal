@@ -42,7 +42,9 @@ export default class AbstractBaseCell extends React.Component {
     }
 
     changeInput = (event) => {
-        let input = event.target.value;
+        // let input = event.target.value;
+        // Event.target.value - when using input field. event when using the editor.
+        let input = event;
         this.props.setInput({id: this.props.cell.id, input: input})
         this.setState({input: input});
         this.props.setModified();

@@ -7,7 +7,7 @@ import Grid from './componenets/Grid.js'
 import Sidebar from './componenets/Sidebar.js'
 import React from "react";
 import ReactDOM from "react-dom";
-import Prism from "prismjs";
+
 
 
 const ConnectedGrid = connect(
@@ -23,5 +23,3 @@ ReactDOM.render(
 );
 
 ReactDOM.render(<Sidebar />, document.getElementById('aa-sidebar-wrapper'));
-
-setTimeout(() => Prism.highlightAll(), 0)
