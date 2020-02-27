@@ -22,6 +22,16 @@ import { evaluate } from "./engine/engine.js"
 }
 */
 
+const initialState = {
+    shortuuid: '',
+    name: '',
+    params: {
+        pattern: ''
+    },
+    body: {},       // byid
+    body_order: []  // allIds
+}
+
 
 const initialState = {
     cells: {
