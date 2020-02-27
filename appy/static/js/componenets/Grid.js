@@ -83,6 +83,7 @@ export default class Grid extends React.Component {
         }).filter((r) => r !== undefined) // Filter out un-rendered cells
         
         return <div>
+            <div className="shadow">
 <PageHeader
       ghost={false}
       backIcon={false}  // Don't display back button
@@ -115,6 +116,7 @@ export default class Grid extends React.Component {
        */}
       </Descriptions>
     </PageHeader>            
+    </div>
         
             <div className="Grid">
                 {cells}

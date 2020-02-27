@@ -56,16 +56,18 @@ export default class GridCell extends AbstractBaseCell {
             <i className="fas fa-expand float-right text-gray-700 maximize"></i>
 
             <div className="row">
-            <input className="col-sm-12 Cell-cellName block Cell-cellName--edit" placeholder="Name" type="text" onChange={this.changeName} value={this.state.name}></input> 
+                <input className="col-sm-12 Cell-cellName block Cell-cellName--edit" placeholder="Name" type="text" onChange={this.changeName} value={this.state.name}></input> 
             </div>
 
             <div className="row">
-            <div className="Cell-inputs col-sm-1">
+            <div className="Cell-inputs col-sm-2">
                 <div className="btn btn-placeholder">Add Input</div>
             </div>
-            <div className="Cell-outputs col-sm-11">
+            <div className="Cell-outputs col-sm-10">
                 {/* <input className="Cell-cellValue bg-blue-100 block Cell-cellValue--edit" placeholder="Value" type="text" onChange={this.changeInput} value={this.state.input}></input> */}
 
+                <ul className="list-group">
+                    <li className="list-group-item">
                 <Editor
         value={this.state.input}
         onValueChange={this.changeInput}
@@ -76,8 +78,13 @@ export default class GridCell extends AbstractBaseCell {
           fontSize: 12,
         }}
       />
+      </li>
 
 
+
+            <li className="list-group-item btn btn-placeholder w-full">+ Add row </li>
+
+            </ul>
             </div>
 
             </div>
@@ -85,9 +92,13 @@ export default class GridCell extends AbstractBaseCell {
             <input type="submit" className="hidden"/>
           </form>
         } else {
-            cellBody = <span className="shadow-sm">
-            <div className="Cell-cellName">{this.state.name}</div>
-            {cellResults}
+            cellBody = <span className="row">
+
+            <div className="Cell-cellName col-sm-1">{this.state.name}</div>
+            <div className="col-sm-11">
+                {cellResults}
+            </div>
+            
 
 
             </span>

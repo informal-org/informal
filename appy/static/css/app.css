@@ -50,8 +50,11 @@
   border: 1px solid rgba(0,0,0,.125);
   border-radius: 0.25rem;
 
-  cursor: pointer;
-  
+  cursor: pointer; 
+}
+
+.Cell:hover {
+  @apply shadow;
 }
 
 .Cell-cellName {
@@ -84,11 +87,12 @@
   border-bottom: 1px solid rgb(206, 212, 217);
   width: 100%;
   cursor: text;
-  margin: 3px 0;
+  margin: 0 0 3px 0;
 }
 
+
 .Cell-edit .Cell-cellName:hover, .Cell-edit .Cell-outputs:hover {
-  box-shadow: 0 1px 3px 0 rgba(0,0,0,.1), 0 1px 2px 0 rgba(0,0,0,.06);
+  @apply shadow;
 }
 
 .Cell-edit .Cell-inputs {
@@ -97,11 +101,28 @@
 }
 
 .Cell-edit .Cell-outputs {
-  padding: 0.5rem 0rem;
+  padding: 0.5rem;
+  /* padding: 0; */
   /* background-color: #E2E8F0; */
   /* background-color: #EBF8FF; */
-  background-color: rgb(250, 250, 250);
+  /* background-color: rgb(250, 250, 250); */
+  background-color: white;
   cursor: text;
+
+  /* border: 1px solid rgba(0,0,0,.125); */
+}
+
+.Cell-outputs .list-group-item {
+  padding: 0;
+}
+
+.Cell-outputs .list-group-item:hover {
+  @apply shadow;
+}
+
+.Cell-outputs .list-group-item.btn {
+  padding: .5rem 1rem;
+  border-radius: 0 0 0.25rem 0.25rem;
 }
 
 .Cell.Cell--error {
@@ -253,4 +274,20 @@
   #aa-sidebar.active {
       margin-left: 0;
   }
+}
+
+
+.ant-page-header {
+  background-color: #EDF2F7 !important;
+}
+
+.fnSymbol {
+  background-color: white;
+  font-weight: bold;
+  padding: 3px;
+}
+
+.outputCode {
+  display: inline-block;
+  width: 100%;
 }

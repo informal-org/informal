@@ -29,12 +29,13 @@
  
  pre[class*="language-"]::-moz-selection, pre[class*="language-"] ::-moz-selection,
  code[class*="language-"]::-moz-selection, code[class*="language-"] ::-moz-selection {
-     background: rgb(250, 250, 254);
+     /* background: rgb(250, 250, 254); */
+     background: white;
  }
  
  pre[class*="language-"]::selection, pre[class*="language-"] ::selection,
  code[class*="language-"]::selection, code[class*="language-"] ::selection {
-     background: #b3d4fc;
+     background: #b3d4fca9;
  }
  
  /* Code blocks */

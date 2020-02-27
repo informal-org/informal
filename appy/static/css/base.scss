@@ -171,8 +171,13 @@ Imported from arevel
 
 .btn.btn-placeholder {
   background-color: transparent;
-  border: 2px dashed #CBD5E0;
+  border: 1px dashed #E2E8F0;
   color: #718096;
+}
+
+.btn.btn-placeholder:hover {
+  border-style: solid;
+  color: #2D3748;
 }
 
 
