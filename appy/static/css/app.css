@@ -49,6 +49,8 @@
   margin: 0.75rem 0;
   border: 1px solid rgba(0,0,0,.125);
   border-radius: 0.25rem;
+
+  cursor: pointer;
   
 }
 
@@ -81,10 +83,17 @@
   /* border-bottom: 1px solid #BEE3F8; */
   border-bottom: 1px solid rgb(206, 212, 217);
   width: 100%;
+  cursor: text;
+  margin: 3px 0;
+}
+
+.Cell-edit .Cell-cellName:hover, .Cell-edit .Cell-outputs:hover {
+  box-shadow: 0 1px 3px 0 rgba(0,0,0,.1), 0 1px 2px 0 rgba(0,0,0,.06);
 }
 
 .Cell-edit .Cell-inputs {
   padding: 0.5rem 1rem;
+  cursor: pointer;
 }
 
 .Cell-edit .Cell-outputs {
@@ -92,6 +101,7 @@
   /* background-color: #E2E8F0; */
   /* background-color: #EBF8FF; */
   background-color: rgb(250, 250, 250);
+  cursor: text;
 }
 
 .Cell.Cell--error {

@@ -31,10 +31,10 @@ export default class GridCell extends AbstractBaseCell {
     }
 
     render() {
-        let className = "Cell";
+        let className = "Cell shadow-sm";
 
         if(this.props.isFocused){
-            className += " Cell--focused";
+            className += " Cell--focused shadow";
         }
         let cellResults = null;
         let error = cellGet(this.props.cell, "error")
@@ -85,7 +85,7 @@ export default class GridCell extends AbstractBaseCell {
             <input type="submit" className="hidden"/>
           </form>
         } else {
-            cellBody = <span>
+            cellBody = <span className="shadow-sm">
             <div className="Cell-cellName">{this.state.name}</div>
             {cellResults}
 
