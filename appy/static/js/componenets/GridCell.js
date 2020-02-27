@@ -2,6 +2,12 @@ import React from "react";
 import ReactDOM from "react-dom";
 import AbstractBaseCell from "./AbstractBaseCell.js"
 import { cellGet, formatCellOutput } from "../utils.js"
+import Prism from "prismjs"
+
+import Editor from 'react-simple-code-editor';
+import { highlight, languages } from 'prismjs/components/prism-core';
+import 'prismjs/components/prism-clike';
+import 'prismjs/components/prism-javascript';
 
 export default class GridCell extends AbstractBaseCell {
     constructor(props){
@@ -59,7 +65,20 @@ export default class GridCell extends AbstractBaseCell {
                 <div className="btn btn-placeholder">Add Input</div>
             </div>
             <div className="Cell-outputs col-sm-11">
-                <input className="Cell-cellValue bg-blue-100 block Cell-cellValue--edit" placeholder="Value" type="text" onChange={this.changeInput} value={this.state.input}></input>
+                {/* <input className="Cell-cellValue bg-blue-100 block Cell-cellValue--edit" placeholder="Value" type="text" onChange={this.changeInput} value={this.state.input}></input> */}
+
+                <Editor
+        value={this.state.input}
+        onValueChange={this.changeInput}
+        highlight={code => highlight(code, languages.js)}
+        padding={10}
+        style={{
+          fontFamily: '"Fira code", "Fira Mono", monospace',
+          fontSize: 12,
+        }}
+      />
+
+
             </div>
 
             </div>
@@ -70,6 +89,8 @@ export default class GridCell extends AbstractBaseCell {
             cellBody = <span>
             <div className="Cell-cellName">{this.state.name}</div>
             {cellResults}
+
+
             </span>
         }
 
