@@ -47,11 +47,23 @@ export default class GridCell extends AbstractBaseCell {
 
         let cellBody = null;
         if(this.props.isFocused){
-            cellBody = <form onSubmit={this.saveCell}>
+            cellBody = <form onSubmit={this.saveCell} className="Cell-edit container-fluid">
             <i className="fas fa-expand float-right text-gray-700 maximize"></i>
-            <input className="Cell-cellName block Cell-cellName--edit" placeholder="Name" type="text" onChange={this.changeName} value={this.state.name}></input> 
-            <input className="Cell-cellValue bg-blue-100 block Cell-cellValue--edit" placeholder="Value" type="text" onChange={this.changeInput} value={this.state.input}></input>
-            <div className="Cell-cellResult">{cellResults}</div>
+
+            <div className="row">
+            <input className="col-sm-12 Cell-cellName block Cell-cellName--edit" placeholder="Name" type="text" onChange={this.changeName} value={this.state.name}></input> 
+            </div>
+
+            <div className="row">
+            <div className="Cell-inputs col-sm-1">
+                <div className="btn btn-placeholder">Add Input</div>
+            </div>
+            <div className="Cell-outputs col-sm-11">
+                <input className="Cell-cellValue bg-blue-100 block Cell-cellValue--edit" placeholder="Value" type="text" onChange={this.changeInput} value={this.state.input}></input>
+            </div>
+
+            </div>
+
             <input type="submit" className="hidden"/>
           </form>
         } else {

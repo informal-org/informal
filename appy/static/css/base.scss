@@ -165,7 +165,13 @@ Imported from arevel
 .btn.btn-secondary {
   color: #FF5959 !important;
   background-color: white;
-  border-color: #FF5959;
+  border: 2px solid #FF5959;
+}
+
+.btn.btn-placeholder {
+  background-color: transparent;
+  border: 2px dashed #CBD5E0;
+  color: #718096;
 }
 
 
