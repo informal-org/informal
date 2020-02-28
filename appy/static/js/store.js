@@ -25,7 +25,8 @@ import { evaluate } from "./engine/engine.js"
 const initialState = {
     cells: {
         byId: {},
-        allIds: [], //"@3", "@4", "@5", "@6", 
+        allIds: [], // "@3", "@4", "@5", "@6"
+        byName: {},
         focus: null,  // ID of the element selected
         modified: false,  // Allow initial evaluation
     },
@@ -64,6 +65,11 @@ const cellsSlice = createSlice({
             cells.forEach((cell) => {
                 let id = cell.id;
                 state.byId[id] = newCell(cell.id, cell.name, cell.expr);
+                if(cell.name in state.byName) {
+                    state.byName[cell.name].push(cell.id);
+                } else {
+                    state.byName[cell.name] = [cell.id];
+                }
                 // state.byId[id] = cell;
                 state.allIds.push(id);                
             });
@@ -86,9 +92,23 @@ const cellsSlice = createSlice({
         },
         setName: (state, action) => {
             let cell = state.byId[action.payload.id]
-            console.log(action.payload.id);
-            console.log(cell);
-            cell.name = action.payload.name;
+            var oldName = cell.name;
+            var newName = state.payload.name;
+
+            // Remove the cell from the old name mapping
+            if(oldName != "" && oldName in state.byName) {
+                state.byName[oldName] = state.byName[oldName].filter((elem) => elem.id !== cell.id)
+            }
+
+            cell.name = newName;
+            // Add the new name mapping
+            if(newName != "") {
+                if(newName in state.byName) {
+                    state.byName[newName].push(cell.id);
+                } else {
+                    state.byName[newName] = [cell.id];
+                }    
+            }
             state.modified = true;
         },
         addCell: (state, action) => {
@@ -234,7 +254,9 @@ const reEvaluate = () => {
             'content': JSON.stringify(parsed)
         })
 
-        var result = evaluate(parsed);
+        // var result = evaluate(parsed);
+        var result = evaluate(state);
+
         dispatch(saveOutput({
             'status': true,
             'response': result
