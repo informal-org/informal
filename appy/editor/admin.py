@@ -2,10 +2,17 @@ from django.contrib import admin
 import inspect
 import sys
 from .models import *
+from django.contrib import admin
+
 
 
 # Register your models here.
 # admin.site.register(Collections)
+
+@admin.register(View)
+class ViewAdmin(admin.ModelAdmin):
+    readonly_fields = ("uuid",)
+
 
 # Auto register all the models
 

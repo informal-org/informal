@@ -8,30 +8,19 @@ import { evaluate } from "./engine/engine.js"
 /* Schema
 {
     id: shortuuid,
+    type: "cell"
     name: valid_string_name,
+    value: value | [values] | [cells]   - Ordered as list, but may represent a dictionary
     params: [cells],    // Basic - just a list of names. Complex - nested cells.
     body: [cells],      // Private function body
-    value: value | [values] | [cells]   - Ordered as list, but may represent a dictionary
-    computed: {
-        error: _,
-        value: _
-    },
+
+    error: undefined, 
+    computed_value: undefined,
     parsed: _,
     depends_on: []
     used_by: []
 }
 */
-
-const initialState = {
-    shortuuid: '',
-    name: '',
-    params: {
-        pattern: ''
-    },
-    body: {},       // byid
-    body_order: []  // allIds
-}
-
 
 const initialState = {
     cells: {
@@ -50,6 +39,22 @@ const initialState = {
     }
 }
 
+function newCell(id, name, value) {
+    return {
+        id: id, 
+        type: "cell", 
+        name: name, 
+        value: value,
+        params: [],
+        body: [],
+        computed_value: null,
+        error: null,
+        parsed: null,
+        depends_on: [],
+        used_by: []
+    }
+}
+
 const cellsSlice = createSlice({
     slice: 'cells',
     initialState: initialState.cells,
@@ -57,12 +62,7 @@ const cellsSlice = createSlice({
         initCell: (state, action) => {
             let id = action.payload.id;
             let cell = action.payload;
-            state.byId[id] = {
-                "id": cell.id,
-                "input": cell.input,
-                "name": cell.name,
-                "type": "cell"
-            };
+            state.byId[id] = newCell(cell.id, cell.name, cell.input);
             state.allIds.push(id);
             // Don't set state.modified since this is initialization
         },
@@ -70,13 +70,7 @@ const cellsSlice = createSlice({
             let cells = action.payload;
             cells.forEach((cell) => {
                 let id = cell.id;
-
-                state.byId[id] = {
-                    "id": cell.id,
-                    "input": cell.input,
-                    "name": cell.name,
-                    "type": "cell"
-                };
+                state.byId[id] = newCell(cell.id, cell.name, cell.input)
                 state.allIds.push(id);                
             });
             
@@ -90,8 +84,8 @@ const cellsSlice = createSlice({
 
             // Clear output for any emptied cells which would be excluded in the response
             if(cell.input.trim() === "") {
-                cell.output = "";
-                cell.error = "";
+                cell.computed_value = null;
+                cell.error = null;
             }
 
             state.modified = true;
