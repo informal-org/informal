@@ -85,16 +85,35 @@
 .Cell-edit .Cell-cellName {
   /* border-bottom: 1px solid #BEE3F8; */
   /* border-bottom: 1px solid rgb(206, 212, 217); */
-  border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+  /* border-bottom: 1px solid rgba(0, 0, 0, 0.125); */
   width: 100%;
   cursor: text;
-  margin: 0 0 3px 0;
+  z-index: 10;
+
+  padding: 0.5rem 0.5rem;
 }
 
+.Cell-edit .Cell-cellName:hover {
+  outline: 2px solid rgba(0, 103, 244, 0.547);
+}
 
-
-.Cell-edit .Cell-cellName:hover, .Cell-edit .Cell-outputs:hover {
+.Cell-edit .Cell-nameHeader:hover {
   @apply shadow;
+  z-index: 10;
+}
+
+.Cell-nameHeader label {
+  padding: 0.5rem 0.25rem;
+  margin: 0;
+}
+
+.Cell-nameHeader {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+}
+
+.Cell-edit .Cell-outputs:hover {
+  @apply shadow;
+  z-index: 10;
 }
 
 .Cell-edit .Cell-inputs {
@@ -114,6 +133,12 @@
   cursor: text;
 
   /* border: 1px solid rgba(0,0,0,.125); */
+}
+
+.Cell-edit label {
+  font-weight: bold;
+  color: rgba(25, 25, 25, 0.75);
+  font-size: 0.75rem;
 }
 
 .Cell-outputs .list-group {

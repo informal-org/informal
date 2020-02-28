@@ -55,19 +55,24 @@ export default class GridCell extends AbstractBaseCell {
             cellBody = <form onSubmit={this.saveCell} className="Cell-edit container-fluid">
             <i className="fas fa-expand float-right text-gray-700 maximize"></i>
 
-            <div className="row">
-                <input className="col-sm-12 Cell-cellName block Cell-cellName--edit" placeholder="Name" type="text" onChange={this.changeName} value={this.state.name}></input> 
+            <div className="row Cell-nameHeader">
+                <div className="col-sm-6 inline-block">
+                    <label className="inline-block" for="variable_name">Variable Name: </label>
+                    <input id="variable_name" className="inline-block Cell-cellName block Cell-cellName--edit" placeholder="Name" type="text" onChange={this.changeName} value={this.state.name}></input> 
+                </div>
+                
             </div>
 
             <div className="row">
             <div className="Cell-inputs col-sm-2">
+                <label>Function Parameters: </label>
                 <div className="btn btn-placeholder">+ Add Input</div>
             </div>
             
             <div className="Cell-outputs col-sm-10">
                 {/* <input className="Cell-cellValue bg-blue-100 block Cell-cellValue--edit" placeholder="Value" type="text" onChange={this.changeInput} value={this.state.input}></input> */}
 
-
+                <label>Value Expression:</label>
                 <ul className="list-group col-sm-10">
                     <li className="list-group-item">
                         <Editor
