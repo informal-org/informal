@@ -12,7 +12,7 @@ export default class GridCell extends AbstractBaseCell {
     constructor(props){
         super(props)
         this.state = {
-            input: cellGet(props.cell, "input"),
+            input: cellGet(props.cell, "expr"),
             name: cellGet(props.cell, "name")
         }
     }

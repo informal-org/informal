@@ -87,8 +87,8 @@ function generateCode(expr) {
     var code = "" + ctx_init.toString() + "\n; var ctx = ctx_init();";
     expr.body.forEach((cell) => {
         var variable_name = cell.name;
-        parse(cell.input);
-        code += `var ${variable_name} = ${cell.input};\n`;
+        parse(cell.expr);
+        code += `var ${variable_name} = ${cell.expr};\n`;
         code += `ctx.set(${cell.id}, ${variable_name});\n`;
     })
 
@@ -117,7 +117,7 @@ export function evaluate(expr) {
     expr.body.forEach((element) => {
         output.push({
             id: element.id,
-            output: result[element.id],
+            value: result[element.id],
             error: ""
         });
     });

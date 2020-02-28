@@ -99,8 +99,8 @@ export function cellGet(cell, attr) {
 
 
 export function formatCellOutput(cell) {
-    let output = cellGet(cell, "output");
-    if(output === undefined){
+    let output = cellGet(cell, "value");
+    if(output === undefined || output === null){
         return ""
     }
     else if(output === true) {

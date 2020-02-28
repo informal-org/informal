@@ -1,11 +1,9 @@
 // Default attributes when not defined
 export const typeDefaults = {
     "default": {
-        width: 1,
-        height: 1,
         type: "cell",
         name: "",
-        input: "",
+        expr: "",
         loading: false,
         error: ""
     },
@@ -15,5 +13,3 @@ export const typeDefaults = {
     "listcell": {}
 }
 
-export const CELL_MAX_WIDTH = 7;
-export const CELL_MAX_HEIGHT = 8;

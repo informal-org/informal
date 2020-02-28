@@ -1,8 +1,8 @@
 import { configureStore, createSlice } from 'redux-starter-kit'
 import { parseEverything } from './controller.js'
-import { apiPost, apiPatch } from './utils.js'
-import { CELL_MAX_WIDTH, CELL_MAX_HEIGHT } from './constants.js'
+import { apiPost, apiPatch, genID } from './utils.js'
 import { evaluate } from "./engine/engine.js"
+
 
 
 /* Schema
@@ -10,12 +10,12 @@ import { evaluate } from "./engine/engine.js"
     id: shortuuid,
     type: "cell"
     name: valid_string_name,
-    value: value | [values] | [cells]   - Ordered as list, but may represent a dictionary
+    expr: value | [values] | [cells]   - Ordered as list, but may represent a dictionary
     params: [cells],    // Basic - just a list of names. Complex - nested cells.
     body: [cells],      // Private function body
 
     error: undefined, 
-    computed_value: undefined,
+    value: undefined,
     parsed: _,
     depends_on: []
     used_by: []
@@ -39,15 +39,15 @@ const initialState = {
     }
 }
 
-function newCell(id, name, value) {
+function newCell(id, name, expr) {
     return {
         id: id, 
         type: "cell", 
         name: name, 
-        value: value,
+        expr: expr,
         params: [],
         body: [],
-        computed_value: null,
+        value: null,    // Computed result value
         error: null,
         parsed: null,
         depends_on: [],
@@ -59,18 +59,12 @@ const cellsSlice = createSlice({
     slice: 'cells',
     initialState: initialState.cells,
     reducers: {
-        initCell: (state, action) => {
-            let id = action.payload.id;
-            let cell = action.payload;
-            state.byId[id] = newCell(cell.id, cell.name, cell.input);
-            state.allIds.push(id);
-            // Don't set state.modified since this is initialization
-        },
         initCells: (state, action) => {
             let cells = action.payload;
             cells.forEach((cell) => {
                 let id = cell.id;
-                state.byId[id] = newCell(cell.id, cell.name, cell.input)
+                state.byId[id] = newCell(cell.id, cell.name, cell.expr);
+                // state.byId[id] = cell;
                 state.allIds.push(id);                
             });
             
@@ -80,11 +74,11 @@ const cellsSlice = createSlice({
             let cell = state.byId[action.payload.id]
             console.log(action.payload.id);
             console.log(cell);
-            cell.input = action.payload.input;
+            cell.expr = action.payload.input;
 
             // Clear output for any emptied cells which would be excluded in the response
-            if(cell.input.trim() === "") {
-                cell.computed_value = null;
+            if(cell.expr.trim() === "") {
+                cell.value = "";
                 cell.error = null;
             }
 
@@ -98,19 +92,8 @@ const cellsSlice = createSlice({
             state.modified = true;
         },
         addCell: (state, action) => {
-            console.log("in add cell");
-            let id = 1;
-            if(state.allIds.length > 0) {
-                // Find the ID of the last cell and increment
-                id = state.allIds[state.allIds.length - 1] + 1;
-            }
-            console.log(id);
-            state.byId[id] = {
-                "id": id,
-                "name": "",
-                "input": "",
-                "type": "cell"
-            }
+            let id = genID();
+            state.byId[id] = newCell(id, "", "");
             state.allIds.push(id);
         },
         setModified: (state, action) => {
@@ -123,7 +106,7 @@ const cellsSlice = createSlice({
             const responseCells = response["results"];
             responseCells.forEach((responseCell) => {
                 let stateCell = state.byId[responseCell.id];
-                stateCell.output = responseCell.output;
+                stateCell.value = responseCell.value;
                 stateCell.error = responseCell.error;
             });
             // Short-circuit re-evaluation until a change happens.
@@ -187,7 +170,6 @@ const saveOutput = cellsSlice.actions.saveOutput;
 const setFocus = cellsSlice.actions.setFocus;
 const moveFocus = cellsSlice.actions.moveFocus;
 const setModified = cellsSlice.actions.setModified;
-const initCell = cellsSlice.actions.initCell;
 const initCells = cellsSlice.actions.initCells;
 export const addCell = cellsSlice.actions.addCell;
 
@@ -218,19 +200,17 @@ export const loadView = () => {
 
             let newCells = [];
 
-    
             for(var i = 0; i < body.length; i++) {
                 newCells.push(body[i]);
             }
 
-            for(var i = body.length; i < 255; i++) {
-                newCells.push({
-                    'id': i, 
-                    'name': "",
-                    'input': '',
-                    'type': 'cell'
-                });
+            for(var i = body.length; i < 5; i++) {
+                var id = genID();
+                newCells.push(newCell(id, "", ""));
             }
+
+            console.log("Init new cells");
+            console.log(newCells);
 
             dispatch(initCells(newCells));
 
@@ -308,4 +288,4 @@ export const mapStateToProps = (state /*, ownProps*/) => {
 }
 
 export const mapDispatchToProps = {setFocus, setInput, setName, reEvaluate,
-    moveFocus, setModified, initCell, addCell, initView, patchView}
+    moveFocus, setModified, addCell, initView, patchView}
