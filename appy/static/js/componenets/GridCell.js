@@ -57,7 +57,7 @@ export default class GridCell extends AbstractBaseCell {
 
             <div className="row Cell-nameHeader">
                 <div className="col-sm-6 inline-block">
-                    <label className="inline-block" for="variable_name">Name: </label>
+                    <label className="inline-block" htmlFor="variable_name">Name: </label>
                     <input id="variable_name" className="inline-block Cell-cellName block Cell-cellName--edit" placeholder="Name" type="text" onChange={this.changeName} value={this.state.name}></input> 
                 </div>
                 

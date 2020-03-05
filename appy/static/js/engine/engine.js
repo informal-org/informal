@@ -195,7 +195,7 @@ function generateCode(cells) {
         };
     };
 
-    var code = "" + ctx_init.toString() + "\n; var ctx = ctx_init();";
+    var code = "" + ctx_init.toString() + ";\nvar ctx = ctx_init();\n";
     for(var cell_id in cells) {
         var cell = cells[cell_id];
         if(cell.expr !== undefined && cell.expr !== null && cell.expr !== "") {
@@ -203,7 +203,7 @@ function generateCode(cells) {
             var variable_name = cell.name ? cell.name : "a" + cell.id;
 
             code += `var ${variable_name} = ${cell.expr};\n`;
-            code += `ctx.set(${cell.id}, ${variable_name});\n`;
+            code += `ctx.set("${cell.id}", ${variable_name});\n`;
         }
 
     }

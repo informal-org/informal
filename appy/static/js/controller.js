@@ -17,7 +17,5 @@ export function parseEverything(cells) {
             expr: cellInput,
         });
     }
-    console.log("Parsed everything");
-    console.log(data);
     return data
 }

@@ -91,9 +91,12 @@ const cellsSlice = createSlice({
             state.modified = true;
         },
         setName: (state, action) => {
-            let cell = state.byId[action.payload.id]
+            console.log("ID -> " + action.payload.id)
+            let cell = state.byId[action.payload.id];
+            console.log(cell);
+            console.log(cell.name);
             var oldName = cell.name;
-            var newName = state.payload.name;
+            var newName = action.payload.name;
 
             // Remove the cell from the old name mapping
             if(oldName != "" && oldName in state.byName) {
@@ -249,10 +252,13 @@ const reEvaluate = () => {
             return
         }
         let parsed = parseEverything(state.cellsReducer.byId);
-
-        apiPatch("/api/v1/views/" + window._aa_viewid + "/?format=json", {
-            'content': JSON.stringify(parsed)
-        })
+        
+        if(parsed.body.length > 0) {
+            // Prevent wiping all contents accidentally
+            apiPatch("/api/v1/views/" + window._aa_viewid + "/?format=json", {
+                'content': JSON.stringify(parsed)
+            })
+        }
 
         // var result = evaluate(parsed);
         var result = evaluate(state);
