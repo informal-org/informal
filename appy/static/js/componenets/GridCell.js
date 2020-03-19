@@ -4,6 +4,7 @@ import AbstractBaseCell from "./AbstractBaseCell.js"
 import { cellGet, formatCellOutput } from "../utils.js"
 
 import Editor from 'react-simple-code-editor';
+import CellParam from "./CellParam.js"
 import { highlight, languages } from 'prismjs/components/prism-core';
 import 'prismjs/components/prism-clike';
 import 'prismjs/components/prism-javascript';
@@ -41,8 +42,8 @@ export default class GridCell extends AbstractBaseCell {
 
     renderParams() {
         var params = [];
-        for(var i = 0; i < 3; i++) {
-            var elem = <input className="block Cell-paramName" key={"param" + i}></input>
+        for(var i = 0; i < this.props.cell.params.length; i++) {
+            var elem = <CellParam cell={this.props.cell} param_index={i} key={"param" + i}/>
             params.push(elem)
         }
 

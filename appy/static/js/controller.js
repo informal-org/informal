@@ -15,6 +15,7 @@ export function parseEverything(cells) {
             id: cell.id,
             name: cell.name,
             expr: cellInput,
+            params: cell.params
         });
     }
     return data

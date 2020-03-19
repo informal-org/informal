@@ -40,13 +40,25 @@ const initialState = {
     }
 }
 
-function newCell(id, name, expr) {
+function newCell(id, name, expr, params) {
+    if(params === undefined) {
+        params = []
+    }
+
+    if(expr === undefined) {
+        expr = ""
+    }
+
+    if(name === undefined) {
+        name = ""
+    }
+
     return {
         id: id, 
         type: "cell", 
         name: name, 
         expr: expr,
-        params: [],
+        params: params,
         body: [],
         value: null,    // Computed result value
         error: null,
@@ -64,7 +76,7 @@ const cellsSlice = createSlice({
             let cells = action.payload;
             cells.forEach((cell) => {
                 let id = cell.id;
-                state.byId[id] = newCell(cell.id, cell.name, cell.expr);
+                state.byId[id] = newCell(cell.id, cell.name, cell.expr, cell.params);
                 if(cell.name in state.byName) {
                     state.byName[cell.name].push(cell.id);
                 } else {
@@ -116,11 +128,19 @@ const cellsSlice = createSlice({
         },
         addCell: (state, action) => {
             let id = genID();
-            state.byId[id] = newCell(id, "", "");
+            state.byId[id] = newCell(id, "", "", []);
             state.allIds.push(id);
         },
         addParam: (state, action) => {
-            console.log("Adding input");
+            var id = action.payload.id;
+            state.byId[id].params.push("")
+        },
+        setParam: (state, action) => {
+            var id = action.payload.id;
+            var param_index = action.payload.param_index;
+            var param_value = action.payload.param_value;
+            state.byId[id].params[param_index] = param_value;
+            console.log("Setting param");
         },
         setModified: (state, action) => {
             state.modified = true;
@@ -198,8 +218,8 @@ const moveFocus = cellsSlice.actions.moveFocus;
 const setModified = cellsSlice.actions.setModified;
 const initCells = cellsSlice.actions.initCells;
 export const addParam = cellsSlice.actions.addParam;
+export const setParam = cellsSlice.actions.setParam;
 export const addCell = cellsSlice.actions.addCell;
-
 export const initView = viewSlice.actions.initView;
 export const patchView = viewSlice.actions.patchView;
 
@@ -233,7 +253,7 @@ export const loadView = () => {
 
             for(var i = body.length; i < 5; i++) {
                 var id = genID();
-                newCells.push(newCell(id, "", ""));
+                newCells.push(newCell(id, "", "", []));
             }
 
             console.log("Init new cells");
@@ -320,4 +340,4 @@ export const mapStateToProps = (state /*, ownProps*/) => {
 }
 
 export const mapDispatchToProps = {setFocus, setInput, setName, reEvaluate,
-    moveFocus, setModified, addCell, initView, patchView, addParam}
+    moveFocus, setModified, addCell, initView, patchView, addParam, setParam}

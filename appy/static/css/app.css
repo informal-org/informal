@@ -207,6 +207,7 @@
   border-radius: .25rem;
   background-color: transparent;
   border-color: transparent;
+  border-color: #e2e8f0;
 }
 
 .Cell-edit .Cell-paramName:hover, .Cell-edit .Cell-paramName:focus {
