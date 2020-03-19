@@ -8,6 +8,8 @@ import { highlight, languages } from 'prismjs/components/prism-core';
 import 'prismjs/components/prism-clike';
 import 'prismjs/components/prism-javascript';
 
+import { addParam } from "../store.js"
+
 export default class GridCell extends AbstractBaseCell {
     constructor(props){
         super(props)
@@ -28,6 +30,27 @@ export default class GridCell extends AbstractBaseCell {
         this.props.reEvaluate();
 
         this.clearFocus();
+    }
+
+    addParam = () => {
+        console.log("Click handler");
+        window.store.dispatch(addParam({
+            id: this.props.cell.id
+        }))
+    }
+
+    renderParams() {
+        var params = [];
+        for(var i = 0; i < 3; i++) {
+            var elem = <input className="block Cell-paramName" key={"param" + i}></input>
+            params.push(elem)
+        }
+
+        return <div className="Cell-inputs col-sm-2">
+            <label>Parameters: </label>
+            {params}
+            <div className="btn btn-placeholder" onClick={this.addParam}>+ Add Input</div>
+        </div>
     }
 
     render() {
@@ -58,16 +81,13 @@ export default class GridCell extends AbstractBaseCell {
             <div className="row Cell-nameHeader">
                 <div className="col-sm-6 inline-block">
                     <label className="inline-block" htmlFor="variable_name">Name: </label>
-                    <input id="variable_name" className="inline-block Cell-cellName block Cell-cellName--edit" placeholder="Name" type="text" onChange={this.changeName} value={this.state.name}></input> 
+                    <input id="variable_name" className="inline-block Cell-cellName Cell-cellName--edit" placeholder="Name" type="text" onChange={this.changeName} value={this.state.name}></input> 
                 </div>
                 
             </div>
 
             <div className="row">
-                <div className="Cell-inputs col-sm-2">
-                    <label>Parameters: </label>
-                    <div className="btn btn-placeholder">+ Add Input</div>
-                </div>
+                {this.renderParams()}
                 
                 <div className="Cell-outputs col-sm-10">
                     {/* <input className="Cell-cellValue bg-blue-100 block Cell-cellValue--edit" placeholder="Value" type="text" onChange={this.changeInput} value={this.state.input}></input> */}

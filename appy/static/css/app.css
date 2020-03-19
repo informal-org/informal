@@ -144,6 +144,7 @@
 
 .Cell-outputs .list-group {
   background-color: white;
+  padding: 0;
 }
 
 .Cell-outputs .list-group-item {
@@ -196,6 +197,21 @@
 .Cell--focused .Cell-cellResult {
   padding: 0.5rem;
   padding-left: 166px;
+}
+
+.Cell-edit .Cell-paramName {
+  padding: .5rem 1rem;
+  border: 1px solid #e2e8f0;
+  margin: 0;
+  width: 100%;
+  border-radius: .25rem;
+  background-color: transparent;
+  border-color: transparent;
+}
+
+.Cell-edit .Cell-paramName:hover, .Cell-edit .Cell-paramName:focus {
+  background-color: white;
+  border-color: #e2e8f0;
 }
 
 .Cell-cellResult {

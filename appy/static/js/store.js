@@ -119,6 +119,9 @@ const cellsSlice = createSlice({
             state.byId[id] = newCell(id, "", "");
             state.allIds.push(id);
         },
+        addParam: (state, action) => {
+            console.log("Adding input");
+        },
         setModified: (state, action) => {
             state.modified = true;
         },
@@ -194,6 +197,7 @@ const setFocus = cellsSlice.actions.setFocus;
 const moveFocus = cellsSlice.actions.moveFocus;
 const setModified = cellsSlice.actions.setModified;
 const initCells = cellsSlice.actions.initCells;
+export const addParam = cellsSlice.actions.addParam;
 export const addCell = cellsSlice.actions.addCell;
 
 export const initView = viewSlice.actions.initView;
@@ -316,4 +320,4 @@ export const mapStateToProps = (state /*, ownProps*/) => {
 }
 
 export const mapDispatchToProps = {setFocus, setInput, setName, reEvaluate,
-    moveFocus, setModified, addCell, initView, patchView}
+    moveFocus, setModified, addCell, initView, patchView, addParam}
