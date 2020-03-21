@@ -1,5 +1,7 @@
 import { cellGet } from "./utils.js"
 
+
+
 export function parseEverything(cells) {
     let data = {}
     data.body = []
@@ -11,11 +13,13 @@ export function parseEverything(cells) {
             // So that it's valid to have cells with space            
             continue
         }
+        // Filter out empty parameters
+        let params = Array.isArray(cell.params) ? cell.params.filter(param => param !== undefined && param !== "") : [];
         data.body.push({
             id: cell.id,
             name: cell.name,
             expr: cellInput,
-            params: cell.params
+            params: params
         });
     }
     return data
