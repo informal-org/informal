@@ -17,7 +17,8 @@ const CopyWebpackPlugin = require('copy-webpack-plugin');
 // module.exports = Encore.getWebpackConfig()
 
 
-module.exports = (env, options) => ({
+// module.exports = (env, options) => ({
+module.exports = {
   optimization: {
     minimizer: [
       new UglifyJsPlugin({ cache: true, parallel: true, sourceMap: false }),
@@ -65,4 +66,5 @@ module.exports = (env, options) => ({
       // { from: 'css/', to: 'static/css/' },
   ])
   ]
-});
+};
+// });

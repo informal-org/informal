@@ -24,3 +24,4 @@ export function parseEverything(cells) {
     }
     return data
 }
+
