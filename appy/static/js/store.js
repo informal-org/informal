@@ -135,6 +135,11 @@ const cellsSlice = createSlice({
             var id = action.payload.id;
             state.byId[id].params.push("")
         },
+        addRow: (state, action) => {
+            var id = action.payload.id;
+            // TODO: Add to expr. Support expr as an array. Values should be cell ref objects or raw expression values.
+            // state.byId[id].expr
+        },
         setParam: (state, action) => {
             var id = action.payload.id;
             var param_index = action.payload.param_index;

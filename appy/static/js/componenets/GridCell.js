@@ -9,7 +9,7 @@ import { highlight, languages } from 'prismjs/components/prism-core';
 import 'prismjs/components/prism-clike';
 import 'prismjs/components/prism-javascript';
 
-import { addParam } from "../store.js"
+import { addParam, addRow } from "../store.js"
 
 export default class GridCell extends AbstractBaseCell {
     constructor(props){
@@ -34,8 +34,15 @@ export default class GridCell extends AbstractBaseCell {
     }
 
     addParam = () => {
-        console.log("Click handler");
         window.store.dispatch(addParam({
+            id: this.props.cell.id
+        }))
+    }
+
+    addRow = () => {
+        console.log("Adding row clicked")
+
+        window.store.dispatch(addRow({
             id: this.props.cell.id
         }))
     }
@@ -107,7 +114,7 @@ export default class GridCell extends AbstractBaseCell {
                                 }}
                             />
                         </li>
-                        <li className="list-group-item btn btn-placeholder w-full">+ Add row </li>
+                        <li className="list-group-item btn btn-placeholder w-full" onClick={this.addRow}>+ Add row </li>
                     </ul>
 
                 </div>
