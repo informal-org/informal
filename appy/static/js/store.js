@@ -227,6 +227,7 @@ export const setParam = cellsSlice.actions.setParam;
 export const addCell = cellsSlice.actions.addCell;
 export const initView = viewSlice.actions.initView;
 export const patchView = viewSlice.actions.patchView;
+export const addRow = viewSlice.actions.addRow;
 
 export const loadView = () => {
     return (dispatch, getState) => {
@@ -345,4 +346,4 @@ export const mapStateToProps = (state /*, ownProps*/) => {
 }
 
 export const mapDispatchToProps = {setFocus, setInput, setName, reEvaluate,
-    moveFocus, setModified, addCell, initView, patchView, addParam, setParam}
+    moveFocus, setModified, addCell, initView, patchView, addParam, setParam, addRow}
