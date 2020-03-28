@@ -186,6 +186,7 @@ function generateCode(cells) {
 
     // return `var ${variable_name} = ${cell.input}; ${cell.input}`;
 
+    var code = `
     function ctx_init() {
         var ctx = {};
         return {
@@ -194,8 +195,9 @@ function generateCode(cells) {
             all: function() { return ctx }
         };
     };
+    var ctx = ctx_init();
+    `;
 
-    var code = "" + ctx_init.toString() + ";\nvar ctx = ctx_init();\n";
     for(var cell_id in cells) {
         var cell = cells[cell_id];
         if(cell.expr !== undefined && cell.expr !== null && cell.expr !== "") {
