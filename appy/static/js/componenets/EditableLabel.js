@@ -29,11 +29,15 @@ export default class EditableLabel extends React.Component {
     }
     render() {
         if(this.state.isEdit) {
-            return <form className="form-group container editable-label" onSubmit={this.saveInput}>
-                <div className="row">
-                    <input type="text" value={this.state.editValue} onChange={this.editInput} className="form-control inline-block col-md-9"></input>
-                    <input type="submit" value="Save" className="btn btn-secondary col-md-3"/>
-                </div>
+            return <form className="form-group editable-label inline-block" onSubmit={this.saveInput}>
+                    <div className="input-group mb-3">
+                    <input type="text" value={this.state.editValue} onChange={this.editInput} className="form-control"></input>
+                    <div className="input-group-append">
+                        <input type="submit" value="Save" className="btn btn-secondary"/>
+                    </div>
+                    </div>
+                    
+
             </form>
         } else {
             var editStyle = {
@@ -41,12 +45,12 @@ export default class EditableLabel extends React.Component {
                 paddingLeft: "0.65rem"
             }
 
-            return <div>
-                <label>{this.props.value}</label>
+            return <span className="inline-block">
+                <label>{this.props.value}</label> &nbsp;
                 <small style={editStyle}>
                     <a onClick={this.setEdit}>Edit</a>
                 </small>
-            </div>
+            </span>
         }
     }
 }

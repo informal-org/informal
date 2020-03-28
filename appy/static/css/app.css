@@ -332,8 +332,10 @@
 }
 
 
-.ant-page-header {
-  background-color: #EDF2F7 !important;
+.editor-header {
+  background-color: #EDF2F7;
+  padding: 16px 24px;
+  color: rgba(0, 0, 0, 0.85);
 }
 
 .fnSymbol {
@@ -345,4 +347,19 @@
 .outputCode {
   display: inline-block;
   width: 100%;
+}
+
+
+.header-title label {
+  font-weight: 600;
+  font-size: 20px;
+  line-height: 32px;
+}
+
+.header-label {
+  display: inline-block;
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: nowrap;
+
 }

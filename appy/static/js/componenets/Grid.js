@@ -4,7 +4,6 @@ import GridList from "./GridList.js"
 import EditableLabel from "./EditableLabel.js"
 import { addCell, patchView } from "../store.js"
 
-import { PageHeader, Button, Descriptions } from 'antd';
 
 export default class Grid extends React.Component {
     constructor(props) {
@@ -83,40 +82,51 @@ export default class Grid extends React.Component {
         }).filter((r) => r !== undefined) // Filter out un-rendered cells
         
         return <div>
-            <div className="shadow">
-<PageHeader
-      ghost={false}
-      backIcon={false}  // Don't display back button
-      onBack={() => window.history.back()}
-      title={<EditableLabel 
-        key={this.props.view_name}      // Ensure component is re-rendered when name is fetched
-        value={this.props.view_name}
-        onSave={this.setViewName}
-      ></EditableLabel>}
-      subTitle=""
-      extra={[
-        <a href={ this.getPreviewUrl() } target="_blank" key="1"><Button type="primary">Preview</Button></a>
-      ]}
-    >
-      <Descriptions size="small" column={3}>
-        <Descriptions.Item label="Route">
-        <EditableLabel 
+                <header className="container-fluid editor-header shadow">
+
+                    <div className="row">
+                        <div className="col-sm-10 header-title">
+                            <EditableLabel 
+                                key={this.props.view_name}      // Ensure component is re-rendered when name is fetched
+                                value={this.props.view_name}
+                                onSave={this.setViewName}>
+                            </EditableLabel>
+                        </div>
+
+                        <div className="col-sm-2">
+                    <a href={ this.getPreviewUrl() } target="_blank">
+                        <button className="btn btn-primary">Preview</button>
+                    </a>
+                    </div>
+
+                    </div>
+
+                    <div className="row">
+                        <div className="col-sm-4">
+                            <label className="header-label">Route: </label>
+
+                            <EditableLabel 
         key={this.props.view_pattern}      // Ensure component is re-rendered when name is fetched
         value={this.props.view_pattern}
         onSave={this.setViewPattern}
       ></EditableLabel>
-        </Descriptions.Item>
 
-        {/*
+
+              {/*
          // Routing methods disabled for MVP currently
          <Descriptions.Item label="Methods">
             <input type="checkbox" checked={this.props.view_m_get} onChange={this.setMethodGet}></input> GET &nbsp;
             <input type="checkbox" checked={this.props.view_m_post} onChange={this.setMethodPost}></input> POST
         </Descriptions.Item>
        */}
-      </Descriptions>
-    </PageHeader>            
-    </div>
+
+                        </div>
+
+                    </div>
+
+                </header>
+
+
         
             <div className="Grid">
                 {cells}
