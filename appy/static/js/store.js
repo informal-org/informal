@@ -225,9 +225,9 @@ const initCells = cellsSlice.actions.initCells;
 export const addParam = cellsSlice.actions.addParam;
 export const setParam = cellsSlice.actions.setParam;
 export const addCell = cellsSlice.actions.addCell;
+export const addRow = cellsSlice.actions.addRow;
 export const initView = viewSlice.actions.initView;
 export const patchView = viewSlice.actions.patchView;
-export const addRow = viewSlice.actions.addRow;
 
 export const loadView = () => {
     return (dispatch, getState) => {
