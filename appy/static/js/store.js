@@ -10,15 +10,17 @@ import { evaluate } from "./engine/engine.js"
     id: shortuuid,
     type: "cell"
     name: valid_string_name,
-    expr: value | [values] | [cells]   - Ordered as list, but may represent a dictionary
+    expr: value | [values] | [{key: value}, ordered map]  // Expressions/values. 
     params: [cells],    // Basic - just a list of names. Complex - nested cells.
-    body: [cells],      // Private function body
+    body: [cells],      // Sub block of code cells for function bodies, conditionals, etc. 
 
     error: undefined, 
     value: undefined,
     parsed: _,
     depends_on: []
-    used_by: []
+    used_by: [],
+
+    parent: parent_id | null,
 }
 */
 
@@ -40,25 +42,14 @@ const initialState = {
     }
 }
 
-function newCell(id, name, expr, params) {
-    if(params === undefined) {
-        params = []
-    }
-
-    if(expr === undefined) {
-        expr = ""
-    }
-
-    if(name === undefined) {
-        name = ""
-    }
-
+function newCell(id, name="", expr="", params=[], parent=null) {
     return {
         id: id, 
         type: "cell", 
         name: name, 
         expr: expr,
         params: params,
+        parent: parent,
         body: [],
         value: null,    // Computed result value
         error: null,
@@ -76,7 +67,7 @@ const cellsSlice = createSlice({
             let cells = action.payload;
             cells.forEach((cell) => {
                 let id = cell.id;
-                state.byId[id] = newCell(cell.id, cell.name, cell.expr, cell.params);
+                state.byId[id] = newCell(cell.id, cell.name, cell.expr, cell.params, cell.parent);
                 if(cell.name in state.byName) {
                     state.byName[cell.name].push(cell.id);
                 } else {
@@ -128,7 +119,7 @@ const cellsSlice = createSlice({
         },
         addCell: (state, action) => {
             let id = genID();
-            state.byId[id] = newCell(id, "", "", []);
+            state.byId[id] = newCell(id);
             state.allIds.push(id);
         },
         addParam: (state, action) => {
@@ -259,7 +250,7 @@ export const loadView = () => {
 
             for(var i = body.length; i < 5; i++) {
                 var id = genID();
-                newCells.push(newCell(id, "", "", []));
+                newCells.push(newCell(id));
             }
 
             console.log("Init new cells");
