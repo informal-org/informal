@@ -10,18 +10,21 @@ import { evaluate } from "./engine/engine.js"
     id: shortuuid,
     type: "cell"
     name: valid_string_name,
-    expr: value | [values] | [{key: value}, ordered map]  // Expressions/values. 
+    expr: value | [values array] | [[keys...], [values...]] | [{id: cell_ref_id}]  // Expressions/values. 
     params: [cells],    // Basic - just a list of names. Complex - nested cells.
     body: [cells],      // Sub block of code cells for function bodies, conditionals, etc. 
 
     error: undefined, 
     value: undefined,
     parsed: _,
-    depends_on: []
+    depends_on: [],     // Cell_ids  
     used_by: [],
 
-    parent: parent_id | null,
+    parent: parent_cell_id | null,
 }
+
+Dictionaries are stored as ordered keys and values lists.
+Nested arrays and objects should be stored as a reference.
 */
 
 const initialState = {

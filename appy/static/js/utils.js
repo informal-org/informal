@@ -142,3 +142,22 @@ export function genID() {
     var number = BigInt(uuid_hex);
     return encodeID(number);
 }
+
+
+export function mapToArray(m) {
+    // Serialize a map to an array for storage
+    return [m.keys(), m.values()]
+}
+
+export function arrayToMap(arr) {
+    // Convert key list and value list to the tuple format accepted by Map
+    return Map(zip(arr[0], arr[1]))
+}
+
+function noopZip(val1, val2) {
+    return [val1, val2]
+}
+
+export function zip(arr1, arr2, zipper=noopZip) {
+    return arr1.map((value, index) => zipper(value, arr2[index]) )
+}
