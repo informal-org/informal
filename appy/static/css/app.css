@@ -23,19 +23,18 @@
   display: block;
   font-size: 13px;
   font-family: Arial;  
-  grid-template-columns: repeat(auto-fill, 133px);
-  grid-gap: 1px;
-  grid-auto-rows: 55px;
-  grid-auto-flow: row;
   padding: 1rem;
   justify-content: center;
 
+  width: 800px;
+  margin: 40px auto;
 }
 
 .Cell {
   /* width: 180px;
   height: 100px; */
-  padding: 0.5rem 1rem;
+  padding: 10px 20px 10px 34px;
+
   font-size: 14px;
 
   white-space: nowrap;
@@ -46,16 +45,16 @@
   /* outline: 1px solid #a0aec0; */
   /* outline: 1px dotted rgba(160, 174, 192, 0.55); */
 
-  margin: 0.75rem 0;
-  border: 1px solid rgba(0,0,0,.125);
-  border-radius: 0.25rem;
+  margin: 0;
+  border: 1px solid rgba(160,174,191,.25);
+  /* border-radius: 0.25rem; */
+  border-radius: 0;
 
   cursor: pointer; 
+  margin-top: -1px;
+
 }
 
-.Cell:hover {
-  @apply shadow;
-}
 
 .Cell-cellName {
   font-weight: bold;
@@ -69,6 +68,16 @@
   /* color: #718096;   /* Grey-600 */
 
   color: #24292e;   /* Standard text editor identifier name */
+
+  text-align: left;
+
+  padding: 0
+}
+
+.box-icon {
+  border: 1px solid rgba(160,174,191,.25);
+  border-radius: 3px;
+  padding: 2px;
 }
 
 .Cell-cellResult {
@@ -82,6 +91,10 @@
   border-color: #4299E1;
 }
 
+.Cell-edit {
+  padding: 0.5rem;
+}
+
 .Cell-edit .Cell-cellName {
   /* border-bottom: 1px solid #BEE3F8; */
   /* border-bottom: 1px solid rgb(206, 212, 217); */
@@ -89,33 +102,9 @@
   width: 100%;
   cursor: text;
   z-index: 10;
-
   padding: 0.5rem 0.5rem;
 }
 
-.Cell-edit .Cell-cellName:hover {
-  outline: 2px solid rgba(0, 103, 244, 0.547);
-}
-
-.Cell-edit .Cell-nameHeader:hover {
-  @apply shadow;
-  z-index: 10;
-}
-
-.Cell-nameHeader label {
-  padding: 0.5rem 0.25rem;
-  padding-left: 0;
-  margin: 0;
-}
-
-.Cell-nameHeader {
-  border-bottom: 1px solid rgba(0, 0, 0, 0.125);
-}
-
-.Cell-edit .Cell-outputs:hover {
-  @apply shadow;
-  z-index: 10;
-}
 
 .Cell-edit .Cell-inputs {
   padding: 0.5rem 1rem;
@@ -125,21 +114,26 @@
 }
 
 .Cell-edit .Cell-outputs {
-  padding: 0.5rem 1rem;
+  /* padding: 0.5rem 1rem; */
   /* padding: 0; */
   /* background-color: #E2E8F0; */
   /* background-color: #EBF8FF; */
-  background-color: rgb(250, 250, 250);
+  /* background-color: rgb(250, 250, 250); */
   /* background-color: white; */
   cursor: text;
 
   /* border: 1px solid rgba(0,0,0,.125); */
 }
 
+
+
 .Cell-edit label {
   font-weight: bold;
   color: rgba(25, 25, 25, 0.75);
   font-size: 0.75rem;
+  padding: 0;
+  display: block;
+  margin: 0;
 }
 
 .Cell-outputs .list-group {

@@ -48,24 +48,35 @@ export default class GridCell extends AbstractBaseCell {
     }
 
     renderParams() {
-        var params = [];
-        for(var i = 0; i < this.props.cell.params.length; i++) {
-            var elem = <CellParam cell={this.props.cell} param_index={i} key={"param" + i}/>
-            params.push(elem)
+        // var params = [];
+        // for(var i = 0; i < this.props.cell.params.length; i++) {
+        //     var elem = <CellParam cell={this.props.cell} param_index={i} key={"param" + i}/>
+        //     params.push(elem)
+        // }
+
+        // return <div className="Cell-inputs col-sm-2">
+        //     <label>Parameters: </label>
+        //     {params}
+        //     <div className="btn btn-placeholder" onClick={this.addParam}>+ Add Input</div>
+        // </div>
+
+
+        if(this.props.cell.params.length > 0) {
+            return <div className="col-sm-4 inline-block">
+                <label>Input Parameters: </label>
+            </div>
+        }
+        else {
+            return <span></span>
         }
 
-        return <div className="Cell-inputs col-sm-2">
-            <label>Parameters: </label>
-            {params}
-            <div className="btn btn-placeholder" onClick={this.addParam}>+ Add Input</div>
-        </div>
     }
 
     render() {
-        let className = "Cell shadow-sm";
+        let className = "Cell";
 
         if(this.props.isFocused){
-            className += " Cell--focused shadow";
+            className += " Cell--focused";
         }
         let cellResults = null;
         let error = cellGet(this.props.cell, "error")
@@ -84,24 +95,24 @@ export default class GridCell extends AbstractBaseCell {
         let cellBody = null;
         if(this.props.isFocused){
             cellBody = <form onSubmit={this.saveCell} className="Cell-edit container-fluid">
+
+
             <i className="fas fa-expand float-right text-gray-700 maximize"></i>
 
-            <div className="row Cell-nameHeader">
-                <div className="col-sm-6 inline-block">
-                    <label className="inline-block" htmlFor="variable_name">Name: </label>
+            <div className="row">
+                <div className="col-sm-2 inline-block Cell-nameHeader">
+                    <label htmlFor="variable_name">Name: </label>
                     <input id="variable_name" className="inline-block Cell-cellName Cell-cellName--edit" placeholder="Name" type="text" onChange={this.changeName} value={this.state.name}></input> 
                 </div>
-                
-            </div>
 
-            <div className="row">
                 {this.renderParams()}
                 
+
                 <div className="Cell-outputs col-sm-10">
                     {/* <input className="Cell-cellValue bg-blue-100 block Cell-cellValue--edit" placeholder="Value" type="text" onChange={this.changeInput} value={this.state.input}></input> */}
 
                     <label>Value: </label>
-                    <ul className="list-group col-sm-10">
+                    <ul className="list-group col-sm-12">
                         <li className="list-group-item">
                             <Editor
                                 value={this.state.input}
@@ -114,10 +125,17 @@ export default class GridCell extends AbstractBaseCell {
                                 }}
                             />
                         </li>
-                        <li className="list-group-item btn btn-placeholder w-full" onClick={this.addRow}>+ Add row </li>
+                        {/* <li className="list-group-item btn btn-placeholder w-full" onClick={this.addRow}>+ Add row </li> */}
                     </ul>
 
                 </div>
+
+
+
+            </div>
+
+            <div className="row">
+                
 
             </div>
 
@@ -126,11 +144,19 @@ export default class GridCell extends AbstractBaseCell {
         } else {
             cellBody = <span className="row">
 
-            <div className="Cell-cellName col-sm-1">{this.state.name}</div>
-            <div className="col-sm-11">
+            <div className="Cell-cellName col-sm-2">{this.state.name}</div>
+            <div className="col-sm-9">
                 {cellResults}
             </div>
             
+            <div className="col-sm-1 text-right">
+            <span className="">
+                {/* &#xFF0B; */}
+                &#x2026;
+
+            </span>
+            </div>
+
 
 
             </span>
