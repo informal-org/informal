@@ -236,6 +236,10 @@ function parseAll(cells) {
     return cells
 }
 
+function inspect() {
+    
+}
+
 export function evaluate(state) {
     console.log("Evaluating");
     console.log(state);

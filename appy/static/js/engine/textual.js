@@ -2,54 +2,40 @@ var esprima = require('esprima');
 const util = require('util');
 
 
-var program = `
-var a = 1; var two = 3;
-var b = 2;
+var ROOT_ID = 0;
 
-var c = a + b;
-`
+// All cells at all depths indexed by unique IDs
+var byId = {
+    1: {
+        id: 1,
+        name: "a",
+        depends_on: [2, 3],     // Extracted from parse tree after name resolution.
+        
+        parent: ROOT_ID, // Reference to parent ID if not root
+        body: [],
+        params: []
+    },
+    2: {
+        id: 2,
+        name: "b",
+        depends_on: [3],
 
-const TYPE_CELL = "CELL"
+        parent: ROOT_ID,
+        body: [],
+        params: []
+    },
+    3: {
+        id: 3,
+        name: "c",
+        depends_on: [],
 
-
-class Cell {
-    constructor(id, name="", expr="", params=[], body=[], parent=null){
-        this.id = id;
-        this.name = name;
-        this.expr = expr;
-        this.params = params;
-        this.body = body;
-
-        // Used internally for book-keeping and traversal
-        this.parent = parent;
-        this.depends_on = []
-        this.used_by = []
-        this.parsed = undefined;
-
-        // Return values
-        this.js = undefined;        // Constructed js code
-        this.value = undefined;     // Resulting value after evaluation
-        this.error = undefined;     // Any cell errors during evaluation
+        parent: ROOT_ID,
+        body: [],
+        params: []
     }
 }
 
-
-var program = [
-    {
-        id: 1,
-        type: TYPE_CELL,
-
-        expr: "1 + 1",
-        params: [],
-        body: [],
-
-        error: undefined,
-        value: undefined,
-        parsed: undefined,
-        depends_on: [],
-        used_by: []
-    }
-];
+var rootIds = [1, 2, 3];
 
 // expression
 // children
@@ -57,16 +43,54 @@ var program = [
 // console.log("3")
 // console.log(tokenized.body[2]);
 
-function assignIds(parseTree, startId=0) {
-    parseTree.body.forEach(element => {
-        element.id = startId++;
-        // TODO: Nested blocks - recurse along the path with the same IDs and return
-    });
+// TODO
+function resolve(name, todo) {
+
 }
 
-function sequentialize(parseTree) {
+function linearize(rootIds, byId) {
     // Takes a declarative parse tree and turns it into an imperative sequential equivalent
+    // Input: List of {id: id, depends_on: []}.
+    // Returns: {status: cycle/ok, path: [list of ids]}
+
+    let eval_order = [];
+    let leafs = [];
     
+    // ID -> number of nodes that depend on it
+    let depend_count = {};
+    
+    rootIds.forEach(id => {
+        let node = byId[id];
+        if(node.depends_on.length == 0) {
+            leafs.push(id);
+        } else {
+            depend_count[id] = node.depends_on.length;
+        }
+    });
+
+    while(leafs.length > 0) {
+        let leaf = leafs.shift();   // Pop first leaf
+        eval_order.push(leaf);
+
+        // Remove it as an unmet dependency for all its child elements.
+        leaf.used_by.forEach((dependent_id) => {
+            if(dependent_id in depend_count) {
+                depend_count[dependent_id] -= 1;
+                if(depend_count[dependent_id] == 0) {
+                    // Remove nodes without any dependencies
+                    delete depend_count[dependent_id]
+                    leafs.push(dependent_id);
+                }
+            } else {
+                leafs.push(dependent_id)
+            }
+        })
+    }
+    // No more leaf nodes without any dependencies. All remaining nodes are interdependent.
+    return {
+        cycle: Object.keys(depend_count),
+        order: eval_order
+    }
 }
 
 function serializeToJs(linearTree){
@@ -75,6 +99,10 @@ function serializeToJs(linearTree){
 
 function evaluate(serializedJs) {
     // Evaluates the generated js and returns the parse tree annotated with results
+}
+
+function inspect() {
+
 }
 
 function run(){
