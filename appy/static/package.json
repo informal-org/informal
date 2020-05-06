@@ -7,14 +7,13 @@
     "watch": "(webpack --mode development --watch) & (gulp watch)",
     "buildcss": "npx tailwind build css/base.scss -o dist/static/tmpcss/base.css && npx tailwind build css/app.css -o dist/static/tmpcss/app.css",
     "purgecss": "mkdir -p dist/static/tmpcss && mv dist/static/css/*.css dist/static/tmpcss && purgecss --css dist/static/tmpcss/*.css --content ../templates/*.html -o dist/static/css && rm dist/static/tmpcss",
-    "stats": "webpack --profile --json > stats.json"
+    "stats": "webpack --profile --json > stats.json",
+    "test": "jest"
   },
   "dependencies": {
-    "antd": "^3.26.13",
     "bootstrap": "^4.4.1",
     "esprima": "^4.0.1",
     "hamt": "^2.2.2",
-    "immer": "^6.0.5",
     "jsep": "^0.3.4",
     "npm": "^6.14.3",
     "prismjs": "^1.19.0",
@@ -45,6 +44,7 @@
     "gulp-postcss": "^8.0.0",
     "gulp-purgecss": "^1.2.0",
     "gulp-sass": "^4.0.2",
+    "jest": "^26.0.1",
     "mini-css-extract-plugin": "^0.4.0",
     "optimize-css-assets-webpack-plugin": "^5.0.1",
     "postcss-loader": "^3.0.0",

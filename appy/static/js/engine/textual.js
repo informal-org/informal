@@ -45,7 +45,7 @@ var rootIds = [1, 2, 3];
 // console.log("3")
 // console.log(tokenized.body[2]);
 
-function createScopeMap(rootId, byId, scopesById) {
+function generateScopeMap(rootId, byId, scopesById) {
     // rootID = ID of current node being traversed.
     // byId = Cell map by id.
     // scopesById: MUTABLE map of global scope at each point in the tree.
@@ -73,6 +73,7 @@ function createScopeMap(rootId, byId, scopesById) {
         
         // Finish processing this tree by adding it to the current scope
         if(child.name) {
+            // Set and overwrite any previous name bindings to support aliasing.
             scopesById[rootId] = scopesById[rootId].set(child.name, child.id)
         }
     }
@@ -194,4 +195,6 @@ function run(){
     console.dir(tokenized, { depth: null }); 
 }
 
-run();
+export function add(a, b) {
+    return a + b
+}
