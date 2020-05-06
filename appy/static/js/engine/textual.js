@@ -45,7 +45,7 @@ var rootIds = [1, 2, 3];
 // console.log("3")
 // console.log(tokenized.body[2]);
 
-function generateScopeMap(rootId, byId, scopesById) {
+export function mapScopeNames(rootId, byId, scopesById) {
     // rootID = ID of current node being traversed.
     // byId = Cell map by id.
     // scopesById: MUTABLE map of global scope at each point in the tree.
@@ -69,7 +69,7 @@ function generateScopeMap(rootId, byId, scopesById) {
     for(var i = 0; i < cell.body.length; i++) {
         let child = cell.body[i];
         // Note that scopesById changes over the course of the definition.
-        createScopeMap(child.id, byId, scopesById)
+        mapScopeNames(child.id, byId, scopesById)
         
         // Finish processing this tree by adding it to the current scope
         if(child.name) {
@@ -82,7 +82,7 @@ function generateScopeMap(rootId, byId, scopesById) {
 }
 
 // TODO
-function resolve(name, refCellId, byId) {
+export function resolve(name, refCellId, byId) {
     // Given a name, identify which node it's referencing by scope rules.    
     
     // First check in the parameters.
@@ -102,10 +102,9 @@ function resolve(name, refCellId, byId) {
         }
 
     }
-
 }
 
-function linearize(rootIds, byId, metDeps) {
+export function orderByDependency(rootIds, byId, metDeps) {
     // Takes a declarative parse tree and turns it into an imperative sequential equivalent
     // Input: List of {id: id, depends_on: []}. metDeps = Set of dependencies met outside of this node.
     // Returns: {status: cycle/ok, path: [list of ids]}

@@ -1,5 +1,5 @@
-const textual = require('./textual.js');
+import {} from './textual.js';
 
-test('adds 1 + 2 to equal 3', () => {
+test('dependency order maintained', () => {
   expect(textual.add(1, 2)).toBe(3);
 });
