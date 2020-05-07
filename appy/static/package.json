@@ -8,7 +8,8 @@
     "buildcss": "npx tailwind build css/base.scss -o dist/static/tmpcss/base.css && npx tailwind build css/app.css -o dist/static/tmpcss/app.css",
     "purgecss": "mkdir -p dist/static/tmpcss && mv dist/static/css/*.css dist/static/tmpcss && purgecss --css dist/static/tmpcss/*.css --content ../templates/*.html -o dist/static/css && rm dist/static/tmpcss",
     "stats": "webpack --profile --json > stats.json",
-    "test": "jest"
+    "test": "jest",
+    "watchtest": "jest --watch"
   },
   "dependencies": {
     "bootstrap": "^4.4.1",

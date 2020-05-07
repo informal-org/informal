@@ -4,47 +4,6 @@ const util = require('util');
 const hamt = require('hamt');   // Hash array mapped trie - immutable map
 
 
-var ROOT_ID = 0;
-
-// All cells at all depths indexed by unique IDs
-var byId = {
-    1: {
-        id: 1,
-        name: "a",
-        depends_on: [2, 3],     // Extracted from parse tree after name resolution.
-        
-        parent: ROOT_ID, // Reference to parent ID if not root
-        body: [],
-        params: []
-    },
-    2: {
-        id: 2,
-        name: "b",
-        depends_on: [3],
-
-        parent: ROOT_ID,
-        body: [],
-        params: []
-    },
-    3: {
-        id: 3,
-        name: "c",
-        depends_on: [],
-
-        parent: ROOT_ID,
-        body: [],
-        params: []
-    }
-}
-
-var rootIds = [1, 2, 3];
-
-// expression
-// children
-
-// console.log("3")
-// console.log(tokenized.body[2]);
-
 export function mapScopeNames(rootId, byId, scopesById) {
     // rootID = ID of current node being traversed.
     // byId = Cell map by id.
@@ -104,6 +63,12 @@ export function resolve(name, refCellId, byId) {
     }
 }
 
+export function traceReferences(byId) {
+    // Builds an inverse of depends_on to find all usages of a cell.
+     
+    
+}
+
 export function orderByDependency(rootIds, byId, metDeps) {
     // Takes a declarative parse tree and turns it into an imperative sequential equivalent
     // Input: List of {id: id, depends_on: []}. metDeps = Set of dependencies met outside of this node.
@@ -114,7 +79,7 @@ export function orderByDependency(rootIds, byId, metDeps) {
     let leafs = [];
 
     // Clone the met dependency for internal use without mutating the parameter.
-    metDeps = Set(metDeps.values());
+    metDeps = new Set(metDeps.values());
     
     // ID -> number of nodes that depend on it
     let depend_count = {};
@@ -151,7 +116,7 @@ export function orderByDependency(rootIds, byId, metDeps) {
         }
 
         // Remove it as an unmet dependency for everything depending on it.
-        leaf.used_by.forEach((dependent_id) => {
+        leaf.used_byleaf.used_by.forEach((dependent_id) => {
             if(dependent_id in depend_count) {
                 depend_count[dependent_id] -= 1;
                 if(depend_count[dependent_id] == 0) {

@@ -32,8 +32,10 @@ const initialState = {
         byId: {},
         allIds: [], // "@3", "@4", "@5", "@6"
         byName: {},
-        focus: null,  // ID of the element selected
-        modified: false,  // Allow initial evaluation
+        focus: null,  // ID of the element selected         // TODO: Move to component
+        modified: false,  // Allow initial evaluation,      // TODO: Remove?
+
+        currentRoot: undefined, // TODO. Use this and remove allIds. Allows top-level re-focus
     },
     view: {
         uuid: '',
@@ -48,17 +50,19 @@ const initialState = {
 function newCell(id, name="", expr="", params=[], parent=null) {
     return {
         id: id, 
-        type: "cell", 
+        type: "cell",
         name: name, 
         expr: expr,
         params: params,
-        parent: parent,
+//        parent: parent,
         body: [],
+
         value: null,    // Computed result value
         error: null,
-        parsed: null,
-        depends_on: [],
-        used_by: []
+
+//        parsed: null,
+//        depends_on: [],
+//        used_by: []
     }
 }
 
