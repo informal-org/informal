@@ -1,4 +1,4 @@
-import { mapScopeNames, resolve, orderByDependency } from './textual.js';
+import { Cell } from './Cell.js';
 
 
 const ROOT_ID = 0;
@@ -69,6 +69,14 @@ const TREE_BASIC = {
 }
 
 test('dependency order maintained', () => {
-  let order = orderByDependency(TREE_BASIC[ROOT_ID].body, TREE_BASIC, new Set())
-  console.log(order);
+    let root = new Cell(TREE_BASIC[0], undefined, TREE_BASIC);
+    let order = root.orderByDeps(new Set())
+    console.log(
+        "Order: " + root._eval_order
+    );
+
+    console.log(
+        "Cycles: " + root._cycles.size
+    );
+    
 });
