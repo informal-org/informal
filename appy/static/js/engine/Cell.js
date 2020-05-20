@@ -124,12 +124,12 @@ export class Cell {
         // Cell is the only parent for params and body, so recursively init those.
         this.param_ids = new Set(cell.params);
         this.params = cell.params.map((param) => {
-            new Cell(env.getRawCell(param), currentCell, env)
+            return new Cell(env.getRawCell(param), currentCell, env)
         });
         
         this.body_ids = new Set(cell.body);
         this.body = cell.body.map((bodyCell) => {
-            new Cell(env.getRawCell(bodyCell), currentCell, env)
+            return new Cell(env.getRawCell(bodyCell), currentCell, env)
         });
 
         // Mutable execution state.
@@ -162,12 +162,15 @@ export class Cell {
             // Params can reference parent scope or previously defined params
             // for default values, but not the function body.
             param.defineNamespace();
-            this.namespace = this.namespace.set(param.name, param);
+
+            if(param.name) {
+                this.namespace = this.namespace.set(param.name, param);
+            }
         })
 
         this.body.forEach((child) => {
             // Define the child scope relative to this current scope at this point in time.
-            child.defineNamespace();
+            child.defineNamespace();            
 
             // Set and overwrite any previous name bindings to support aliasing.
             if(child.name) {
@@ -178,7 +181,7 @@ export class Cell {
 
     resolve(name) {
         // First check in namespace for any aliased names.
-        let directRef = this.namespace.get('name');
+        let directRef = this.namespace.get(name);
         if(directRef) {
             return directRef;
         }

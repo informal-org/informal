@@ -69,6 +69,59 @@ const TREE_BASIC = {
 }
 
 
+const TREE_NESTED = {
+  1: {
+      id: 1,
+      name: "a",
+      depends_on: [2, 3],     // Extracted from parse tree after name resolution.
+      
+      body: [2, 3],
+      params: []
+  },
+  2: {
+      id: 2,
+      name: "b",
+      depends_on: [],
+
+      body: [],
+      params: []
+  },
+  3: {
+      id: 3,
+      name: "c",
+      depends_on: [4],
+
+      body: [4],
+      params: []
+  }, 
+  4: {
+    id: 4,
+    name: "d",
+    depends_on: [5, 6],
+
+    body: [5, 6],
+    params: []
+  }, 
+  5: {
+    id: 5,
+    name: "e",
+    depends_on: [],
+
+    body: [],
+    params: []
+  }, 
+  6: {
+    id: 6,
+    name: "f",
+    depends_on: [],
+
+    body: [],
+    params: []
+  }
+}
+
+
+
 // Tree where no cells depend on each other.
 const INDEPENDENT_TREE = {
     0: {
@@ -141,7 +194,7 @@ test('independent order maintained', () => {
 test('dependency order maintained', () => {
     let env = new Environment(TREE_BASIC);
     let root = new Cell(TREE_BASIC[0], undefined, env);
-    let depOrder = env.totalOrderByDeps()
+    env.totalOrderByDeps()
 
     let cycles = env.cyclic_cells;
     let order = env.eval_order;
@@ -164,5 +217,39 @@ test('dependency order maintained', () => {
     
     expect(c._eval_index).toBeLessThan(a._eval_index);
     expect(b._eval_index).toBeLessThan(a._eval_index);
+
+});
+
+
+//        a
+//     b    c
+//          d
+//        e   f
+test('scoped name resolution', () => {
+  let env = new Environment(TREE_NESTED);
+  let root = new Cell(TREE_NESTED[1], undefined, env);
+  root.defineNamespace()
+
+  let a = env.getCell(1);
+  let b = env.getCell(2);
+  let c = env.getCell(3);
+  let d = env.getCell(4);
+  let e = env.getCell(5);
+  let f = env.getCell(6);
+
+  // Expected order. Doesn't care if e is before or after f.
+
+  // Child can reference up the parent chain
+  expect(f.resolve("e")).toEqual(e);
+  expect(f.resolve("d")).toEqual(d);
+  expect(f.resolve("c")).toEqual(c);
+
+  // Parent chain can't access nested child scope
+  expect(c.resolve("f")).toEqual(undefined);
+  expect(a.resolve("d")).toEqual(undefined);
+
+  // Can access direct desendents
+  expect(a.resolve("b")).toEqual(b);  
+  expect(a.resolve("c")).toEqual(c);
 
 });
