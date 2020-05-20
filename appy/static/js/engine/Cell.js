@@ -1,11 +1,118 @@
 const hamt = require('hamt');
 import { union, difference } from "../utils.js"
 
+export class Environment {
+    // Cells live in a shared environment. 
+    // Contains mappings and functionality at the intersection of cells.
+    
+    constructor(raw_map) {
+        this.cell_map = {};
+        
+        // Raw details by map
+        this.raw_map = raw_map;
+
+        // Cell ID -> Set of dependencies
+        // Use maps for these instead of Cell attributes
+        // so they can be defined independent of cell creation order
+        this.dependency_map = {};
+        this.usage_map = {};
+
+        this.eval_order = [];
+        this.cyclic_cells = new Set();
+
+        // Cell ID -> subset of dep map that's cyclic
+        this.cyclic_deps = {};
+    }
+
+    static getDefaultSet(map, key) {
+        // Lookup key in map with python defaultdict like functionality.
+        if(!map.hasOwnProperty(key)) {
+            map[key] = new Set();
+        } 
+        return map[key]
+    }
+
+    addDependency(cell_id, dep_id) {
+        let dep_set = Environment.getDefaultSet(this.dependency_map, cell_id);
+        dep_set.add(dep_id);
+
+        // Add inverse relationship
+        let usage_set = Environment.getDefaultSet(this.usage_map, dep_id);
+        usage_set.add(cell_id)
+    }
+
+    getRawCell(id) {
+        return this.raw_map[id]
+    }
+
+    getCell(id) {
+        return this.cell_map[id]
+    }
+
+    getDependsOn(cell_id) {
+        return Environment.getDefaultSet(this.dependency_map, cell_id)
+    }
+
+    getUsedBy(cell_id) {
+        return Environment.getDefaultSet(this.usage_map, cell_id)
+    }
+
+    totalOrderByDeps() {
+        let leafs = []; // Leafs are cells with all dependencies met & are ready to be evaluated.
+        let pending_nodes = new Set();
+        let eval_order = new Array();
+
+        // Clone met deps for internal use without mutating shared one
+        // metDeps = new Set(metDeps.values());
+        Object.values(this.cell_map).forEach((cell) => {
+            cell._eval_index = undefined;
+            cell._depend_count = this.getDependsOn(cell.id).size
+            if(cell._depend_count === 0) {
+                leafs.push(cell);
+            } else {
+                pending_nodes.add(cell);
+            }
+        })
+
+        // Mark each leaf cell for execution and update book-keeping
+        while(leafs.length > 0) {
+            let leaf = leafs.pop();
+            eval_order.push(leaf);
+
+            this.getUsedBy(leaf.id).forEach((dep_id) => {
+                let dependent = this.getCell(dep_id);
+                // Mark dep as met. If it's a child, queue it up for execution.
+                if(dependent._depend_count === 0) {
+                    leafs.push(dependent);
+                    pending_nodes.delete(dependent);
+                }
+            })
+        }
+
+        // All remaining nodes at this point are interdependent cycles
+        this.cyclic_cells = pending_nodes;
+        this.eval_order = eval_order;
+
+        // Mark each node with its execution order for local sorting when generating code
+        this.eval_order.forEach((cell, index) => {
+            cell._eval_index = index;
+        })
+
+        this.cyclic_ids = Array.from(this.cyclic_cells).map(cell => cell.id)
+        this.cyclic_cells.forEach((cell) => {
+            // Find which of cell's dependencies are cyclic
+            this.cyclic_deps[cell.id] = intersection(this.getDependsOn(cell.id), this.cyclic_ids)
+        })
+    }
+}
+
+
 export class Cell {
-    constructor(cell, parent, byId, cellMap) {
-        cellMap[cell.id] = this;
-        this.cellMap = cellMap;
+    constructor(cell, parent, env) {
+        env.cell_map[cell.id] = this;
+        this.env = env;
         this.parent = parent;
+
         this.id = cell.id;
         this.type = cell.type;
         this.name = cell.name;
@@ -14,26 +121,27 @@ export class Cell {
         let currentCell = this;
 
         // Cell is the only parent for params and body, so recursively init those.
-        this.param_ids = Set(cell.params);
+        this.param_ids = new Set(cell.params);
         this.params = cell.params.map((param) => {
-            new Cell(byId[param], currentCell, byId, cellMap)
+            new Cell(env.getRawCell(param), currentCell, env)
         });
         
-        this.body_ids = Set(cell.body);
+        this.body_ids = new Set(cell.body);
         this.body = cell.body.map((bodyCell) => {
-            new Cell(byId[bodyCell], currentCell, byId, cellMap)
+            new Cell(env.getRawCell(bodyCell), currentCell, env)
         });
 
         // Mutable execution state.
         this._num_pending_deps = undefined;
-
-        // Additional computed metadata. 
-        // ID of dependencies and computed inverse relationship
-        this.depends_on = new Set(cell.depends_on)
-        this.used_by = new Set(cell.used_by)
+        // Numerical index of evaluation order in total ordering
+        this._eval_index = undefined;
 
         this.parsed = {};
         this.namespace = hamt.empty;
+
+        cell.depends_on.forEach((dep) => {
+            env.addDependency(cell.id, dep)
+        })
     }
 
     defineNamespace() {
@@ -88,110 +196,7 @@ export class Cell {
         return undefined;
     }
 
-    addReference(cellId) {
-        this.references.add(cellId);
-    }
-
-    removeReference(cellId) {
-        // Assert: Caller ensures that cell has no further dependencies on this.
-        this.references.delete(cellId);
-    }
-
-    markDependsOn() {
-        // Definition: A node depends on sibling and parent/external nodes
-        // But not on any descendant nodes
-
-        // Set of parent references minus all child references
-        if(this.body) {
-            // With a body, external references are sum of child refs - child refs
-            let external_deps = this.references;
-
-            let internal_deps = union(this.body_ids, this.param_ids)
-            
-            // Compute sum of external deps for all children
-            this.params.forEach((cell) => {
-                // Params don't have any body, so skip the call
-                external_deps = union(external_deps, cell.references)
-            });
-
-            // Assume: No cycles between parent-body.
-            this.body.forEach((cell) => {
-                external_deps = union(external_deps, cell.markDependencies())
-            });
-
-            // Remove internal deps
-            external_deps = difference(external_deps, internal_deps)
-            
-            this.depends_on = external_deps
-            return deps
-        } else {
-            // Without a body, everything it references is external
-            this.depends_on = deps
-            return this.references
-        }
-    }
-
-    markUsedBy() {
-
-    }
-
-    static markDependencies(depMap, cellMap) {
-        // assert: all cells have a clean list of depends_on and used_by
-        // If a node has child nodes, its dependencies should include all of its child deps 
-        // minus any internal interdependence. 
-        // Child nodes can then execute with local ordering (assume all parent deps met)
-
-        Object.values(depMap).forEach((cellMeta) => {
-            let cell = cellMap[cellMeta.id]
-            cellMeta.depends_on.forEach((depId) => {
-                let dep = cellMap[depId];
-                cell.addDependency(dep);
-            })
-        })
-    }
-
-    static totalOrderByDeps(cellMap) {
-        // Assert: cellMap is a sub-graph or total graph that contain all interdependencies
-        let leafs = []; // Leafs are cells with all dependencies met & are ready to be evaluated.
-        let pending_nodes = new Set();
-        let eval_order = new Array();
-        let met_deps = new Set();
-
-        // Clone met deps for internal use without mutating shared one
-        // metDeps = new Set(metDeps.values());
-        Object.values(cellMap).forEach((cell) => {
-            cell._depend_count = cell.depends_on.size
-            if(cell._depend_count === 0) {
-                leafs.push(cell);
-            } else {
-                pending_nodes.add(cell);
-            }
-        })
-
-        // Mark each leaf cell for execution and update book-keeping
-        while(leafs.length > 0) {
-            let leaf = leafs.shift();   // Pop first leaf
-            eval_order.push(leaf);
-            met_deps.add(leaf);
-
-            leaf.used_by.forEach((dependent) => {
-                // Mark dep as met. If it's a child, queue it up for execution.
-                if(dependent._depend_count === 0) {
-                    leafs.push(dependent);
-                    pending_nodes.delete(dependent);
-                }
-            })
-        }
-
-        // All remaining pending nodes are interdependent cycles
-        return {
-            'order': eval_order,
-            'cycles': pending_nodes
-        }
-    }
-
     toString() {
         return "Cell(" + this.id + "," + this.name + ")";
     }
-
 }
