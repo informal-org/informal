@@ -138,26 +138,31 @@ test('independent order maintained', () => {
 });
 
 
-// test('dependency order maintained', () => {
-//     let cellMap = {};
-//     let root = new Cell(TREE_BASIC[0], undefined, TREE_BASIC, cellMap);
+test('dependency order maintained', () => {
+    let env = new Environment(TREE_BASIC);
+    let root = new Cell(TREE_BASIC[0], undefined, env);
+    let depOrder = env.totalOrderByDeps()
 
-//     Cell.markDependencies(TREE_BASIC, cellMap);
-//     let depOrder = Cell.orderByDeps(cellMap)
+    let cycles = env.cyclic_cells;
+    let order = env.eval_order;
 
-//     let cycles = depOrder['cycles'];
-//     let order = depOrder['order'];
+    expect(cycles.size).toBe(0);
+    expect(order.length).toEqual(7);
 
-//     let a = mutIdMap[1];
-//     let b = mutIdMap[2];
-//     let c = mutIdMap[3];
-//     let d = mutIdMap[4];
-//     let e = mutIdMap[5];
-//     let f = mutIdMap[5];
+    let a = env.getCell(1);
+    let b = env.getCell(2);
+    let c = env.getCell(3);
+    let d = env.getCell(4);
+    let e = env.getCell(5);
+    let f = env.getCell(5);
 
-//     // No cycles
-//     expect(cycles.size).toBe(0);
+    // Expected order. Doesn't care if e is before or after f.
+    expect(e._eval_index).toBeLessThan(d._eval_index);
+    expect(f._eval_index).toBeLessThan(d._eval_index);
 
-//     // No cycles
-//     expect(order.indexOf).toBe(0);
-// });
+    expect(d._eval_index).toBeLessThan(c._eval_index);
+    
+    expect(c._eval_index).toBeLessThan(a._eval_index);
+    expect(b._eval_index).toBeLessThan(a._eval_index);
+
+});

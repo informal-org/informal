@@ -169,12 +169,12 @@ export function union(a, b) {
 
 // a - b
 export function difference(a, b) {
-    return new Set([...a]).filter(ai => !b.has(ai));
+    return new Set([...a].filter(ai => !b.has(ai)));
 }
 
 // Elements contained in both sets
 export function intersection(a, b) {
-    return new Set([...a]).filter(ai => b.has(ai));
+    return new Set([...a].filter(ai => b.has(ai)))
 }
 
 

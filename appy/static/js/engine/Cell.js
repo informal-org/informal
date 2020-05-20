@@ -1,5 +1,5 @@
 const hamt = require('hamt');
-import { union, difference, Queue } from "../utils.js"
+import { union, difference, intersection, Queue } from "../utils.js"
 
 export class Environment {
     // Cells live in a shared environment. 
@@ -81,6 +81,7 @@ export class Environment {
 
             this.getUsedBy(leaf.id).forEach((dep_id) => {
                 let dependent = this.getCell(dep_id);
+                dependent._depend_count -= 1;
                 // Mark dep as met. If it's a child, queue it up for execution.
                 if(dependent._depend_count === 0) {
                     leafs.push(dependent);
@@ -98,7 +99,7 @@ export class Environment {
             cell._eval_index = index;
         })
 
-        this.cyclic_ids = Array.from(this.cyclic_cells).map(cell => cell.id)
+        this.cyclic_ids = new Set(Array.from(this.cyclic_cells).map(cell => cell.id))
         this.cyclic_cells.forEach((cell) => {
             // Find which of cell's dependencies are cyclic
             this.cyclic_deps[cell.id] = intersection(this.getDependsOn(cell.id), this.cyclic_ids)
