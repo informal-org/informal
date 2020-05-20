@@ -12,7 +12,7 @@ const ROOT_ID = 0;
 const TREE_BASIC = {
   0: {
     id: ROOT_ID,
-    name: "",
+    name: "root",
     depends_on: [], 
 
     body: [1, 2, 3, 4, 5, 6],
@@ -73,7 +73,7 @@ const TREE_BASIC = {
 const INDEPENDENT_TREE = {
     0: {
       id: ROOT_ID,
-      name: "",
+      name: "root",
       depends_on: [], 
   
       body: [1, 2, 3],
@@ -124,17 +124,17 @@ test('independent order maintained', () => {
     let cycles = env.cyclic_cells;
     let order = env.eval_order;
     
-    console.log(order);
     // No cycles
     expect(cycles.size).toBe(0);
 
-    // Order maintained as original
-    expect(order[0].name).toEqual("a");
-    expect(order[1].name).toEqual("b");
-    expect(order[2].name).toEqual("c");
-    expect(order.length).toEqual(3);
+    // Expect all cells returned
+    expect(order.length).toEqual(4);
 
-    
+    // Order maintained as original
+    expect(order[0].name).toEqual("root");
+    expect(order[1].name).toEqual("a");
+    expect(order[2].name).toEqual("b");
+    expect(order[3].name).toEqual("c");
 });
 
 

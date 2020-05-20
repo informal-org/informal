@@ -1,5 +1,5 @@
 const hamt = require('hamt');
-import { union, difference } from "../utils.js"
+import { union, difference, Queue } from "../utils.js"
 
 export class Environment {
     // Cells live in a shared environment. 
@@ -58,7 +58,7 @@ export class Environment {
     }
 
     totalOrderByDeps() {
-        let leafs = []; // Leafs are cells with all dependencies met & are ready to be evaluated.
+        let leafs = new Queue(); // Leafs are cells with all dependencies met & are ready to be evaluated.
         let pending_nodes = new Set();
         let eval_order = new Array();
 
@@ -76,7 +76,7 @@ export class Environment {
 
         // Mark each leaf cell for execution and update book-keeping
         while(leafs.length > 0) {
-            let leaf = leafs.pop();
+            let leaf = leafs.shift();
             eval_order.push(leaf);
 
             this.getUsedBy(leaf.id).forEach((dep_id) => {
