@@ -161,3 +161,18 @@ function noopZip(val1, val2) {
 export function zip(arr1, arr2, zipper=noopZip) {
     return arr1.map((value, index) => zipper(value, arr2[index]) )
 }
+
+// a + b
+export function union(a, b) {
+    return new Set([...a, ...b])
+}
+
+// a - b
+export function difference(a, b) {
+    return new Set([...a]).filter(ai => !b.has(ai));
+}
+
+// Elements contained in both sets
+export function intersection(a, b) {
+    return new Set([...a]).filter(ai => b.has(ai));
+}
