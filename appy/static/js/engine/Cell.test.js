@@ -159,6 +159,72 @@ const INDEPENDENT_TREE = {
 }  
 
 
+// #       a
+// #    b    c
+// #         d
+// #       e   f
+//             d
+const TREE_CYCLIC = {
+  0: {
+    id: ROOT_ID,
+    name: "root",
+    depends_on: [], 
+
+    body: [1, 2, 3, 4, 5, 6],
+    params: []
+  },
+  1: {
+      id: 1,
+      name: "a",
+      depends_on: [2, 3],     // Extracted from parse tree after name resolution.
+      
+      body: [],
+      params: []
+  },
+  2: {
+      id: 2,
+      name: "b",
+      depends_on: [],
+
+      body: [],
+      params: []
+  },
+  3: {
+      id: 3,
+      name: "c",
+      depends_on: [4],
+
+      body: [],
+      params: []
+  }, 
+  4: {
+    id: 4,
+    name: "d",
+    depends_on: [5, 6],
+
+    body: [],
+    params: []
+  }, 
+  5: {
+    id: 5,
+    name: "e",
+    depends_on: [],
+
+    body: [],
+    params: []
+  }, 
+  6: {
+    id: 6,
+    name: "f",
+    depends_on: [4],
+
+    body: [],
+    params: []
+  }
+}
+
+
+
 test('mark dependency usage', () => {
     let env = new Environment(TREE_BASIC);
     let root = new Cell(TREE_BASIC[0], undefined, env);
@@ -207,7 +273,7 @@ test('dependency order maintained', () => {
     let c = env.getCell(3);
     let d = env.getCell(4);
     let e = env.getCell(5);
-    let f = env.getCell(5);
+    let f = env.getCell(6);
 
     // Expected order. Doesn't care if e is before or after f.
     expect(e._eval_index).toBeLessThan(d._eval_index);
@@ -219,6 +285,39 @@ test('dependency order maintained', () => {
     expect(b._eval_index).toBeLessThan(a._eval_index);
 
 });
+
+
+
+test('detects cycles', () => {
+  let env = new Environment(TREE_CYCLIC);
+  let root = new Cell(TREE_CYCLIC[0], undefined, env);
+  env.totalOrderByDeps()
+
+  let cycles = env.cyclic_cells;
+  let order = env.eval_order;
+
+  expect(cycles.size).toBe(4);
+  expect(order.length).toEqual(3);
+
+  let a = env.getCell(1);
+  let b = env.getCell(2);
+  let c = env.getCell(3);
+  let d = env.getCell(4);
+  let e = env.getCell(5);
+  let f = env.getCell(6);
+
+  // Detects chain of cyclic nodes
+  expect(cycles).toContain(a);
+  expect(cycles).toContain(c);
+  expect(cycles).toContain(d);
+  expect(cycles).toContain(f);
+
+  // Finds order for the rest
+  expect(order).toContain(b);
+  expect(order).toContain(e);
+
+});
+
 
 
 //        a
