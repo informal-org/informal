@@ -1,4 +1,5 @@
-import { Cell, Environment } from './Cell.js';
+import { Cell } from './Cell.js';
+import { CellEnvironment } from "./CellEnvironment";
 
 
 const ROOT_ID = 0;
@@ -226,7 +227,7 @@ const TREE_CYCLIC = {
 
 
 test('mark dependency usage', () => {
-    let env = new Environment(TREE_BASIC);
+    let env = new CellEnvironment(TREE_BASIC);
     let root = new Cell(TREE_BASIC[0], undefined, env);
     
     expect(Array.from(env.getUsedBy(2))).toEqual([1]);
@@ -235,7 +236,7 @@ test('mark dependency usage', () => {
 
 test('independent order maintained', () => {
     // When cells don't depend on each other, their order remains the same
-    let env = new Environment(INDEPENDENT_TREE);
+    let env = new CellEnvironment(INDEPENDENT_TREE);
     let root = new Cell(INDEPENDENT_TREE[0], undefined, env);
   
     let depOrder = env.totalOrderByDeps()
@@ -258,7 +259,7 @@ test('independent order maintained', () => {
 
 
 test('dependency order maintained', () => {
-    let env = new Environment(TREE_BASIC);
+    let env = new CellEnvironment(TREE_BASIC);
     let root = new Cell(TREE_BASIC[0], undefined, env);
     env.totalOrderByDeps()
 
@@ -289,7 +290,7 @@ test('dependency order maintained', () => {
 
 
 test('detects cycles', () => {
-  let env = new Environment(TREE_CYCLIC);
+  let env = new CellEnvironment(TREE_CYCLIC);
   let root = new Cell(TREE_CYCLIC[0], undefined, env);
   env.totalOrderByDeps()
 
@@ -325,7 +326,7 @@ test('detects cycles', () => {
 //          d
 //        e   f
 test('scoped name resolution', () => {
-  let env = new Environment(TREE_NESTED);
+  let env = new CellEnvironment(TREE_NESTED);
   let root = new Cell(TREE_NESTED[1], undefined, env);
   root.defineNamespace()
 
