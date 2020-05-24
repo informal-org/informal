@@ -17,11 +17,12 @@ export class Cell {
         
         this.body_ids = new Set(cell.body);
         this.body = [];
+        this.ordered_body = [];
 
         // Mutable execution state.
         this._num_pending_deps = undefined;
         // Numerical index of evaluation order in total ordering
-        this._eval_index = undefined;
+        this._eval_index = -1;
 
         this.parsed = {};
         this.namespace = hamt.empty;

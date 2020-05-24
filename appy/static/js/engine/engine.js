@@ -51,58 +51,40 @@ function resolve(state, name, scope) {
     return null
 }
 
-export function getDependencies(node, context) {
-    /* Parse through an expression tree and return list of dependencies */
-    if(node.type === "BinaryExpression") {
-        let left = getDependencies(node.left, context)
-        let right = getDependencies(node.right, context);
-        return left.concat(right);
-    } else if(node.type === "UnaryExpression") {
-        return getDependencies(node.argument, context);
-    } else if(node.type === "Literal") {
-        return []
-    } else if(node.type === "Identifier") {
-        let uname = node.name.toUpperCase();
-        if(uname in BUILTIN_SYMBOLS){
-            return [];
-        }
 
-        // todo LOOKUP NAME
-        let id_resolution = resolve(context, node.name, null)
-        if(id_resolution !== undefined && id_resolution !== null) {
-            return [id_resolution]
-        }
-        return []
+export function evaluate(state) {
+    console.log("Evaluating");
+    console.log(state);
     
-    } else if (node.type === "Compound") {
-        // a, b
-        let deps = [];
-        return node.body.map((subnode) => {
-            deps.concat(getDependencies(subnode, context))
+    // 0: {id: 0, output: "Hello 2", error: ""}
+    let output = [];
+    let cells = state.cellsReducer.byId;
+    let parsed = parseAll(cells);
+
+    let code = generateCode(parsed);
+    let result = execJs(code);
+    console.log("Final result");
+    console.log(result);
+
+    for(var cell_id in cells) {
+        var element = cells[cell_id];
+        output.push({
+            id: element.id,
+            value: result[element.id],
+            error: ""
         });
-        return deps;
-    } else if (node.type == "ThisExpression") {
-        return [];
-    } else if(node.type == "MemberExpression") {
-        return [resolveMember(node, context)];
-    } else if (node.type == "CallExpression") {
-        // TODO: Also add function when user definable functions are possible.
-
-        let depArgs = [];
-        node.arguments.forEach(subnode => {
-            depArgs.concat(getDependencies(subnode, context));
-        })
-
-        return depArgs;
-    } else {
-        console.log("UNHANDLED eval CASE")
-        console.log(node);
-
-        // Node.type == Identifier
-        // Name lookup
-        // TODO: Handle name errors better.
-        // TODO: Support [bracket name] syntax for spaces.
-        return [context.resolve(node.name)];
     }
-}
+    // expr.body.forEach(element => {
+    //     let code = generateCode(element);
+    //     let result = execCode(code);
 
+    //     output.push({
+    //         id: element.id,
+    //         output: result,
+    //         error: ""
+    //     });
+    // });
+    console.log(output);
+
+    return {'results': output}
+}
