@@ -1,37 +1,36 @@
-
-function generateCode(cells) {
-    // {id, name, input}
-    // TODO: Generate safe names
-    // var variable_name = cell.name;
-
-    // return `var ${variable_name} = ${cell.input}; ${cell.input}`;
-
-    var code = `
-    function ctx_init() {
-        var ctx = {};
-        return {
-            set: function(k, v) { ctx[k] = v; },
-            get: function(k) { return ctx[k]; },
-            all: function() { return ctx }
-        };
+export const JS_PRE_CODE = `
+function ctx_init() {
+    var ctx = {};
+    return {
+        set: function(k, v) { ctx[k] = v; },
+        get: function(k) { return ctx[k]; },
+        all: function() { return ctx }
     };
-    var ctx = ctx_init();
-    `;
+};
+var ctx = ctx_init();
+`;
+export const JS_POST_CODE = `ctx.all();\n`;
 
-    for(var cell_id in cells) {
-        var cell = cells[cell_id];
-        if(cell.expr !== undefined && cell.expr !== null && cell.expr !== "") {
-            console.log(cell);
-            var variable_name = cell.name ? cell.name : "a" + cell.id;
-
-            code += `var ${variable_name} = ${cell.expr};\n`;
-            code += `ctx.set("${cell.id}", ${variable_name});\n`;
-        }
-
+function cellToJs(cell) {
+    if(cell.expr) {
+        // TODO: Variable name check
+        var variable_name = cell.name ? cell.name : "__" + cell.id;
+        let code = `var ${variable_name} = ${cell.expr};\n`;
+        code += `ctx.set("${cell.id}", ${variable_name});\n`;
+        return code;
     }
+    return ""
+}
 
-    code += "ctx.all();\n"
+export function genJs(env) {
+    var code = JS_PRE_CODE;
 
+    // TODO: Support for nested structures
+    env.eval_order.forEach((cell) => {
+        code += cellToJs(cell);
+    })
+
+    code += JS_POST_CODE;
     console.log(code);
     return code;
 }
