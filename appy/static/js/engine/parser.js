@@ -1,60 +1,156 @@
-import jsep from "jsep";
+const DELIMITERS = Set(['(', ')', '[', ']', '{', '}', '"', "'", 
+'.', ',', ':', ';', 
+'+', '-', '*', '/', '%',
+' ', '\t', '\n']);
 
-jsep.addBinaryOp("or", 1);
-jsep.addBinaryOp("and", 2);
+const ERR_INVALID_FLOAT = "Invalid floating point number format."
+const ERR_UNTERM_STR = "Could not find the ending quotes for this String."
 
-jsep.addUnaryOp("not");
-
-// Remove un-supported operations - use verbal names for these instead. 
-jsep.removeBinaryOp("||");
-jsep.removeBinaryOp("&&");
-jsep.removeBinaryOp("|");
-jsep.removeBinaryOp("&");
-// jsep.removeBinaryOp("==");
-// jsep.removeBinaryOp("!=");  // not (a = b). Excel does <>
-jsep.removeBinaryOp("===");
-jsep.removeBinaryOp("!==");
-jsep.removeBinaryOp("<<");
-jsep.removeBinaryOp(">>");
-jsep.removeBinaryOp(">>>");
-
-
-jsep.removeUnaryOp("!")
-jsep.removeUnaryOp("~")
-
-
-// var reserved_words = ["AND", "OR", "NOT", "TRUE", "FALSE"];
-// const BUILTIN_SYMBOLS = {
-//     "AND": function() {},
-//     "OR": function() {}, 
-//     "NOT": function() {},
-//     "TRUE": true,
-//     "FALSE": false,
-// }
-
-// export function lowercaseKeywords(formula) {
-//     // Convert reserved keywords like "and" to uppercase AND so they can be matched by jsep regardless of case.
-//     // This could potentially be done in a single regex rather than multiple passes over string
-//     // but this is good enough for normal sized expressions.
-//     reserved_words.forEach((keyword) => {
-//         let keyexp = "(\\W|\^)" + keyword + "(\\W|\$)";
-//         formula = formula.replace(new RegExp(keyexp, 'gi'), "$1" + keyword.toLowerCase() + "$2");
-//     })
-//     return formula;
-// }
-
-
-export function parse(expr) {
-    let parsed = jsep(expr)
-    console.log(parsed);
-    return parsed;
+function isDigit(ch) {
+    return ch >= '0' && ch <= '9'
 }
 
-function parseAll(cells) {
-    for(var id in cells){
-        let cell = cells[id];
-        // cell.parsed = parse(cell.expr);
+function isDelimiter(ch) {
+    return DELIMITERS.has(ch)
+}
+
+function syntaxError(message, index) {
+    let err = new Error(message);
+    err.index = index;
+    throw err
+}
+
+class ExprIterator {
+    constructor(expr) {
+        this.expr = expr;
+        this.index = 0;
     }
-    return cells
+    peek() {
+        return this.index < this.expr.length ? this.expr[this.index] : ""
+    }
+    next() {
+        return this.expr[++this.index]
+    }
+    hasNext() {
+        return this.index < this.expr.length
+    }
 }
 
+function gobbleDigits(it) {
+    let token = "";
+    while(it.hasNext()) {
+        if(isDigit(it.peek())) {
+            token += it.next()
+        } else {
+            break;
+        }
+    }
+    return token;
+}
+
+function parseNumber(it, negative=false) {
+    let token = "";
+   
+    // Leading decimal digits
+    token = gobbleDigits(it);
+
+    // (Optional) decimal
+    if(it.peek() == '.') {
+        token += it.next()
+
+        // (Optional) decimal digits
+        token += gobbleDigits(it)
+    }
+
+    // (Optional) Exponent
+    let exponent = it.peek()
+    if(exponent === 'e' || exponent == 'E') {
+        token += it.next()
+
+        // (Optional) sign
+        let exp_sign = it.peek();
+        if(exp_sign === '+' || exp_sign === '-') {
+            token += it.next()
+        }
+
+        // (Required) exponent power
+        if(i < expr.length) {
+            let power = gobbleDigits(it);
+            if(power === "") {
+                syntaxError(ERR_INVALID_FLOAT, i)
+            }
+            token += power;
+        } else {
+            syntaxError(ERR_INVALID_FLOAT, i)
+        }
+    }
+
+    let val = parseFloat(token);
+    if(negative) {
+        val = -1.0 * val;
+    }
+    return val;
+}
+
+function parseString(it) {
+    let token = "";
+    // Find which quote variation it is. Omit quotes from the resulting string.
+    let quote_start = it.next();
+    let terminated = false;
+
+    while(it.hasNext()) {
+        let ch = it.next();
+        if(ch == '\\') {
+            // Backslash escape
+            if(it.hasNext()) {
+                let escapedChar = it.next();
+                switch(escapedChar) {
+                    case '\\':
+                    case '\'':
+                    case '\"':
+                        token += escapedChar
+                        break;
+                    case 'n': token += '\n'; break;
+                    case 'r': token += '\r'; break;
+                    case 't': token += '\t'; break;
+                    default: token += '\\'; token += escapedChar;
+                }
+            }
+        } else if (ch == quote_start) {
+            // Omit quotes from resulting string
+            terminated = true;
+            break;
+        } else {
+            token += ch;
+        }
+    }
+
+    if(!terminated) {
+        syntaxError(ERR_UNTERM_STR, i)
+    }
+
+    return token;
+}
+
+function parseIdentifier(it) {
+    let token = "";
+    while(it.hasNext()) {
+        if(isDelimiter(it.peek())) {
+            break;
+        } else {
+            token += it.next();
+        }
+    }
+    return token;
+}
+
+
+// TODO: Better error messages
+function parse(expr){
+    // Index - shared mutable closure var
+    let it = ExprIterator(expr);
+
+
+
+
+}
