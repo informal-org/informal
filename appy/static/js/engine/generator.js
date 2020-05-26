@@ -54,6 +54,5 @@ export function genJs(env) {
     code += cellToJs(env, env.root);
 
     code += JS_POST_CODE;
-    console.log(code);
     return code;
 }
