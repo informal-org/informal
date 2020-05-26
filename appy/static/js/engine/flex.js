@@ -1,11 +1,12 @@
-import { genID, isObject } from "../utils"
+import { genID, isObject, isFunction } from "../utils"
 
 
 export class Obj {
-    constructor() {
+    constructor(data) {
         this._values = {};
         this._keys = {};
         this._aakey = "@" + genID();
+        this.data = data;
     }
     getPseudoKey(key) {
         // Convert a key of unknown type to a unique string identifier.
@@ -39,14 +40,49 @@ export class Obj {
         return pseudokey in this._values ? this._values[pseudokey] : fallback;
     }
 
+    hasKey(key) {
+        let pseudokey = this.getPseudoKey(key)
+        return pseudokey in this._values
+    }
+
     getKey(pseudokey) {
-        if (Number.isInteger(pseudokey)) {
-            return pseudokey
+        // Check if it's a numeric string. Still may not be an integer
+        if (!isNaN(pseudokey)) {
+            // Note: Floats would be handled in the string branch
+            return parseInt(pseudokey)
         } else if (pseudokey.startsWith("_")) {
             // String key. Just remove prefix.
             return pseudokey.slice(1)
         } else if(pseudokey in this._keys) {
             return this._keys[pseudokey]
+        }
+    }
+
+    call(obj) {
+        // Call this object as a function with obj as args.
+        console.log(this.data + " : " + isFunction(this.data))
+        if(isFunction(this.data)) {
+            console.log("Evaluating function")
+            // TODO: Argument expansion
+            let result = this.data(obj)
+            console.log(result);
+            return result;
+        }
+        else if(this.hasKey(obj)) {
+            return this.lookup(obj)
+        } else {
+            // Linear search for a match with all non-standard keys
+            let keys = Object.keys(this._keys);
+            for(var i = 0; i < keys.length; i++) {
+                let pseudokey = keys[i];
+                let key = this._keys[pseudokey];
+
+                // TODO: Key match check
+                if(true) {
+                    let val = this._values[pseudokey];
+                    return val.call(obj)
+                }
+            }
         }
     }
 }
