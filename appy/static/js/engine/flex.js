@@ -5,17 +5,17 @@ export class Obj {
     constructor(data) {
         this._values = {};
         this._keys = {};
-        this._aakey = "@" + genID();
+        this.$aa_key = "@" + genID();
         this.data = data;
     }
     getPseudoKey(key) {
         // Convert a key of unknown type to a unique string identifier.
         if(isObject(key)) {
             // Generate and cache key for future use with this exact obj.
-            if(key._aakey === undefined) {
-                key._aakey = "@" + genID();
+            if(key.$aa_key === undefined) {
+                key.$aa_key = "@" + genID();
             }
-            return key._aakey
+            return key.$aa_key
         } else if (Number.isInteger(key)) {
             // Use numeric keys as-is without any modification
             return key
@@ -58,18 +58,41 @@ export class Obj {
         }
     }
 
-    call(obj) {
+    pseudokeys() {
+        // Return the value keys, which contain everything including the
+        // inferred keys.
+        return this._values.keys()
+    }
+
+    isMatch(key, args) {
+        // Pattern match against the key, not the value
+        // The value may be a function, but we're checking the key match
+        if(Array.isArray(key)) {
+            return key.length === args.length
+        } else {    // Assert: is Obj otherwise
+            if(Array.isArray(key.data)) {
+                return key.data.length === args.length
+            }
+            if(args.length === 1) {
+                // For object key match, assume single arg object.
+                // Shallow check of object keys against obj keys
+                let arg = args[0];
+                // Compare keys array
+                return JSON.stringify(arg.pseudokeys()) === JSON.stringify(key.pseudokeys())
+            }
+        }
+        return false
+    }
+
+    call(...args) {
         // Call this object as a function with obj as args.
-        console.log(this.data + " : " + isFunction(this.data))
         if(isFunction(this.data)) {
-            console.log("Evaluating function")
-            // TODO: Argument expansion
-            let result = this.data(obj)
-            console.log(result);
+            // Spread args except on single params, which may be objects
+            let result = args.length > 0 ? this.data(...args) : this.data(args)
             return result;
         }
-        else if(this.hasKey(obj)) {
-            return this.lookup(obj)
+        else if(args.length === 1 && this.hasKey(args[0])) {
+            return this.lookup(args[0])
         } else {
             // Linear search for a match with all non-standard keys
             let keys = Object.keys(this._keys);
@@ -77,10 +100,9 @@ export class Obj {
                 let pseudokey = keys[i];
                 let key = this._keys[pseudokey];
 
-                // TODO: Key match check
-                if(true) {
+                if(this.isMatch(key, args)) {
                     let val = this._values[pseudokey];
-                    return val.call(obj)
+                    return val.call(args)
                 }
             }
         }
