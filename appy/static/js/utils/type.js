@@ -6,3 +6,7 @@ export function isObject(val) {
 export function isFunction(val) {
     return typeof val === "function"
 }
+
+export function isNumber(value) {
+    return typeof val === "number"
+}
