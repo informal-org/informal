@@ -9,6 +9,7 @@ const DELIMITERS = new Set(['(', ')', '[', ']', '{', '}', '"', "'",
 const ERR_INVALID_FLOAT = "Invalid floating point number format.";
 const ERR_UNTERM_STR = "Could not find the ending quotes for this String.";
 const ERR_INVALID_NUMBER = "Invalid number";
+const ERR_UNMATCHED_PARENS = "Unmatched parentheses";
 
 const BINARY_OPS = {
     ",": 1,
@@ -38,9 +39,9 @@ export const TOKEN_IDENTIFIER = 3;
 export const TOKEN_OPERATOR = 4;
 
 // Meaningful whitespace tokens.
-export const TOKEN_WS_START_GROUP = 5;  // Equivalent of (
-export const TOKEN_WS_END_GROUP = 6;    // Equivalent of )
-export const TOKEN_WS_SEPARATOR = 7;    // Equivalent of ,
+export const START_GROUP = '(';  // Equivalent of (
+export const END_GROUP = ')';    // Equivalent of )
+export const SEPARATOR = ',';    // Equivalent of ,
 
 export const BUILTIN_LITERALS = new Set(["true", "false", "none"])
 
@@ -253,5 +254,94 @@ export function lex(expr){
 }
 
 function getOperatorPrecedence(token) {
+    return token in BINARY_OPS ? BINARY_OPS[token] : 255
+}
 
+export function applyOperatorPrecedence(tokens) {
+    // Convert an infix expression to a prefix expression
+    // Implemented using shunting yard for operator precedence
+    let postfix = [];
+    let operator_stack = [];
+    let depends_on = [];
+
+    tokens.forEach((ti) => {
+        let [token, type] = ti;
+        if(type == TOKEN_LITERAL) {
+            postfix.push(token)
+        } else {
+            if(token == START_GROUP) {
+                operator_stack.push(token);
+            } else if(token == SEPARATOR) {
+                // Denotes end of one sub-expression. Flush
+                // i.e. min(1 * 2, 2 + 2). a: 1, b: 2
+                while(operator_stack.length > 0) {
+                    let op = operator_stack[operator_stack.length - 1];
+                    if(op == SEPARATOR) {
+                        operator_stack.pop();
+                    } else if(op == START_GROUP) {
+                        break;
+                    } else {
+                        postfix.push(operator_stack.pop())
+                    }
+                }
+            } else if(token == END_GROUP) {
+                console.log("end param")
+                // Pop until you find the matching opening parens
+                let found = false;
+                while(operator_stack.length > 0) {
+                    let op = operator_stack.pop();
+                    if(op == START_GROUP) {
+                        found = true;
+                        break;
+                    } else {
+                        postfix.push(op)
+                    }
+                }
+                if(!found) {
+                    // TODO: Line number?
+                    syntaxError(ERR_UNMATCHED_PARENS, -1)
+                }
+
+                // TODO: Check for function call
+            } else {
+                let token_precedence = getOperatorPrecedence(token);
+                while(operator_stack.length > 0) {
+                    let op = operator_stack[operator_stack.length - 1];
+
+                    if(op == START_GROUP) {
+                        break;
+                    }
+
+                    let op_precedence = getOperatorPrecedence(op);
+                    // Output higher-precedence operators
+                    if(op_precedence >= token_precedence) {
+                        op = operator_stack.pop();  // Same val as before
+
+                        // todo: dependency check
+
+                        postfix.push(op);
+                    } else {
+                        break;
+                    }
+                }
+
+                // At this point, all operators with higher precedence have been flushed.
+                operator_stack.push(token);
+            }
+        }
+    })
+
+
+    // Flush all remaining operators onto the postfix output
+    // Reverse so we get items in the stack order.
+    operator_stack.reverse()
+    operator_stack.forEach((op) => {
+        if(op == START_GROUP) {
+            syntaxError(ERR_UNMATCHED_PARENS)
+        }
+        postfix.push(op)
+        // TODO: dependency check
+    })
+
+    return postfix
 }

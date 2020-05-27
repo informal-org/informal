@@ -1,4 +1,4 @@
-import { lex, TOKEN_LITERAL, TOKEN_OPERATOR } from "./parser"
+import { lex, applyOperatorPrecedence, TOKEN_LITERAL, TOKEN_OPERATOR } from "./parser"
 
 test('lex floats', () => {
     expect(lex("3.1415")).toEqual([[3.1415, TOKEN_LITERAL]]);
@@ -39,3 +39,27 @@ test('lex string', () => {
     expect(() => lex('"hello')).toThrow();
 })
 
+test('test add multiply precedence', () => {
+    // Verify order of operands - multiply before addition
+    // 1 * 2 + 3 = 1 2 * 3 +
+    let tokens = lex("1 * 2 + 3")
+    let postfix = applyOperatorPrecedence(tokens)
+    expect(postfix).toEqual([1, 2, "*", 3, "+"])
+
+    // Order reversed. 1 + 2 * 3 = 1 2 3 * +
+    tokens = lex("1 + 2 * 3")
+    postfix = applyOperatorPrecedence(tokens)
+    expect(postfix).toEqual([1, 2, 3, "*", "+"])
+})
+
+test('test add multiply grouping precedence', () => {
+    let tokens = lex("1 * (2 + 3)")
+    let postfix = applyOperatorPrecedence(tokens)
+
+    // Expect multiply before addition
+    expect(postfix).toEqual([1, 2, 3, "+", "*"])
+
+    tokens = lex("(1 + 2) * 3")
+    postfix = applyOperatorPrecedence(tokens)
+    expect(postfix).toEqual([1, 2, "+", 3, "*"])
+});
