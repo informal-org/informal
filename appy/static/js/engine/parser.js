@@ -5,7 +5,6 @@ const DELIMITERS = new Set(['(', ')', '[', ']', '{', '}', '"', "'",
 '+', '-', '*', '/', '%',
 ' ', '\t', '\n']);
 
-
 // TODO: Better error messages
 const ERR_INVALID_FLOAT = "Invalid floating point number format.";
 const ERR_UNTERM_STR = "Could not find the ending quotes for this String.";
@@ -33,14 +32,17 @@ const BINARY_OPS = {
     ")": 30,
 }
 
-const TOKEN_LITERAL = 1;
-const TOKEN_START_GROUP = 2;
-const TOKEN_END_GROUP = 3;
-const TOKEN_IDENTIFIER = 4;
-const TOKEN_OPERATOR = 5;
+export const TOKEN_LITERAL = 1;
+export const TOKEN_DELIMITER = 2;
+export const TOKEN_IDENTIFIER = 3;
+export const TOKEN_OPERATOR = 4;
 
+// Meaningful whitespace tokens.
+export const TOKEN_WS_START_GROUP = 5;  // Equivalent of (
+export const TOKEN_WS_END_GROUP = 6;    // Equivalent of )
+export const TOKEN_WS_SEPARATOR = 7;    // Equivalent of ,
 
-const BUILTIN_LITERALS = new Set(["true", "false", "none"])
+export const BUILTIN_LITERALS = new Set(["true", "false", "none"])
 
 
 class ExprIterator {
@@ -131,7 +133,7 @@ function parseNumber(it, negative=false) {
     if(negative) {
         val = -1.0 * val;
     }
-    return val
+    return [val, TOKEN_LITERAL]
 }
 
 function parseString(it) {
@@ -171,11 +173,12 @@ function parseString(it) {
         syntaxError(ERR_UNTERM_STR, it.index)
     }
 
-    return token;
+    return [token, TOKEN_LITERAL]
 }
 
-function parseIdentifier(it) {
+function parseSymbol(it) {
     let token = "";
+    
     while(it.hasNext()) {
         if(isDelimiter(it.peek())) {
             break;
@@ -184,7 +187,14 @@ function parseIdentifier(it) {
         }
     }
     // assert: token != "" since caller checks if is delimiter
-    return token;
+    if(token in BINARY_OPS) {
+        return [token, TOKEN_OPERATOR]
+    } else if(token in BUILTIN_LITERALS) {
+        return [token, TOKEN_LITERAL]
+    } else {
+        return [token, TOKEN_IDENTIFIER]
+    }
+    
 }
 
 function parseWhitespace(it) {
@@ -213,8 +223,8 @@ export function lex(expr){
             it.next();            // Gobble the '-'
             // Differentiate subtraction and unary minus
             // If prev token's a number, this is an operation. Else unary.
-            if(tokens.length > 0 && isNumber(tokens[tokens.length - 1])) {
-                token = "-"
+            if(tokens.length > 0 && isNumber(tokens[tokens.length - 1][0])) {
+                token = ["-", TOKEN_OPERATOR]
             } else {
                 token = parseNumber(it, true)
             }
@@ -222,9 +232,15 @@ export function lex(expr){
             token = parseString(it)
         } else if (isDelimiter(ch)) {
             it.next();
-            token = ch
+            if(ch in BINARY_OPS) {
+                token = [ch, TOKEN_OPERATOR]
+            } else {
+                token = [ch, TOKEN_DELIMITER]
+            }
+            
         } else {
-            token = parseIdentifier(it);
+            // keywords, operations and identifiers
+            token = parseSymbol(it);
         }
 
         // Note: Token may be a parsed empty string or zero, but never ""
@@ -236,3 +252,6 @@ export function lex(expr){
     return tokens
 }
 
+function getOperatorPrecedence(token) {
+
+}
