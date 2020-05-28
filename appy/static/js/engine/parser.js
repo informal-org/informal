@@ -1,5 +1,4 @@
-import { isNumber } from "../utils"
-import { Node } from "../utils/Node"
+import { Node, Queue, isNumber } from "../utils"
 
 const DELIMITERS = new Set(['(', ')', '[', ']', '{', '}', '"', "'", 
 '.', ',', ':', ';', 
@@ -243,10 +242,10 @@ function parseWhitespace(it) {
     return undefined
 }
 
-export function lex(expr){
+export function lex(expr) {
     // Index - shared mutable closure var
     let it = new ExprIterator(expr);
-    let tokens = [];
+    let tokens = new Queue();
 
     // Match against the starting value of each type of token
     while(it.hasNext()) {
@@ -262,7 +261,7 @@ export function lex(expr){
             it.next();            // Gobble the '-'
             // Differentiate subtraction and unary minus
             // If prev token's a number, this is an operation. Else unary.
-            if(tokens.length > 0 && isNumber(tokens[tokens.length - 1].value)) {
+            if(tokens.length > 0 && isNumber(tokens.tail.value.value)) {
                 token = new Token("-", TOKEN_OPERATOR, it.index, it.index)
             } else {
                 token = parseNumber(it, true)

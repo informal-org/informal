@@ -1,7 +1,8 @@
 import { lex, applyOperatorPrecedence, TOKEN_LITERAL, TOKEN_OPERATOR } from "./parser"
 
-function flatten_tokens(tokens) {
+function flatten_tokens(tokenQueue) {
     // Extract token into an array for testing ease
+    let tokens = tokenQueue.asArray()
     let flat = [];
     tokens.forEach((token) => flat.push([token.value, token.token_type]))
     return flat;

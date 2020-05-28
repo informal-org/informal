@@ -1,5 +1,5 @@
 import { Node } from './Node';
-// Simple queue as linked list without Array's shift penalty
+// Double-ended linked list queue
 export class Queue {
     constructor() {
         this.head = null;
@@ -37,5 +37,14 @@ export class Queue {
             this.length -= 1;
             return original_head.value;
         }
+    }
+    asArray() {
+        let arr = [];
+        let it = this.head;
+        while(it !== null) {
+            arr.push(it.value)
+            it = it.right
+        }
+        return arr;
     }
 }
