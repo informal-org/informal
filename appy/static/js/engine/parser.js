@@ -1,4 +1,4 @@
-import { Node, Queue, isNumber } from "../utils"
+import { Node, Queue, QIter, isNumber } from "../utils"
 
 const DELIMITERS = new Set(['(', ')', '[', ']', '{', '}', '"', "'", 
 '.', ',', ':', ';', 
@@ -68,7 +68,6 @@ export const NODE_CONDITIONAL = 10; //
 export const NODE_ARR = 11;         // 
 
 
-// Meaningful whitespace tokens.
 export const START_GROUP = '(';  // Equivalent of (
 export const END_GROUP = ')';    // Equivalent of )
 export const SEPARATOR = ',';    // Equivalent of ,
@@ -370,7 +369,6 @@ export function applyOperatorPrecedence(tokens) {
         }
     })
 
-
     // Flush all remaining operators onto the postfix output
     // Reverse so we get items in the stack order.
     operator_stack.reverse()
@@ -385,13 +383,27 @@ export function applyOperatorPrecedence(tokens) {
     return postfix
 }
 
+function expectIdentifier(tokens) {
+    // Returns identifier or None
+}
+
 export function parse(tokenQueue) {
-    let tokenStack = tokenQueue;
-    tokenStack.reverse();
+    let tokens = QIter(tokenQueue);
+    // Expr starts with an identifier usually
+    // One of:
+        // : - definition
+        // []: Indexing/filtering
+        // (optional) , next identifier : value
 
-    let [token, token_type] = tokens.pop();
-    if(token_type == TOKEN_LITERAL) {
-        leftNode = Node(LITERAL_NODE)
+    // definition
+        // Literal
+        // Binary expression (and, or, +, -, etc.)
+        // Array literal []
+        // new sub block
 
-    }
+    // Within a block
+    // <optional> identifier <optional> ( input , args = value ) <optional> [guard] :
+        // Atleast one of the optional ones have to be present
+    // inline or new block of expressions (atleast one)
+
 }
