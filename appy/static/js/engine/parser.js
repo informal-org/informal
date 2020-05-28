@@ -1,4 +1,5 @@
 import { isNumber } from "../utils"
+import { Node } from "../utils/Node"
 
 const DELIMITERS = new Set(['(', ')', '[', ']', '{', '}', '"', "'", 
 '.', ',', ':', ';', 
@@ -33,10 +34,40 @@ const BINARY_OPS = {
     ")": 30,
 }
 
+
+class Token {
+    constructor(value, token_type, char_start, char_end) {
+        this.value = value
+        this.token_type = token_type
+        this.char_start = char_start
+        this.char_end = char_end
+    }
+}
+
+class ASTNode extends Node {
+    constructor(value, left, right, node_type) {
+        super(value, left, right)
+        this.node_type = node_type;
+    }
+}
+
 export const TOKEN_LITERAL = 1;
 export const TOKEN_DELIMITER = 2;
 export const TOKEN_IDENTIFIER = 3;
 export const TOKEN_OPERATOR = 4;
+
+export const NODE_LITERAL = 1;      // 1, "hello"
+export const NODE_IDENTIFIER = 2;   // x
+export const NODE_MEMBER = 3;       // x.y
+export const NODE_COMPOUND = 4;     // a, b
+export const NODE_THIS = 5;         // this
+export const NODE_CALL = 6;         // f(x)
+export const NODE_UNARY = 7;        // not x
+export const NODE_BINARY = 8;       // 1 + 2
+export const NODE_LOGICAL = 9;      // a or b
+export const NODE_CONDITIONAL = 10; //
+export const NODE_ARR = 11;         // 
+
 
 // Meaningful whitespace tokens.
 export const START_GROUP = '(';  // Equivalent of (
@@ -94,6 +125,7 @@ function gobbleDigits(it) {
 }
 
 function parseNumber(it, negative=false) {   
+    let char_start = it.index;
     // Leading decimal digits
     let token = gobbleDigits(it);
    
@@ -134,10 +166,12 @@ function parseNumber(it, negative=false) {
     if(negative) {
         val = -1.0 * val;
     }
-    return [val, TOKEN_LITERAL]
+    let char_end = it.index;
+    return new Token(val, TOKEN_LITERAL, char_start, char_end);
 }
 
 function parseString(it) {
+    let char_start = it.index;
     let token = "";
     // Find which quote variation it is. Omit quotes from the resulting string.
     let quote_start = it.next();
@@ -174,10 +208,12 @@ function parseString(it) {
         syntaxError(ERR_UNTERM_STR, it.index)
     }
 
-    return [token, TOKEN_LITERAL]
+    let char_end = it.index;
+    return new Token(token, TOKEN_LITERAL, char_start, char_end)
 }
 
 function parseSymbol(it) {
+    let char_start = it.index;
     let token = "";
     
     while(it.hasNext()) {
@@ -187,13 +223,15 @@ function parseSymbol(it) {
             token += it.next();
         }
     }
+
+    let char_end = it.index;
     // assert: token != "" since caller checks if is delimiter
     if(token in BINARY_OPS) {
-        return [token, TOKEN_OPERATOR]
+        return new Token(token, TOKEN_OPERATOR, char_start, char_end)
     } else if(token in BUILTIN_LITERALS) {
-        return [token, TOKEN_LITERAL]
+        return new Token(token, TOKEN_LITERAL, char_start, char_end)
     } else {
-        return [token, TOKEN_IDENTIFIER]
+        return new Token(token, TOKEN_IDENTIFIER, char_start, char_end)
     }
     
 }
@@ -224,8 +262,8 @@ export function lex(expr){
             it.next();            // Gobble the '-'
             // Differentiate subtraction and unary minus
             // If prev token's a number, this is an operation. Else unary.
-            if(tokens.length > 0 && isNumber(tokens[tokens.length - 1][0])) {
-                token = ["-", TOKEN_OPERATOR]
+            if(tokens.length > 0 && isNumber(tokens[tokens.length - 1].value)) {
+                token = new Token("-", TOKEN_OPERATOR, it.index, it.index)
             } else {
                 token = parseNumber(it, true)
             }
@@ -234,9 +272,9 @@ export function lex(expr){
         } else if (isDelimiter(ch)) {
             it.next();
             if(ch in BINARY_OPS) {
-                token = [ch, TOKEN_OPERATOR]
+                token = new Token(ch, TOKEN_OPERATOR, it.index, it.index)
             } else {
-                token = [ch, TOKEN_DELIMITER]
+                token = new Token(ch, TOKEN_DELIMITER, it.index, it.index)
             }
             
         } else {
@@ -263,6 +301,8 @@ export function applyOperatorPrecedence(tokens) {
     let postfix = [];
     let operator_stack = [];
     let depends_on = [];
+    // keep track of which grouping construct
+    let grouping_stack = [];
 
     tokens.forEach((ti) => {
         let [token, type] = ti;
@@ -344,4 +384,15 @@ export function applyOperatorPrecedence(tokens) {
     })
 
     return postfix
+}
+
+export function parse(tokenQueue) {
+    let tokenStack = tokenQueue;
+    tokenStack.reverse();
+
+    let [token, token_type] = tokens.pop();
+    if(token_type == TOKEN_LITERAL) {
+        leftNode = Node(LITERAL_NODE)
+
+    }
 }
