@@ -12,7 +12,6 @@ const ERR_INVALID_NUMBER = "Invalid number";
 const ERR_UNMATCHED_PARENS = "Unmatched parentheses";
 
 const BINARY_OPS = {
-    ",": 1,
 //    "=": 2,
     "or": 3,
     "and": 4,
@@ -28,7 +27,11 @@ const BINARY_OPS = {
     "*": 21,
     "/": 21,
     "%": 21,
-    ".": 25,
+    ".": 25
+}
+
+const SYNTAX_TOKENS = {
+    ",": 1,    
     "(": 30,
     ")": 30,
 }
@@ -63,8 +66,8 @@ export const NODE_THIS = 5;         // this
 export const NODE_CALL = 6;         // f(x)
 export const NODE_UNARY = 7;        // not x
 export const NODE_BINARY = 8;       // 1 + 2
-export const NODE_LOGICAL = 9;      // a or b
-export const NODE_CONDITIONAL = 10; //
+// export const NODE_LOGICAL = 9;      // a or b
+// export const NODE_CONDITIONAL = 10; //
 export const NODE_ARR = 11;         // 
 
 
@@ -226,6 +229,8 @@ function parseSymbol(it) {
     // assert: token != "" since caller checks if is delimiter
     if(token in BINARY_OPS) {
         return new Token(token, TOKEN_OPERATOR, char_start, char_end)
+    } else if(token in SYNTAX_TOKENS) {
+        return new Token(token, TOKEN_DELIMITER, char_start, char_end)
     } else if(token in BUILTIN_LITERALS) {
         return new Token(token, TOKEN_LITERAL, char_start, char_end)
     } else {
@@ -383,12 +388,73 @@ export function applyOperatorPrecedence(tokens) {
     return postfix
 }
 
-function expectIdentifier(tokens) {
-    // Returns identifier or None
+class ParseState {
+    constructor(tokens, min_prec, result=null, error=null) {
+        this.tokens = tokens;
+        this.min_prec = min_prec;
+        this.result = result
+        this.error = error
+    }
+    clone() {
+        return new ParseState(this.tokens.clone(), this.min_prec, this.result, this.error)
+    }
+}
+
+function parseSuccess(state, )
+
+
+function tokenType(expected, state) {
+    return function(state) {
+
+    }
+}
+
+function repeating(combinators, tokens, min_prec) {
+    
+
+}
+
+function all(combinators, tokens, min_prec) {
+    // Run all of these combinators. Fail if any of them fails.
+
+}
+
+function choice(combinators, tokens, min_prec) {
+    // Iterate through a sequence of combinator options and return the first one that matches
+
+}
+
+function parseAtom(tokens, min_prec=0) {
+
+}
+
+function parseLiteral(state) {
+    let current = state.tokens.current()
+    if(current.token_type == TOKEN_LITERAL) {
+        state.it.next()
+        state.result = 
+    }
+    return null
+}
+
+
+function parseExpr(tokens, min_prec=0) {
+    let current = tokens.current();
+
+
+
+    // true, 1, "hello"
+    if(current.type == TOKEN_LITERAL) {
+        left = current
+    }
+    else if(current.type == TOKEN_IDENTIFIER) {
+
+    }
 }
 
 export function parse(tokenQueue) {
     let tokens = QIter(tokenQueue);
+
     // Expr starts with an identifier usually
     // One of:
         // : - definition

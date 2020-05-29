@@ -11,6 +11,10 @@ export class QIter {
         }
     }
 
+    current() {
+        return this.it.value
+    }
+
     lookahead(n) {
         let peek_it = it;
         for(var i = 0; i < n; i++) {
@@ -32,5 +36,12 @@ export class QIter {
 
     reset() {
         this.it = this.queue.head;
+    }
+
+    clone() {
+        // Return a new iteration that can be moved independently
+        let newIt = new QIter(this.queue)
+        newIt.it = this.queue.head;
+        return newIt;
     }
 }
