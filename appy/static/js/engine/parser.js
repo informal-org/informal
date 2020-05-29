@@ -11,11 +11,20 @@ const ERR_UNTERM_STR = "Could not find the ending quotes for this String.";
 const ERR_INVALID_NUMBER = "Invalid number";
 const ERR_UNMATCHED_PARENS = "Unmatched parentheses";
 
+const UNARY_OPS = {
+    "not": 5
+}
+
+const LITERALS = {
+    "true": true,
+    "false": false,
+    "none": null
+}
+
 const BINARY_OPS = {
 //    "=": 2,
     "or": 3,
     "and": 4,
-    "not": 5,
     "==": 10,
     "!=": 10,
     "<": 15,
@@ -27,11 +36,11 @@ const BINARY_OPS = {
     "*": 21,
     "/": 21,
     "%": 21,
-    ".": 25
 }
 
 const SYNTAX_TOKENS = {
-    ",": 1,    
+    ",": 1, 
+    '.': 25,
     "(": 30,
     ")": 30,
 }
@@ -47,7 +56,7 @@ class Token {
 }
 
 class ASTNode extends Node {
-    constructor(value, left, right, node_type) {
+    constructor(value, node_type, left=null, right=null) {
         super(value, left, right)
         this.node_type = node_type;
     }
@@ -400,46 +409,27 @@ class ParseState {
     }
 }
 
-function parseSuccess(state, )
+function parseAtom(token) {
+    if(token.type == TOKEN_LITERAL) {
+        return new ASTNode(token.value, NODE_LITERAL)
+    } else if(token.type == TOKEN_IDENTIFIER) {
+        return new ASTNode(token.value, NODE_IDENTIFIER)
+    }
 
-
-function tokenType(expected, state) {
-    return function(state) {
-
+    if(token.type == TOKEN_OPERATOR) {
+        if(token.value in BINARY_OPS) {
+            return new ASTNode(token.value, )
+        }
     }
 }
-
-function repeating(combinators, tokens, min_prec) {
-    
-
-}
-
-function all(combinators, tokens, min_prec) {
-    // Run all of these combinators. Fail if any of them fails.
-
-}
-
-function choice(combinators, tokens, min_prec) {
-    // Iterate through a sequence of combinator options and return the first one that matches
-
-}
-
-function parseAtom(tokens, min_prec=0) {
-
-}
-
-function parseLiteral(state) {
-    let current = state.tokens.current()
-    if(current.token_type == TOKEN_LITERAL) {
-        state.it.next()
-        state.result = 
-    }
-    return null
-}
-
 
 function parseExpr(tokens, min_prec=0) {
-    let current = tokens.current();
+    let current = tokens.peek()
+    
+
+    while(true) {
+        let operator = parse
+    }
 
 
 
@@ -472,4 +462,29 @@ export function parse(tokenQueue) {
         // Atleast one of the optional ones have to be present
     // inline or new block of expressions (atleast one)
 
+}
+
+function prefixPrecedence() {
+
+}
+
+
+// https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html
+function parseExpr(tokens, min_prec) {
+    let lhs;
+    let token = tokens.next();
+    if(token.type == TOKEN_LITERAL) {
+        lhs = token
+    } else if(token.value == '(') {
+        lhs = parseExpr(tokens, 0);
+        let closing_parens = lexer.next();
+        if(closing_parens.value != ')') [
+            syntaxError("Expected closing parens")
+        ]
+    } else {
+        let r_bp = prefix_precedence(token)
+        let rhs = parseExpr(tokens, r_bp);
+
+
+    }
 }
