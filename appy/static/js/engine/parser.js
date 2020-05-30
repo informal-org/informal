@@ -97,7 +97,7 @@ class Prefix extends Keyword {
         }
     }
     null_denotation(node, token_stream) {
-        node.left = expression(100);
+        node.left = expression(token_stream, 100);
         node.node_type = "unary"
         return node;
     }
@@ -113,7 +113,7 @@ class Infix extends Keyword {
     left_denotation(left, node, token_stream) {
         node.node_type = "binary"
         node.left = left;
-        node.right = expression(this.left_binding_power)
+        node.right = expression(token_stream, this.left_binding_power)
         return node;
     }
 }
@@ -123,9 +123,19 @@ class InfixRight extends Infix {
     left_denotation(left, node, token_stream) {
         node.node_type = "binary"
         node.left = left;
-        node.right = expression(this.left_binding_power - 1)
+        node.right = expression(token_stream, this.left_binding_power - 1)
         return node;
     }
+}
+
+
+function repeatString(count, str=" "){
+    let s = "";
+    while(count > 0) {
+        s += str
+        count--;
+    }
+    return s;
 }
 
 
@@ -136,6 +146,8 @@ class ASTNode {
         this.node_type = node_type
         this.char_start = char_start
         this.char_end = char_end
+        this.left = null;
+        this.right = null;
     }
     static OperatorNode(operation, char_start, char_end) {
         return new ASTNode(operation, null, TOKEN_OPERATOR, char_start, char_end)
@@ -145,6 +157,26 @@ class ASTNode {
     }
     static LiteralNode(value, char_start, char_end) {
         return new ASTNode(ID_OP, value, TOKEN_LITERAL, char_start, char_end)
+    }
+    toString() {
+        // pre-order
+        let string = "";
+        if(this.left){
+            string += this.left.toString()
+        }
+
+        string += "\n"
+        if(this.value != null) {
+            string += this.value;
+        } else {
+            string += this.operation.keyword
+        }
+        string += "\n"
+        
+        if(this.right) {
+            string += this.right.toString();
+        }
+        return string;
     }
 }
 
@@ -187,8 +219,8 @@ new Infix("/", 60)
 
 // TODO - Infix version
 new Prefix("(", (node, token_stream) => {
-    var e = expression(0);
-    // TODO
+    var e = expression(token_stream, 0);
+    node.advance(")")
     return e;
 })
 
@@ -236,6 +268,19 @@ class LexIterator {
     }
     hasNext() {
         return this.index < this.expr.length
+    }
+}
+
+class ParseIterator extends QIter {
+    constructor(queue) {
+        super(queue)
+    }
+    advance(token) {
+        // Advance until you find the given token
+        if(token && this.current() && this.current().operator.value != token) {
+            syntaxError("Expected token '" + token + "' not found.")
+        }
+        return this.next()
     }
 }
 
@@ -391,7 +436,7 @@ export function lex(expr) {
     // Match against the starting value of each type of token
     while(it.hasNext()) {
         let ch = it.peek();
-        var token;
+        let token;
 
         if(isWhitespace(ch)) {
             // Some whitespace is meaningful when changing indentation level.
@@ -533,29 +578,27 @@ export function applyOperatorPrecedence(tokens) {
     return postfix
 }
 
-class ParseState {
-    constructor(tokens, min_prec, result=null, error=null) {
-        this.tokens = tokens;
-        this.min_prec = min_prec;
-        this.result = result
-        this.error = error
-    }
-    clone() {
-        return new ParseState(this.tokens.clone(), this.min_prec, this.result, this.error)
-    }
-}
-
-export function expression(tokenQueue, min_right_binding_pow) {
-    let tokenStream = QIter(tokenQueue);
+export function expression(tokenStream, right_binding_power) {
     let token = tokenStream.next();
-    let left = token.null_denotation();
+    console.log("Token stream after: " + tokenStream)
 
-    while(token.left_binding_power >= min_right_binding_pow) {
+
+    // console.log("Expression: Power " + token.operation.left_binding_power + " min(" + right_binding_power +")");
+    // console.log(token);
+
+    let left = token.operation.null_denotation(token, tokenStream);
+
+    while(tokenStream.hasNext() && right_binding_power < token.operation.left_binding_power) {
         token = tokenStream.next();
-        left = token.left_denotation(left);
+        left = token.operation.left_denotation(left, token, tokenStream);
     }
 
     return left;
+}
+
+export function parse(tokenQueue) {
+    let tokenStream = new ParseIterator(tokenQueue);
+    return expression(tokenStream, 0)
 }
 
  

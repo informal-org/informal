@@ -5,12 +5,16 @@ export class QIter {
     }
 
     next() {
-        if(this.it && this.it.right) {
+        console.log("Processed: ")
+        console.log(this.it)
+        if(this.it) {
+            let value = this.it.value;
             this.it = this.it.right;
-            return this.it.value
-        } else {
-            // todo: propagate error
-            console.log("End of queue")
+            
+            console.log("this.it is true")
+            console.log(value)
+
+            return value
         }
     }
 
@@ -18,23 +22,14 @@ export class QIter {
         return this.it.value
     }
 
-    lookahead(n) {
-        let peek_it = it;
-        for(var i = 0; i < n; i++) {
-            if(peek_it) {
-                peek_it = peek_it.right
-            } else {
-                // peek(n) doesn't exist then
-                return
-            }
-        }
-        if(peek_it) {
-            return peek_it.value
+    peek() {
+        if(this.it && this.it.right) {
+            return this.it.right.value
         }
     }
 
-    peek() {
-        return this.lookahead(0)
+    hasNext() {
+        return this.it && this.it.right ? true : false;
     }
 
     reset() {
@@ -47,4 +42,5 @@ export class QIter {
         newIt.it = this.queue.head;
         return newIt;
     }
+
 }
