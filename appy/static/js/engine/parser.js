@@ -14,6 +14,24 @@ export const TOKEN_LITERAL = "token_literal";
 export const TOKEN_IDENTIFIER = "token_identifier";
 export const TOKEN_OPERATOR = "token_operator";
 
+class ParseIterator extends QIter {
+    constructor(queue) {
+        super(queue)
+    }
+    advance(expecting) {
+        // Advance until you find the given token
+        if(expecting && this.current() && this.current().operator.value != expecting) {
+            syntaxError("Expected token '" + expecting + "' not found.")
+        }
+        let next = this.next();
+        if(this.hasNext()) {
+            return this.next()
+        } else {
+            return END_OP
+        }
+    }
+}
+
 class Keyword {
     constructor(keyword_id, left_binding_power=0) {
         this.keyword = keyword_id
@@ -97,24 +115,25 @@ export class ASTNode {
     static LiteralNode(value, char_start, char_end) {
         return new ASTNode(new Literal("(literal)", value), value, TOKEN_LITERAL, char_start, char_end)
     }
+
     toString() {
-        // pre-order
-        let string = "";
-        if(this.left){
-            string += this.left.toString()
+        let kw_name = this.operation.keyword;
+        if(this.operation.keyword == "(name)" || this.operation.keyword == "(literal)") {
+            kw_name = this.operation.keyword == "(name)" ? "name" : "literal"
+            return "(" + kw_name + " " + this.value + ")"
         }
 
-        string += "\n"
-        if(this.value != null) {
-            string += this.value;
-        } else {
-            string += this.operation.keyword
+        let string = "(";
+        string += kw_name + ' '
+
+        if(this.left){
+            string += this.left.toString() +  ' '
         }
-        string += "\n"
         
         if(this.right) {
-            string += this.right.toString();
+            string += this.right.toString()
         }
+        string += ')'
         return string;
     }
 }
@@ -124,6 +143,7 @@ export const IdentifierNode = ASTNode.IdentifierNode;
 export const LiteralNode = ASTNode.LiteralNode;
 
 const ID_OP = new Keyword("(identifier)")
+const END_OP = new Keyword("(end)")
 
 new Keyword(":")
 new Keyword(")")
@@ -156,37 +176,24 @@ new Prefix("(", (node, token_stream) => {
     return e;
 })
 
-console.log(KEYWORD_TABLE);
+// console.log(KEYWORD_TABLE);
 
-class ParseIterator extends QIter {
-    constructor(queue) {
-        super(queue)
-    }
-    advance(token) {
-        // Advance until you find the given token
-        if(token && this.current() && this.current().operator.value != token) {
-            syntaxError("Expected token '" + token + "' not found.")
-        }
-        return this.next()
-    }
-}
 
 export function expression(tokenStream, right_binding_power) {
     let current = tokenStream.current();
+    let token = tokenStream.next();
     // console.log("Token stream after: " + tokenStream)
 
     console.log("Expression: Power " + current.operation.left_binding_power + " min(" + right_binding_power +")");
-    console.log(current);
+//     console.log(current);
 
-    let token = tokenStream.next();
     let left = current.operation.null_denotation(current, tokenStream);
-    console.log(token);
+//    console.log(token);
 
     console.log("token: " + token.operation.keyword + " Power " + token.operation.left_binding_power + " min(" + right_binding_power +")");
 
-
     while(tokenStream.hasNext() && right_binding_power < token.operation.left_binding_power) {
-        current = token;
+        current = tokenStream.current();
         token = tokenStream.next();
         left = current.operation.left_denotation(left, current, tokenStream);
         
