@@ -21,8 +21,7 @@ test('test add multiply grouping precedence', () => {
 
     // let tokens = lex("1 + 2 * 3")
     let tokens = lex("3 + 1 * 2 * 4 / 5")
-
-    console.log(tokens);
+//    console.log(tokens);
     let parsed = parse(tokens);
     console.log("Finished")
     console.log(parsed)

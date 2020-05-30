@@ -6,9 +6,10 @@ export class QIter {
 
     next() {
         if(this.it) {
-            // let value = this.it.value;
+            let value = this.it.value;
             this.it = this.it.right;
-            return this.it.value
+            // return this.it ? this.it.value : undefined
+            return value
         }
     }
 

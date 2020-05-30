@@ -5,6 +5,7 @@ Implements a Pratt parser to construct the AST with precedence climbing.
 References:
 https://crockford.com/javascript/tdop/tdop.html
 https://eli.thegreenplace.net/2010/01/02/top-down-operator-precedence-parsing
+http://effbot.org/zone/simple-top-down-parsing.htm
 
 */
 
@@ -38,8 +39,8 @@ class Keyword {
         this.left_binding_power = left_binding_power
         KEYWORD_TABLE[keyword_id] = this
     }
-    null_denotation(node, token_stream) { console.log("Null denotation not found"); }
-    left_denotation(left, node, token_stream) { console.log("Left denotation not found"); }
+    null_denotation(node, token_stream) { console.log("Null denotation not found!"); }
+    left_denotation(left, node, token_stream) { console.log("Left denotation not found!"); }
 }
 
 class Literal extends Keyword {
@@ -48,7 +49,7 @@ class Literal extends Keyword {
         this.value = value
     }
     null_denotation(node, token_stream) {
-        console.log("Literal ned <" + this.value + ">");
+        // console.log("Literal ned <" + this.value + ">");
         node.node_type = "literal"
         node.value = this.value
         return node;
@@ -77,7 +78,7 @@ class Infix extends Keyword {
         }
     }
     left_denotation(left, node, token_stream) {
-        console.log("Infix led for " + this.keyword_id);
+        // console.log("Infix led for " + this.keyword_id);
         node.node_type = "binary"
         node.left = left;
         node.right = expression(token_stream, this.left_binding_power)
@@ -176,34 +177,22 @@ new Prefix("(", (node, token_stream) => {
     return e;
 })
 
-// console.log(KEYWORD_TABLE);
-
-
 export function expression(tokenStream, right_binding_power) {
-    let current = tokenStream.current();
-    let token = tokenStream.next();
-    // console.log("Token stream after: " + tokenStream)
+    let currentNode = tokenStream.next();
+    let left = currentNode.operation.null_denotation(currentNode, tokenStream);
 
-    console.log("Expression: Power " + current.operation.left_binding_power + " min(" + right_binding_power +")");
-//     console.log(current);
-
-    let left = current.operation.null_denotation(current, tokenStream);
-//    console.log(token);
-
-    console.log("token: " + token.operation.keyword + " Power " + token.operation.left_binding_power + " min(" + right_binding_power +")");
-
-    while(tokenStream.hasNext() && right_binding_power < token.operation.left_binding_power) {
-        current = tokenStream.current();
-        token = tokenStream.next();
-        left = current.operation.left_denotation(left, current, tokenStream);
-        
-        console.log("token: " + token.operation.keyword + " Power " + token.operation.left_binding_power + " min(" + right_binding_power +")");
+    while(right_binding_power < tokenStream.current().operation.left_binding_power) {
+        currentNode = tokenStream.next();
+        left = currentNode.operation.left_denotation(left, currentNode, tokenStream);
     }
 
     return left;
 }
 
 export function parse(tokenQueue) {
+    // Add an end element - prevents having to do an tokenStream.hasNext() check 
+    // in the expr while loop condition
+    tokenQueue.push(new ASTNode(END_OP, null, TOKEN_OPERATOR, -1, -1))
     let tokenStream = new ParseIterator(tokenQueue);
     return expression(tokenStream, 0)
 }
