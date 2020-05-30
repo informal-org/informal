@@ -5,16 +5,10 @@ export class QIter {
     }
 
     next() {
-        console.log("Processed: ")
-        console.log(this.it)
         if(this.it) {
-            let value = this.it.value;
+            // let value = this.it.value;
             this.it = this.it.right;
-            
-            console.log("this.it is true")
-            console.log(value)
-
-            return value
+            return this.it.value
         }
     }
 
