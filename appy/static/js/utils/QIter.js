@@ -5,9 +5,12 @@ export class QIter {
     }
 
     next() {
-        if(this.it) {
+        if(this.it && this.it.right) {
             this.it = this.it.right;
             return this.it.value
+        } else {
+            // todo: propagate error
+            console.log("End of queue")
         }
     }
 

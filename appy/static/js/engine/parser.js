@@ -1,7 +1,10 @@
 import { Node, Queue, QIter, isNumber } from "../utils"
 
-const DELIMITERS = new Set(['(', ')', '[', ']', '{', '}', '"', "'", 
-'.', ',', ':', ';', 
+const DELIMITERS = new Set(['(', ')', '[', ']', 
+// '{', '}', 
+'"', "'", 
+'.', ',', ':', 
+// ';', 
 '+', '-', '*', '/', '%',
 ' ', '\t', '\n']);
 
@@ -45,27 +48,150 @@ const SYNTAX_TOKENS = {
     ")": 30,
 }
 
+const KEYWORD_TABLE = {}
 
-class Token {
-    constructor(value, token_type, char_start, char_end) {
+
+export const TOKEN_LITERAL = 1;
+export const TOKEN_IDENTIFIER = 3;
+export const TOKEN_OPERATOR = 4;    // syntax tokens like , ( and operators +
+
+
+class Keyword {
+    constructor(keyword_id, left_binding_power=0) {
+        this.keyword = keyword_id
+        this.left_binding_power = left_binding_power
+        KEYWORD_TABLE[keyword_id] = this
+    }
+    // static getOrCreate(keyword_id, left_binding_power=0) {
+    //     // getOrCreate a keyword, setting it to the max binding power
+    //     // Binding power = power of element to bind to left element
+    //     let keyword = KEYWORD_TABLE[keyword_id];
+    //     if(keyword) {
+    //         keyword.left_binding_power = Math.max(left_binding_power, keyword.left_binding_power)
+    //     } else {
+    //         // Dynamically construct a Keyword or an inherited instance
+    //         keyword = new this.constructor(keyword_id, left_binding_power)
+    //     }
+    // }
+    null_denotation(node, token_stream) { console.log("Null denotation not found"); }
+    left_denotation(left, node, token_stream) { console.log("Left denotation not found"); }
+}
+
+class Constant extends Keyword {
+    constructor(keyword_id, value) {
+        super(keyword_id, 0)
         this.value = value
-        this.token_type = token_type
+    }
+    null_denotation(node, token_stream) {
+        node.node_type = "literal"
+        node.value = this.value
+        return node;
+    }
+}
+
+class Prefix extends Keyword {
+    constructor(keyword_id, left_binding_power, null_denotation=null) {
+        super(keyword_id, left_binding_power)
+        if(null_denotation) {
+            this.null_denotation = null_denotation
+        }
+    }
+    null_denotation(node, token_stream) {
+        node.left = expression(100);
+        node.node_type = "unary"
+        return node;
+    }
+}
+
+class Infix extends Keyword {
+    constructor(keyword_id, left_binding_power, left_denotation=null) {
+        super(keyword_id, left_binding_power)
+        if(left_denotation) {
+            this.left_denotation = left_denotation
+        }
+    }
+    left_denotation(left, node, token_stream) {
+        node.node_type = "binary"
+        node.left = left;
+        node.right = expression(this.left_binding_power)
+        return node;
+    }
+}
+
+// Infix with right associativity, like =
+class InfixRight extends Infix {
+    left_denotation(left, node, token_stream) {
+        node.node_type = "binary"
+        node.left = left;
+        node.right = expression(this.left_binding_power - 1)
+        return node;
+    }
+}
+
+
+class ASTNode {
+    constructor(operation, value, node_type, char_start, char_end) {
+        this.operation = operation
+        this.value = value
+        this.node_type = node_type
         this.char_start = char_start
         this.char_end = char_end
     }
-}
-
-class ASTNode extends Node {
-    constructor(value, node_type, left=null, right=null) {
-        super(value, left, right)
-        this.node_type = node_type;
+    static OperatorNode(operation, char_start, char_end) {
+        return new ASTNode(operation, null, TOKEN_OPERATOR, char_start, char_end)
+    }
+    static IdentifierNode(value, char_start, char_end) {
+        return new ASTNode(ID_OP, value, TOKEN_IDENTIFIER, char_start, char_end)
+    }
+    static LiteralNode(value, char_start, char_end) {
+        return new ASTNode(ID_OP, value, TOKEN_LITERAL, char_start, char_end)
     }
 }
 
-export const TOKEN_LITERAL = 1;
-export const TOKEN_DELIMITER = 2;
-export const TOKEN_IDENTIFIER = 3;
-export const TOKEN_OPERATOR = 4;
+const OperatorNode = ASTNode.OperatorNode;
+const IdentifierNode = ASTNode.IdentifierNode;
+const LiteralNode = ASTNode.LiteralNode;
+
+// 3 types of tokens
+// Literals - some actual value - 1.0, "hello"
+// Identifiers - a reference to some identity
+// Keywords - some operation.
+// Literals and identifiers form leafs while keywords form ast nodes.
+// Regardless of type, they all must keep track of their context.
+
+new Keyword(":")
+new Keyword(")")
+new Keyword("]")
+new Keyword(",")
+
+const ID_OP = new Keyword("")
+
+new Constant("true", true)
+new Constant("false", false)
+new Constant("none", null)
+
+
+new InfixRight("and", 30)       // TODO: Left or right associative?
+new InfixRight("or", 30)
+new InfixRight("==", 40)
+new InfixRight("<=", 40)
+new InfixRight(">", 40)
+new InfixRight(">=", 40)
+
+new Infix("+", 50)
+new Infix("-", 50)
+
+new Infix("*", 60)
+new Infix("/", 60)
+
+
+// TODO - Infix version
+new Prefix("(", (node, token_stream) => {
+    var e = expression(0);
+    // TODO
+    return e;
+})
+
 
 export const NODE_LITERAL = 1;      // 1, "hello"
 export const NODE_IDENTIFIER = 2;   // x
@@ -87,7 +213,7 @@ export const SEPARATOR = ',';    // Equivalent of ,
 export const BUILTIN_LITERALS = new Set(["true", "false", "none"])
 
 
-class ExprIterator {
+class LexIterator {
     constructor(expr) {
         this.expr = expr;
         this.index = 0;
@@ -95,6 +221,15 @@ class ExprIterator {
     }
     peek() {
         return this.index < this.expr.length ? this.expr[this.index] : ""
+    }
+    lookahead(n) {
+        let combined = ""
+        for(var i = this.index; i < this.index + n; i++) {
+            if(i < this.expr.length) {
+                combined += this.expr[i]
+            }
+        }
+        return combined
     }
     next() {
         return this.expr[this.index++]
@@ -134,7 +269,7 @@ function gobbleDigits(it) {
     return token;
 }
 
-function parseNumber(it, negative=false) {   
+function parseNumber(it) {   
     let char_start = it.index;
     // Leading decimal digits
     let token = gobbleDigits(it);
@@ -173,11 +308,8 @@ function parseNumber(it, negative=false) {
     }
 
     let val = parseFloat(token);
-    if(negative) {
-        val = -1.0 * val;
-    }
     let char_end = it.index;
-    return new Token(val, TOKEN_LITERAL, char_start, char_end);
+    return LiteralNode(val, char_start, char_end);
 }
 
 function parseString(it) {
@@ -219,7 +351,7 @@ function parseString(it) {
     }
 
     let char_end = it.index;
-    return new Token(token, TOKEN_LITERAL, char_start, char_end)
+    return LiteralNode(token, char_start, char_end)
 }
 
 function parseSymbol(it) {
@@ -236,14 +368,10 @@ function parseSymbol(it) {
 
     let char_end = it.index;
     // assert: token != "" since caller checks if is delimiter
-    if(token in BINARY_OPS) {
-        return new Token(token, TOKEN_OPERATOR, char_start, char_end)
-    } else if(token in SYNTAX_TOKENS) {
-        return new Token(token, TOKEN_DELIMITER, char_start, char_end)
-    } else if(token in BUILTIN_LITERALS) {
-        return new Token(token, TOKEN_LITERAL, char_start, char_end)
+    if(token in KEYWORD_TABLE) {
+        return OperatorNode(KEYWORD_TABLE[token], char_start, char_end)
     } else {
-        return new Token(token, TOKEN_IDENTIFIER, char_start, char_end)
+        return IdentifierNode(token, char_start, char_end)
     }
     
 }
@@ -257,7 +385,7 @@ function parseWhitespace(it) {
 
 export function lex(expr) {
     // Index - shared mutable closure var
-    let it = new ExprIterator(expr);
+    let it = new LexIterator(expr);
     let tokens = new Queue();
 
     // Match against the starting value of each type of token
@@ -270,23 +398,31 @@ export function lex(expr) {
             token = parseWhitespace(it);
         } else if(isDigit(ch) || ch == '.'){
             token = parseNumber(it, false)
-        } else if(ch == '-') {
-            it.next();            // Gobble the '-'
-            // Differentiate subtraction and unary minus
-            // If prev token's a number, this is an operation. Else unary.
-            if(tokens.length > 0 && isNumber(tokens.tail.value.value)) {
-                token = new Token("-", TOKEN_OPERATOR, it.index, it.index)
-            } else {
-                token = parseNumber(it, true)
-            }
-        } else if (ch == '"' || ch == "'") {
+        }
+        // else if(ch == '-') {
+        //     it.next();            // Gobble the '-'
+        //     // Differentiate subtraction and unary minus
+        //     // If prev token's a number, this is an operation. Else unary.
+        //     if(tokens.length > 0 && isNumber(tokens.tail.value.value)) {
+        //         token = new Token("-", TOKEN_OPERATOR, it.index, it.index)
+        //     } else {
+        //         token = parseNumber(it, true)
+        //     }
+        // } 
+        else if (ch == '"' || ch == "'") {
             token = parseString(it)
         } else if (isDelimiter(ch)) {
+            // Treat ch like a prefix and greedily consume the best operator match
             it.next();
-            if(ch in BINARY_OPS) {
-                token = new Token(ch, TOKEN_OPERATOR, it.index, it.index)
-            } else {
-                token = new Token(ch, TOKEN_DELIMITER, it.index, it.index)
+            let ch_2 = ch + it.lookahead(2);    // Get operators like ...
+            let ch_1 = ch + it.lookahead(1)     // Get operators like ++
+            let ch_0 = ch;
+            if(ch_2 in KEYWORD_TABLE) {
+                token = OperatorNode(KEYWORD_TABLE[ch_2], it.index, it.index)
+            } else if(ch_1 in KEYWORD_TABLE) {
+                token = OperatorNode(KEYWORD_TABLE[ch_1], it.index, it.index)
+            } else if(ch_0 in KEYWORD_TABLE) {
+                token = OperatorNode(KEYWORD_TABLE[ch_0], it.index, it.index)
             }
             
         } else {
@@ -409,82 +545,38 @@ class ParseState {
     }
 }
 
-function parseAtom(token) {
-    if(token.type == TOKEN_LITERAL) {
-        return new ASTNode(token.value, NODE_LITERAL)
-    } else if(token.type == TOKEN_IDENTIFIER) {
-        return new ASTNode(token.value, NODE_IDENTIFIER)
+export function expression(tokenQueue, min_right_binding_pow) {
+    let tokenStream = QIter(tokenQueue);
+    let token = tokenStream.next();
+    let left = token.null_denotation();
+
+    while(token.left_binding_power >= min_right_binding_pow) {
+        token = tokenStream.next();
+        left = token.left_denotation(left);
     }
 
-    if(token.type == TOKEN_OPERATOR) {
-        if(token.value in BINARY_OPS) {
-            return new ASTNode(token.value, )
-        }
-    }
+    return left;
 }
 
-function parseExpr(tokens, min_prec=0) {
-    let current = tokens.peek()
-    
+ 
 
-    while(true) {
-        let operator = parse
-    }
+// Expr starts with an identifier usually
+// One of:
+    // : - definition
+    // []: Indexing/filtering
+    // (optional) , next identifier : value
 
+// definition
+    // Literal
+    // Binary expression (and, or, +, -, etc.)
+    // Array literal []
+    // new sub block
 
+// Within a block
+// <optional> identifier <optional> ( input , args = value ) <optional> [guard] :
+    // Atleast one of the optional ones have to be present
+// inline or new block of expressions (atleast one)
 
-    // true, 1, "hello"
-    if(current.type == TOKEN_LITERAL) {
-        left = current
-    }
-    else if(current.type == TOKEN_IDENTIFIER) {
-
-    }
-}
-
-export function parse(tokenQueue) {
-    let tokens = QIter(tokenQueue);
-
-    // Expr starts with an identifier usually
-    // One of:
-        // : - definition
-        // []: Indexing/filtering
-        // (optional) , next identifier : value
-
-    // definition
-        // Literal
-        // Binary expression (and, or, +, -, etc.)
-        // Array literal []
-        // new sub block
-
-    // Within a block
-    // <optional> identifier <optional> ( input , args = value ) <optional> [guard] :
-        // Atleast one of the optional ones have to be present
-    // inline or new block of expressions (atleast one)
-
-}
-
-function prefixPrecedence() {
-
-}
 
 
 // https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html
-function parseExpr(tokens, min_prec) {
-    let lhs;
-    let token = tokens.next();
-    if(token.type == TOKEN_LITERAL) {
-        lhs = token
-    } else if(token.value == '(') {
-        lhs = parseExpr(tokens, 0);
-        let closing_parens = lexer.next();
-        if(closing_parens.value != ')') [
-            syntaxError("Expected closing parens")
-        ]
-    } else {
-        let r_bp = prefix_precedence(token)
-        let rhs = parseExpr(tokens, r_bp);
-
-
-    }
-}
