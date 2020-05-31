@@ -120,8 +120,7 @@ export class ASTNode {
     toString() {
         let kw_name = this.operation.keyword;
         if(this.operation.keyword == "(name)" || this.operation.keyword == "(literal)") {
-            kw_name = this.operation.keyword == "(name)" ? "name" : "literal"
-            return "(" + kw_name + " " + this.value + ")"
+            return this.value
         }
 
         let string = "(";

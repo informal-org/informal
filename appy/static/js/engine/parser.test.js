@@ -17,27 +17,16 @@ import { parse } from "./parser"
 // })
 
 test('test add multiply grouping precedence', () => {
-    // let tokens = lex("1 * (2 + 3)")
-
-    // let tokens = lex("1 + 2 * 3")
     let tokens = lex("3 + 1 * 2 * 4 / 5")
-//    console.log(tokens);
-    let parsed = parse(tokens);
-    console.log("Finished")
-    console.log(parsed)
-    if(parsed) {
-        console.log(parsed.toString());
-    }
+    expect(parse(tokens).toString()).toEqual("(+ 3 (/ (* (* 1 2) 4) 5))")
     
-    
-    // let postfix = applyOperatorPrecedence(tokens)
+    tokens = lex("1 + 2 * 3")
+    // Multiply before addition
+    expect(parse(tokens).toString()).toEqual("(+ 1 (* 2 3))")
 
-    // Expect multiply before addition
-    // expect(postfix).toEqual([1, 2, 3, "+", "*"])
-
-    // tokens = flatten_tokens(lex("(1 + 2) * 3"))
-    // postfix = applyOperatorPrecedence(tokens)
-    // expect(postfix).toEqual([1, 2, "+", 3, "*"])
+    // Grouping. Addition before multiplication
+    tokens = lex("(1 + 2) * 3")
+    expect(parse(tokens).toString()).toEqual("(* 3 (+ 1 2))")
 });
 
 
