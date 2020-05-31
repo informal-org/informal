@@ -89,7 +89,6 @@ class Infix extends Keyword {
 // Infix with right associativity, like =
 class InfixRight extends Infix {
     left_denotation(left, node, token_stream) {
-        console.log("Infix right led for " + this.keyword);
         node.node_type = "binary"
         node.left = left;
         node.right = expression(token_stream, this.left_binding_power - 1)
@@ -155,8 +154,15 @@ new Literal("false", false)
 new Literal("none", null)
 
 
-new InfixRight("and", 30)       // TODO: Left or right associative?
 new InfixRight("or", 30)
+new InfixRight("and", 40)
+new Prefix("not", 50)
+
+new Infix("in", 60)
+new infix("not", 60) // not in
+new Infix("is", 60)     // TODO
+
+
 new InfixRight("==", 40)
 new InfixRight("<=", 40)
 new InfixRight(">", 40)
@@ -175,11 +181,8 @@ new Infix("/", 60)
 // More binding power than multiplication, but less than unary minus (100)
 new InfixRight("**", 70)
 
-// TODO: Unary minus
-// Exponentiation. ** less binding power than unary minus.
 
-// TODO - Infix version
-new Prefix("(", (node, token_stream) => {
+new Prefix("(", 150, (node, token_stream) => {
     var e = expression(token_stream, 0);
     node.advance(")")
     return e;
