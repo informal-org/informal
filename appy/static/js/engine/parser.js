@@ -28,7 +28,7 @@ class ParseIterator extends QIter {
         if(this.hasNext()) {
             return this.next()
         } else {
-            return END_OP
+            return new ASTNode(END_OP, null, TOKEN_OPERATOR, -1, -1)
         }
     }
 }
@@ -39,8 +39,8 @@ class Keyword {
         this.left_binding_power = left_binding_power
         KEYWORD_TABLE[keyword_id] = this
     }
-    null_denotation(node, token_stream) { console.log("Null denotation not found!"); }
-    left_denotation(left, node, token_stream) { console.log("Left denotation not found!"); }
+    null_denotation(node, token_stream) { console.log("Null denotation not found for: " + this.keyword); }
+    left_denotation(left, node, token_stream) { console.log("Left denotation not found: " + this.keyword); }
 }
 
 class Literal extends Keyword {
@@ -63,7 +63,7 @@ class Prefix extends Keyword {
             this.null_denotation = null_denotation
         }
     }
-    null_denotation(node, token_stream) {
+    static null_denotation(node, token_stream) {
         node.left = expression(token_stream, 100);
         node.node_type = "unary"
         return node;
@@ -89,7 +89,7 @@ class Infix extends Keyword {
 // Infix with right associativity, like =
 class InfixRight extends Infix {
     left_denotation(left, node, token_stream) {
-        console.log("Infix right led for " + this.keyword_id);
+        console.log("Infix right led for " + this.keyword);
         node.node_type = "binary"
         node.left = left;
         node.right = expression(token_stream, this.left_binding_power - 1)
@@ -162,12 +162,21 @@ new InfixRight("<=", 40)
 new InfixRight(">", 40)
 new InfixRight(">=", 40)
 
-new Infix("+", 50)
-new Infix("-", 50)
+// Skip adding a node for unary plus.
+new Infix("+", 50).null_denotation = (node, token_stream) => {
+    return expression(token_stream, 100)
+}
+// Support unary minus
+new Infix("-", 50).null_denotation = Prefix.null_denotation
 
 new Infix("*", 60)
 new Infix("/", 60)
 
+// More binding power than multiplication, but less than unary minus (100)
+new InfixRight("**", 70)
+
+// TODO: Unary minus
+// Exponentiation. ** less binding power than unary minus.
 
 // TODO - Infix version
 new Prefix("(", (node, token_stream) => {

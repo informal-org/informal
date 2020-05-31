@@ -38,3 +38,9 @@ test('lex string', () => {
     // Unterminated string
     expect(() => lex('"hello')).toThrow();
 })
+
+
+test('lex multi-char operators', () => {
+    // Interchangeable quotes
+    expect(flatten_tokens(lex('1 ** 2 ** 3'))).toEqual([[1, TOKEN_LITERAL],['**', TOKEN_OPERATOR], [2, TOKEN_LITERAL], ['**', TOKEN_OPERATOR], [3, TOKEN_LITERAL] ]);
+})

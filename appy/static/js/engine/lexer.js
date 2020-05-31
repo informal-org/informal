@@ -171,9 +171,7 @@ function parseSymbol(it) {
 
     let char_end = it.index;
     // assert: token != "" since caller checks if is delimiter
-    if(token in KEYWORD_TABLE) {
-        return OperatorNode(KEYWORD_TABLE[token], char_start, char_end)
-    } else {
+    if(!(token in KEYWORD_TABLE)) {
         return IdentifierNode(token, char_start, char_end)
     }
     
@@ -222,8 +220,11 @@ export function lex(expr) {
             let ch_0 = ch;
             if(ch_2 in KEYWORD_TABLE) {
                 token = OperatorNode(KEYWORD_TABLE[ch_2], it.index, it.index)
+                it.next();
+                it.next();
             } else if(ch_1 in KEYWORD_TABLE) {
                 token = OperatorNode(KEYWORD_TABLE[ch_1], it.index, it.index)
+                it.next();
             } else if(ch_0 in KEYWORD_TABLE) {
                 token = OperatorNode(KEYWORD_TABLE[ch_0], it.index, it.index)
             }

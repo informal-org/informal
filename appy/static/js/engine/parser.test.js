@@ -25,9 +25,21 @@ test('test add multiply grouping precedence', () => {
     expect(parse(tokens).toString()).toEqual("(+ 1 (* 2 3))")
 
     // Grouping. Addition before multiplication
-    tokens = lex("(1 + 2) * 3")
-    expect(parse(tokens).toString()).toEqual("(* 3 (+ 1 2))")
+    // tokens = lex("(1 + 2) * 3")
+    // expect(parse(tokens).toString()).toEqual("(* 3 (+ 1 2))")
 });
+
+test('test power operator', () => {
+    let tokens = lex("2 ** 3 ** 4")
+    console.log(tokens);
+    // 3 ** 4 should evaluate first
+    
+    let parsed = parse(tokens);
+    console.log(parsed);
+    expect(parsed.toString()).toEqual("(** 2 (** 3 4))")
+
+    // Unary minus should happen before the power
+})
 
 
 // test('test keyword definition', () => {
