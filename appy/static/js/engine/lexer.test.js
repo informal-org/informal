@@ -1,7 +1,7 @@
 import { lex } from "./lexer"
 import { TOKEN_LITERAL, TOKEN_OPERATOR } from "./parser"
 
-function flatten_tokens(tokenQueue) {
+export function flatten_tokens(tokenQueue) {
     // Extract token into an array for testing ease
     let tokens = tokenQueue.asArray()
     let flat = [];
@@ -21,10 +21,6 @@ test('lex floats', () => {
     expect(flatten_tokens(lex("123e+12"))).toEqual([[123e+12, TOKEN_LITERAL]]);
     
     expect(flatten_tokens(lex("4.237e+101"))).toEqual([[4.237e+101, TOKEN_LITERAL]]);
-
-    // Errors on undefined exponents
-    expect(() => lex("4.1e")).toThrow();
-    expect(() => lex("5.1e ")).toThrow();
 })
 
 test('lex string', () => {

@@ -10,10 +10,9 @@ http://effbot.org/zone/simple-top-down-parsing.htm
 */
 
 export const KEYWORD_TABLE = {}
-
-export const TOKEN_LITERAL = "token_literal";
-export const TOKEN_IDENTIFIER = "token_identifier";
-export const TOKEN_OPERATOR = "token_operator";
+export const TOKEN_LITERAL = "(literal)";
+export const TOKEN_IDENTIFIER = "(name)";
+export const TOKEN_OPERATOR = "(operator)";
 
 class ParseIterator extends QIter {
     constructor(queue) {
@@ -21,14 +20,10 @@ class ParseIterator extends QIter {
     }
     advance(expecting) {
         // Advance until you find the given token
-        if(expecting && this.current() && this.current().operation.keyword != expecting) {
+        if(expecting && this.current() && this.current().operation.keyword !== expecting) {
             syntaxError("Expected token '" + expecting + "' not found. Found " + this.current().operation.keyword)
         }
-        if(this.hasNext()) {
-            return this.next()
-        } else {
-            return new ASTNode(END_OP, null, TOKEN_OPERATOR, -1, -1)
-        }
+        return this.hasNext() ? this.next() : new ASTNode(END_OP, null, TOKEN_OPERATOR, -1, -1)
     }
 }
 
@@ -115,24 +110,11 @@ export class ASTNode {
         return new ASTNode(new Literal("(literal)", value), value, TOKEN_LITERAL, char_start, char_end)
     }
 
+    // Convert to s-expression for debugging output
     toString() {
-        let kw_name = this.operation.keyword;
-        if(this.operation.keyword == "(name)" || this.operation.keyword == "(literal)") {
-            return this.value
-        }
-
-        let string = "(";
-        string += kw_name + ' '
-
-        if(this.left){
-            string += this.left.toString()
-        }
-        
-        if(this.right) {
-            string += ' ' + this.right.toString()
-        }
-        string += ')'
-        return string;
+        let kw = this.operation.keyword;
+        if(kw == "(name)" || kw == "(literal)") { return this.value }
+        return `(${kw}${this.left ? " " + this.left : ""}${this.right ? " " + this.right : ""})`
     }
 }
 
@@ -187,7 +169,7 @@ new Prefix("(", 150, (node, token_stream) => {
     return e;
 })
 
-function syntaxError(message, index) {
+export function syntaxError(message, index) {
     let err = new Error(message);
     err.index = index;
     throw err

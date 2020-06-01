@@ -21,20 +21,18 @@ class LexIterator {
         this.index = 0;
         this.indentation = 0;
     }
-    peek() {
-        return this.index < this.expr.length ? this.expr[this.index] : ""
+    peek(n=0) {
+        // assert: n is a positive number of indexes to peek. n = length when index + length < expr.length
+        return this.index + n < this.expr.length ? this.expr[this.index + n] : ""
     }
-    lookahead(n) {
-        let combined = ""
-        for(var i = this.index; i < this.index + n; i++) {
-            if(i < this.expr.length) {
-                combined += this.expr[i]
-            }
-        }
-        return combined
+    lookahead(n=1) {
+        // Look ahead to the next n characters and return that slice
+        return this.expr.slice(this.index, this.index + n)
     }
-    next() {
-        return this.expr[this.index++]
+    next(n=1) {
+        // assert: Caller ensures N + length won't pass expr.length
+        this.index += n
+        return this.expr[this.index - 1]
     }
     hasNext() {
         return this.index < this.expr.length
@@ -67,46 +65,30 @@ function gobbleDigits(it) {
 }
 
 function parseNumber(it) {   
-    let char_start = it.index;
-    // Leading decimal digits
-    let token = gobbleDigits(it);
-   
-    // (Optional) decimal
-    if(it.peek() == '.') {
-        token += it.next()
-
-        // (Optional) decimal digits
-        token += gobbleDigits(it)
-    }
-
-    // (Optional) Exponent
-    let exponent = it.peek()
-    if(exponent === 'e' || exponent == 'E') {
-        token += it.next()
-
-        // (Optional) sign
-        let exp_sign = it.peek();
-        if(exp_sign === '+' || exp_sign === '-') {
-            token += it.next()
+    let char_start = it.index, char_end = it.index;
+    let dot_found = false, exp_found = false, sign_found = false;
+    
+    // Iterate over chars and stop when you find a char that doesn't belong in the number
+    while(char_end < it.expr.length) {
+        let ch = it.expr[char_end++];
+        if(isDigit(ch)) {   continue;   }
+        if(ch === '.' && !dot_found) {
+            dot_found = true;
+            continue;
         }
-
-        // (Required) exponent power
-        let power = gobbleDigits(it);
-        if(power === "") {
-            syntaxError(ERR_INVALID_FLOAT, it.index)
-        } else {
-            token += power;
+        if((ch === 'e' || ch === 'E') && !exp_found) {
+            exp_found = true;
+            continue
         }
+        if((ch === '+' || ch === '-') && !sign_found) {    // Exponent power sign
+            sign_found = true;
+            continue
+        }
+        char_end--;
+        break;
     }
-
-    // If a number wasn't found where expected, raise error
-    if(token == "") {
-        syntaxError(ERR_INVALID_NUMBER, it.index)
-    }
-
-    let val = parseFloat(token);
-    let char_end = it.index;
-    return LiteralNode(val, char_start, char_end);
+    it.index = char_end;
+    return LiteralNode(parseFloat(it.expr.slice(char_start, char_end)), char_start, char_end);
 }
 
 function parseString(it) {
@@ -147,8 +129,7 @@ function parseString(it) {
         syntaxError(ERR_UNTERM_STR, it.index)
     }
 
-    let char_end = it.index;
-    return LiteralNode(token, char_start, char_end)
+    return LiteralNode(token, char_start, it.index)
 }
 
 function parseSymbol(it) {
@@ -163,12 +144,21 @@ function parseSymbol(it) {
         }
     }
 
-    let char_end = it.index;
     // assert: token != "" since caller checks if is delimiter
-    if(!(token in KEYWORD_TABLE)) {
-        return IdentifierNode(token, char_start, char_end)
+    if(token in KEYWORD_TABLE) {
+        return OperatorNode(KEYWORD_TABLE[token], char_start, it.index)
+    } else {
+        return IdentifierNode(token, char_start, it.index)
     }
-    
+}
+
+function parseKeyword(it, length) {
+    let char_start = it.length;
+    let kw = it.lookahead(length);
+    if(kw.length == length && kw in KEYWORD_TABLE) {
+        it.next(length)
+        return OperatorNode(KEYWORD_TABLE[kw], char_start, it.index)
+    }
 }
 
 function parseWhitespace(it) {
@@ -188,44 +178,24 @@ export function lex(expr) {
         let ch = it.peek();
         let token;
 
-        if(isWhitespace(ch)) {
-            // Some whitespace is meaningful when changing indentation level.
+        if(isWhitespace(ch)) {  // Some whitespace is meaningful when changing indentation level.
             token = parseWhitespace(it);
-        } else if(isDigit(ch) || ch == '.'){
+        } else if(isDigit(ch) || ch == '.') {   // + or - will be handled by parser as unary ops
             token = parseNumber(it, false)
         }
-        // else if(ch == '-') {
-        //     it.next();            // Gobble the '-'
-        //     // Differentiate subtraction and unary minus
-        //     // If prev token's a number, this is an operation. Else unary.
-        //     if(tokens.length > 0 && isNumber(tokens.tail.value.value)) {
-        //         token = new Token("-", TOKEN_OPERATOR, it.index, it.index)
-        //     } else {
-        //         token = parseNumber(it, true)
-        //     }
-        // } 
         else if (ch == '"' || ch == "'") {
             token = parseString(it)
         } else if (isDelimiter(ch)) {
             // Treat ch like a prefix and greedily consume the best operator match
-            it.next();
-            let ch_2 = ch + it.lookahead(2);    // Get operators like ...
-            let ch_1 = ch + it.lookahead(1)     // Get operators like ++
-            let ch_0 = ch;
-            if(ch_2 in KEYWORD_TABLE) {
-                token = OperatorNode(KEYWORD_TABLE[ch_2], it.index, it.index)
+            // assert: All delimiters are prefix of some keyword. Else, iter won't move
+            token = parseKeyword(it, 3);
+            token = token ? token : parseKeyword(it, 2)
+            token = token ? token : parseKeyword(it, 1)
+            if(!token) {
                 it.next();
-                it.next();
-            } else if(ch_1 in KEYWORD_TABLE) {
-                token = OperatorNode(KEYWORD_TABLE[ch_1], it.index, it.index)
-                it.next();
-            } else if(ch_0 in KEYWORD_TABLE) {
-                token = OperatorNode(KEYWORD_TABLE[ch_0], it.index, it.index)
             }
-            
         } else {
-            // keywords, operations and identifiers
-            token = parseSymbol(it);
+            token = parseSymbol(it);    // identifiers
         }
 
         // Note: Token may be a parsed empty string or zero, but never ""
