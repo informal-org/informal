@@ -21,10 +21,9 @@ class ParseIterator extends QIter {
     }
     advance(expecting) {
         // Advance until you find the given token
-        if(expecting && this.current() && this.current().operator.value != expecting) {
-            syntaxError("Expected token '" + expecting + "' not found.")
+        if(expecting && this.current() && this.current().operation.keyword != expecting) {
+            syntaxError("Expected token '" + expecting + "' not found. Found " + this.current().operation.keyword)
         }
-        let next = this.next();
         if(this.hasNext()) {
             return this.next()
         } else {
@@ -126,11 +125,11 @@ export class ASTNode {
         string += kw_name + ' '
 
         if(this.left){
-            string += this.left.toString() +  ' '
+            string += this.left.toString()
         }
         
         if(this.right) {
-            string += this.right.toString()
+            string += ' ' + this.right.toString()
         }
         string += ')'
         return string;
@@ -159,7 +158,7 @@ new InfixRight("and", 40)
 new Prefix("not", 50)
 
 new Infix("in", 60)
-new infix("not", 60) // not in
+new Infix("not", 60) // not in
 new Infix("is", 60)     // TODO
 
 
@@ -184,9 +183,15 @@ new InfixRight("**", 70)
 
 new Prefix("(", 150, (node, token_stream) => {
     var e = expression(token_stream, 0);
-    node.advance(")")
+    token_stream.advance(")")
     return e;
 })
+
+function syntaxError(message, index) {
+    let err = new Error(message);
+    err.index = index;
+    throw err
+}
 
 export function expression(tokenStream, right_binding_power) {
     let currentNode = tokenStream.next();

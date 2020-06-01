@@ -26,17 +26,24 @@ test('test add multiply grouping precedence', () => {
 
     // Grouping. Addition before multiplication
     tokens = lex("(1 + 2) * 3")
+    expect(parse(tokens).toString()).toEqual("(* (+ 1 2) 3)")
+
+    // Test left-to-right order of the args
+    tokens = lex("3 * (1 + 2)")
     expect(parse(tokens).toString()).toEqual("(* 3 (+ 1 2))")
 });
 
 test('test power operator', () => {
     let tokens = lex("2 ** 3 ** 4")
-    // 3 ** 4 should evaluate first
-    
     let parsed = parse(tokens);
+    // 3 ** 4 should evaluate first
     expect(parsed.toString()).toEqual("(** 2 (** 3 4))")
 
     // Unary minus should happen before the power
+
+    tokens = lex("2 ** -3 ** 4")
+    // 3 ** 4 should evaluate first
+    expect(parse(tokens).toString()).toEqual("(** 2 (** (- 3) 4))")
 })
 
 

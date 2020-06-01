@@ -1,5 +1,5 @@
 import { Queue } from "../utils"
-import { LiteralNode, IdentifierNode, OperatorNode, KEYWORD_TABLE } from "./parser"
+import { LiteralNode, IdentifierNode, OperatorNode, KEYWORD_TABLE, syntaxError } from "./parser"
 
 const DELIMITERS = new Set(['(', ')', '[', ']', 
 // '{', '}', 
@@ -52,12 +52,6 @@ function isDigit(ch) {
 
 function isDelimiter(ch) {
     return DELIMITERS.has(ch)
-}
-
-function syntaxError(message, index) {
-    let err = new Error(message);
-    err.index = index;
-    throw err
 }
 
 function gobbleDigits(it) {
