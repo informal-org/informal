@@ -1,5 +1,5 @@
 
-function execJs(code) {
+export function execJs(code) {
     // TODO: Sandboxed execution
     return eval(code);
 }

@@ -1,3 +1,8 @@
+import { CellEnv } from "./CellEnv";
+import { Cell } from "./Cell";
+import { parseExpr } from "./parser"
+import { genJs } from "./generator"
+import { execJs } from "./executor"
 
 // Dict, Value -> value | null
 export function resolveMember(node, context) {
@@ -55,25 +60,44 @@ function resolve(state, name, scope) {
 export function evaluate(state) {
     console.log("Evaluating");
     console.log(state);
+    let env = new CellEnv();
+    env.raw_map = state.cellsReducer.byId;
+
+    let cells = [];
+    state.cellsReducer.allIds.forEach((cell_id) => {
+        let raw_cell = env.getRawCell(cell_id);
+
+        let cell = new Cell(raw_cell, undefined, env);
+        cells.push(cell);
+
+        // TODO: Doesn't matter yet, since we haven't defined nested cells
+        // [cell.params, cell.body] = traverseDown(raw_cell, env.createCell, cell);
+    })
+
     
+    cells.forEach((cell) => {
+        console.log("Parsing: " + cell.expr)
+        cell.parsed = parseExpr(cell.expr)
+    })
+
+    let code = genJs(env);
+    console.log("Generated code")
+    console.log(code);
+
     // 0: {id: 0, output: "Hello 2", error: ""}
     let output = [];
-    let cells = state.cellsReducer.byId;
-    let parsed = parseAll(cells);
 
-    let code = generateCode(parsed);
     let result = execJs(code);
     console.log("Final result");
     console.log(result);
 
-    for(var cell_id in cells) {
-        var element = cells[cell_id];
+    cells.forEach((cell) => {
         output.push({
-            id: element.id,
-            value: result[element.id],
+            id: cell.id,
+            value: result[cell.id],
             error: ""
         });
-    }
+    })
     // expr.body.forEach(element => {
     //     let code = generateCode(element);
     //     let result = execCode(code);
@@ -88,3 +112,4 @@ export function evaluate(state) {
 
     return {'results': output}
 }
+

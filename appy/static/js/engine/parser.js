@@ -1,4 +1,5 @@
 import { QIter } from "../utils"
+import { lex } from "./lexer"
 
 /*
 Implements a Pratt parser to construct the AST with precedence climbing.
@@ -229,10 +230,17 @@ export function expression(tokenStream, right_binding_power) {
     return left
 }
 
-export function parse(tokenQueue) {
+export function parseTokens(tokenQueue) {
     // Add an end element - prevents having to do an tokenStream.hasNext() check 
     // in the expr while loop condition
     tokenQueue.push(new ASTNode(END_OP, null, TOKEN_OPERATOR, -1, -1))
     let tokenStream = new ParseIterator(tokenQueue);
     return expression(tokenStream, 0)
+}
+
+
+export function parseExpr(expr) {
+    if(expr) {
+        return parseTokens(lex(expr))
+    }
 }

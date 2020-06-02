@@ -1,5 +1,5 @@
 import React from "react";
-import { formatCellOutput } from "../utils.js"
+import { formatCellOutput } from "../utils"
 
 // Abstract base cell that all other cell types inherit from
 // Contains common functionality.

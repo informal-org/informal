@@ -1,6 +1,6 @@
 import { configureStore, createSlice } from 'redux-starter-kit'
 import { parseEverything } from './controller.js'
-import { apiPost, apiPatch, genID } from './utils.js'
+import { apiPost, apiPatch, genID } from './utils'
 import { evaluate } from "./engine/engine.js"
 
 

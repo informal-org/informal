@@ -1,4 +1,4 @@
-import { cellGet } from "./utils.js"
+import { cellGet } from "./utils"
 
 
 

@@ -47,11 +47,29 @@ function cellToJs(env, cell) {
     return code
 }
 
+// export function genJs(env) {
+//     var code = JS_PRE_CODE;
+
+//     // TODO: Support for nested structures
+//     code += cellToJs(env, env.root);
+
+//     code += JS_POST_CODE;
+//     return code;
+// }
+
+
+
 export function genJs(env) {
     var code = JS_PRE_CODE;
 
     // TODO: Support for nested structures
-    code += cellToJs(env, env.root);
+    if(env.root) {
+        code += cellToJs(env, env.root);
+    } else {
+        Object.values(env.cell_map).forEach((cell) => {
+            code += cellToJs(env, cell)
+        })
+    }
 
     code += JS_POST_CODE;
     return code;
