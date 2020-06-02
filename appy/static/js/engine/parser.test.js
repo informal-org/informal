@@ -38,14 +38,11 @@ test('test power operator', () => {
 })
 
 
-// test('test keyword definition', () => {
-//     // let tokens = flatten_tokens(lex("a: 2, b: 3, c: 5")
-//     let tokens = lex("a: 2, b: 3, c: [5, 6, 7, 8]")
-//     console.log(tokens);
-//     let ast = parse(tokens);
-//     ast.toString()
-//     // let postfix = applyOperatorPrecedence(tokens)
-//     // console.log(postfix)
+test('test keyword definition', () => {
+    // let tokens = flatten_tokens(lex("a: 2, b: 3, c: 5")
+    // let tokens = lex("a: 2, b: 3, c: [5, 6, 7, 8]")
+    let tokens = lex("a: 2, b: 3, c: 5")
+    let ast = parse(tokens);
+    expect(ast.toString()).toEqual("(: a,2 b,3 c,5)")
 
-
-// });
+});

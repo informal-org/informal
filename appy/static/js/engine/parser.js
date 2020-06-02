@@ -7,11 +7,12 @@ https://crockford.com/javascript/tdop/tdop.html
 https://eli.thegreenplace.net/2010/01/02/top-down-operator-precedence-parsing
 http://effbot.org/zone/simple-top-down-parsing.htm
 
+"What do we expect to see to the left of the token?"
 */
 
 export const KEYWORD_TABLE = {}
 export const TOKEN_LITERAL = "(literal)";
-export const TOKEN_IDENTIFIER = "(name)";
+export const TOKEN_IDENTIFIER = "(identifier)";
 export const TOKEN_OPERATOR = "(operator)";
 
 class ParseIterator extends QIter {
@@ -38,14 +39,10 @@ class Keyword {
 }
 
 class Literal extends Keyword {
-    constructor(keyword_id, value) {
+    constructor(keyword_id) {
         super(keyword_id, 0)
-        this.value = value
     }
     null_denotation(node, token_stream) {
-        // console.log("Literal ned <" + this.value + ">");
-        node.node_type = "literal"
-        node.value = this.value
         return node;
     }
 }
@@ -90,6 +87,9 @@ class InfixRight extends Infix {
     }
 }
 
+const ID_OP = new Literal(TOKEN_IDENTIFIER);
+const LITERAL_OP = new Literal(TOKEN_LITERAL)
+
 export class ASTNode {
     constructor(operation, value, node_type, char_start, char_end) {
         this.operation = operation
@@ -107,14 +107,23 @@ export class ASTNode {
         return new ASTNode(ID_OP, value, TOKEN_IDENTIFIER, char_start, char_end)
     }
     static LiteralNode(value, char_start, char_end) {
-        return new ASTNode(new Literal("(literal)", value), value, TOKEN_LITERAL, char_start, char_end)
+        return new ASTNode(LITERAL_OP, value, TOKEN_LITERAL, char_start, char_end)
     }
 
     // Convert to s-expression for debugging output
     toString() {
         let kw = this.operation.keyword;
-        if(kw == "(name)" || kw == "(literal)") { return this.value }
-        return `(${kw}${this.left ? " " + this.left : ""}${this.right ? " " + this.right : ""})`
+        if(kw == TOKEN_IDENTIFIER || kw == TOKEN_LITERAL) { return this.value }
+        let repr = "";
+        if(this.value !== null) {
+            this.value.forEach((val) => {
+                repr += " " + val.toString();
+            })
+        }
+        else {
+            repr = `${this.left ? " " + this.left : ""}${this.right ? " " + this.right : ""}`
+        }
+        return `(${kw}${repr})`
     }
 }
 
@@ -122,10 +131,8 @@ export const OperatorNode = ASTNode.OperatorNode;
 export const IdentifierNode = ASTNode.IdentifierNode;
 export const LiteralNode = ASTNode.LiteralNode;
 
-const ID_OP = new Keyword("(identifier)")
 const END_OP = new Keyword("(end)")
 
-new Keyword(":")
 new Keyword(")")
 new Keyword("]")
 new Keyword(",")
@@ -163,6 +170,41 @@ new Infix("/", 60)
 new InfixRight("**", 70)
 
 
+// TODO: Precedence level for this
+new Infix(",", 10).left_denotation = (left, node, tokenStream) => {
+    let right = expression(tokenStream, 10)
+    if(left.node_type == "maplist") {
+        if(right.node_type != "map") {
+            // TODO
+            syntaxError("Expected map to the right of a map.")
+        }
+        // If it's a map, add it onto the list.
+        left.value.push(right.value)
+    }
+    else if(left.node_type == 'map') {
+        if(right.node_type != "map") {
+            // TODO
+            syntaxError("Expected map to the right of a map")
+        }
+
+        // Convert the single entity into a list structure
+        left.node_type = "maplist"
+        left.value = [left.value, right.value]
+    } else {
+        // TODO
+        syntaxError("Unknown token to the left of , " + left)
+    }
+
+    return left
+}
+new Infix(":", 80).left_denotation = (left, node, tokenStream) => {
+    node.node_type = "map"
+    // Key, value. Store in a list which will be appended upon
+    node.value = [left, expression(tokenStream, 80)]
+    return node
+}
+
+
 new Prefix("(", 150, (node, token_stream) => {
     var e = expression(token_stream, 0);
     token_stream.advance(")")
@@ -184,7 +226,7 @@ export function expression(tokenStream, right_binding_power) {
         left = currentNode.operation.left_denotation(left, currentNode, tokenStream);
     }
 
-    return left;
+    return left
 }
 
 export function parse(tokenQueue) {
