@@ -1,6 +1,7 @@
 import { CellEnv } from "./CellEnv";
 import { totalOrderByDeps } from "./order"
 import { genJs, JS_PRE_CODE, JS_POST_CODE } from "./generator"
+import { parseExpr } from "./parser"
 
 // Tree where no cells depend on each other.
 const TREE_LINEAR_MATH = {
@@ -56,6 +57,11 @@ test('generates linear code', () => {
     // When cells don't depend on each other, their order remains the same
     let env = new CellEnv();
     env.create(TREE_LINEAR_MATH, 0);
+
+    Object.values(env.cell_map).forEach((cell) => {
+        cell.parsed = parseExpr(cell.expr)
+    })
+
     totalOrderByDeps(env)
 
     let cycles = env.cyclic_deps;

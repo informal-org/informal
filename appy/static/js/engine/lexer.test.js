@@ -6,7 +6,7 @@ export function flatten_tokens(tokenQueue) {
     let tokens = tokenQueue.asArray()
     let flat = [];
     tokens.forEach((token) => flat.push([
-        token.value ? token.value : token.operation.keyword, 
+        token.value ? token.value : token.operator.keyword, 
         token.node_type
     ]))
     return flat;

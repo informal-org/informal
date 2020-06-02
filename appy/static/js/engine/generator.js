@@ -19,6 +19,38 @@ class CyclicRefError extends Error {
 `;
 export const JS_POST_CODE = `ctx.all();\n`;
 
+var BINARY_OPS = {
+    "+": (left, right) => { return "" + left + " + " + right },
+    "-": (left, right) => { return "" + left + " - " + right },
+    "*": (left, right) => { return "" + left + " * " + right },
+    "/": (left, right) => { return "" + left + " / " + right }
+}
+
+var UNARY_OPS = {
+    "-": (left) => { return "-" + left }
+}
+
+function astToJs(env, node) {
+    // Convert a parsed abstract syntax tree into code
+    let code = "";
+    switch(node.node_type) {
+        case "binary":
+            let left = astToJs(env, node.left);
+            let right = astToJs(env, node.right);
+            return BINARY_OPS[node.operator.keyword](left, right)
+        case "unary":
+            return UNARY_OPS[node.operator.keyword](astToJs(env, node.left))
+        case "(literal)":
+            return JSON.stringify(node.value)
+        case "(identifier)":
+            return "" + node.value
+        default:
+            console.log("Error: Could not translate ast node: ");
+            console.log(node)
+    }
+    return code;
+}
+
 
 // Bottom up recursive code generation by local evaluation order.
 // (see BURS - bottom up rewrite systems)
@@ -34,7 +66,8 @@ function cellToJs(env, cell) {
     if(cell.expr) {
         // TODO: Variable name check
         var variable_name = cell.name ? cell.name : "__" + cell.id;        
-        code = `var ${variable_name} = ${cell.expr};\n`;
+        let expr = astToJs(env, cell.parsed);
+        code = `var ${variable_name} = ${expr};\n`;
         code += `ctx.set("${cell.id}", ${variable_name});\n`;
     }
     

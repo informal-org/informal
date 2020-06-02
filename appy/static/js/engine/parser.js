@@ -22,8 +22,8 @@ class ParseIterator extends QIter {
     }
     advance(expecting) {
         // Advance until you find the given token
-        if(expecting && this.current() && this.current().operation.keyword !== expecting) {
-            syntaxError("Expected token '" + expecting + "' not found. Found " + this.current().operation.keyword)
+        if(expecting && this.current() && this.current().operator.keyword !== expecting) {
+            syntaxError("Expected token '" + expecting + "' not found. Found " + this.current().operator.keyword)
         }
         return this.hasNext() ? this.next() : new ASTNode(END_OP, null, TOKEN_OPERATOR, -1, -1)
     }
@@ -92,8 +92,8 @@ const ID_OP = new Literal(TOKEN_IDENTIFIER);
 const LITERAL_OP = new Literal(TOKEN_LITERAL)
 
 export class ASTNode {
-    constructor(operation, value, node_type, char_start, char_end) {
-        this.operation = operation
+    constructor(operator, value, node_type, char_start, char_end) {
+        this.operator = operator
         this.value = value
         this.node_type = node_type
         this.char_start = char_start
@@ -101,8 +101,8 @@ export class ASTNode {
         this.left = null;
         this.right = null;
     }
-    static OperatorNode(operation, char_start, char_end) {
-        return new ASTNode(operation, null, TOKEN_OPERATOR, char_start, char_end)
+    static OperatorNode(operator, char_start, char_end) {
+        return new ASTNode(operator, null, TOKEN_OPERATOR, char_start, char_end)
     }
     static IdentifierNode(value, char_start, char_end) {
         return new ASTNode(ID_OP, value, TOKEN_IDENTIFIER, char_start, char_end)
@@ -113,7 +113,7 @@ export class ASTNode {
 
     // Convert to s-expression for debugging output
     toString() {
-        let kw = this.operation.keyword;
+        let kw = this.operator.keyword;
         if(kw == TOKEN_IDENTIFIER || kw == TOKEN_LITERAL) { return this.value }
         let repr = "";
         if(this.value !== null) {
@@ -220,11 +220,11 @@ export function syntaxError(message, index) {
 
 export function expression(tokenStream, right_binding_power) {
     let currentNode = tokenStream.next();
-    let left = currentNode.operation.null_denotation(currentNode, tokenStream);
+    let left = currentNode.operator.null_denotation(currentNode, tokenStream);
 
-    while(right_binding_power < tokenStream.current().operation.left_binding_power) {
+    while(right_binding_power < tokenStream.current().operator.left_binding_power) {
         currentNode = tokenStream.next();
-        left = currentNode.operation.left_denotation(left, currentNode, tokenStream);
+        left = currentNode.operator.left_denotation(left, currentNode, tokenStream);
     }
 
     return left
