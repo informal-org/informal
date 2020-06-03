@@ -11,9 +11,6 @@ export default class Sidebar extends React.Component {
     fetch('/api/v1/apps/' + window._aa_appid + '?format=json').then((data) => {
       return data.json();
     }).then((apps) => {
-      console.log("Apps");
-      console.log(apps);
-
       window._aa_app = apps;
       store.dispatch(loadView());
 

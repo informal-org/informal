@@ -25,15 +25,27 @@ class ParseError extends Error {
 `;
 export const JS_POST_CODE = `ctx.all();\n`;
 
-var BINARY_OPS = {
-    "+": (left, right) => { return "" + left + " + " + right },
-    "-": (left, right) => { return "" + left + " - " + right },
-    "*": (left, right) => { return "" + left + " * " + right },
-    "/": (left, right) => { return "" + left + " / " + right }
+function mapToOp(op) {
+    return (left, right) => {
+        return "" + left + op + right
+    }
 }
 
-var UNARY_OPS = {
-    "-": (left) => { return "-" + left }
+const BINARY_OPS = {
+    "and": mapToOp("&&"),
+    "or": mapToOp("||"),
+    "==": mapToOp("==="),
+}
+
+// Map operations that are 1:1 between JS and AA
+const SHARED_OPS = ["+", "-", "*", "/", "<", ">", "<=", ">="];
+SHARED_OPS.forEach((op) => {
+    BINARY_OPS[op] = mapToOp(op)
+})
+
+const UNARY_OPS = {
+    "-": (left) => { return "-" + left },
+    "not": (left) => { return "!" + left }
 }
 
 function astToJs(env, node) {

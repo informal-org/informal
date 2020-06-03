@@ -7,8 +7,9 @@ import Editor from 'react-simple-code-editor';
 import CellParam from "./CellParam.js"
 import KVTable from "./KVTable"
 import { highlight, languages } from 'prismjs/components/prism-core';
-import 'prismjs/components/prism-clike';
-import 'prismjs/components/prism-javascript';
+// import 'prismjs/components/prism-clike';
+// import 'prismjs/components/prism-javascript';
+import 'prismjs/components/prism-python';
 
 import { addParam, addRow } from "../store.js"
 
@@ -124,7 +125,7 @@ export default class GridCell extends AbstractBaseCell {
                             <Editor
                                 value={this.state.input}
                                 onValueChange={this.changeInput}
-                                highlight={code => highlight(code, languages.js)}
+                                highlight={code => highlight(code, languages.py)}
                                 padding={10}
                                 style={{
                                 fontFamily: '"Fira code", "Fira Mono", monospace',

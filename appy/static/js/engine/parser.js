@@ -174,9 +174,9 @@ export const CONTINUE_BLOCK = new Infix(TOKEN_CONTINUE_BLOCK, 10)  // \n
 export const START_BLOCK = new Keyword(TOKEN_START_BLOCK, 10)     // Tab +
 export const END_BLOCK = new Keyword(TOKEN_END_BLOCK, 10)       // Tab -
 
-new Literal("true", true)
-new Literal("false", false)
-new Literal("none", null)
+new Literal("True", true)
+new Literal("False", false)
+new Literal("None", null)
 
 
 new InfixRight("or", 30)
@@ -189,8 +189,9 @@ new Infix("is", 60)     // TODO
 
 
 new InfixRight("==", 40)
-new InfixRight("<=", 40)
+new InfixRight("<", 40)
 new InfixRight(">", 40)
+new InfixRight("<=", 40)
 new InfixRight(">=", 40)
 
 // Skip adding a node for unary plus.

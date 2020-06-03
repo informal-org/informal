@@ -11,6 +11,7 @@ const DELIMITERS = new Set(['(', ')', '[', ']',
 '.', ',', ':', 
 // ';', 
 '+', '-', '*', '/', '%',
+'<', '>', '=', '!',
 ' ', '\t', '\n']);
 
 // TODO: Better error messages
