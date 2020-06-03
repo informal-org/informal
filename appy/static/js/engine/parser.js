@@ -138,6 +138,15 @@ new Keyword(")")
 new Keyword("]")
 new Keyword(",")
 
+
+export const TOKEN_CONTINUE_BLOCK = "(continueblock)";
+export const TOKEN_START_BLOCK = "(startblock)";
+export const TOKEN_END_BLOCK = "(endblock)";
+
+export const CONTINUE_BLOCK = new Keyword(TOKEN_CONTINUE_BLOCK)  // \n
+export const START_BLOCK = new Keyword(TOKEN_START_BLOCK)     // Tab +
+export const END_BLOCK = new Keyword(TOKEN_END_BLOCK)       // Tab -
+
 new Literal("true", true)
 new Literal("false", false)
 new Literal("none", null)

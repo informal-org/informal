@@ -11,7 +11,8 @@ export default class KVTable extends React.PureComponent {
             let [key, value] = kv;
             rows.push(
                 <tr key={key}>
-                    <td>{ key } &nbsp;:&nbsp;</td>
+                    <td>{ key }</td>
+                    <td>&nbsp;:&nbsp;</td>
                     <td>{ value }</td>
                 </tr>
             )

@@ -1,5 +1,9 @@
 import { Queue } from "../utils"
-import { LiteralNode, IdentifierNode, OperatorNode, KEYWORD_TABLE, syntaxError } from "./parser"
+import { 
+    LiteralNode, IdentifierNode, OperatorNode, 
+    KEYWORD_TABLE, syntaxError,
+    CONTINUE_BLOCK, START_BLOCK, END_BLOCK
+} from "./parser"
 
 const DELIMITERS = new Set(['(', ')', '[', ']', 
 // '{', '}', 
@@ -19,24 +23,59 @@ class LexIterator {
     constructor(expr) {
         this.expr = expr;
         this.index = 0;
-        this.indentation = 0;
+        // Store number of spaces at each active indentation level
+        this.block_levels = [];
+        this.tokens = new Queue();
     }
+
     peek(n=0) {
         // assert: n is a positive number of indexes to peek. n = length when index + length < expr.length
         return this.index + n < this.expr.length ? this.expr[this.index + n] : ""
     }
+
     lookahead(n=1) {
         // Look ahead to the next n characters and return that slice
         return this.expr.slice(this.index, this.index + n)
     }
+
     next(n=1) {
         // assert: Caller ensures N + length won't pass expr.length
         this.index += n
         return this.expr[this.index - 1]
     }
+
     hasNext() {
         return this.index < this.expr.length
     }
+
+    currentBlock() {
+        return this.block_levels.length > 0 ? this.block_levels[this.block_levels.length - 1] : 0
+    }
+
+    startBlock(level, char_start) {
+        this.block_levels.push(level)
+        this.tokens.push(OperatorNode(START_BLOCK, char_start, it.index))
+    }
+
+    continueBlock(char_start) {
+        this.tokens.push(new OperatorNode(CONTINUE_BLOCK, char_start, this.index))
+    }
+
+    endBlock(level, char_start) {
+        // May end multiple blocks in one go
+        while(level < this.currentBlock()) {
+            this.block_levels.pop();
+            this.tokens.push(new OperatorNode(END_BLOCK, char_start, this.index));
+        }
+
+        if(this.block_levels.length > 0 && level != this.currentBlock()) {
+            syntaxError("Error: Indentation level doesn't match any previous code blocks.")
+        }
+
+        return this.currentBlock();
+    }
+
+
 }
 
 
@@ -50,18 +89,6 @@ function isDigit(ch) {
 
 function isDelimiter(ch) {
     return DELIMITERS.has(ch)
-}
-
-function gobbleDigits(it) {
-    let token = "";
-    while(it.hasNext()) {
-        if(isDigit(it.peek())) {
-            token += it.next()
-        } else {
-            break;
-        }
-    }
-    return token;
 }
 
 function parseNumber(it) {   
@@ -162,16 +189,53 @@ function parseKeyword(it, length) {
 }
 
 function parseWhitespace(it) {
-    // TODO: Convert indentation level into meaningful token
     // Currently just skip whitespace.
-    it.next();
+    // TODO: /r/n on windows?
+    let char_start = it.index;
+
+    if(it.peek() == '\n' && it.tokens.length > 0) {
+        it.next();
+        let space_count = 0;
+        
+        // Count the number of leading spaces
+        while(true) {
+            if(it.peek() == ' ') {
+                space_count += 1;
+                it.next();
+            } else if(it.peek() == '\t') {
+                space_count += 4
+                it.next();
+            } else {
+                break;
+            }
+        }
+
+        // let indentation_level = Math.ceil(space_count / 4.0);
+        let running_lvl = it.currentBlock();
+        if(space_count > running_lvl) {
+            // Start of a new block
+            it.startBlock(space_count, char_start);
+        } else if(space_count == running_lvl) {
+            // Continuation of the existing block
+            it.continueBlock(char_start)
+        } else if(space_count < running_lvl) {
+            // Rewind stack, closing valid blocks. 
+            // Syntax error if it doesn't match a previous indentation level.
+            it.endBlock(space_count, char_start);
+        }
+
+    } else {
+        // Leading whitespace before any tokens or
+        // Whitespace in the middle of a line is meaningless
+        it.next();
+    }
+    
     return undefined
 }
 
 export function lex(expr) {
     // Index - shared mutable closure var
     let it = new LexIterator(expr);
-    let tokens = new Queue();
 
     // Match against the starting value of each type of token
     while(it.hasNext()) {
@@ -179,7 +243,8 @@ export function lex(expr) {
         let token;
 
         if(isWhitespace(ch)) {  // Some whitespace is meaningful when changing indentation level.
-            token = parseWhitespace(it);
+            // Indentation tokens are added directly if valid
+            parseWhitespace(it);
         } else if(isDigit(ch) || ch == '.') {   // + or - will be handled by parser as unary ops
             token = parseNumber(it, false)
         }
@@ -200,9 +265,12 @@ export function lex(expr) {
 
         // Note: Token may be a parsed empty string or zero, but never ""
         if(token !== undefined) {
-            tokens.push(token)
+            it.tokens.push(token)
         }
     }
 
-    return tokens
+    // End all active blocks
+    it.endBlock(0, it.index)
+
+    return it.tokens
 }

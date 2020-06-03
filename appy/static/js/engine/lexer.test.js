@@ -1,5 +1,5 @@
 import { lex } from "./lexer"
-import { TOKEN_LITERAL, TOKEN_OPERATOR } from "./parser"
+import { TOKEN_LITERAL, TOKEN_OPERATOR, TOKEN_START_BLOCK, TOKEN_CONTINUE_BLOCK, TOKEN_END_BLOCK } from "./parser"
 
 export function flatten_tokens(tokenQueue) {
     // Extract token into an array for testing ease
@@ -39,4 +39,56 @@ test('lex string', () => {
 test('lex multi-char operators', () => {
     // Interchangeable quotes
     expect(flatten_tokens(lex('1 ** 2 ** 3'))).toEqual([[1, TOKEN_LITERAL],['**', TOKEN_OPERATOR], [2, TOKEN_LITERAL], ['**', TOKEN_OPERATOR], [3, TOKEN_LITERAL] ]);
+})
+
+
+test('lex indentation levels', () => {
+    // Interchangeable quotes
+    expect(flatten_tokens(lex(`1\n2\n3`))).toEqual([
+        [1, TOKEN_LITERAL],
+        [TOKEN_CONTINUE_BLOCK, TOKEN_OPERATOR], 
+        [2, TOKEN_LITERAL], 
+        [TOKEN_CONTINUE_BLOCK, TOKEN_OPERATOR], 
+        [3, TOKEN_LITERAL] 
+    ]);
+
+
+    expect(flatten_tokens(lex(`1\n\t2\n3`))).toEqual([
+        [1, TOKEN_LITERAL],
+        [TOKEN_START_BLOCK, TOKEN_OPERATOR], 
+        [2, TOKEN_LITERAL], 
+        [TOKEN_END_BLOCK, TOKEN_OPERATOR], 
+        [3, TOKEN_LITERAL] 
+    ]);
+
+    // All active blocks closed at the end
+    expect(flatten_tokens(lex(`
+1
+    2
+        3`))).toEqual([
+        [1, TOKEN_LITERAL],
+        [TOKEN_START_BLOCK, TOKEN_OPERATOR], 
+        [2, TOKEN_LITERAL], 
+        [TOKEN_START_BLOCK, TOKEN_OPERATOR], 
+        [3, TOKEN_LITERAL],
+        [TOKEN_END_BLOCK, TOKEN_OPERATOR], 
+        [TOKEN_END_BLOCK, TOKEN_OPERATOR], 
+    ]);
+
+
+
+    // Note: Tab here is meaningful for this test
+    let result = flatten_tokens(lex(`
+    1
+        2
+    3`));
+    console.log(result);
+
+    expect(result).toEqual([
+            [1, TOKEN_LITERAL],
+            [TOKEN_START_BLOCK, TOKEN_OPERATOR], 
+            [2, TOKEN_LITERAL], 
+            [TOKEN_END_BLOCK, TOKEN_OPERATOR], 
+            [3, TOKEN_LITERAL],
+        ]);    
 })

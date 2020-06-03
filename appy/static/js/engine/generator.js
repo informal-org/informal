@@ -57,7 +57,7 @@ function astToJs(env, node) {
                 let val = {};
                 // Array of key value tuples
                 node.value.forEach((kv) => {
-                    [k, v] = kv
+                    let [k, v] = kv
                     val[astToJs(env, k)] = astToJs(env, v);
                 });
                 return JSON.stringify(val)
