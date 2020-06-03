@@ -33,6 +33,7 @@ class Keyword {
     constructor(keyword_id, left_binding_power=0) {
         this.keyword = keyword_id
         this.left_binding_power = left_binding_power
+        this.value = null
         KEYWORD_TABLE[keyword_id] = this
     }
     null_denotation(node, token_stream) { console.log("Null denotation not found for: " + this.keyword); }
@@ -40,10 +41,22 @@ class Keyword {
 }
 
 class Literal extends Keyword {
-    constructor(keyword_id) {
+    constructor(keyword_id, value) {
         super(keyword_id, 0)
+        this.value = value;
     }
     null_denotation(node, token_stream) {
+        node.node_type = TOKEN_LITERAL
+        return node;
+    }
+}
+
+class Identifier extends Keyword {
+    constructor(keyword_id) {
+        super(keyword_id ,0)
+    }
+    null_denotation(node, tokenStream) {
+        node.node_type = TOKEN_IDENTIFIER
         return node;
     }
 }
@@ -88,7 +101,21 @@ class InfixRight extends Infix {
     }
 }
 
-const ID_OP = new Literal(TOKEN_IDENTIFIER);
+class Mixfix extends Keyword {
+    constructor(keyword_id, left_binding_power, null_denotation, left_denotation) {
+        super(keyword_id, left_binding_power)
+        if(null_denotation) {
+            this.null_denotation = null_denotation
+        }
+
+        if(left_denotation) {
+            this.left_denotation = left_denotation
+        }
+    }
+}
+
+
+const ID_OP = new Identifier(TOKEN_IDENTIFIER);
 const LITERAL_OP = new Literal(TOKEN_LITERAL)
 
 export class ASTNode {
@@ -102,7 +129,7 @@ export class ASTNode {
         this.right = null;
     }
     static OperatorNode(operator, char_start, char_end) {
-        return new ASTNode(operator, null, TOKEN_OPERATOR, char_start, char_end)
+        return new ASTNode(operator, operator.value, TOKEN_OPERATOR, char_start, char_end)
     }
     static IdentifierNode(value, char_start, char_end) {
         return new ASTNode(ID_OP, value, TOKEN_IDENTIFIER, char_start, char_end)
@@ -143,9 +170,9 @@ export const TOKEN_CONTINUE_BLOCK = "(continueblock)";
 export const TOKEN_START_BLOCK = "(startblock)";
 export const TOKEN_END_BLOCK = "(endblock)";
 
-export const CONTINUE_BLOCK = new Keyword(TOKEN_CONTINUE_BLOCK)  // \n
-export const START_BLOCK = new Keyword(TOKEN_START_BLOCK)     // Tab +
-export const END_BLOCK = new Keyword(TOKEN_END_BLOCK)       // Tab -
+export const CONTINUE_BLOCK = new Infix(TOKEN_CONTINUE_BLOCK, 10)  // \n
+export const START_BLOCK = new Keyword(TOKEN_START_BLOCK, 10)     // Tab +
+export const END_BLOCK = new Keyword(TOKEN_END_BLOCK, 10)       // Tab -
 
 new Literal("true", true)
 new Literal("false", false)
@@ -180,8 +207,21 @@ new Infix("/", 60)
 new InfixRight("**", 70)
 
 
-// TODO: Precedence level for this
-new Infix(",", 10).left_denotation = (left, node, tokenStream) => {
+const SQ_BK = new Mixfix("[", 150);
+// Defining an array
+SQ_BK.null_denotation = (node, tokenStream) => {
+
+}
+// As indexing
+SQ_BK.left_denotation = (left, node, tokenStream) => {
+    node.left = left;
+    node.right = expression(tokenStream, 0)
+    tokenStream.advance("]")
+    return node;
+}
+
+
+function continuation(left, node, tokenStream) {
     let right = expression(tokenStream, 10)
     if(left.node_type == "maplist") {
         if(right.node_type != "map") {
@@ -207,6 +247,16 @@ new Infix(",", 10).left_denotation = (left, node, tokenStream) => {
 
     return left
 }
+
+
+// TODO: Precedence level for this
+new Infix(",", 10).left_denotation = continuation;
+
+// Treat new lines as comma equivalents.
+CONTINUE_BLOCK.left_denotation = continuation;
+
+
+
 new Infix(":", 80).left_denotation = (left, node, tokenStream) => {
     node.node_type = "map"
     // Key, value. Store in a list which will be appended upon
@@ -215,9 +265,9 @@ new Infix(":", 80).left_denotation = (left, node, tokenStream) => {
 }
 
 
-new Prefix("(", 150, (node, token_stream) => {
-    var e = expression(token_stream, 0);
-    token_stream.advance(")")
+new Mixfix("(", 150, (node, tokenStream) => {
+    var e = expression(tokenStream, 0);
+    tokenStream.advance(")")
     return e;
 })
 
