@@ -40,19 +40,19 @@ const UNARY_OPS = {
     "not": (left) => { return "!" + left }
 }
 
-function astToJs(env, node, name="") {
+function astToJs(node, env, name="") {
     // Convert a parsed abstract syntax tree into code
     let prefix = name ? "var " + name + " = " : "";
     if(!node || !node.node_type) { return undefined; }
     switch(node.node_type) {
         case "binary":
-            let left = astToJs(env, node.left);
-            let right = astToJs(env, node.right);
+            let left = astToJs(node.left, env);
+            let right = astToJs(node.right, env);
             return prefix + BINARY_OPS[node.operator.keyword](left, right)
         case "unary":
             console.log("Unary operation");
             console.log(node);
-            return prefix + UNARY_OPS[node.operator.keyword](astToJs(env, node.left))
+            return prefix + UNARY_OPS[node.operator.keyword](astToJs(node.left, env))
         case "(literal)":
             return prefix + JSON.stringify(node.value)
         case "(identifier)":
@@ -66,24 +66,39 @@ function astToJs(env, node, name="") {
             // Array of key value tuples
             node.value.forEach((kv) => {
                 let [k, v] = kv
-                let key = astToJs(env, k);
-                let value = astToJs(env, v);
+                let key = astToJs(k, env);
+                let value = astToJs(v, env);
                 code += name + ".insert( (" + key + "),(" + value + "));"
             });
             return code
         }
         case "map": {
             let val = {};
-            let k = astToJs(env, node.value[0]);
-            let v = astToJs(env, node.value[1]);
+            let k = astToJs(node.value[0], env);
+            let v = astToJs(node.value[1], env);
             val[k] = v;
             return prefix + JSON.stringify(val)
+        }
+        case "apply": {
+            // Function application
+            console.log("apply")
+            console.log(node)
+            
+            // Left is verified to be an identifier
+            let params = [];
+            node.value.forEach((param) => {
+                params.push(astToJs(param, env))
+            })
+            console.log("params: " + params)
+
+            return prefix + node.left.value + ".call(" + params.join(",") + ");"
+
         }
         default:
             console.log("Error: Could not translate ast node: ");
             console.log(node)
     }
-    return code;
+    return "";
 }
 
 
@@ -100,7 +115,7 @@ function cellToJs(env, cell) {
 
     // TODO: Variable name check
     var variable_name = cell.name ? cell.name : "__" + cell.id;
-    let expr = astToJs(env, cell.parsed, variable_name);
+    let expr = astToJs(cell.parsed, env, variable_name);
     if(expr) {
         code = expr;
         code += `\nctx.set("${cell.id}", ${variable_name});\n`;

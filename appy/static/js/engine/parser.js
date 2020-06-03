@@ -27,6 +27,12 @@ class ParseIterator extends QIter {
         }
         return this.hasNext() ? this.next() : new ASTNode(END_OP, null, TOKEN_OPERATOR, -1, -1)
     }
+    currentKeyword() {
+        return this.current().operator.keyword
+    }
+    currentBindingPower() {
+        return this.current().operator.left_binding_power
+    }
 }
 
 class Keyword {
@@ -269,9 +275,34 @@ new Infix(":", 80).left_denotation = (left, node, tokenStream) => {
 
 
 new Mixfix("(", 150, (node, tokenStream) => {
+    // In Prefix mode ( indicates a parenthesized expression grouping
     var e = expression(tokenStream, 0);
     tokenStream.advance(")")
     return e;
+}, (left, node, tokenStream) => {
+    // In infix mode, ( indicates a function call
+    node.left = left;
+
+    if(node.left.node_type != TOKEN_IDENTIFIER) {
+        syntaxError("Error: Could not call " + node.left.operator.value + " as a function.")
+    }
+
+    node.node_type = "apply"
+    node.value = [];
+
+    if(tokenStream.currentKeyword() != ")") {   // f()
+        while(true) {
+            node.value.push(expression(tokenStream, 0))
+            if(tokenStream.currentKeyword() == ",") {
+                tokenStream.next();
+            } else {
+                break;
+            }
+        }
+    }
+    
+    tokenStream.advance(")")
+    return node
 })
 
 export function syntaxError(message, index) {
@@ -284,7 +315,7 @@ export function expression(tokenStream, right_binding_power) {
     let currentNode = tokenStream.next();
     let left = currentNode.operator.null_denotation(currentNode, tokenStream);
 
-    while(right_binding_power < tokenStream.current().operator.left_binding_power) {
+    while(right_binding_power < tokenStream.currentBindingPower()) {
         currentNode = tokenStream.next();
         left = currentNode.operator.left_denotation(left, currentNode, tokenStream);
     }
