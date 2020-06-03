@@ -16,6 +16,12 @@ class CyclicRefError extends Error {
         super(message);
     }
 }
+
+class ParseError extends Error {
+    constructor(message) {
+        super(message);
+    }
+}
 `;
 export const JS_POST_CODE = `ctx.all();\n`;
 
@@ -33,6 +39,8 @@ var UNARY_OPS = {
 function astToJs(env, node) {
     // Convert a parsed abstract syntax tree into code
     let code = "";
+    if(!node || !node.node_type) { return undefined; }
+    console.log(node.node_type)
     switch(node.node_type) {
         case "binary":
             let left = astToJs(env, node.left);
@@ -44,6 +52,23 @@ function astToJs(env, node) {
             return JSON.stringify(node.value)
         case "(identifier)":
             return "" + node.value
+        case "maplist": {
+                console.log("processing maplist")
+                let val = {};
+                // Array of key value tuples
+                node.value.forEach((kv) => {
+                    [k, v] = kv
+                    val[astToJs(env, k)] = astToJs(env, v);
+                });
+                return JSON.stringify(val)
+        }
+        case "map": {
+            let val = {};
+            let k = astToJs(env, node.value[0]);
+            let v = astToJs(env, node.value[1]);
+            val[k] = v;
+            return JSON.stringify(val)
+        }
         default:
             console.log("Error: Could not translate ast node: ");
             console.log(node)
@@ -63,13 +88,19 @@ function cellToJs(env, cell) {
         return code;
     }
 
-    if(cell.expr) {
+    let expr = astToJs(env, cell.parsed);
+    if(expr) {
         // TODO: Variable name check
-        var variable_name = cell.name ? cell.name : "__" + cell.id;        
-        let expr = astToJs(env, cell.parsed);
+        var variable_name = cell.name ? cell.name : "__" + cell.id;
+
         code = `var ${variable_name} = ${expr};\n`;
+
         code += `ctx.set("${cell.id}", ${variable_name});\n`;
+    } else if(cell.expr) {  // If it has an expression, but it could not be parsed
+        // TODO
+        // code += `ctx.set("${cell.id}", new ParseError());\n`;
     }
+
     
     if(cell.body) {
         let body = orderCellBody(cell);
