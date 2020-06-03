@@ -3,7 +3,9 @@ import { genID, isObject, isFunction } from "../utils"
 
 export class Obj {
     constructor(data) {
+        // pseudokey -> value
         this._values = {};
+        // pseudokey -> key
         this._keys = {};
         this.$aa_key = "@" + genID();
         this.data = data;
@@ -21,8 +23,9 @@ export class Obj {
             return key
         } else {
             // For string-y keys, append a prefix to prevent collision with objs
-            this._values["_" + key] = value
-        }        
+            // this._values["_" + key] = value
+            return "_" + key
+        }
     }
 
     insert(key, value) {
@@ -61,7 +64,7 @@ export class Obj {
     pseudokeys() {
         // Return the value keys, which contain everything including the
         // inferred keys.
-        return this._values.keys()
+        return Object.keys(this._values)
     }
 
     isMatch(key, args) {

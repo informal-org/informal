@@ -7,8 +7,10 @@ export default class KVTable extends React.PureComponent {
 
     render() {
         var rows = [];
-        Object.entries(this.props.value).forEach((kv) => {
-            let [key, value] = kv;
+        let obj = this.props.value;
+        obj.pseudokeys().forEach((pseudokey) => {
+            let key = obj.getKey(pseudokey);
+            let value = obj._values[pseudokey];
             rows.push(
                 <tr key={key}>
                     <td>{ key }</td>

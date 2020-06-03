@@ -138,8 +138,6 @@ export default class GridCell extends AbstractBaseCell {
 
                 </div>
 
-
-
             </div>
 
             <div className="row">

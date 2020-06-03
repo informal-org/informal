@@ -2,6 +2,7 @@ import { orderCellBody } from "./order"
 
 // TODO: Ensure error equality on CYCLIC_ERR throws error.
 export const JS_PRE_CODE = `
+    
 function ctx_init() {
     var ctx = {};
     return {
@@ -11,19 +12,10 @@ function ctx_init() {
     };
 };
 var ctx = ctx_init();
-class CyclicRefError extends Error {
-    constructor(message) {
-        super(message);
-    }
-}
 
-class ParseError extends Error {
-    constructor(message) {
-        super(message);
-    }
-}
 `;
-export const JS_POST_CODE = `ctx.all();\n`;
+// End wrapper function
+export const JS_POST_CODE = `return ctx.all();\n`;
 
 function mapToOp(op) {
     return (left, right) => {
@@ -48,38 +40,44 @@ const UNARY_OPS = {
     "not": (left) => { return "!" + left }
 }
 
-function astToJs(env, node) {
+function astToJs(env, node, name="") {
     // Convert a parsed abstract syntax tree into code
-    let code = "";
+    let prefix = name ? "var " + name + " = " : "";
     if(!node || !node.node_type) { return undefined; }
-    console.log(node.node_type)
     switch(node.node_type) {
         case "binary":
             let left = astToJs(env, node.left);
             let right = astToJs(env, node.right);
-            return BINARY_OPS[node.operator.keyword](left, right)
+            return prefix + BINARY_OPS[node.operator.keyword](left, right)
         case "unary":
-            return UNARY_OPS[node.operator.keyword](astToJs(env, node.left))
+            console.log("Unary operation");
+            console.log(node);
+            return prefix + UNARY_OPS[node.operator.keyword](astToJs(env, node.left))
         case "(literal)":
-            return JSON.stringify(node.value)
+            return prefix + JSON.stringify(node.value)
         case "(identifier)":
-            return "" + node.value
+            return prefix + node.value
         case "maplist": {
-                console.log("processing maplist")
-                let val = {};
-                // Array of key value tuples
-                node.value.forEach((kv) => {
-                    let [k, v] = kv
-                    val[astToJs(env, k)] = astToJs(env, v);
-                });
-                return JSON.stringify(val)
+            // let obj = new Obj();
+            // let a = {"a": 1, "b": 2}
+            // obj.insert(a, "A_VALUE")
+            let code = prefix + "new Obj();";
+            
+            // Array of key value tuples
+            node.value.forEach((kv) => {
+                let [k, v] = kv
+                let key = astToJs(env, k);
+                let value = astToJs(env, v);
+                code += name + ".insert( (" + key + "),(" + value + "));"
+            });
+            return code
         }
         case "map": {
             let val = {};
             let k = astToJs(env, node.value[0]);
             let v = astToJs(env, node.value[1]);
             val[k] = v;
-            return JSON.stringify(val)
+            return prefix + JSON.stringify(val)
         }
         default:
             console.log("Error: Could not translate ast node: ");
@@ -100,14 +98,12 @@ function cellToJs(env, cell) {
         return code;
     }
 
-    let expr = astToJs(env, cell.parsed);
+    // TODO: Variable name check
+    var variable_name = cell.name ? cell.name : "__" + cell.id;
+    let expr = astToJs(env, cell.parsed, variable_name);
     if(expr) {
-        // TODO: Variable name check
-        var variable_name = cell.name ? cell.name : "__" + cell.id;
-
-        code = `var ${variable_name} = ${expr};\n`;
-
-        code += `ctx.set("${cell.id}", ${variable_name});\n`;
+        code = expr;
+        code += `\nctx.set("${cell.id}", ${variable_name});\n`;
     } else if(cell.expr) {  // If it has an expression, but it could not be parsed
         // TODO
         // code += `ctx.set("${cell.id}", new ParseError());\n`;

@@ -181,10 +181,12 @@ new Literal("None", null)
 
 new InfixRight("or", 30)
 new InfixRight("and", 40)
-new Prefix("not", 50)
 
 new Infix("in", 60)
-new Infix("not", 60) // not in
+
+// Prefix: when used as Not
+// Infix: "not in" TODO
+new Mixfix("not", 60, Prefix.null_denotation)
 new Infix("is", 60)     // TODO
 
 
