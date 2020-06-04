@@ -5,7 +5,7 @@ import { cellGet, formatCellOutput } from "../utils"
 
 import Editor from 'react-simple-code-editor';
 import CellParam from "./CellParam.js"
-import KVTable from "./KVTable"
+import CellValue from "./CellValue"
 import { highlight, languages } from 'prismjs/components/prism-core';
 // import 'prismjs/components/prism-clike';
 // import 'prismjs/components/prism-javascript';
@@ -86,18 +86,7 @@ export default class GridCell extends AbstractBaseCell {
             className += " Cell--error";
             cellResults = <div className="Cell-cellError">{error}</div>
         } else {
-            let valtype = typeof this.props.cell.value;
-            if(this.props.cell.value != null && valtype === "object") {
-                console.log("Value: " + this.props.cell.value + " is object")
-                cellResults = <KVTable value={this.props.cell.value}></KVTable>
-            } else {
-                let formattedOutput = this.formatOutput();
-                if(formattedOutput) {
-                    cellResults = <div className="Cell-cellValue">{formattedOutput}</div>
-                } else {
-                    cellResults = <div className="Cell-cellValue"> &nbsp; </div>
-                }                
-            }
+            cellResults = <CellValue value={this.props.cell.value}></CellValue>
         }
 
         let cellBody = null;
