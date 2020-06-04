@@ -9,6 +9,7 @@ gulp deploy
 
 # Django collectstatic files and copy into collectstic dir. Requires virtualenv
 cd ../..
+source .aaenv/bin/activate
 python appy/manage.py collectstatic
 
 # Upload to GCP for immediate distribution
