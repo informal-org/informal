@@ -269,7 +269,8 @@ CONTINUE_BLOCK.left_denotation = continuation;
 new Infix(":", 80).left_denotation = (left, node, tokenStream) => {
     node.node_type = "map"
     // Key, value. Store in a list which will be appended upon
-    node.value = [left, expression(tokenStream, 80)]
+    // node.value = [left, expression(tokenStream, 80)]
+    node.value = [left, expression(tokenStream, 10)]
     return node
 }
 

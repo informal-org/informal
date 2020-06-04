@@ -13,7 +13,6 @@ test('Object with obj keys', () => {
 
 
 test('fibo repr', () => {
-    // When cells don't depend on each other, their order remains the same
     let fibo = new Obj();
     fibo.insert(0, 0)
     fibo.insert(1, 1)

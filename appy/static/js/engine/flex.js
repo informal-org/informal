@@ -68,6 +68,9 @@ export class Obj {
     }
 
     isMatch(key, args) {
+        console.log("Is match?")
+        console.log(key);
+        console.log(args);
         // Pattern match against the key, not the value
         // The value may be a function, but we're checking the key match
         if(Array.isArray(key)) {
@@ -91,8 +94,13 @@ export class Obj {
         // Call this object as a function with obj as args.
         if(isFunction(this.data)) {
             // Spread args except on single params, which may be objects
-            let result = args.length > 0 ? this.data(...args) : this.data(args)
-            return result;
+            if(args.length == 0) {
+                return this.data()
+            } else if (args.length == 1) {
+                return this.data(args[0])
+            } else {
+                return this.data(...args)
+            }
         }
         else if(args.length === 1 && this.hasKey(args[0])) {
             return this.lookup(args[0])
@@ -105,9 +113,10 @@ export class Obj {
 
                 if(this.isMatch(key, args)) {
                     let val = this._values[pseudokey];
-                    return val.call(args)
+                    return val.call(...args)
                 }
             }
+            console.log("No match found in call");
         }
     }
 }

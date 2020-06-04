@@ -1,4 +1,5 @@
 import { orderCellBody } from "./order"
+import { Obj } from "./flex";
 
 // TODO: Ensure error equality on CYCLIC_ERR throws error.
 export const JS_PRE_CODE = `
@@ -40,6 +41,39 @@ const UNARY_OPS = {
     "not": (left) => { return "!" + left }
 }
 
+function objToJs(node, kv_list, env, name) {
+    let prefix = name ? "var " + name + " = " : "";
+    let code = prefix + "new Obj();";
+            
+    // Array of key value tuples
+    kv_list.forEach((kv) => {
+        let [k, v] = kv
+        let key;
+        let value;
+        if(k.node_type == "(identifier)") {
+            // It's a parameter. Wrap it in an object
+            key = "new Obj(['" + k.value + "'])"
+            // Functional KVs can't be evaluated immediately. Create a function instead
+            
+            // TODO: Tuple support for multiple parameters
+            // Relies on implicit return in final expression
+            // TODO: Return in the context of multiple lines.
+            value = "new Obj((" + k.value + ") => " + astToJs(v, env) + ")"
+
+        } else {
+            // For flat keys, evaluate both key and value
+            key = astToJs(k, env)
+            value = astToJs(v, env)
+        }
+        
+        if(name) {
+            // TODO
+            code += name + ".insert( (" + key + "),(" + value + "));"
+        }
+    });
+    return code
+}
+
 function astToJs(node, env, name="") {
     // Convert a parsed abstract syntax tree into code
     let prefix = name ? "var " + name + " = " : "";
@@ -50,8 +84,6 @@ function astToJs(node, env, name="") {
             let right = astToJs(node.right, env);
             return prefix + BINARY_OPS[node.operator.keyword](left, right)
         case "unary":
-            console.log("Unary operation");
-            console.log(node);
             return prefix + UNARY_OPS[node.operator.keyword](astToJs(node.left, env))
         case "(literal)":
             return prefix + JSON.stringify(node.value)
@@ -61,37 +93,20 @@ function astToJs(node, env, name="") {
             // let obj = new Obj();
             // let a = {"a": 1, "b": 2}
             // obj.insert(a, "A_VALUE")
-            let code = prefix + "new Obj();";
-            
-            // Array of key value tuples
-            node.value.forEach((kv) => {
-                let [k, v] = kv
-                let key = astToJs(k, env);
-                let value = astToJs(v, env);
-                code += name + ".insert( (" + key + "),(" + value + "));"
-            });
-            return code
+            return objToJs(node, node.value, env, name)
         }
         case "map": {
-            let val = {};
-            let k = astToJs(node.value[0], env);
-            let v = astToJs(node.value[1], env);
-            val[k] = v;
-            return prefix + JSON.stringify(val)
+            return objToJs(node, [node.value], env, name)
         }
         case "apply": {
-            // Function application
-            console.log("apply")
-            console.log(node)
-            
+            // Function application            
             // Left is verified to be an identifier
             let params = [];
             node.value.forEach((param) => {
                 params.push(astToJs(param, env))
             })
-            console.log("params: " + params)
 
-            return prefix + node.left.value + ".call(" + params.join(",") + ");"
+            return prefix + node.left.value + ".call(" + params.join(",") + ")"
 
         }
         default:
