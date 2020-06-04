@@ -25,7 +25,7 @@ export default class Sidebar extends React.Component {
     return <form method="POST"
           action={"/apps/" + window._aa_appid + "/views/create"}>
             <input type='hidden' name='csrfmiddlewaretoken' value={ window._csrf_token } />
-            <button className="pull-right btn btn-primary" type="submit">New View</button>
+            <button className="pull-right btn btn-outline" type="submit">New View</button>
           </form>
   }
 

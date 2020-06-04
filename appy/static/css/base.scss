@@ -54,11 +54,12 @@ a {
 }
 
 .form-control {
-  @apply shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight;
+  @apply appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight;
 }
 
 .form-control:focus {
-  @apply outline-none shadow-outline;
+  @apply outline-none shadow;
+  border-color: #ff5959;
 }
 
 
@@ -151,11 +152,35 @@ Imported from arevel
   cursor: pointer;
 }
 
+.btn.btn-full {
+  width: 100%;
+}
+
+.btn.btn-square {
+  border-radius: 0;
+}
+
+.btn.btn-outline {
+  border: 1px solid rgba(160,174,191,.25);
+  outline: none;
+}
+
+.btn.btn-outline:hover {
+  border: 1px solid rgba(160,174,191,.5);
+  box-shadow: -6px -6px 26px 0 rgba(255, 255, 255, 0.83), 6px 6px 16px 0 rgba(210, 213, 214, 0.51);
+}
+
+.btn.btn-outline:focus {
+  border: 1px solid rgba(160,174,191,.5);
+}
+
 .btn.btn-primary {
   color: white !important;
   background-color: #FF5959;
   border-color: #FF5959;
   box-shadow: 0 2px 2px 0 rgba(0,0,0,0.14),0 1px 5px 0 rgba(0,0,0,0.12),0 3px 1px -2px rgba(0,0,0,0.2);
+  font-size: 0.825rem;
+  outline: none;
 }
 
 .btn.btn-primary:hover, .btn.btn-primary:active, .btn.btn-primary:focus {
@@ -167,7 +192,13 @@ Imported from arevel
 .btn.btn-secondary {
   color: #FF5959 !important;
   background-color: white;
-  border: 2px solid #FF5959;
+  border: 1px solid #FF5959;
+  font-size: 0.825rem;
+  outline: none;
+}
+
+.btn.btn-secondary:hover, .btn.btn-secondary:active, .btn.btn-secondary:focus  {
+  box-shadow: 0 1px 1px 0 rgba(0,0,0,0.14),0 1px 3px 0 rgba(0,0,0,0.12),0 1px 0px -3px rgba(0,0,0,0.2);
 }
 
 .btn.btn-placeholder {
@@ -258,3 +289,6 @@ ul.unstyled {
   width: auto;
 }
 
+.fg-primary {
+  color: #ff5959;
+}

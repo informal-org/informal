@@ -232,8 +232,6 @@ export const loadView = () => {
         fetch('/api/v1/views/' + window._aa_viewid + '?format=json').then((data) => {
             return data.json();
         }).then((view) => {
-            console.log("view is");
-            console.log(view);
             window._aa_view = view;
             dispatch(initView(view));
 
@@ -241,7 +239,6 @@ export const loadView = () => {
             var body;
             
             if(view.content.length > 0) {
-                console.log(view.content);
                 content = JSON.parse(view.content);
                 body = content['body']    
             } else {
@@ -259,9 +256,6 @@ export const loadView = () => {
                 var id = genID();
                 newCells.push(newCell(id));
             }
-
-            console.log("Init new cells");
-            console.log(newCells);
 
             dispatch(initCells(newCells));
 

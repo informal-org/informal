@@ -38,6 +38,7 @@ class View(models.Model):
     mime_type = models.CharField(max_length=64)
     remote_url = models.URLField(null=True, blank=True)
     content = models.TextField(blank=True)
+    # compiled_js = models.TextField(blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

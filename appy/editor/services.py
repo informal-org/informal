@@ -42,7 +42,7 @@ def get_user_properties(request, user=None):
 def create_home_view(app):
     view = View.objects.create(
         app=app, 
-        name="home",
+        name="Home",
         mime_type="application/aasm",
         pattern="/",
         pattern_regex="/",

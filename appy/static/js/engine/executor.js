@@ -21,7 +21,13 @@ global.ParseError = ParseError;
 
 export function execJs(code) {
     // TODO: Sandboxed execution
-    return Function(code)()
+    try {
+        return Function(code)()
+    } catch(err) {
+        console.log("Evaluation error")
+        console.log(err);
+        return {}
+    }
 }
 
 

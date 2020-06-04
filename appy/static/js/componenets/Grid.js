@@ -82,7 +82,7 @@ export default class Grid extends React.Component {
         }).filter((r) => r !== undefined) // Filter out un-rendered cells
         
         return <div>
-                <header className="container-fluid editor-header shadow">
+                <header className="container-fluid editor-header">
 
                     <div className="row">
                         <div className="col-sm-10 header-title">
@@ -131,7 +131,7 @@ export default class Grid extends React.Component {
             <div className="Grid">
                 {cells}
 
-                <button className="btn btn-primary" onClick={this.addCellClick}> + </button>
+                <button className="btn btn-full btn-outline btn-square fg-primary" onClick={this.addCellClick}> + Add line </button>
             </div>
 
         </div>
