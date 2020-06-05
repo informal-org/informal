@@ -31,21 +31,24 @@ export class CellEnv {
         return this.root;
     }
     createCell(cell_id, parent) {
+        console.log("createCell helper: " + cell_id + " : " + parent);
         let env = this;
         let raw_cell = env.getRawCell(cell_id);
+        console.log(this.raw_map);
+        console.log(raw_cell);
+        
         let cell = new Cell(raw_cell, parent, env);
 
         // Recursively create all children, with cell as parent.
         [cell.params, cell.body] = traverseDown(raw_cell, env.createCell, cell);
 
-        raw_cell.depends_on.forEach((dep) => {
-            addDependency(env, cell.id, dep)
-        })
+        if(raw_cell.depends_on) {
+            raw_cell.depends_on.forEach((dep) => {
+                addDependency(env, cell.id, dep)
+            })
+        }
 
         return cell
-    }
-    update(raw_map, root) {
-        // TODO: Incremental updates for running code.
     }
     static getDefaultSet(map, key) {
         // Lookup key in map with python defaultdict like functionality.

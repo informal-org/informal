@@ -2,6 +2,9 @@ const hamt = require('hamt');
 
 export class Cell {
     constructor(cell, parent, env) {
+        console.log("Creting cell");
+        console.log(cell);
+        console.log(parent);
         env.cell_map[cell.id] = this;
         this.env = env;
         this.parent = parent;

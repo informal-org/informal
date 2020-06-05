@@ -3,6 +3,7 @@ import { Cell } from "./Cell";
 import { parseExpr } from "./parser"
 import { genJs } from "./generator"
 import { execJs, interpret } from "./executor"
+import { defineNamespace } from "./namespace"
 
 // Dict, Value -> value | null
 export function resolveMember(node, context) {
@@ -57,22 +58,28 @@ function resolve(state, name, scope) {
 }
 
 
-function runInterpreted(env, cells) {
+function runInterpreted(env) {
+    defineNamespace(env.root)
+
     interpret(env)
+
+
     let output = [];
 
-    cells.forEach((cell) => {
+
+    env.root.body.forEach((cell) => {
         output.push({
             id: cell.id,
-            value: env.cell_map[cell.id].result,
+            value: cell.result,
             error: ""
         })
     })
 
+
     return output;
 }
 
-function runGenerated(env, cells) {
+function runGenerated(env) {
     let code = genJs(env);
     console.log(code);
 
@@ -80,12 +87,12 @@ function runGenerated(env, cells) {
     let result = execJs(code);
     let output = [];
 
-    cells.forEach((cell) => {
+    env.root.body.forEach((cell) => {
         output.push({
             id: cell.id,
             value: result[cell.id],
             error: ""
-        });
+        })
     })
 
     return output;
@@ -98,24 +105,29 @@ export function evaluate(state) {
     let env = new CellEnv();
     env.raw_map = state.cellsReducer.byId;
 
-    let cells = [];
-    state.cellsReducer.allIds.forEach((cell_id) => {
-        let raw_cell = env.getRawCell(cell_id);
+    console.log("Current root: ");
+    let root_id = state.cellsReducer.currentRoot;
+    env.create(state.cellsReducer.byId, root_id)
 
-        let cell = new Cell(raw_cell, undefined, env);
-        cells.push(cell);
+    // let cells = [];
+    // state.cellsReducer.allIds.forEach((cell_id) => {
+    //     let raw_cell = env.getRawCell(cell_id);
 
-        // TODO: Doesn't matter yet, since we haven't defined nested cells
-        // [cell.params, cell.body] = traverseDown(raw_cell, env.createCell, cell);
-    })
+    //     let cell = new Cell(raw_cell, undefined, env);
+    //     cells.push(cell);
+
+    //     // defineNamespace(cell)
+
+    //     // TODO: Doesn't matter yet, since we haven't defined nested cells
+    //     // [cell.params, cell.body] = traverseDown(raw_cell, env.createCell, cell);
+    // })
 
     
-    cells.forEach((cell) => {
-        console.log("Parsing: " + cell.expr)
+    env.root.body.forEach((cell) => {
         cell.parsed = parseExpr(cell.expr)
     })
 
-    let output = runInterpreted(env, cells);
+    let output = runInterpreted(env);
 
     // ignore
     // expr.body.forEach(element => {

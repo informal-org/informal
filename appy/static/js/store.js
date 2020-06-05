@@ -2,6 +2,7 @@ import { configureStore, createSlice } from 'redux-starter-kit'
 import { parseEverything } from './controller.js'
 import { apiPost, apiPatch, genID } from './utils'
 import { evaluate } from "./engine/engine.js"
+import { Cell } from './engine/Cell.js'
 
 
 
@@ -27,26 +28,6 @@ Dictionaries are stored as ordered keys and values lists.
 Nested arrays and objects should be stored as a reference.
 */
 
-const initialState = {
-    cells: {
-        byId: {},
-        allIds: [], // "@3", "@4", "@5", "@6"
-        byName: {},
-        focus: null,  // ID of the element selected         // TODO: Move to component
-        modified: false,  // Allow initial evaluation,      // TODO: Remove?
-
-        currentRoot: undefined, // TODO. Use this and remove allIds. Allows top-level re-focus
-    },
-    view: {
-        uuid: '',
-        shortuuid: '',
-        name: '',
-        pattern: '',
-        method_get: true,
-        method_post: true
-    }
-}
-
 function newCell(id, name="", expr="", params=[], parent=null) {
     return {
         id: id, 
@@ -66,12 +47,41 @@ function newCell(id, name="", expr="", params=[], parent=null) {
     }
 }
 
+
+const ROOT_ID = genID()
+
+const initialState = {
+    cells: {
+        byId: {},
+        // allIds: [], // "@3", "@4", "@5", "@6"
+        byName: {},
+        focus: null,  // ID of the element selected         // TODO: Move to component
+        modified: false,  // Allow initial evaluation,      // TODO: Remove?
+
+        currentRoot: ROOT_ID, // TODO. Use this and remove allIds. Allows top-level re-focus
+    },
+    view: {
+        uuid: '',
+        shortuuid: '',
+        name: '',
+        pattern: '',
+        method_get: true,
+        method_post: true
+    }
+}
+
+initialState.cells.byId[ROOT_ID] = newCell(ROOT_ID)
+
+
+
 const cellsSlice = createSlice({
     slice: 'cells',
     initialState: initialState.cells,
     reducers: {
         initCells: (state, action) => {
             let cells = action.payload;
+            // state.currentRoot = newCell(genID());
+
             cells.forEach((cell) => {
                 let id = cell.id;
                 state.byId[id] = newCell(cell.id, cell.name, cell.expr, cell.params, cell.parent);
@@ -81,7 +91,8 @@ const cellsSlice = createSlice({
                     state.byName[cell.name] = [cell.id];
                 }
                 // state.byId[id] = cell;
-                state.allIds.push(id);                
+                // state.allIds.push(id);       
+                state.byId[state.currentRoot].body.push(id)
             });
             
             // Don't set state.modified since this is initialization
@@ -127,7 +138,9 @@ const cellsSlice = createSlice({
         addCell: (state, action) => {
             let id = genID();
             state.byId[id] = newCell(id);
-            state.allIds.push(id);
+            state.byId[state.currentRoot].body.push(id)
+
+            // state.allIds.push(id);
         },
         addParam: (state, action) => {
             var id = action.payload.id;
@@ -165,11 +178,11 @@ const cellsSlice = createSlice({
             state.focus = action.payload
         },
         moveFocus: (state, action) => {
-            let currentIndex = state.allIds.indexOf(state.focus);
+            let currentIndex = state.byId[state.currentRoot].body.indexOf(state.focus);
             if(currentIndex !== -1){
                 let newIndex = currentIndex + action.payload;
-                if(newIndex >= 0 && newIndex <= state.allIds.length){
-                    state.focus = state.allIds[newIndex];
+                if(newIndex >= 0 && newIndex <= state.byId[state.currentRoot].body.length){
+                    state.focus = state.byId[state.currentRoot].body[newIndex];
                 }
             }
         }
@@ -327,7 +340,8 @@ window.store = store;
 
 export const mapStateToProps = (state /*, ownProps*/) => {
     return {
-        cells: state.cellsReducer.allIds.map((id) => state.cellsReducer.byId[id]),
+        currentRoot: state.cellsReducer.currentRoot,
+        cells: state.cellsReducer.byId[state.cellsReducer.currentRoot].body.map((id) => state.cellsReducer.byId[id]),
         byId: state.cellsReducer.byId,
         focus: state.cellsReducer.focus,
         view_name: state.viewReducer.name,

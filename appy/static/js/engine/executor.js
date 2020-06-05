@@ -1,5 +1,5 @@
 import { Obj } from "./flex"
-
+import { resolve } from "./namespace"
 
 class CyclicRefError extends Error {
     constructor(message) {
@@ -70,7 +70,14 @@ function interpretExpr(node, env, cell) {
             return node.value
         case "(identifier)":
             // TODO: cell.resolve(
-            return node.value
+            let resolved = resolve(cell, node.value);
+            if(resolved) {
+                // TODO: Assert it was evaluated before this
+                return resolved.result
+            } else {
+                // TODO: Error
+                return undefined
+            }
         case "maplist": {
             // let obj = new Obj();
             // let a = {"a": 1, "b": 2}
@@ -116,6 +123,7 @@ function interpretCell(env, cell) {
 
 export function interpret(env) {
     Object.values(env.cell_map).forEach((cell) => {
+        console.log("interpret: " + cell);
         interpretCell(env, cell);
     })
 }
