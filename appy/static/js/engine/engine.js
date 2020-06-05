@@ -2,7 +2,7 @@ import { CellEnv } from "./CellEnv";
 import { Cell } from "./Cell";
 import { parseExpr } from "./parser"
 import { genJs } from "./generator"
-import { execJs } from "./executor"
+import { execJs, interpret } from "./executor"
 
 // Dict, Value -> value | null
 export function resolveMember(node, context) {
@@ -57,6 +57,41 @@ function resolve(state, name, scope) {
 }
 
 
+function runInterpreted(env, cells) {
+    interpret(env)
+    let output = [];
+
+    cells.forEach((cell) => {
+        output.push({
+            id: cell.id,
+            value: env.cell_map[cell.id].result,
+            error: ""
+        })
+    })
+
+    return output;
+}
+
+function runGenerated(env, cells) {
+    let code = genJs(env);
+    console.log(code);
+
+    // 0: {id: 0, output: "Hello 2", error: ""}
+    let result = execJs(code);
+    let output = [];
+
+    cells.forEach((cell) => {
+        output.push({
+            id: cell.id,
+            value: result[cell.id],
+            error: ""
+        });
+    })
+
+    return output;
+}
+
+
 export function evaluate(state) {
     console.log("Evaluating");
     console.log(state);
@@ -80,24 +115,9 @@ export function evaluate(state) {
         cell.parsed = parseExpr(cell.expr)
     })
 
-    let code = genJs(env);
-    console.log("Generated code")
-    console.log(code);
+    let output = runInterpreted(env, cells);
 
-    // 0: {id: 0, output: "Hello 2", error: ""}
-    let output = [];
-
-    let result = execJs(code);
-    console.log("Final result");
-    console.log(result);
-
-    cells.forEach((cell) => {
-        output.push({
-            id: cell.id,
-            value: result[cell.id],
-            error: ""
-        });
-    })
+    // ignore
     // expr.body.forEach(element => {
     //     let code = generateCode(element);
     //     let result = execCode(code);

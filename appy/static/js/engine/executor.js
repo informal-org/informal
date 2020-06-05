@@ -31,7 +31,91 @@ export function execJs(code) {
 }
 
 
-function inspect() {
-    
+
+const BINARY_OPS = {
+    "+": (a, b) => a + b,
+    "-": (a, b) => a - b,
+    "*": (a, b) => a * b,
+    "/": (a, b) => a / b,
+    "and": (a, b) => a && b,
+    "or": (a, b) => a || b,
+    "==": (a, b) => a === b,
+    "<": (a, b) => a < b,
+    "<=": (a, b) => a <= b,
+    ">": (a, b) => a > b,
+    ">=": (a, b) => a >= b,
 }
 
+const UNARY_OPS = {
+    "-": (a) => -a,
+    "not": (a) => !a
+}
+
+
+function interpretObj(node, kv_list, env, cell) {
+
+}
+
+
+function interpretExpr(node, env, cell) {
+    if(!node || !node.node_type) { return undefined; }
+    switch(node.node_type) {
+        case "binary":
+            let left = interpretExpr(node.left, env, cell)
+            let right = interpretExpr(node.right, env, cell);
+            return BINARY_OPS[node.operator.keyword](left, right)
+        case "unary":
+            return UNARY_OPS[node.operator.keyword](interpretExpr(node.left, env, cell))
+        case "(literal)":
+            return node.value
+        case "(identifier)":
+            // TODO: cell.resolve(
+            return node.value
+        case "maplist": {
+            // let obj = new Obj();
+            // let a = {"a": 1, "b": 2}
+            // obj.insert(a, "A_VALUE")
+            return interpretObj(node, node.value, env, cell)
+        }
+        case "map": {
+            return interpretObj(node, [node.value], env, cell)
+        }
+        case "apply": {
+            // Function application            
+            // Left is verified to be an identifier
+            let params = [];
+            node.value.forEach((param) => {
+                params.push(interpretExpr(param, env, cell))
+            })
+            let left = cell.resolve(node.left.value);
+            // return prefix + node.left.value + ".call(" + params.join(",") + ")"
+            return left.call(params)
+        }
+        case "(array)": {
+            let elems = [];
+            node.value.forEach((elem) => {
+                elems.push(interpretExpr(elem, env, cell))
+            })
+            // return prefix + "[" + elems.join(",") + "]"
+
+            return elems
+        }
+        default:
+            console.log("Error: Could not translate ast node: ");
+            console.log(node)
+    }
+}
+
+function interpretCell(env, cell) {
+    // TODO: Cyclic deps
+
+    cell.result = interpretExpr(cell.parsed, env, cell)
+
+    // TODO: Cell.body
+}
+
+export function interpret(env) {
+    Object.values(env.cell_map).forEach((cell) => {
+        interpretCell(env, cell);
+    })
+}
