@@ -105,9 +105,14 @@ function astToJs(node, env, name="") {
             node.value.forEach((param) => {
                 params.push(astToJs(param, env))
             })
-
             return prefix + node.left.value + ".call(" + params.join(",") + ")"
-
+        }
+        case "(array)": {
+            let elems = [];
+            node.value.forEach((elem) => {
+                elems.push(astToJs(elem, env))
+            })
+            return prefix + "[" + elems.join(",") + "]"
         }
         default:
             console.log("Error: Could not translate ast node: ");

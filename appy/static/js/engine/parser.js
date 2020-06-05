@@ -15,6 +15,11 @@ export const KEYWORD_TABLE = {}
 export const TOKEN_LITERAL = "(literal)";
 export const TOKEN_IDENTIFIER = "(identifier)";
 export const TOKEN_OPERATOR = "(operator)";
+export const TOKEN_CONTINUE_BLOCK = "(continueblock)";
+export const TOKEN_START_BLOCK = "(startblock)";
+export const TOKEN_END_BLOCK = "(endblock)";
+export const TOKEN_WHERE = "(where)";       // []
+export const TOKEN_ARRAY = "(array)";
 
 class ParseIterator extends QIter {
     constructor(queue) {
@@ -172,10 +177,6 @@ new Keyword("]")
 new Keyword(",")
 
 
-export const TOKEN_CONTINUE_BLOCK = "(continueblock)";
-export const TOKEN_START_BLOCK = "(startblock)";
-export const TOKEN_END_BLOCK = "(endblock)";
-
 export const CONTINUE_BLOCK = new Infix(TOKEN_CONTINUE_BLOCK, 10)  // \n
 export const START_BLOCK = new Keyword(TOKEN_START_BLOCK, 10)     // Tab +
 export const END_BLOCK = new Keyword(TOKEN_END_BLOCK, 10)       // Tab -
@@ -219,11 +220,28 @@ new InfixRight("**", 70)
 const SQ_BK = new Mixfix("[", 150);
 // Defining an array
 SQ_BK.null_denotation = (node, tokenStream) => {
+    node.node_type = TOKEN_ARRAY
+    node.value = [];
 
+    if(tokenStream.currentKeyword() != "]"){ // []
+        while(true) {
+            node.value.push(expression(tokenStream, 10))
+            if(tokenStream.currentKeyword() == ",") {
+                tokenStream.next();
+            } else {
+                break;
+            }
+        }
+    }
+
+    tokenStream.advance("]")
+    return node
 }
 // As indexing
 SQ_BK.left_denotation = (left, node, tokenStream) => {
-    node.left = left;
+    node.left = left;       // Left could be identifier, array, string.
+    node.node_type = TOKEN_WHERE;
+    
     node.right = expression(tokenStream, 0)
     tokenStream.advance("]")
     return node;
@@ -293,7 +311,7 @@ new Mixfix("(", 150, (node, tokenStream) => {
 
     if(tokenStream.currentKeyword() != ")") {   // f()
         while(true) {
-            node.value.push(expression(tokenStream, 0))
+            node.value.push(expression(tokenStream, 10))
             if(tokenStream.currentKeyword() == ",") {
                 tokenStream.next();
             } else {

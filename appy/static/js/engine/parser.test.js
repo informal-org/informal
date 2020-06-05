@@ -29,4 +29,19 @@ test('test power operator', () => {
 
 test('test map definition', () => {
     expect(parseExpr("a: 2, b: 3, c: 5").toString()).toEqual("(: a,2 b,3 c,5)")
+
+    expect(parseExpr("a: 2 + (3 * 5), b: 8").toString()).toEqual("(: a,(+ 2 (* 3 5)) b,8)")
 });
+
+
+test('test function application', () => {
+    let parsed = parseExpr("f(1)");
+    expect(parsed.node_type).toEqual("apply")
+    expect(parsed.left.toString()).toEqual("f")
+    expect(parsed.value.toString()).toEqual("1")
+});
+
+test('test filtering', () => {
+    expect(parseExpr("Users[id == 3 or points > 10]").toString()).toEqual("([ Users (or (== id 3) (> points 10)))")
+});
+
