@@ -178,7 +178,7 @@ new Keyword(",")
 
 
 export const CONTINUE_BLOCK = new Infix(TOKEN_CONTINUE_BLOCK, 10)  // \n
-export const START_BLOCK = new Keyword(TOKEN_START_BLOCK, 10)     // Tab +
+export const START_BLOCK = new Infix(TOKEN_START_BLOCK, 10)     // Tab +
 export const END_BLOCK = new Keyword(TOKEN_END_BLOCK, 10)       // Tab -
 
 new Literal("True", true)
@@ -281,6 +281,35 @@ new Infix(",", 10).left_denotation = continuation;
 
 // Treat new lines as comma equivalents.
 CONTINUE_BLOCK.left_denotation = continuation;
+
+START_BLOCK.null_denotation = (node, tokenStream) => {
+    node.node_type = "maplist"
+    node.value = []
+
+    // assert: Immediate endblock impossible?
+    while(true) {
+        let right = expression(tokenStream, 10);
+        if(right.node_type == "map") {
+            // Merge the map key value into this map list.
+            node.value.push(right.value)
+        } else {
+            console.log("Found unexpected node type in block: " + right.node_type)
+            node.value.push(right)
+        }
+        if(tokenStream.currentKeyword() == "(endblock)") {
+            break;
+        } else {
+            console.log("Absorbing: " + tokenStream.currentKeyword())
+            tokenStream.next();
+        }
+    }
+    tokenStream.advance("(endblock)")
+
+    console.log("Startblock parser")
+    console.log(node);
+    console.log(tokenStream.currentKeyword());
+    return node;
+}
 
 
 

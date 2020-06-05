@@ -55,7 +55,7 @@ class LexIterator {
 
     startBlock(level, char_start) {
         this.block_levels.push(level)
-        this.tokens.push(OperatorNode(START_BLOCK, char_start, it.index))
+        this.tokens.push(OperatorNode(START_BLOCK, char_start, this.index))
     }
 
     continueBlock(char_start) {
