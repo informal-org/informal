@@ -105,16 +105,40 @@ export class Obj {
         else if(args.length === 1 && this.hasKey(args[0])) {
             return this.lookup(args[0])
         } else {
-            // Linear search for a match with all non-standard keys
-            let keys = Object.keys(this._keys);
-            for(var i = 0; i < keys.length; i++) {
-                let pseudokey = keys[i];
-                let key = this._keys[pseudokey];
+            let val = this.findMatch(args);
+            if(val) {
+                return val.call(...args)
+            }
+            console.log("No match found in call");
+        }
+    }
 
-                if(this.isMatch(key, args)) {
-                    let val = this._values[pseudokey];
-                    return val.call(...args)
-                }
+    findMatch(args) {
+        // Linear search for a match with all non-standard keys
+        let keys = Object.keys(this._keys);
+        for(var i = 0; i < keys.length; i++) {
+            let pseudokey = keys[i];
+            let key = this._keys[pseudokey];
+
+            if(this.isMatch(key, args)) {
+                let val = this._values[pseudokey];
+                return val
+            }
+        }
+    }
+
+    callInterpreted(args) {
+        // Call this object as a function with obj as args.
+        if(isFunction(this.data)) {
+            // Spread args except on single params, which may be objects
+            this.data(args)
+        }
+        else if(args.length === 1 && this.hasKey(args[0])) {
+            return this.lookup(args[0])
+        } else {
+            let val = this.findMatch(args);
+            if(val) {
+                return val.callInterpreted(args)
             }
             console.log("No match found in call");
         }

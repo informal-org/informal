@@ -85,54 +85,57 @@ function interpretObj(node, kv_list, env, cell) {
 }
 
 
-function interpretExpr(node, env, cell) {
+function localResolve(cell, identifier, args) {
+    // First, check if it's a locally bound parameter
+    if(identifier in args) {
+        return args[identifier]
+    }
+
+    let resolved = resolve(cell, identifier);
+    if(resolved) {
+        // TODO: Assert it was evaluated before this
+        return resolved.result
+    } else {
+        // TODO: Error
+        return undefined
+    }
+}
+
+
+function interpretExpr(node, env, cell, args={}) {
     if(!node || !node.node_type) { return undefined; }
     switch(node.node_type) {
         case "binary":
-            let left = interpretExpr(node.left, env, cell)
-            let right = interpretExpr(node.right, env, cell);
+            let left = interpretExpr(node.left, env, cell, args)
+            let right = interpretExpr(node.right, env, cell, args);
             return BINARY_OPS[node.operator.keyword](left, right)
         case "unary":
-            return UNARY_OPS[node.operator.keyword](interpretExpr(node.left, env, cell))
+            return UNARY_OPS[node.operator.keyword](interpretExpr(node.left, env, cell, args))
         case "(literal)":
             return node.value
         case "(identifier)":
-            // TODO: cell.resolve(
-            let resolved = resolve(cell, node.value);
-            if(resolved) {
-                // TODO: Assert it was evaluated before this
-                return resolved.result
-            } else {
-                // TODO: Error
-                return undefined
-            }
+            return localResolve(node.value)
         case "maplist": {
-            // let obj = new Obj();
-            // let a = {"a": 1, "b": 2}
-            // obj.insert(a, "A_VALUE")
-            return interpretObj(node, node.value, env, cell)
+            return interpretObj(node, node.value, env, cell, args)
         }
         case "map": {
-            return interpretObj(node, [node.value], env, cell)
+            return interpretObj(node, [node.value], env, cell, args)
         }
         case "apply": {
             // Function application            
             // Left is verified to be an identifier
             let params = [];
             node.value.forEach((param) => {
-                params.push(interpretExpr(param, env, cell))
+                params.push(interpretExpr(param, env, cell, args))
             })
-            let left = cell.resolve(node.left.value);
-            // return prefix + node.left.value + ".call(" + params.join(",") + ")"
+            let left = localResolve(cell, node.left.value, args)
             return left.call(params)
         }
         case "(array)": {
             let elems = [];
             node.value.forEach((elem) => {
-                elems.push(interpretExpr(elem, env, cell))
+                elems.push(interpretExpr(elem, env, cell, args))
             })
-            // return prefix + "[" + elems.join(",") + "]"
-
             return elems
         }
         default:
