@@ -60,6 +60,10 @@ function objToJs(node, kv_list, env, name) {
             // TODO: Return in the context of multiple lines.
             value = "new Obj((" + k.value + ") => " + astToJs(v, env) + ")"
 
+        } else if(k.node_type == "(grouping)") {
+            // "a","b"
+            key = "new Obj(['" + k.value.join("', '") + "'])"
+            value = "new Obj((" + k.value + ") => " + astToJs(v, env) + ")"
         } else {
             // For flat keys, evaluate both key and value
             key = astToJs(k, env)

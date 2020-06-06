@@ -45,3 +45,9 @@ test('test filtering', () => {
     expect(parseExpr("Users[id == 3 or points > 10]").toString()).toEqual("([ Users (or (== id 3) (> points 10)))")
 });
 
+
+test('test multi-param methods', () => {
+    // Extra paren at beginning indicates grouping
+    expect(parseExpr("(a, b): a + b").toString()).toEqual("(: (( a b) (+ a b))")
+});
+

@@ -43,11 +43,11 @@ const TREE_LINEAR_MATH = {
 }
 
 // Expected generated code. Note: Equality is whitespace sensitive.
-const LINEAR_EXPECTED = `var a = 1 + 1;
+const LINEAR_EXPECTED = `var a = 1+1
 ctx.set("1", a);
-var b = a * 2;
+var b = a*2
 ctx.set("2", b);
-var __3 = b;
+var __3 = b
 ctx.set("3", __3);
 `
 

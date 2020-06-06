@@ -224,7 +224,7 @@ SQ_BK.null_denotation = (node, tokenStream) => {
     node.value = [];
 
     if(tokenStream.currentKeyword() != "]"){ // []
-        while(true) {
+        while(tokenStream.hasNext()) {
             node.value.push(expression(tokenStream, 10))
             if(tokenStream.currentKeyword() == ",") {
                 tokenStream.next();
@@ -287,7 +287,7 @@ START_BLOCK.null_denotation = (node, tokenStream) => {
     node.value = []
 
     // assert: Immediate endblock impossible?
-    while(true) {
+    while(tokenStream.hasNext()) {
         let right = expression(tokenStream, 10);
         if(right.node_type == "map") {
             // Merge the map key value into this map list.
@@ -324,10 +324,35 @@ new Infix(":", 80).left_denotation = (left, node, tokenStream) => {
 
 new Mixfix("(", 150, (node, tokenStream) => {
     // In Prefix mode ( indicates a parenthesized expression grouping
-    var e = expression(tokenStream, 0);
+    console.log("( prefix parsing")
+
+    console.log("Grouping expr")
+    node.value = [];
+    while(tokenStream.hasNext()) {
+        if(tokenStream.currentKeyword() == ")") {
+            break
+        }
+        node.value.push(expression(tokenStream, 10))
+        if(tokenStream.currentKeyword() == ",") {
+            node.node_type = "(grouping)"
+            tokenStream.next();
+        } else {
+            break;
+        }
+        
+    }
+
     tokenStream.advance(")")
-    return e;
+
+    if(node.node_type == "(grouping)") {
+        return node
+    } else {
+        console.log(node.value.length == 0)
+        return node.value[0]
+    }
+    
 }, (left, node, tokenStream) => {
+    console.log("( infix parsing")
     // In infix mode, ( indicates a function call
     node.left = left;
 
@@ -339,7 +364,7 @@ new Mixfix("(", 150, (node, tokenStream) => {
     node.value = [];
 
     if(tokenStream.currentKeyword() != ")") {   // f()
-        while(true) {
+        while(tokenStream.hasNext()) {
             node.value.push(expression(tokenStream, 10))
             if(tokenStream.currentKeyword() == ",") {
                 tokenStream.next();

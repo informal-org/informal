@@ -31,11 +31,8 @@ export class CellEnv {
         return this.root;
     }
     createCell(cell_id, parent) {
-        console.log("createCell helper: " + cell_id + " : " + parent);
         let env = this;
         let raw_cell = env.getRawCell(cell_id);
-        console.log(this.raw_map);
-        console.log(raw_cell);
         
         let cell = new Cell(raw_cell, parent, env);
 

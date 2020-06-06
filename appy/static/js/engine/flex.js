@@ -68,7 +68,7 @@ export class Obj {
     }
 
     isMatch(key, args) {
-        console.log("Is match?")
+        console.log("Is match?: ")
         console.log(key);
         console.log(args);
         // Pattern match against the key, not the value
@@ -91,6 +91,8 @@ export class Obj {
     }
 
     call(...args) {
+        console.log("call: " + args);
+        console.log(this.args);
         // Call this object as a function with obj as args.
         if(isFunction(this.data)) {
             // Spread args except on single params, which may be objects
