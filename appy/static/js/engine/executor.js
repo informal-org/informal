@@ -53,7 +53,35 @@ const UNARY_OPS = {
 
 
 function interpretObj(node, kv_list, env, cell) {
+    let obj = new Obj();
+    kv_list.forEach((kv) => {
+        let [k, v] = kv
+        let key;
+        let value;
+        if(k.node_type == "(identifier)") {
+            // It's a parameter. Wrap it in an object
+            key = new Obj([k.value])
+            // Functional KVs can't be evaluated immediately. Create a function instead
+            
+            // TODO: Tuple support for multiple parameters
+            // Relies on implicit return in final expression
+            // TODO: Return in the context of multiple lines.
 
+            // TODO: Args?
+            value = new Obj((args) => { interpretExpr(v, env, cell, args) })
+
+        } else {
+            // For flat keys, evaluate both key and value
+            key = interpretExpr(k, env, cell)
+            value = interpretExpr(v, env, cell)
+        }
+        
+        if(name) {
+            // TODO
+            code += name + ".insert( (" + key + "),(" + value + "));"
+        }
+    })
+    return obj
 }
 
 

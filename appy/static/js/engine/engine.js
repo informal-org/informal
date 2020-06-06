@@ -60,7 +60,6 @@ function resolve(state, name, scope) {
 
 function runInterpreted(env) {
     defineNamespace(env.root)
-
     interpret(env)
 
 
@@ -80,6 +79,7 @@ function runInterpreted(env) {
 }
 
 function runGenerated(env) {
+    defineNamespace(env.root)
     let code = genJs(env);
     console.log(code);
 
@@ -127,7 +127,8 @@ export function evaluate(state) {
         cell.parsed = parseExpr(cell.expr)
     })
 
-    let output = runInterpreted(env);
+    // let output = runInterpreted(env);
+    let output = runGenerated(env);
 
     // ignore
     // expr.body.forEach(element => {
