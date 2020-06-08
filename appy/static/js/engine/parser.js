@@ -305,9 +305,6 @@ START_BLOCK.null_denotation = (node, tokenStream) => {
     }
     tokenStream.advance("(endblock)")
 
-    console.log("Startblock parser")
-    console.log(node);
-    console.log(tokenStream.currentKeyword());
     return node;
 }
 
@@ -324,9 +321,7 @@ new Infix(":", 80).left_denotation = (left, node, tokenStream) => {
 
 new Mixfix("(", 150, (node, tokenStream) => {
     // In Prefix mode ( indicates a parenthesized expression grouping
-    console.log("( prefix parsing")
 
-    console.log("Grouping expr")
     node.value = [];
     while(tokenStream.hasNext()) {
         if(tokenStream.currentKeyword() == ")") {
@@ -352,7 +347,6 @@ new Mixfix("(", 150, (node, tokenStream) => {
     }
     
 }, (left, node, tokenStream) => {
-    console.log("( infix parsing")
     // In infix mode, ( indicates a function call
     node.left = left;
 
