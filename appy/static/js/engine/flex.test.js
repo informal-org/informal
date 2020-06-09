@@ -1,4 +1,4 @@
-import { Obj } from "./flex"
+import { Obj, Stream } from "./flex"
 
 test('Object with obj keys', () => {
     // When cells don't depend on each other, their order remains the same
@@ -30,3 +30,15 @@ test('fibo repr', () => {
     expect(fibo.call(2)).toEqual(1)
     expect(fibo.call(7)).toEqual(13)
 });
+
+
+
+test('stream representation', () => {
+    let stream = Stream.range(0, 5, 1);
+    expect(Array.from(stream.iter())).toEqual([0, 1, 2, 3, 4])
+
+    stream = Stream.range(0, 5, 2);
+    expect(Array.from(stream.iter())).toEqual([0, 2, 4])
+
+
+})

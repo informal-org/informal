@@ -118,6 +118,9 @@ function astToJs(node, env, name="") {
             })
             return prefix + "[" + elems.join(",") + "]"
         }
+        case "(where)": {
+            
+        }
         default:
             console.log("Error: Could not translate ast node: ");
             console.log(node)

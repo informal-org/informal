@@ -142,3 +142,92 @@ export class Obj {
     }
 }
 
+
+const OP_FILTER = 1;
+const OP_MAP = 2;
+
+export class Stream {
+    constructor(source) {
+        // Source: A generator for values. May be infinite
+        this.source = source
+        this.operations = []
+        // TODO: Future optimization flags to maintain between ops
+        this.sized = false;
+        this.sorted = false;
+        this.distinct = false;
+        this.length = undefined;
+        // Store cached computed value
+        this._computed = undefined;
+    }
+
+    filter(fn) {
+        return this.addOperation({'type': OP_FILTER, 'fn': fn})
+    }
+
+    map(fn) {
+        return this.addOperation({'type': OP_MAP, 'fn': fn})
+    }
+
+    addOperation(operation) {
+        let s = this.clone();
+        s.operations.push(operation)
+        return s
+    }
+
+    clone() {
+        let s = new Stream(this.source);
+        s.operations = [...this.operations]      // Clone
+        return s
+    }
+
+    // TODO: Common variant of this which just takes stop
+    static range(start, stop, step=1) {
+        // Returns a lazy generator for looping over that range
+        return new Stream(function* () {
+            for(var i = start; i < stop; i += step) {
+                yield i
+            }
+        })
+    }
+
+    // TODO: These internal methods should not be exposed
+    static array(arr) {
+        // Wraps an array object in an iterator
+        return new Stream(function* () {
+            for(var i = 0; i < arr.length; i++) {
+                yield arr[i]
+            }
+        })
+    }
+
+    * iter() {
+        // Iterate over this stream
+        let source_iter = this.source()
+        let data;
+        while(true) {
+            data = source_iter.next()
+            if(data.done) {
+                break
+            }
+            
+            let value = data.value;
+            let finished = true;    // Remains true only if all operations complete successfully
+            for(var op_index = 0; op_index < this.operations.length; op_index++) {
+                let op = this.operations[op_index];
+                if(op.type == OP_FILTER) {
+                    if(!op.fn(value)) {
+                        finished = false;
+                        break;
+                    }
+                } else if(op.type == OP_MAP) {
+                    value = op.fn(value);
+                }
+            }
+            if(finished) {
+                yield value;
+            }
+        }
+    }
+
+}
+
