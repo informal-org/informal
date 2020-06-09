@@ -34,11 +34,26 @@ test('fibo repr', () => {
 
 
 test('stream representation', () => {
-    let stream = Stream.range(0, 5, 1);
+    let stream = Stream.range(0, 5);
     expect(Array.from(stream.iter())).toEqual([0, 1, 2, 3, 4])
 
+    // Step size of 2
     stream = Stream.range(0, 5, 2);
     expect(Array.from(stream.iter())).toEqual([0, 2, 4])
 
+    stream = Stream.range(0, 5);
+    stream = stream.map((x) => x * 3)
+    expect(Array.from(stream.iter())).toEqual([0, 3, 6, 9, 12])
 
+    // Filter to even numbers
+    stream = Stream.range(0, 10);
+    stream = stream.filter((x) => x % 2 == 0)
+    expect(Array.from(stream.iter())).toEqual([0, 2, 4, 6, 8])
+
+    // Square even numbers
+    stream = Stream.range(0, 10);
+    stream = stream.filter((x) => x % 2 == 0)
+    stream = stream.map((x) => x * x)
+    expect(Array.from(stream.iter())).toEqual([0, 4, 16, 36, 64])
+    
 })
