@@ -56,4 +56,19 @@ test('stream representation', () => {
     stream = stream.map((x) => x * x)
     expect(Array.from(stream.iter())).toEqual([0, 4, 16, 36, 64])
     
+
+    let a = Stream.range(0, 5);
+    let b = Stream.range(5, 10);
+
+    let result = a.binaryOp((elem1, elem2) => {
+        return elem1 + elem2
+    }, b)
+
+    console.log("Combined is: ")
+    console.log(Array.from(result.iter()));
+
+    // 0 1 2 3 4
+    // 5 6 7 8 9
+    expect(Array.from(result.iter())).toEqual([5, 7, 9, 11, 13])
+
 })

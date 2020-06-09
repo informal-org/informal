@@ -145,6 +145,7 @@ export class Obj {
 
 const OP_FILTER = 1;
 const OP_MAP = 2;
+const OP_BINARY = 3;
 
 export class Stream {
     constructor(source) {
@@ -168,6 +169,10 @@ export class Stream {
         return this.addOperation({'type': OP_MAP, 'fn': fn})
     }
 
+    binaryOp(fn, right) {
+        return this.addOperation({'type': OP_BINARY, 'fn': fn, 'right': right})
+    }
+
     addOperation(operation) {
         let s = this.clone();
         s.operations.push(operation)
@@ -182,35 +187,46 @@ export class Stream {
 
     // TODO: Common variant of this which just takes stop
     static range(start, stop, step=1) {
+        // assert: stop < start. TODO: Check
         // Returns a lazy generator for looping over that range
-        return new Stream(function* () {
+        let s = new Stream(function* () {
             for(var i = start; i < stop; i += step) {
                 yield i
             }
         })
+        s.sized = true;
+        s.length = Math.ceil((stop-start) / step)
+
+        return s;
     }
 
     // TODO: These internal methods should not be exposed
     static array(arr) {
         // Wraps an array object in an iterator
-        return new Stream(function* () {
+        let s = new Stream(function* () {
             for(var i = 0; i < arr.length; i++) {
                 yield arr[i]
             }
         })
+        s.sized = true;
+        s.length = arr.length;
+        return s;
     }
 
     * iter() {
         // Iterate over this stream
         let source_iter = this.source()
         let data;
+        // Internal stack to store state for any right-hand iterable
+        let right_iters = [];
         while(true) {
             data = source_iter.next()
             if(data.done) {
                 break
             }
-            
+
             let value = data.value;
+            let right_idx = 0;      // Index into the internal iterator state for any parallel loops
             let finished = true;    // Remains true only if all operations complete successfully
             for(var op_index = 0; op_index < this.operations.length; op_index++) {
                 let op = this.operations[op_index];
@@ -221,6 +237,29 @@ export class Stream {
                     }
                 } else if(op.type == OP_MAP) {
                     value = op.fn(value);
+                } else if(op.type == OP_BINARY) {
+                    // Retrieve this stateful op from the array
+                    let right;
+                    if(right_idx < right_iters.length) {
+                        // We've seen this op before. Resume from existing iterator state
+                        right = right_iters[right_idx++]
+                    } else {
+                        // Right index >= length. 
+                        // Means it's the first time we're seeing this op. Add to array
+                        right = op.right.iter()
+                        right_iters.push(right)
+                        right_idx++
+                    }
+
+                    let right_elem = right.next();
+                    if(right_elem.done) {
+                        // One of the iterators finished before the other
+                        finished = false;
+                        break;
+                    } else {
+                        value = op.fn(value, right_elem.value)
+                    }
+
                 }
             }
             if(finished) {
