@@ -148,29 +148,49 @@ const OP_MAP = 2;
 const OP_BINARY = 3;
 
 export class Stream {
-    constructor(source) {
+    constructor(sources) {
         // Source: A generator for values. May be infinite
-        this.source = source
+        this.sources = sources
         this.operations = []
         // TODO: Future optimization flags to maintain between ops
         this.sized = false;
         this.sorted = false;
         this.distinct = false;
         this.length = undefined;
-        // Store cached computed value
+        // TODO: Store cached computed value (?)
         this._computed = undefined;
     }
 
     filter(fn) {
+        // todo: flags
         return this.addOperation({'type': OP_FILTER, 'fn': fn})
     }
 
     map(fn) {
+        // todo: flags
         return this.addOperation({'type': OP_MAP, 'fn': fn})
     }
 
     binaryOp(fn, right) {
+        // todo: flags
         return this.addOperation({'type': OP_BINARY, 'fn': fn, 'right': right})
+    }
+
+    concat(stream) {
+        // Lazily combine two streams into one logical stream
+        let s = this.clone();
+        s.sources.push(stream)
+        // Update flags
+        if(s.sized && stream.sized) {
+            s.length = s.length + stream.length
+        } else {
+            s.sized = false;
+            s.length = undefined;
+        }
+        // We can't know anything about these when combined.
+        s.sorted = false;
+        s.distinct = false;
+        return s
     }
 
     addOperation(operation) {
@@ -180,8 +200,13 @@ export class Stream {
     }
 
     clone() {
-        let s = new Stream(this.source);
+        let s = new Stream([...this.sources]);
         s.operations = [...this.operations]      // Clone
+        s.sized = this.sized;
+        s.sorted = this.sorted;
+        s.distinct = this.distinct;
+        s.length = this.length;
+        s._computed = this._computed;
         return s
     }
 
@@ -189,11 +214,11 @@ export class Stream {
     static range(start, stop, step=1) {
         // assert: stop < start. TODO: Check
         // Returns a lazy generator for looping over that range
-        let s = new Stream(function* () {
+        let s = new Stream([function* () {
             for(var i = start; i < stop; i += step) {
                 yield i
             }
-        })
+        }])
         s.sized = true;
         s.length = Math.ceil((stop-start) / step)
 
@@ -203,11 +228,11 @@ export class Stream {
     // TODO: These internal methods should not be exposed
     static array(arr) {
         // Wraps an array object in an iterator
-        let s = new Stream(function* () {
+        let s = new Stream([function* () {
             for(var i = 0; i < arr.length; i++) {
                 yield arr[i]
             }
-        })
+        }])
         s.sized = true;
         s.length = arr.length;
         return s;
@@ -215,14 +240,23 @@ export class Stream {
 
     * iter() {
         // Iterate over this stream
-        let source_iter = this.source()
+        let source_index = 0;
+        // Assert - there's always atleast one source.
+        let source_iter = this.sources[source_index++]()
         let data;
         // Internal stack to store state for any right-hand iterable
         let right_iters = [];
         while(true) {
             data = source_iter.next()
             if(data.done) {
-                break
+                // Advance to the next iterator or end
+                if(source_index < this.sources.length) {
+                    // Note: Assert any concat elems are sub-streams.
+                    source_iter = this.sources[source_index++].iter()
+                    continue;
+                } else {
+                    break
+                }
             }
 
             let value = data.value;

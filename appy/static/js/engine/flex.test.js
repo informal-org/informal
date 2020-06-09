@@ -64,11 +64,15 @@ test('stream representation', () => {
         return elem1 + elem2
     }, b)
 
-    console.log("Combined is: ")
-    console.log(Array.from(result.iter()));
-
     // 0 1 2 3 4
     // 5 6 7 8 9
     expect(Array.from(result.iter())).toEqual([5, 7, 9, 11, 13])
+
+    // Lazy concat of two streams
+    a = Stream.range(0, 5);
+    b = Stream.range(5, 10);
+    result = a.concat(b)
+
+    expect(Array.from(result.iter())).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
 
 })
