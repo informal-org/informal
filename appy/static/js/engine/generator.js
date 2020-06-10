@@ -116,7 +116,7 @@ function astToJs(node, env, name="") {
             node.value.forEach((elem) => {
                 elems.push(astToJs(elem, env))
             })
-            return prefix + "[" + elems.join(",") + "]"
+            return prefix + "Stream.array([" + elems.join(",") + "])"
         }
         case "(where)": {
             

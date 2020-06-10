@@ -157,6 +157,7 @@ export class Stream {
         this.sorted = false;
         this.distinct = false;
         this.length = undefined;
+        this.__type = "Stream"
     }
 
     filter(fn) {

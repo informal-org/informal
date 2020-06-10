@@ -1,4 +1,4 @@
-import { Obj } from "./flex"
+import { Obj, Stream } from "./flex"
 import { resolve } from "./namespace"
 
 class CyclicRefError extends Error {
@@ -16,6 +16,7 @@ class ParseError extends Error {
 var global = window || global;
 
 global.Obj = Obj;
+global.Stream = Stream;
 global.CyclicRefError = CyclicRefError;
 global.ParseError = ParseError;
 
