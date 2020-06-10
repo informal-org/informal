@@ -25,6 +25,7 @@ export class Cell {
         this._eval_index = -1;
 
         this.parsed = {};
+        this.error = null;
         this.result = null
         this.namespace = hamt.empty;
     }

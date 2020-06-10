@@ -91,7 +91,7 @@ function runGenerated(env) {
         output.push({
             id: cell.id,
             value: result[cell.id],
-            error: ""
+            error: cell.error
         })
     })
 
@@ -100,12 +100,9 @@ function runGenerated(env) {
 
 
 export function evaluate(state) {
-    console.log("Evaluating");
-    console.log(state);
     let env = new CellEnv();
     env.raw_map = state.cellsReducer.byId;
 
-    console.log("Current root: ");
     let root_id = state.cellsReducer.currentRoot;
     env.create(state.cellsReducer.byId, root_id)
 
@@ -124,7 +121,12 @@ export function evaluate(state) {
 
     
     env.root.body.forEach((cell) => {
-        cell.parsed = parseExpr(cell.expr)
+        try {
+            cell.parsed = parseExpr(cell.expr)
+        }
+        catch(err) {
+            cell.error = err
+        }
     })
 
     // let output = runInterpreted(env);

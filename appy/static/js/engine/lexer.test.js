@@ -1,5 +1,5 @@
 import { lex } from "./lexer"
-import { TOKEN_LITERAL, TOKEN_OPERATOR, TOKEN_START_BLOCK, TOKEN_CONTINUE_BLOCK, TOKEN_END_BLOCK } from "./parser"
+import { TOKEN_LITERAL, TOKEN_OPERATOR, TOKEN_START_BLOCK, TOKEN_CONTINUE_BLOCK, TOKEN_END_BLOCK, TOKEN_IDENTIFIER } from "./parser"
 
 export function flatten_tokens(tokenQueue) {
     // Extract token into an array for testing ease
@@ -91,4 +91,11 @@ test('lex indentation levels', () => {
             [TOKEN_END_BLOCK, TOKEN_OPERATOR], 
             [3, TOKEN_LITERAL],
         ]);    
+})
+
+
+test('lex attribute access', () => {
+    let result = flatten_tokens(lex('User.name'));
+    console.log(result)
+    expect(result).toEqual([["User", TOKEN_IDENTIFIER], [[".", TOKEN_OPERATOR], ["name", TOKEN_IDENTIFIER]]]);
 })

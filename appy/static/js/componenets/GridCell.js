@@ -84,7 +84,7 @@ export default class GridCell extends AbstractBaseCell {
         let error = cellGet(this.props.cell, "error")
         if(error) {
             className += " Cell--error";
-            cellResults = <div className="Cell-cellError">{error}</div>
+            cellResults = <div className="Cell-cellError">{"" + error}</div>
         } else {
             cellResults = <CellValue value={this.props.cell.value}></CellValue>
         }

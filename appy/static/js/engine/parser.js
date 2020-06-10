@@ -395,7 +395,15 @@ export function parseTokens(tokenQueue) {
     // in the expr while loop condition
     tokenQueue.push(new ASTNode(END_OP, null, TOKEN_OPERATOR, -1, -1))
     let tokenStream = new ParseIterator(tokenQueue);
-    return expression(tokenStream, 0)
+    let parsed = expression(tokenStream, 0)
+
+
+    if(tokenStream.hasNext()) {
+        // TODO
+        syntaxError("Could not complete parsing. Unexpected token at: " + tokenStream.current().char_end)
+    }
+
+    return parsed
 }
 
 

@@ -134,6 +134,10 @@ function astToJs(node, env, name="") {
 function cellToJs(env, cell) {
     let code = "";
 
+    if(!cell.parsed || cell.error) {
+        return ""
+    }
+
     if(cell.cyclic_deps) {
         // If it contains cycles, then just report the error.
         code = `ctx.set("${cell.id}", new CyclicRefError());\n`
