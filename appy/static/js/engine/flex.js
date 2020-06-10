@@ -157,8 +157,6 @@ export class Stream {
         this.sorted = false;
         this.distinct = false;
         this.length = undefined;
-        // TODO: Store cached computed value (?)
-        this._computed = undefined;
     }
 
     filter(fn) {
@@ -206,7 +204,6 @@ export class Stream {
         s.sorted = this.sorted;
         s.distinct = this.distinct;
         s.length = this.length;
-        s._computed = this._computed;
         return s
     }
 
