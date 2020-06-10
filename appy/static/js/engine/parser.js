@@ -326,13 +326,14 @@ new Mixfix("(", 150, (node, tokenStream) => {
     // In Prefix mode ( indicates a parenthesized expression grouping
 
     node.value = [];
+    node.node_type = "(grouping)"       // New: Always keep the grouping nodes
     while(tokenStream.hasNext()) {
         if(tokenStream.currentKeyword() == ")") {
             break
         }
         node.value.push(expression(tokenStream, 10))
         if(tokenStream.currentKeyword() == ",") {
-            node.node_type = "(grouping)"
+            // node.node_type = "(grouping)"
             tokenStream.next();
         } else {
             break;

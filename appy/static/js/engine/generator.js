@@ -1,5 +1,6 @@
 import { orderCellBody } from "./order"
 import { Obj } from "./flex";
+import { syntaxError } from "./parser";
 
 // TODO: Ensure error equality on CYCLIC_ERR throws error.
 export const JS_PRE_CODE = `
@@ -28,6 +29,9 @@ const BINARY_OPS = {
     "and": mapToOp("&&"),
     "or": mapToOp("||"),
     "==": mapToOp("==="),
+    ".": (left, right) => {
+        return left + ".lookup('" + right + "')"
+    }
 }
 
 // Map operations that are 1:1 between JS and AA
@@ -51,16 +55,17 @@ function objToJs(node, kv_list, env, name) {
         let key;
         let value;
         if(k.node_type == "(identifier)") {
-            // It's a parameter. Wrap it in an object
-            key = "new Obj(['" + k.value + "'])"
+            // It's a column name
+            key = "'" + k.value + "'"
             // Functional KVs can't be evaluated immediately. Create a function instead
             
             // TODO: Tuple support for multiple parameters
             // Relies on implicit return in final expression
             // TODO: Return in the context of multiple lines.
-            value = "new Obj((" + k.value + ") => " + astToJs(v, env) + ")"
+            value = astToJs(v, env) 
 
         } else if(k.node_type == "(grouping)") {
+            // It's a parameter. Wrap in an object
             // "a","b"
             key = "new Obj(['" + k.value.join("', '") + "'])"
             value = "new Obj((" + k.value + ") => " + astToJs(v, env) + ")"
@@ -86,7 +91,7 @@ function astToJs(node, env, name="") {
         case "binary":
             let left = astToJs(node.left, env);
             let right = astToJs(node.right, env);
-            return prefix + BINARY_OPS[node.operator.keyword](left, right)
+            return prefix + "(" + BINARY_OPS[node.operator.keyword](left, right) + ")"
         case "unary":
             return prefix + UNARY_OPS[node.operator.keyword](astToJs(node.left, env))
         case "(literal)":
@@ -101,6 +106,15 @@ function astToJs(node, env, name="") {
         }
         case "map": {
             return objToJs(node, [node.value], env, name)
+        }
+        case "(grouping)": {
+            // Top level groupings are expressions
+            if(node.value.length == 1) {
+                return astToJs(node.value[0], env, name)
+            } else {
+                // TODO
+                syntaxError("Unexpected parentheses")
+            }
         }
         case "apply": {
             // Function application            

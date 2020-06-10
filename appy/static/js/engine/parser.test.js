@@ -14,6 +14,8 @@ test('test add multiply precedence', () => {
     // Grouping. Addition before multiplication
     expect(parseExpr("(1 + 2) * 3").toString()).toEqual("(* (+ 1 2) 3)")
 
+    expect(parseExpr("(2 + 3) * 4").toString()).toEqual("(* (+ 2 3) 4)")
+
     // Test left-to-right order of the args
     expect(parseExpr("3 * (1 + 2)").toString()).toEqual("(* 3 (+ 1 2))")
 });
