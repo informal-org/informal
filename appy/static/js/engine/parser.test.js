@@ -12,12 +12,12 @@ test('test add multiply precedence', () => {
     expect(parseExpr("1 + 2 * 3").toString()).toEqual("(+ 1 (* 2 3))")
 
     // Grouping. Addition before multiplication
-    expect(parseExpr("(1 + 2) * 3").toString()).toEqual("(* (+ 1 2) 3)")
+    expect(parseExpr("(1 + 2) * 3").toString()).toEqual("(* ((grouping) (+ 1 2)) 3)")
 
-    expect(parseExpr("(2 + 3) * 4").toString()).toEqual("(* (+ 2 3) 4)")
+    expect(parseExpr("(2 + 3) * 4").toString()).toEqual("(* ((grouping) (+ 2 3)) 4)")
 
     // Test left-to-right order of the args
-    expect(parseExpr("3 * (1 + 2)").toString()).toEqual("(* 3 (+ 1 2))")
+    expect(parseExpr("3 * (1 + 2)").toString()).toEqual("(* 3 ((grouping) (+ 1 2)))")
 });
 
 test('test power operator', () => {
@@ -32,7 +32,7 @@ test('test power operator', () => {
 test('test map definition', () => {
     expect(parseExpr("a: 2, b: 3, c: 5").toString()).toEqual("(: a,2 b,3 c,5)")
 
-    expect(parseExpr("a: 2 + (3 * 5), b: 8").toString()).toEqual("(: a,(+ 2 (* 3 5)) b,8)")
+    expect(parseExpr("a: 2 + (3 * 5), b: 8").toString()).toEqual("(: a,(+ 2 ((grouping) (* 3 5))) b,8)")
 });
 
 
@@ -50,6 +50,6 @@ test('test filtering', () => {
 
 test('test multi-param methods', () => {
     // Extra paren at beginning indicates grouping
-    expect(parseExpr("(a, b): a + b").toString()).toEqual("(: (( a b) (+ a b))")
+    expect(parseExpr("(a, b): a + b").toString()).toEqual("(: ((grouping) a b) (+ a b))")
 });
 

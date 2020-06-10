@@ -152,7 +152,9 @@ export class ASTNode {
     // Convert to s-expression for debugging output
     toString() {
         let kw = this.operator.keyword;
-        if(kw == TOKEN_IDENTIFIER || kw == TOKEN_LITERAL) { return this.value }
+        if(kw == TOKEN_IDENTIFIER || kw == TOKEN_LITERAL) { return this.value; }
+        else if(kw === '(') { kw = '(grouping)' }
+
         let repr = "";
         if(this.value !== null) {
             this.value.forEach((val) => {

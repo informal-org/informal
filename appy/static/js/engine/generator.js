@@ -91,7 +91,8 @@ function astToJs(node, env, name="") {
         case "binary":
             let left = astToJs(node.left, env);
             let right = astToJs(node.right, env);
-            return prefix + "(" + BINARY_OPS[node.operator.keyword](left, right) + ")"
+            // return prefix + "(" + BINARY_OPS[node.operator.keyword](left, right) + ")"
+            return prefix + BINARY_OPS[node.operator.keyword](left, right)
         case "unary":
             return prefix + UNARY_OPS[node.operator.keyword](astToJs(node.left, env))
         case "(literal)":
@@ -110,7 +111,7 @@ function astToJs(node, env, name="") {
         case "(grouping)": {
             // Top level groupings are expressions
             if(node.value.length == 1) {
-                return astToJs(node.value[0], env, name)
+                return "(" + astToJs(node.value[0], env, name) + ")"
             } else {
                 // TODO
                 syntaxError("Unexpected parentheses")

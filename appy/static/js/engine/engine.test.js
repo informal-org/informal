@@ -63,3 +63,38 @@ test('Evaluate basic expressions', () => {
     expect(outputDict[3].value).toEqual(4)
 });
 
+function evalSingleExpr(expr) {
+    let state ={
+        cellsReducer: {
+            byId: {
+                0: {
+                    id: 0,
+                    name: "",
+                    expr: "",
+                    depends_on: [],
+                    
+                    body: [1],
+                    params: []
+                },
+                1: {
+                    id: 1,
+                    name: "",
+                    expr: expr,
+                    depends_on: [],
+                    
+                    body: [],
+                    params: []
+                },                
+            },
+            currentRoot: 0
+        }
+    }
+
+    let output = evaluate(state).results;
+    let outputDict = listToDict(output)
+    return outputDict[1].value
+}
+
+test('Eval order of ops', () => {
+    expect(evalSingleExpr("(2 + 3) * 4")).toEqual(20)
+});
