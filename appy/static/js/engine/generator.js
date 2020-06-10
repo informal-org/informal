@@ -134,7 +134,7 @@ function astToJs(node, env, name="") {
 function cellToJs(env, cell) {
     let code = "";
 
-    if(!cell.parsed || cell.error) {
+    if(cell.error) {
         return ""
     }
 

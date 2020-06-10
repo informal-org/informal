@@ -82,7 +82,6 @@ test('lex indentation levels', () => {
     1
         2
     3`));
-    console.log(result);
 
     expect(result).toEqual([
             [1, TOKEN_LITERAL],
@@ -96,6 +95,9 @@ test('lex indentation levels', () => {
 
 test('lex attribute access', () => {
     let result = flatten_tokens(lex('User.name'));
-    console.log(result)
-    expect(result).toEqual([["User", TOKEN_IDENTIFIER], [[".", TOKEN_OPERATOR], ["name", TOKEN_IDENTIFIER]]]);
+    expect(result).toEqual([
+        ["User", TOKEN_IDENTIFIER], 
+        [".", TOKEN_OPERATOR],
+        ["name", TOKEN_IDENTIFIER]
+    ]);
 })

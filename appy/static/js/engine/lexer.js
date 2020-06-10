@@ -55,7 +55,7 @@ class LexIterator {
 
     startBlock(level, char_start) {
         this.block_levels.push(level)
-        this.tokens.push(OperatorNode(START_BLOCK, char_start, this.index))
+        this.tokens.push(new OperatorNode(START_BLOCK, char_start, this.index))
     }
 
     continueBlock(char_start) {
@@ -116,7 +116,13 @@ function parseNumber(it) {
         break;
     }
     it.index = char_end;
-    return LiteralNode(parseFloat(it.expr.slice(char_start, char_end)), char_start, char_end);
+    let num_str = it.expr.slice(char_start, char_end)
+    if(num_str === '.') {
+        return OperatorNode(KEYWORD_TABLE['.'], char_start, char_end)
+    } else {
+        return LiteralNode(parseFloat(num_str), char_start, char_end);
+    }
+    
 }
 
 function parseString(it) {

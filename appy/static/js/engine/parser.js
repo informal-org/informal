@@ -191,6 +191,9 @@ new InfixRight("and", 40)
 
 new Infix("in", 60)
 
+new Infix(".", 30)
+
+
 // Prefix: when used as Not
 // Infix: "not in" TODO
 new Mixfix("not", 60, Prefix.null_denotation)
@@ -342,7 +345,6 @@ new Mixfix("(", 150, (node, tokenStream) => {
     if(node.node_type == "(grouping)") {
         return node
     } else {
-        console.log(node.value.length == 0)
         return node.value[0]
     }
     
@@ -372,8 +374,15 @@ new Mixfix("(", 150, (node, tokenStream) => {
     return node
 })
 
+class SyntaxError extends Error {
+    constructor(message) {
+        super(message)
+        this.name = "SyntaxError"
+    }
+}
+
 export function syntaxError(message, index) {
-    let err = new Error(message);
+    let err = new SyntaxError(message);
     err.index = index;
     throw err
 }
