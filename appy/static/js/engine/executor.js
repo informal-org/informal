@@ -19,6 +19,62 @@ global.Obj = Obj;
 global.Stream = Stream;
 global.CyclicRefError = CyclicRefError;
 global.ParseError = ParseError;
+global.__aa_add = (a, b) => {
+    let a_is_num = !isNaN(a);
+    let b_is_num = !isNaN(b)
+    if(a_is_num && b_is_num) {
+        return a + b
+    } else if (a_is_num){
+        // Number + other
+        switch (typeof b) {
+            case "string":
+                // 2 + " px" = String "2 px"
+                return "" + a + b
+            case "object":
+                let obj = b
+                if(obj.__type == "Stream") {
+                    // 2 + [1, 2, 3] = [3, 4, 5]
+                    return obj.map((x) => a + x)
+                } else if(obj.__type == "Obj") {
+                    // TODO: ? 2 + {year: 2020, city: "Austin"}
+                    throw Error("Unsupported operation + for Number + Object")
+                } else {
+                    // TODO
+                    throw Error("Unsupported operation + for Number + Object")
+                }
+            default:
+                throw Error("Unsupported operation + for Number + Unknown")
+        }
+    } else if (b_is_num) {
+        // Other + number
+        switch (typeof a) {
+            case "string":
+                // "Width is " + 2 = "Width is 2"
+                // TODO: Call tostring 
+                return "" + a + b
+            case "object":
+                let obj = a
+                console.log(obj.__type)
+                if(obj.__type == "Stream") {
+                    // 2 + [1, 2, 3] = [3, 4, 5]
+                    return obj.map((x) => x + b)
+                } else if(obj.__type == "Obj") {
+                    // TODO: ? 2 + {year: 2020, city: "Austin"}
+                    throw Error("Unsupported operation + for Object + Number")
+                } else {
+                    // TODO
+                    throw Error("Unsupported operation + for Object + Number")
+                }
+            default:
+                console.log(typeof a)
+                throw Error("Unsupported operation + for Unknown + Number")
+        }        
+    } else {
+        // Other + other
+    }
+    
+}
+
 
 export function execJs(code) {
     // TODO: Sandboxed execution

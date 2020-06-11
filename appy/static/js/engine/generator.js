@@ -31,11 +31,14 @@ const BINARY_OPS = {
     "==": mapToOp("==="),
     ".": (left, right) => {
         return (left + ".lookup('" + right + "')")
+    },
+    "+": (left, right) => {
+        return "__aa_add(" + left + "," + right + ")"
     }
 }
 
 // Map operations that are 1:1 between JS and AA
-const SHARED_OPS = ["+", "-", "*", "/", "<", ">", "<=", ">="];
+const SHARED_OPS = ["-", "*", "/", "<", ">", "<=", ">="];
 SHARED_OPS.forEach((op) => {
     BINARY_OPS[op] = mapToOp(op)
 })

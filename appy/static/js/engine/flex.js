@@ -9,6 +9,7 @@ export class Obj {
         this._keys = {};
         this.$aa_key = "@" + genID();
         this.data = data;
+        this.__type = "Obj"
     }
     getPseudoKey(key) {
         // Convert a key of unknown type to a unique string identifier.
@@ -164,6 +165,9 @@ export class Stream {
         this.__cached_iter = undefined;
         // TODO: Optimization - build off of the computed state of the previous node
         // So it doesn't have to do all the operations on iter, just a subset.
+
+        // TODO: Optimization: Store slices of data, so for large generated ranges
+        // it will store a sliding window and never more than the window bounds.
     }
 
     get(index) {
@@ -193,6 +197,10 @@ export class Stream {
             // assert: cached length = index
             return this.__cached[index]
         }
+    }
+
+    where(expr) {
+        
     }
 
     filter(fn) {
