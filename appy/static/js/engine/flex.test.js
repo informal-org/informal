@@ -76,3 +76,11 @@ test('stream representation', () => {
     expect(Array.from(result.iter())).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
 
 })
+
+test('stream indexing', () => {
+    let stream = Stream.range(0, 5);
+    expect(stream.get(0)).toEqual(0)
+    expect(stream.get(4)).toEqual(4)
+    // Should just re-use the existing cached entry
+    expect(stream.get(2)).toEqual(2)
+})

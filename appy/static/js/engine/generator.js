@@ -134,7 +134,16 @@ function astToJs(node, env, name="") {
             return prefix + "Stream.array([" + elems.join(",") + "])"
         }
         case "(where)": {
-            
+            console.log("Where:")
+            console.log(node)
+            console.log(node.left)
+            console.log(node.right)
+            // if(node.right.node_type == "(literal)" || node.right.node_type == "(identifier)") {
+            //     // arr[0] arr[index + 1]
+            // }
+
+            // TODO: Differentiate between indexing and filtering
+            return prefix + astToJs(node.left, env) + ".get(" + astToJs(node.right, env) + ")"
         }
         default:
             console.log("Error: Could not translate ast node: ");

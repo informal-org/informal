@@ -158,6 +158,41 @@ export class Stream {
         this.distinct = false;
         this.length = undefined;
         this.__type = "Stream"
+
+        // Private cached computed data. Should not be copied over in clone
+        this.__cached = []
+        this.__cached_iter = undefined;
+        // TODO: Optimization - build off of the computed state of the previous node
+        // So it doesn't have to do all the operations on iter, just a subset.
+    }
+
+    get(index) {
+        // TODO: Support negative indexes
+        // Get the element at a given index. 
+        // Requires serializing the data up to that point into memory
+        if(index < this.__cached.length) {
+            return this.__cached[index]
+        } else {
+            if(this.sized && index >= this.length) {
+                // Skip iteration if accessing out of bounds
+                // TODO: Friendly error message
+                throw Error("Index out of bounds")
+            }
+            if(!this.__cached_iter) {
+                this.__cached_iter = this.iter()
+            }
+            while(index >= this.__cached.length) {
+                let elem = this.__cached_iter.next();
+                if(elem.done) {
+                    // TODO: Friendly error message
+                    throw Error("Index out of bounds")
+                } else {
+                    this.__cached.push(elem.value)
+                }
+            }
+            // assert: cached length = index
+            return this.__cached[index]
+        }
     }
 
     filter(fn) {
@@ -209,9 +244,11 @@ export class Stream {
     }
 
     // TODO: Common variant of this which just takes stop
+    // TODO: Omit step?
     static range(start, stop, step=1) {
         // assert: stop < start. TODO: Check
         // Returns a lazy generator for looping over that range
+        // TODO: Optimization: Override get to compute elem at index directly
         let s = new Stream([function* () {
             for(var i = start; i < stop; i += step) {
                 yield i
@@ -231,6 +268,7 @@ export class Stream {
                 yield arr[i]
             }
         }])
+        s.__cached = arr
         s.sized = true;
         s.length = arr.length;
         return s;
