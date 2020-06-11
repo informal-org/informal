@@ -193,7 +193,7 @@ new InfixRight("and", 40)
 
 new Infix("in", 60)
 
-new Infix(".", 30)
+new Infix(".", 150)
 
 
 // Prefix: when used as Not

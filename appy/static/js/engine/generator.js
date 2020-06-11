@@ -30,7 +30,7 @@ const BINARY_OPS = {
     "or": mapToOp("||"),
     "==": mapToOp("==="),
     ".": (left, right) => {
-        return left + ".lookup('" + right + "')"
+        return (left + ".lookup('" + right + "')")
     }
 }
 
