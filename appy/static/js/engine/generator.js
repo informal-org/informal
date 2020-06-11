@@ -25,6 +25,12 @@ function mapToOp(op) {
     }
 }
 
+function mapToFn(fn) {
+    return (left, right) => {
+        return fn + "(" + left + "," + right + ")"
+    }
+}
+
 const BINARY_OPS = {
     "and": mapToOp("&&"),
     "or": mapToOp("||"),
@@ -32,13 +38,14 @@ const BINARY_OPS = {
     ".": (left, right) => {
         return (left + ".lookup('" + right + "')")
     },
-    "+": (left, right) => {
-        return "__aa_add(" + left + "," + right + ")"
-    }
+    "+": mapToFn("__aa_add"),
+    "-": mapToFn("__aa_sub"),
+    "*": mapToFn("__aa_multiply"),
+    "/": mapToFn("__aa_divide"),
 }
 
 // Map operations that are 1:1 between JS and AA
-const SHARED_OPS = ["-", "*", "/", "<", ">", "<=", ">="];
+const SHARED_OPS = ["<", ">", "<=", ">="];
 SHARED_OPS.forEach((op) => {
     BINARY_OPS[op] = mapToOp(op)
 })

@@ -19,61 +19,88 @@ global.Obj = Obj;
 global.Stream = Stream;
 global.CyclicRefError = CyclicRefError;
 global.ParseError = ParseError;
-global.__aa_add = (a, b) => {
-    let a_is_num = !isNaN(a);
-    let b_is_num = !isNaN(b)
-    if(a_is_num && b_is_num) {
-        return a + b
-    } else if (a_is_num){
-        // Number + other
-        switch (typeof b) {
-            case "string":
-                // 2 + " px" = String "2 px"
-                return "" + a + b
-            case "object":
-                let obj = b
-                if(obj.__type == "Stream") {
-                    // 2 + [1, 2, 3] = [3, 4, 5]
-                    return obj.map((x) => a + x)
-                } else if(obj.__type == "Obj") {
-                    // TODO: ? 2 + {year: 2020, city: "Austin"}
-                    throw Error("Unsupported operation + for Number + Object")
-                } else {
-                    // TODO
-                    throw Error("Unsupported operation + for Number + Object")
-                }
-            default:
-                throw Error("Unsupported operation + for Number + Unknown")
+
+
+// number (NaN), string, boolean, symbol, undefined, object (null), function
+function __aa_typeof(val) {
+    let t = typeof val;
+    if(t == "object") {
+        if(val.__type) {
+            // Stream or Obj
+            return val.__type
         }
-    } else if (b_is_num) {
-        // Other + number
-        switch (typeof a) {
-            case "string":
-                // "Width is " + 2 = "Width is 2"
-                // TODO: Call tostring 
-                return "" + a + b
-            case "object":
-                let obj = a
-                console.log(obj.__type)
-                if(obj.__type == "Stream") {
-                    // 2 + [1, 2, 3] = [3, 4, 5]
-                    return obj.map((x) => x + b)
-                } else if(obj.__type == "Obj") {
-                    // TODO: ? 2 + {year: 2020, city: "Austin"}
-                    throw Error("Unsupported operation + for Object + Number")
-                } else {
-                    // TODO
-                    throw Error("Unsupported operation + for Object + Number")
-                }
-            default:
-                console.log(typeof a)
-                throw Error("Unsupported operation + for Unknown + Number")
-        }        
-    } else {
-        // Other + other
     }
-    
+    return t
 }
+
+global.__aa_add_type_map = {
+    "number": {
+        "number": (a, b) => a + b,
+        "string": (a, b) => "" + a + b,
+        "Stream": (a, b) => b.map((x) => a + x)
+    },
+    "Stream": {
+        "number": (a, b) => a.map((x) => x + b),
+        "string": (a, b) => "" + a + b,
+        // TODO: Recursive add call? __aa_add(x, y)
+        "Stream": (a, b) => a.binaryOp(((x, y) => x + y), b)
+    },
+    "string": {
+        "string": (a, b) => a + b,
+        "number": (a, b) => a + b,
+        // TODO: String + obj -> toString
+    }
+    // TODO: Stream + stream
+}
+
+
+function genNumericOpMap(op, base) {
+    return {
+        "number": {
+            "number": base,
+            "Stream": (a, b) => b.map((x) => op(a,x))
+        },
+        "Stream": {
+            "number": (a, b) => a.map((x) => base(x, b)),
+            "Stream": (a, b) => a.binaryOp(op, b)
+        },
+    }
+}
+
+global.apply_type_map = (map, a, b, opname= " ") => {
+    let a_type = __aa_typeof(a);
+    let b_type = __aa_typeof(b);
+
+    let a_map = map[a_type];
+    if(a_map) {
+        let behavior = a_map[b_type];
+        if(behavior) {
+            return behavior(a, b)
+        }
+    }
+    throw Error("Unsupported operation" + opname + "for " + a_type + " and " + b_type)
+}
+
+
+global.__aa_add = (a, b) => {
+    return apply_type_map(__aa_add_type_map, a, b, " + ")
+}
+
+global.__aa_sub = (a, b) => {
+    return apply_type_map(__aa_sub_type_map, a, b, " - ")
+}
+
+global.__aa_multiply = (a, b) => {
+    return apply_type_map(__aa_multiply_type_map, a, b, " * ")
+}
+
+global.__aa_divide = (a, b) => {
+    return apply_type_map(__aa_divide_type_map, a, b, " / ")
+}
+
+global.__aa_sub_type_map = genNumericOpMap(global.__aa_sub, (a, b) => a - b);
+global.__aa_multiply_type_map = genNumericOpMap(global.__aa_multiply, (a, b) => a * b);
+global.__aa_divide_type_map = genNumericOpMap(global.__aa_divide, (a, b) => a / b);
 
 
 export function execJs(code) {
