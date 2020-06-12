@@ -63,38 +63,49 @@ test('Evaluate basic expressions', () => {
     expect(outputDict[3].value).toEqual(4)
 });
 
-function evalSingleExpr(expr) {
+function evalExprs(exprs) {
     let state ={
         cellsReducer: {
             byId: {
-                0: {
-                    id: 0,
+                "root": {
+                    id: "root",
                     name: "",
                     expr: "",
                     depends_on: [],
                     
-                    body: [1],
-                    params: []
-                },
-                1: {
-                    id: 1,
-                    name: "",
-                    expr: expr,
-                    depends_on: [],
-                    
                     body: [],
                     params: []
-                },                
+                },
             },
-            currentRoot: 0
+            currentRoot: "root"
         }
     }
 
+    exprs.forEach((expr, index) => {
+        state.cellsReducer.byId.root.body.push(index)
+        state.cellsReducer.byId[index] = {
+            id: index, 
+            name: expr.name ? expr.name : "",
+            expr: expr.expr, 
+            depends_on: expr.depends_on ? expr.depends_on : [],
+            body: expr.body ? expr.body : [],
+            params: expr.params ? expr.params : []
+        }
+    })
+
     let output = evaluate(state).results;
     let outputDict = listToDict(output)
-    return outputDict[1].value
+    return outputDict
 }
 
 test('Eval order of ops', () => {
-    expect(evalSingleExpr("(2 + 3) * 4")).toEqual(20)
+    expect(evalExprs([{expr: "(2 + 3) * 4"}])[0].value).toEqual(20)
+});
+
+test('Eval multiple args', () => {
+    expect(evalExprs([{
+            name: "add", "expr": "(a, b): a + b"
+        }, {
+            expr: "add(4, 5)"
+        }])[1].value).toEqual(9)
 });
