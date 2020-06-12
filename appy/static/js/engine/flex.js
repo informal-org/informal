@@ -212,7 +212,6 @@ export class Stream {
         // Return a stream
         
         if(index.__type === "Stream") {
-            console.log("Filtering by: " + index);
             // Filter by flags index
             return this.addOperation({
                 'type': OP_COMBINED_FILTER,
@@ -223,7 +222,6 @@ export class Stream {
                         if(elem.done) {
                             break;
                         } else {
-                            console.log("yielding: " + elem.value);
                             yield elem.value
                         }
                     }

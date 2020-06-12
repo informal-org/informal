@@ -168,12 +168,23 @@ test('Vector ops', () => {
     expect(Array.from(result[2].value.iter())).toEqual([true, true, true, false, false, false])
 
 
-
-
-
-
     // Index out of bounds.
     // Length check
 });
 
 
+
+test('Array filtering', () => {
+    let prog = [
+        {   name: "arr", expr: '[9, 9, 10, 12, 15, 23]' }, 
+        {   expr: "arr <= 10"  },
+        {   expr: "arr[arr <= 10]"  },
+    ]
+    let result = evalExprs(prog);
+    expect(Array.from(result[0].value.iter())).toEqual([9, 9, 10, 12, 15, 23])
+    expect(Array.from(result[1].value.iter())).toEqual([true, true, true, false, false, false])
+    expect(Array.from(result[2].value.iter())).toEqual([9, 9, 10])
+
+
+
+});
