@@ -54,6 +54,9 @@ global.__aa_add_type_map = {
 }
 
 
+// Comparison is only valid between objects of the same type
+
+
 function genNumericOpMap(op, base) {
     return {
         "number": {
@@ -78,6 +81,25 @@ function genBooleanOpMap(op, base) {
             "boolean": (a, b) => a.map((x) => base(x, b)),
             "Stream": (a, b) => a.binaryOp(op, b)
         },
+    }
+}
+
+function genComparisonOpMap(op, base) {
+    return {
+        "number": {
+            "number": (a, b) => base(a, b),
+            "Stream": (a, b) => b.map((x) => op(a,x))
+        },
+        "Stream": {
+            "number": (a, b) => a.map((x) => op(x, b)),
+            "string": (a, b) => a.map((x) => op(x, b)),
+            "Stream": (a, b) => a.binaryOp(((x, y) => op(x, y)), b)
+        },
+        "string": {
+            "string": (a, b) => base(a, b),
+            "Stream": (a, b) => b.map((x) => op(a, x))
+        }
+        // TODO: Object comparison        
     }
 }
 
@@ -161,6 +183,23 @@ global.__aa_divide_type_map = genNumericOpMap(global.__aa_divide, (a, b) => a / 
 global.__aa_mod_type_map = genNumericOpMap(global.__aa_mod, (a, b) => a % b);
 global.__aa_and_type_map = genBooleanOpMap(global.__aa_and, (a, b) => a && b);
 global.__aa_or_type_map = genBooleanOpMap(global.__aa_or, (a, b) => a || b);
+
+
+global.__aa_lt = (a, b) => { return apply_type_map(__aa_lt_type_map, a, b, " < ")   }
+global.__aa_gt = (a, b) => { return apply_type_map(__aa_gt_type_map, a, b, " > ")   }
+global.__aa_lte = (a, b) => { return apply_type_map(__aa_lte_type_map, a, b, " <= ")   }
+global.__aa_gte = (a, b) => { return apply_type_map(__aa_gte_type_map, a, b, " >= ")   }
+global.__aa_eq = (a, b) => { return apply_type_map(__aa_eq_type_map, a, b, " == ")   }
+
+
+
+
+global.__aa_lt_type_map = genComparisonOpMap(global.__aa_lt, (a, b) => a < b)
+global.__aa_gt_type_map = genComparisonOpMap(global.__aa_gt, (a, b) => a > b)
+global.__aa_lte_type_map = genComparisonOpMap(global.__aa_lte, (a, b) => a <= b)
+global.__aa_gte_type_map = genComparisonOpMap(global.__aa_gte, (a, b) => a >= b)
+// TODO: Special case for eq
+global.__aa_eq_type_map = genComparisonOpMap(global.__aa_eq, (a, b) => a === b)
 
 
 export function execJs(code) {

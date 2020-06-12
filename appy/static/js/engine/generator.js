@@ -37,7 +37,7 @@ const BINARY_OPS = {
 
     "and": mapToFn("__aa_and"),
     "or": mapToFn("__aa_or"),    
-    "==": mapToOp("==="),
+//    "==": mapToOp("==="),
     ".": (left, right) => {
         return (left + ".lookup('" + right + "')")
     },
@@ -46,13 +46,19 @@ const BINARY_OPS = {
     "*": mapToFn("__aa_multiply"),
     "/": mapToFn("__aa_divide"),
     "%": mapToFn("__aa_mod"),
+
+    "<": mapToFn("__aa_lt"),
+    ">": mapToFn("__aa_gt"),
+    "<=": mapToFn("__aa_lte"),
+    ">=": mapToFn("__aa_gte"),
+    "==": mapToFn("__aa_eq"),
 }
 
 // Map operations that are 1:1 between JS and AA
-const SHARED_OPS = ["<", ">", "<=", ">="];
-SHARED_OPS.forEach((op) => {
-    BINARY_OPS[op] = mapToOp(op)
-})
+// const SHARED_OPS = [];
+// SHARED_OPS.forEach((op) => {
+//     BINARY_OPS[op] = mapToOp(op)
+// })
 
 const UNARY_OPS = {
     "-": (left) => { return "-" + left },

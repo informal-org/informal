@@ -215,6 +215,7 @@ export class Stream {
 
     binaryOp(fn, right) {
         // todo: flags
+        // TODO: Proper handling of binary ops between streams of different lengths
         return this.addOperation({'type': OP_BINARY, 'fn': fn, 'right': right})
     }
 
@@ -242,6 +243,7 @@ export class Stream {
     }
 
     clone() {
+        // TODO: Change clone mechanism to point to parent stream instead.
         let s = new Stream([...this.sources]);
         s.operations = [...this.operations]      // Clone
         s.sized = this.sized;
