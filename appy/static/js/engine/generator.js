@@ -19,12 +19,6 @@ var ctx = ctx_init();
 // End wrapper function
 export const JS_POST_CODE = `return ctx.all();\n`;
 
-function mapToOp(op) {
-    return (left, right) => {
-        return "" + left + op + right
-    }
-}
-
 function mapToFn(fn) {
     return (left, right) => {
         return fn + "(" + left + "," + right + ")"
@@ -54,15 +48,10 @@ const BINARY_OPS = {
     "==": mapToFn("__aa_eq"),
 }
 
-// Map operations that are 1:1 between JS and AA
-// const SHARED_OPS = [];
-// SHARED_OPS.forEach((op) => {
-//     BINARY_OPS[op] = mapToOp(op)
-// })
 
 const UNARY_OPS = {
     "-": (left) => { return "-" + left },
-    "not": (left) => { return "!" + left }
+    "not": (left) => { return "__aa_not(" + left + ")" }
 }
 
 function objToJs(node, kv_list, env, name) {
@@ -208,18 +197,6 @@ function cellToJs(env, cell) {
     }
     return code
 }
-
-// export function genJs(env) {
-//     var code = JS_PRE_CODE;
-
-//     // TODO: Support for nested structures
-//     code += cellToJs(env, env.root);
-
-//     code += JS_POST_CODE;
-//     return code;
-// }
-
-
 
 export function genJs(env) {
     var code = JS_PRE_CODE;

@@ -109,3 +109,71 @@ test('Eval multiple args', () => {
             expr: "add(4, 5)"
         }])[1].value).toEqual(9)
 });
+
+test('Attribute access', () => {
+    let prog = [
+        {   name: "movie", expr: '"title": "The Martian"\n"year": 2015' }, 
+        {   expr: "movie.year"  },
+        {   expr: "movie.title"  }
+    ]
+    let result = evalExprs(prog);
+    expect(result[1].value).toEqual(2015)
+    expect(result[2].value).toEqual("The Martian")
+
+    // Accessing unknown attribute
+    // Expressions on attribute access
+});
+
+
+test('Array indexing', () => {
+    let prog = [
+        {   name: "arr", expr: '[0, 1, 2, 3, 4, 5]' }, 
+        {   expr: "arr[0]"  },
+        {   expr: "arr[2]"  },
+        {   expr: "arr[5]"  }
+    ]
+    let result = evalExprs(prog);
+    expect(Array.from(result[0].value.iter())).toEqual([0, 1, 2, 3, 4, 5])
+    expect(result[1].value).toEqual(0)
+    expect(result[2].value).toEqual(2)
+    expect(result[3].value).toEqual(5)
+
+    // Index out of bounds.
+    // Length check
+});
+
+test('Vector ops', () => {
+    let prog = [
+        {   name: "arr", expr: '[0, 1, 2, 3, 4, 5]' }, 
+        {   expr: "arr + 5"  },
+        {   expr: "arr > 2"  },
+        {   expr: "arr == 3"  },
+    ]
+    let result = evalExprs(prog);
+    console.log(result)
+    expect(Array.from(result[0].value.iter())).toEqual([0, 1, 2, 3, 4, 5])
+    expect(Array.from(result[1].value.iter())).toEqual([5, 6, 7, 8, 9, 10])
+    expect(Array.from(result[2].value.iter())).toEqual([false, false, false, true, true, true])
+    expect(Array.from(result[3].value.iter())).toEqual([false, false, false, true, false, false])
+
+
+    prog = [
+        {   name: "arr", expr: '[0, 1, 2, 3, 4, 5]' }, 
+        {   expr: "arr > 2 == False"  },
+        {   expr: "not (arr > 2)"  },
+    ]
+    result = evalExprs(prog);
+    expect(Array.from(result[0].value.iter())).toEqual([0, 1, 2, 3, 4, 5])
+    expect(Array.from(result[1].value.iter())).toEqual([true, true, true, false, false, false])
+    expect(Array.from(result[2].value.iter())).toEqual([true, true, true, false, false, false])
+
+
+
+
+
+
+    // Index out of bounds.
+    // Length check
+});
+
+

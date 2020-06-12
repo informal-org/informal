@@ -53,3 +53,8 @@ test('test multi-param methods', () => {
     expect(parseExpr("(a, b): a + b").toString()).toEqual("(: ((grouping) a b) (+ a b))")
 });
 
+
+test('test equality', () => {
+    expect(parseExpr("x > 7 == False").toString()).toEqual("(== (> x 7) (False))")
+
+});

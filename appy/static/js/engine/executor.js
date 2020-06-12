@@ -193,6 +193,17 @@ global.__aa_eq = (a, b) => { return apply_type_map(__aa_eq_type_map, a, b, " == 
 
 
 
+global.__aa_not = (a) => { 
+    let a_type = __aa_typeof(a);
+    if(a_type == "Stream") {
+        return a.map((x) => __aa_not(x))
+    } else {
+        // Convert everything else to its boolean equivalent
+        return !!a        
+    }
+}
+
+
 
 global.__aa_lt_type_map = genComparisonOpMap(global.__aa_lt, (a, b) => a < b)
 global.__aa_gt_type_map = genComparisonOpMap(global.__aa_gt, (a, b) => a > b)

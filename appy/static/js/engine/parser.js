@@ -156,7 +156,7 @@ export class ASTNode {
         else if(kw === '(') { kw = '(grouping)' }
 
         let repr = "";
-        if(this.value !== null) {
+        if(Array.isArray(this.value)) {
             this.value.forEach((val) => {
                 repr += " " + val.toString();
             })
@@ -187,13 +187,24 @@ new Literal("True", true)
 new Literal("False", false)
 new Literal("None", null)
 
+// , 10
 
-new InfixRight("or", 30)
-new InfixRight("and", 40)
+// And binds slightly more than or.
+new InfixRight("or", 20)
+new InfixRight("and", 25)
+
+// Ensure equality checks lower than comparison ops
+new InfixRight("==", 30)
+new InfixRight("!=", 30)
+
+
+new InfixRight("<", 40)
+new InfixRight(">", 40)
+new InfixRight("<=", 40)
+new InfixRight(">=", 40)
+
 
 new Infix("in", 60)
-
-new Infix(".", 150)
 
 
 // Prefix: when used as Not
@@ -202,25 +213,22 @@ new Mixfix("not", 60, Prefix.null_denotation)
 new Infix("is", 60)     // TODO
 
 
-new InfixRight("==", 40)
-new InfixRight("<", 40)
-new InfixRight(">", 40)
-new InfixRight("<=", 40)
-new InfixRight(">=", 40)
 
 // Skip adding a node for unary plus.
-new Infix("+", 50).null_denotation = (node, token_stream) => {
+new Infix("+", 80).null_denotation = (node, token_stream) => {
     return expression(token_stream, 100)
 }
 // Support unary minus
-new Infix("-", 50).null_denotation = Prefix.null_denotation
+new Infix("-", 80).null_denotation = Prefix.null_denotation
 
-new Infix("*", 60)
-new Infix("/", 60)
+new Infix("*", 85)
+new Infix("/", 85)
 
 // More binding power than multiplication, but less than unary minus (100)
-new InfixRight("**", 70)
+new InfixRight("**", 88)
 
+
+new Infix(".", 150)
 
 const SQ_BK = new Mixfix("[", 150);
 // Defining an array
@@ -315,7 +323,7 @@ START_BLOCK.null_denotation = (node, tokenStream) => {
 
 
 
-new Infix(":", 80).left_denotation = (left, node, tokenStream) => {
+new Infix(":", 90).left_denotation = (left, node, tokenStream) => {
     node.node_type = "map"
     // Key, value. Store in a list which will be appended upon
     // node.value = [left, expression(tokenStream, 80)]
