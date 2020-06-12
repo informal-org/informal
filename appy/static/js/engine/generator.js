@@ -26,15 +26,14 @@ function mapToFn(fn) {
 }
 
 const BINARY_OPS = {
-    // "and": mapToOp("&&"),
-    // "or": mapToOp("||"),
-
     "and": mapToFn("__aa_and"),
     "or": mapToFn("__aa_or"),    
-//    "==": mapToOp("==="),
+
     ".": (left, right) => {
         return (left + ".lookup('" + right + "')")
     },
+
+    
     "+": mapToFn("__aa_add"),
     "-": mapToFn("__aa_sub"),
     "*": mapToFn("__aa_multiply"),
@@ -45,6 +44,7 @@ const BINARY_OPS = {
     ">": mapToFn("__aa_gt"),
     "<=": mapToFn("__aa_lte"),
     ">=": mapToFn("__aa_gte"),
+
     "==": mapToFn("__aa_eq"),
     "!=": mapToFn("__aa_neq"),
 }

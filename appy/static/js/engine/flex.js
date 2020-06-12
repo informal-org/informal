@@ -147,6 +147,7 @@ export class Obj {
 const OP_FILTER = 1;
 const OP_MAP = 2;
 const OP_BINARY = 3;
+const OP_COMBINED_FILTER = 4;
 
 export class Stream {
     constructor(sources) {
@@ -170,10 +171,11 @@ export class Stream {
         // it will store a sliding window and never more than the window bounds.
     }
 
-    get(index) {
+    elementAt(index) {
         // TODO: Support negative indexes
         // Get the element at a given index. 
         // Requires serializing the data up to that point into memory
+
         if(index < this.__cached.length) {
             return this.__cached[index]
         } else {
@@ -197,6 +199,40 @@ export class Stream {
             // assert: cached length = index
             return this.__cached[index]
         }
+
+    }
+
+    get(index) {
+        // Index can be one of these:
+        // Single index - return single element at index
+        // (Future) Single key - return single element by that primary key
+        // (Future) List of keys - return list of elements where keys match.
+        // (Future) List of indexes - return list of elements at indexes
+        // List of boolean flags - return list where flag is true.
+        // Return a stream
+        
+        if(index.__type === "Stream") {
+            console.log("Filtering by: " + index);
+            // Filter by flags index
+            return this.addOperation({
+                'type': OP_COMBINED_FILTER,
+                'fn': function* () {
+                    let it = index.iter();
+                    while(true) {
+                        let elem = it.next();
+                        if(elem.done) {
+                            break;
+                        } else {
+                            console.log("yielding: " + elem.value);
+                            yield elem.value
+                        }
+                    }
+                }
+            })
+        } else {
+            return this.elementAt(index)
+        }
+
     }
 
     where(expr) {
@@ -339,7 +375,23 @@ export class Stream {
                     } else {
                         value = op.fn(value, right_elem.value)
                     }
-
+                } else if(op.type == OP_COMBINED_FILTER) {
+                    let right;
+                    if(right_idx < right_iters.length) {
+                        right = right_iters[right_idx++]
+                    } else {
+                        // Note: op.fn here vs op.right above since this isn't really a binary op
+                        // More of an op between two streams
+                        right = op.fn();
+                        right_iters.push(right);
+                        right_idx++;
+                    }
+                    
+                    let right_val = right.next()
+                    if(right_val.done || !right_val.value) {
+                        finished = false;
+                        break;
+                    }
                 }
             }
             if(finished) {
