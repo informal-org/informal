@@ -67,16 +67,35 @@ function genNumericOpMap(op, base) {
     }
 }
 
+
+function genBooleanOpMap(op, base) {
+    return {
+        "boolean": {
+            "boolean": base,
+            "Stream": (a, b) => b.map((x) => op(a,x))
+        },
+        "Stream": {
+            "boolean": (a, b) => a.map((x) => base(x, b)),
+            "Stream": (a, b) => a.binaryOp(op, b)
+        },
+    }
+}
+
+global.get_behavior = (map, a_type, b_type) => {
+    let a_map = map[a_type];
+    if(a_map) {
+        return a_map[b_type]
+    }
+    // Undefined
+}
+
 global.apply_type_map = (map, a, b, opname= " ") => {
     let a_type = __aa_typeof(a);
     let b_type = __aa_typeof(b);
 
-    let a_map = map[a_type];
-    if(a_map) {
-        let behavior = a_map[b_type];
-        if(behavior) {
-            return behavior(a, b)
-        }
+    let behavior = get_behavior(map, a_type, b_type)
+    if(behavior) {
+        return behavior(a, b)
     }
     throw Error("Unsupported operation" + opname + "for " + a_type + " and " + b_type)
 }
@@ -98,9 +117,50 @@ global.__aa_divide = (a, b) => {
     return apply_type_map(__aa_divide_type_map, a, b, " / ")
 }
 
+global.__aa_mod = (a, b) => {
+    return apply_type_map(__aa_mod_type_map, a, b, " % ")
+}
+
+global.apply_boolean = (map, a, b, opname=" ") => {
+    let a_type = __aa_typeof(a);
+    let b_type = __aa_typeof(b);
+    
+    let a_val =a;
+    let b_val = b;
+    if(a_type != "Stream") {
+        // Convert everything else to its boolean equivalent
+        a_val = !!a
+        a_type = "boolean"
+    }
+    if(b_type != "Stream") {
+        b_val = !!b
+        b_type = "boolean"
+    }
+    // TODO: Handling of empty array?
+    let behavior = get_behavior(map, a_type, b_type)
+    if(behavior) {
+        return behavior(a, b)
+    }
+    // There should be no unhandled cases
+}
+
+
+global.__aa_and = (a, b) => {
+    return apply_boolean(__aa_and_type_map, a, b, " and ")
+}
+
+
+global.__aa_or = (a, b) => {
+    return apply_boolean(__aa_or_type_map, a, b, " or ")
+}
+
+
 global.__aa_sub_type_map = genNumericOpMap(global.__aa_sub, (a, b) => a - b);
 global.__aa_multiply_type_map = genNumericOpMap(global.__aa_multiply, (a, b) => a * b);
 global.__aa_divide_type_map = genNumericOpMap(global.__aa_divide, (a, b) => a / b);
+global.__aa_mod_type_map = genNumericOpMap(global.__aa_mod, (a, b) => a % b);
+global.__aa_and_type_map = genBooleanOpMap(global.__aa_and, (a, b) => a && b);
+global.__aa_or_type_map = genBooleanOpMap(global.__aa_or, (a, b) => a || b);
 
 
 export function execJs(code) {

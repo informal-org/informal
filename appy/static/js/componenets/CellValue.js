@@ -67,7 +67,7 @@ export default class CellValue extends React.PureComponent {
         let obj = this.props.value;
         let i =0;
         console.log(obj)
-        if(!obj) {
+        if(obj === undefined || obj === null) {
             return <div className="Cell-cellValue"> &nbsp; </div>
         }
         if(obj.data) {
