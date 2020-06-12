@@ -209,7 +209,7 @@ new Infix("in", 60)
 
 // Prefix: when used as Not
 // Infix: "not in" TODO
-new Mixfix("not", 60, Prefix.null_denotation)
+new Mixfix("not", 110, Prefix.null_denotation)  // was 60. Changed to 110
 new Infix("is", 60)     // TODO
 
 
@@ -223,6 +223,7 @@ new Infix("-", 80).null_denotation = Prefix.null_denotation
 
 new Infix("*", 85)
 new Infix("/", 85)
+new Infix("%", 85)
 
 // More binding power than multiplication, but less than unary minus (100)
 new InfixRight("**", 88)

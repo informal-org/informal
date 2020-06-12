@@ -46,6 +46,7 @@ const BINARY_OPS = {
     "<=": mapToFn("__aa_lte"),
     ">=": mapToFn("__aa_gte"),
     "==": mapToFn("__aa_eq"),
+    "!=": mapToFn("__aa_neq"),
 }
 
 

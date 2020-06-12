@@ -84,6 +84,7 @@ function genBooleanOpMap(op, base) {
     }
 }
 
+// <, >=
 function genComparisonOpMap(op, base) {
     return {
         "number": {
@@ -93,13 +94,18 @@ function genComparisonOpMap(op, base) {
         "Stream": {
             "number": (a, b) => a.map((x) => op(x, b)),
             "string": (a, b) => a.map((x) => op(x, b)),
-            "Stream": (a, b) => a.binaryOp(((x, y) => op(x, y)), b)
+            "boolean": (a, b) => a.map((x) => op(x, b)),
+            "Stream": (a, b) => a.binaryOp(((x, y) => op(x, y)), b),
         },
         "string": {
             "string": (a, b) => base(a, b),
             "Stream": (a, b) => b.map((x) => op(a, x))
+        },
+        "boolean": {
+            "boolean": (a, b) => base(a, b),
+            "Stream": (a, b) => a.map((x) => op(x, b))
         }
-        // TODO: Object comparison        
+        // TODO: Object comparison
     }
 }
 
@@ -189,17 +195,43 @@ global.__aa_lt = (a, b) => { return apply_type_map(__aa_lt_type_map, a, b, " < "
 global.__aa_gt = (a, b) => { return apply_type_map(__aa_gt_type_map, a, b, " > ")   }
 global.__aa_lte = (a, b) => { return apply_type_map(__aa_lte_type_map, a, b, " <= ")   }
 global.__aa_gte = (a, b) => { return apply_type_map(__aa_gte_type_map, a, b, " >= ")   }
-global.__aa_eq = (a, b) => { return apply_type_map(__aa_eq_type_map, a, b, " == ")   }
 
+global.__aa_eq = (a, b) => { 
+    let a_type = __aa_typeof(a);
+    let b_type = __aa_typeof(b);
 
+    if(a_type == "Stream") {
+        if(b_type == "Stream") {
+            return a.binaryOp(((x, y) => x === y), b)
+        } else {
+            return a.map((x) => x == b)
+        }
+    }
+    else if(b_type == "Stream") {
+        // a_type != Stream
+        return b.map((x) => a === x)
+    }
+    else if(a_type == b_type) {
+        return a === b
+    }
+    else {
+        // Strong typing. No coercion between types. Assuming all numeric types result as number
+        // TODO: Separate isNaN operator since NaN != NaN
+        return false
+    }
+}
+
+global.__aa_neq = (a, b) => {
+    return __aa_not(_aa_eq(a, b))
+}
 
 global.__aa_not = (a) => { 
     let a_type = __aa_typeof(a);
     if(a_type == "Stream") {
         return a.map((x) => __aa_not(x))
     } else {
-        // Convert everything else to its boolean equivalent
-        return !!a        
+        // Auto-cast to bool and not it
+        return !a
     }
 }
 
