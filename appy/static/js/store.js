@@ -178,10 +178,13 @@ const cellsSlice = createSlice({
             state.focus = action.payload
         },
         moveFocus: (state, action) => {
+            console.log("Move focus: " + action);
             let currentIndex = state.byId[state.currentRoot].body.indexOf(state.focus);
+            console.log(currentIndex);
             if(currentIndex !== -1){
                 let newIndex = currentIndex + action.payload;
-                if(newIndex >= 0 && newIndex <= state.byId[state.currentRoot].body.length){
+                console.log("New index: " + newIndex);
+                if(newIndex >= 0 && newIndex < state.byId[state.currentRoot].body.length){
                     state.focus = state.byId[state.currentRoot].body[newIndex];
                 }
             }
@@ -230,7 +233,7 @@ const setInput = cellsSlice.actions.setInput;
 const setName = cellsSlice.actions.setName;
 const saveOutput = cellsSlice.actions.saveOutput;
 const setFocus = cellsSlice.actions.setFocus;
-const moveFocus = cellsSlice.actions.moveFocus;
+export const moveFocus = cellsSlice.actions.moveFocus;
 const setModified = cellsSlice.actions.setModified;
 const initCells = cellsSlice.actions.initCells;
 export const addParam = cellsSlice.actions.addParam;

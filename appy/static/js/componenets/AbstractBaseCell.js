@@ -1,6 +1,13 @@
 import React from "react";
 import { formatCellOutput } from "../utils"
 
+
+const KEY_UP = 38;
+const KEY_DOWN = 40;
+const KEY_LEFT = 37;
+const KEY_RIGHT = 38;
+const KEY_ESC = 27;
+
 // Abstract base cell that all other cell types inherit from
 // Contains common functionality.
 export default class AbstractBaseCell extends React.Component {
@@ -18,23 +25,24 @@ export default class AbstractBaseCell extends React.Component {
     }
 
     onKeyDown = (event) => {
+        console.log(event)
         // Only process events that happen directly on the outer div, not in inner inputs, etc.
         let isCellTarget = event.target.dataset["cell"] === this.props.cell.id;
         if(isCellTarget){
-            // Deferred - up = 38, down=40. Requires more complex calculation to get grid pos.
-            if (event.keyCode == 37) {
-                // Left arrow
+            console.log("is target cell: " + event.keyCode)
+            if (event.keyCode == KEY_UP) {   // 
                 this.props.moveFocus(-1);
+                event.stopPropagation();
             }
-            else if (event.keyCode == 39) {
-                // Right arrow
+            else if (event.keyCode == KEY_DOWN) {
                 this.props.moveFocus(1);
-            } else if (event.keyCode == 27) {
+                event.stopPropagation();
+            } else if (event.keyCode == KEY_ESC) {
                 // ESC with cell selected. Clear focus.
                 this.clearFocus();
+                event.stopPropagation();
             }
-        } else if (event.keyCode == 27) {
-            // ESC
+        } else if (event.keyCode == KEY_ESC) {
             // De-select input and set focus back on cells
             event.target.blur();
             event.target.closest(".Cell").focus();

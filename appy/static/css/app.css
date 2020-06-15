@@ -53,6 +53,8 @@
   cursor: pointer; 
   margin-top: -1px;
 
+  outline: none;
+
 }
 
 
@@ -89,6 +91,7 @@
   /* background-color: #EBF8FF;  Blue 100 */
   outline: none;
   border-color: #4299E1;
+  border-width: 2px;
 }
 
 .Cell-edit {
@@ -159,7 +162,7 @@
 }
 
 .Cell.Cell--error {
-  @apply border-2 border-red-500;
+  @apply border border-red-500;
   white-space: normal;
 }
 .Cell-cellError {

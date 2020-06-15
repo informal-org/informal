@@ -1,9 +1,16 @@
 // Based on prism Python highlighting
 Prism.languages.appassembly = {
-	'comment': {
-		pattern: /(^|[^\\])#.*/,
-		lookbehind: true
-	},
+	'comment': [
+		{
+			pattern: /(^|[^\\])\/\*[\s\S]*?(?:\*\/|$)/,
+			lookbehind: true
+		},
+		{
+			pattern: /(^|[^\\:])\/\/.*/,
+			lookbehind: true,
+			greedy: true
+		}
+	],
 	'string': {
 		pattern: /(?:[rub]|rb|br)?("|')(?:\\.|(?!\1)[^\\\r\n])*\1/i,
 		greedy: true
