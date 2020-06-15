@@ -3,6 +3,8 @@ import GridCell from "./GridCell.js"
 import GridList from "./GridList.js"
 import EditableLabel from "./EditableLabel.js"
 import { addCell, patchView } from "../store.js"
+import { KEY_DOWN, KEY_UP, KEY_ENTER, KEY_ESC } from "../constants"
+import { $CombinedState } from "redux";
 
 
 export default class Grid extends React.Component {
@@ -39,16 +41,36 @@ export default class Grid extends React.Component {
         }
         return ""
     }
+    onKeyDown = (event) => {
+        if (event.keyCode == KEY_UP) {   // 
+            event.stopPropagation();
+            this.props.moveFocus(-1);
+        }
+        else if (event.keyCode == KEY_DOWN) {
+            event.stopPropagation();
+            this.props.moveFocus(1);
+        } else if (event.keyCode == KEY_ESC) {
+            // ESC with cell selected. Clear focus.
+            event.stopPropagation();
+            this.props.setFocus(null);
+        } else if(event.keyCode == KEY_ENTER) {
+            this.props.setOpen(true);
+            event.stopPropagation();
+        }
+
+    }
     render() {
         const cells = this.props.cells.map((cell) => {
             if(cell.type === "cell"){
                 return <GridCell 
                 cell={cell}
                 isFocused={this.isFocused(cell)}
+                isOpen={this.props.open}
                 isError={false}
                 key={cell.id}
                 setModified={this.props.setModified}
                 setFocus={this.props.setFocus}
+                setOpen={this.props.setOpen}
                 moveFocus={this.props.moveFocus}
                 setInput={this.props.setInput}
                 setName={this.props.setName}
@@ -68,6 +90,7 @@ export default class Grid extends React.Component {
                 key={cell.id}
                 setModified={this.props.setModified}
                 setFocus={this.props.setFocus}
+                setOpen={this.props.setOpen}
                 moveFocus={this.props.moveFocus}
                 setInput={this.props.setInput}
                 setName={this.props.setName}
@@ -128,7 +151,7 @@ export default class Grid extends React.Component {
 
 
         
-            <div className="Grid">
+            <div className="Grid" onKeyDown={this.onKeyDown}>
                 {cells}
 
                 <button className="btn btn-full btn-outline btn-square fg-primary" onClick={this.addCellClick}> + Add line </button>

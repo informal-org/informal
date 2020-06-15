@@ -57,7 +57,7 @@ const initialState = {
         byName: {},
         focus: null,  // ID of the element selected         // TODO: Move to component
         modified: false,  // Allow initial evaluation,      // TODO: Remove?
-
+        open: false,
         currentRoot: ROOT_ID, // TODO. Use this and remove allIds. Allows top-level re-focus
     },
     view: {
@@ -177,6 +177,9 @@ const cellsSlice = createSlice({
         setFocus: (state, action) => {
             state.focus = action.payload
         },
+        setOpen: (state, action) => {
+            state.open = action.payload
+        },
         moveFocus: (state, action) => {
             console.log("Move focus: " + action);
             let currentIndex = state.byId[state.currentRoot].body.indexOf(state.focus);
@@ -186,8 +189,10 @@ const cellsSlice = createSlice({
                 console.log("New index: " + newIndex);
                 if(newIndex >= 0 && newIndex < state.byId[state.currentRoot].body.length){
                     state.focus = state.byId[state.currentRoot].body[newIndex];
+                    document.getElementById("Cell_" + state.focus).focus();
                 }
             }
+
         }
     }
 });
@@ -233,7 +238,8 @@ const setInput = cellsSlice.actions.setInput;
 const setName = cellsSlice.actions.setName;
 const saveOutput = cellsSlice.actions.saveOutput;
 const setFocus = cellsSlice.actions.setFocus;
-export const moveFocus = cellsSlice.actions.moveFocus;
+const setOpen = cellsSlice.actions.setOpen;
+const moveFocus = cellsSlice.actions.moveFocus;
 const setModified = cellsSlice.actions.setModified;
 const initCells = cellsSlice.actions.initCells;
 export const addParam = cellsSlice.actions.addParam;
@@ -347,6 +353,7 @@ export const mapStateToProps = (state /*, ownProps*/) => {
         cells: state.cellsReducer.byId[state.cellsReducer.currentRoot].body.map((id) => state.cellsReducer.byId[id]),
         byId: state.cellsReducer.byId,
         focus: state.cellsReducer.focus,
+        open: state.cellsReducer.open,
         view_name: state.viewReducer.name,
         view_pattern: state.viewReducer.pattern,
         view_m_get: state.viewReducer.method_get,
@@ -354,5 +361,5 @@ export const mapStateToProps = (state /*, ownProps*/) => {
     }
 }
 
-export const mapDispatchToProps = {setFocus, setInput, setName, reEvaluate,
+export const mapDispatchToProps = {setFocus, setOpen, setInput, setName, reEvaluate,
     moveFocus, setModified, addCell, initView, patchView, addParam, setParam, addRow}

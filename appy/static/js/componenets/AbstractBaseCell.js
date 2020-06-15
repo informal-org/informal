@@ -1,12 +1,7 @@
 import React from "react";
 import { formatCellOutput } from "../utils"
+import { KEY_DOWN, KEY_UP, KEY_ENTER, KEY_ESC } from "../constants"
 
-
-const KEY_UP = 38;
-const KEY_DOWN = 40;
-const KEY_LEFT = 37;
-const KEY_RIGHT = 38;
-const KEY_ESC = 27;
 
 // Abstract base cell that all other cell types inherit from
 // Contains common functionality.
@@ -17,6 +12,7 @@ export default class AbstractBaseCell extends React.Component {
 
     setFocus = (event) => {
         this.props.reEvaluate();    // Potentially re-evaluate the result of previous cell modification.
+        this.props.setOpen(true);
         this.props.setFocus(this.props.cell.id);
     }
 
@@ -27,9 +23,9 @@ export default class AbstractBaseCell extends React.Component {
     onKeyDown = (event) => {
         console.log(event)
         // Only process events that happen directly on the outer div, not in inner inputs, etc.
-        let isCellTarget = event.target.dataset["cell"] === this.props.cell.id;
-        if(isCellTarget){
-            console.log("is target cell: " + event.keyCode)
+        let isCellBase = event.target.dataset["cell"] === this.props.cell.id;
+        let isCellInput = event.target.tagName === "INPUT" || event.target.tagName == "TEXTAREA";
+        if(isCellBase){
             if (event.keyCode == KEY_UP) {   // 
                 this.props.moveFocus(-1);
                 event.stopPropagation();
@@ -42,10 +38,28 @@ export default class AbstractBaseCell extends React.Component {
                 this.clearFocus();
                 event.stopPropagation();
             }
-        } else if (event.keyCode == KEY_ESC) {
+        } else if(isCellInput && event.keyCode === KEY_ENTER && event.shiftKey) {
+            // Shift-enter = save and evaluate. 
+            // We chose shift-enter rather than enter so new line works consistently across desktop
+            // and mobile (iOS doesn't support soft-enter).
+            event.target.blur();
+            event.target.closest(".Cell").focus();
+            event.stopPropagation();
+            this.props.reEvaluate();
+            this.props.setOpen(false)
+        }
+        else if (!isCellInput && event.keyCode == KEY_ENTER) {
+            event.target.blur();
+            event.target.closest(".Cell").focus();
+            event.stopPropagation();
+            this.props.setOpen(true);
+        }
+        else if (event.keyCode == KEY_ESC) {
             // De-select input and set focus back on cells
             event.target.blur();
             event.target.closest(".Cell").focus();
+            event.stopPropagation();
+            this.props.setOpen(false);
         }
     }
 

@@ -86,8 +86,11 @@
   background-color: white;
 }
 
-.Cell.Cell--focused {
+.Cell.Cell--open {
   padding: 0;
+}
+
+.Cell.Cell--focused {
   /* background-color: #EBF8FF;  Blue 100 */
   outline: none;
   border-color: #4299E1;
@@ -165,6 +168,11 @@
   @apply border border-red-500;
   white-space: normal;
 }
+
+.Cell.Cell--focused.Cell--error {
+  border-width: 2px;
+}
+
 .Cell-cellError {
   @apply text-red-500;
 }

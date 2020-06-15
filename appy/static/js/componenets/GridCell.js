@@ -42,8 +42,6 @@ export default class GridCell extends AbstractBaseCell {
     }
 
     addRow = () => {
-        console.log("Adding row clicked")
-
         window.store.dispatch(addRow({
             id: this.props.cell.id
         }))
@@ -75,10 +73,14 @@ export default class GridCell extends AbstractBaseCell {
     }
 
     render() {
+        let rendered;
         let className = "Cell";
 
         if(this.props.isFocused){
             className += " Cell--focused";
+            if(this.props.isOpen) {
+                className += " Cell--open"
+            }
         }
         let cellResults = null;
         let error = cellGet(this.props.cell, "error")
@@ -89,17 +91,27 @@ export default class GridCell extends AbstractBaseCell {
             cellResults = <CellValue value={this.props.cell.value}></CellValue>
         }
 
-        let cellBody = null;
-        if(this.props.isFocused){
-            cellBody = <form onSubmit={this.saveCell} className="Cell-edit container-fluid">
+        if(this.props.isFocused && this.props.isOpen){
+            return <div className={className}
+                id={"Cell_" + this.props.cell.id}
+                onClick={this.setFocus}
+                onKeyDown={this.onKeyDown}
+                autoFocus
+                tabIndex="0" data-cell={this.props.cell.id}>
 
-
+            <form onSubmit={this.saveCell} className="Cell-edit container-fluid">
             <i className="fas fa-expand float-right text-gray-700 maximize"></i>
 
             <div className="row">
                 <div className="col-sm-2 inline-block Cell-nameHeader">
                     <label htmlFor="variable_name">Name: </label>
-                    <input id="variable_name" className="inline-block Cell-cellName Cell-cellName--edit" placeholder="Name" type="text" onChange={this.changeName} value={this.state.name}></input> 
+                    <input id="variable_name" 
+                    className="inline-block Cell-cellName Cell-cellName--edit" 
+                    placeholder="Name" 
+                    type="text" 
+                    onChange={this.changeName} 
+                    value={this.state.name}
+                    autoComplete="off"></input> 
                 </div>
 
                 {this.renderParams()}
@@ -136,34 +148,27 @@ export default class GridCell extends AbstractBaseCell {
 
             <input type="submit" className="hidden"/>
           </form>
+          </div>
         } else {
-            cellBody = <span className="row">
+            return <div className={className}
+                id={"Cell_" + this.props.cell.id}
+                onClick={this.setFocus}
+                onKeyDown={this.onKeyDown}
+                tabIndex="0" data-cell={this.props.cell.id}>
+                <span className="row">
+                    <div className="Cell-cellName col-sm-2">{this.state.name}</div>
 
-            <div className="Cell-cellName col-sm-2">{this.state.name}</div>
+                    <div className="col-sm-9">
+                        {cellResults}
+                    </div>
 
-            <div className="col-sm-9">
-                {cellResults}
+                    <div className="col-sm-1 text-right">
+                        <span className="">&#x2026;</span>
+                    </div>
+                </span>
             </div>
-            
-            <div className="col-sm-1 text-right">
-            <span className="">
-                {/* &#xFF0B; */}
-                &#x2026;
-
-            </span>
-            </div>
-
-
-
-            </span>
         }
 
-        return <div className={className} 
-        onClick={this.setFocus} 
-        onKeyDown={this.onKeyDown}
-        tabIndex="0" data-cell={this.props.cell.id}>
-            {cellBody}
-        </div>
     }
 
     
