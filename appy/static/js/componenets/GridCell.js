@@ -92,12 +92,23 @@ export default class GridCell extends AbstractBaseCell {
         }
 
         if(this.props.isFocused && this.props.isOpen){
+            let cell_id = this.props.cell.id;
+            setTimeout(() => {
+                // If the current cell is not focused when open, set focus
+                let currentFocus = document.activeElement;
+                let targetFocus = "Cell_" + cell_id;
+                let isSubFocus = currentFocus.closest("#" + targetFocus);
+                if(!isSubFocus) {
+                    document.getElementById(targetFocus).focus();
+                }
+                
+            }, 100)
             return <div className={className}
-                id={"Cell_" + this.props.cell.id}
+                id={"Cell_" + cell_id}
                 onClick={this.setFocus}
                 onKeyDown={this.onKeyDown}
                 autoFocus
-                tabIndex="0" data-cell={this.props.cell.id}>
+                tabIndex="0" data-cell={cell_id}>
 
             <form onSubmit={this.saveCell} className="Cell-edit container-fluid">
             <i className="fas fa-expand float-right text-gray-700 maximize"></i>
