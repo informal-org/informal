@@ -184,7 +184,5 @@ test('Array filtering', () => {
     expect(Array.from(result[0].value.iter())).toEqual([9, 9, 10, 12, 15, 23])
     expect(Array.from(result[1].value.iter())).toEqual([true, true, true, false, false, false])
     expect(Array.from(result[2].value.iter())).toEqual([9, 9, 10])
-
-
-
 });
+

@@ -69,6 +69,7 @@ export class Obj {
     }
 
     isMatch(key, args) {
+        
         // Pattern match against the key, not the value
         // The value may be a function, but we're checking the key match
         if(Array.isArray(key)) {
@@ -199,7 +200,6 @@ export class Stream {
             // assert: cached length = index
             return this.__cached[index]
         }
-
     }
 
     get(index) {
@@ -231,10 +231,6 @@ export class Stream {
             return this.elementAt(index)
         }
 
-    }
-
-    where(expr) {
-        
     }
 
     filter(fn) {

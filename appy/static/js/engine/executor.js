@@ -13,12 +13,20 @@ class ParseError extends Error {
     }
 }
 
+class RuntimeError extends Error {
+    constructor(message) {
+        super(message);
+        this.name = "RuntimeError"
+    }
+}
+
 var global = window || global;
 
 global.Obj = Obj;
 global.Stream = Stream;
 global.CyclicRefError = CyclicRefError;
 global.ParseError = ParseError;
+global.RuntimeError = RuntimeError;
 
 
 // number (NaN), string, boolean, symbol, undefined, object (null), function

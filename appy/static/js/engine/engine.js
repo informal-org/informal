@@ -88,10 +88,13 @@ function runGenerated(env) {
     let output = [];
 
     env.root.body.forEach((cell) => {
+        var cellResult = result[cell.id];
+        if(cellResult === undefined) {cellResult = {}}
+
         output.push({
             id: cell.id,
-            value: result[cell.id],
-            error: cell.error
+            value: cellResult.value,
+            error: cell.error ? cell.error : cellResult.error
         })
     })
 

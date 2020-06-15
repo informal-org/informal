@@ -8,8 +8,10 @@ export const JS_PRE_CODE = `
 function ctx_init() {
     var ctx = {};
     return {
-        set: function(k, v) { ctx[k] = v; },
-        get: function(k) { return ctx[k]; },
+        set: function(k, v) { ctx[k] = {value: v}; },
+        setError: function(k, v) { ctx[k] = {error: v}; },
+        get: function(k) { return ctx[k].value; },
+        getError: function(k) { return ctx[k].error; },
         all: function() { return ctx }
     };
 };
@@ -182,8 +184,8 @@ function cellToJs(env, cell) {
     var variable_name = cell.name ? cell.name : "__" + cell.id;
     let expr = astToJs(cell.parsed, env, variable_name);
     if(expr) {
-        code = expr;
-        code += `\nctx.set("${cell.id}", ${variable_name});\n`;
+        code = "\ntry { \n" + expr + `\nctx.set("${cell.id}", ${variable_name});\n` + "}"
+        code += `catch(err) { console.log(err); ctx.setError("${cell.id}", err.message); }\n`
     } else if(cell.expr) {  // If it has an expression, but it could not be parsed
         // TODO
         // code += `ctx.set("${cell.id}", new ParseError());\n`;
