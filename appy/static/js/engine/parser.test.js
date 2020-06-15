@@ -55,6 +55,6 @@ test('test multi-param methods', () => {
 
 
 test('test equality', () => {
-    expect(parseExpr("x > 7 == False").toString()).toEqual("(== (> x 7) (False))")
+    expect(parseExpr("x > 7 == false").toString()).toEqual("(== (> x 7) (false))")
 
 });

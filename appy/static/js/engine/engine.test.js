@@ -157,7 +157,7 @@ test('Vector ops', () => {
 
     prog = [
         {   name: "arr", expr: '[0, 1, 2, 3, 4, 5]' }, 
-        {   expr: "arr > 2 == False"  },
+        {   expr: "arr > 2 == false"  },
         {   expr: "not (arr > 2)"  },
     ]
     result = evalExprs(prog);
