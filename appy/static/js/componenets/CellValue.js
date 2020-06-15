@@ -2,7 +2,8 @@ import React from "react"
 import { highlight, languages } from 'prismjs/components/prism-core';
 // import 'prismjs/components/prism-clike';
 // import 'prismjs/components/prism-javascript';
-import 'prismjs/components/prism-python';
+// import 'prismjs/components/prism-ruby';
+import './prism-aa';
 
 
 export default class CellValue extends React.PureComponent {
@@ -15,10 +16,10 @@ export default class CellValue extends React.PureComponent {
             return ""
         }
         else if(value === true) {
-            return "True"
+            return "true"
         } 
         else if(value === false) {
-            return "False"
+            return "false"
         }
         else if(typeof value == "string") {
             return '"' + value + '"'
@@ -35,7 +36,7 @@ export default class CellValue extends React.PureComponent {
 
     highlightOutput(value) {
         // TODO: if no output
-        return {__html: highlight(this.formatOutput(value), languages.py)}
+        return {__html: highlight(this.formatOutput(value), languages.aa)}
     }
 
     renderValue(value) {

@@ -9,7 +9,7 @@ import CellValue from "./CellValue"
 import { highlight, languages } from 'prismjs/components/prism-core';
 // import 'prismjs/components/prism-clike';
 // import 'prismjs/components/prism-javascript';
-import 'prismjs/components/prism-python';
+import './prism-aa';
 
 import { addParam, addRow } from "../store.js"
 
@@ -114,7 +114,7 @@ export default class GridCell extends AbstractBaseCell {
                             <Editor
                                 value={this.state.input}
                                 onValueChange={this.changeInput}
-                                highlight={code => highlight(code, languages.py)}
+                                highlight={code => highlight(code, languages.aa)}
                                 padding={10}
                                 style={{
                                 fontFamily: '"Fira code", "Fira Mono", monospace',
