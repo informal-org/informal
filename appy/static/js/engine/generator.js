@@ -95,7 +95,7 @@ function objToJs(node, kv_list, env, name) {
     return code
 }
 
-function astToJs(node, env, name="") {
+export function astToJs(node, env, name="") {
     // Convert a parsed abstract syntax tree into code
     let prefix = name ? "var " + name + " = " : "";
     if(!node || !node.node_type) { return undefined; }
@@ -146,10 +146,6 @@ function astToJs(node, env, name="") {
             return prefix + "Stream.array([" + elems.join(",") + "])"
         }
         case "(where)": {
-            console.log("Where:")
-            console.log(node)
-            console.log(node.left)
-            console.log(node.right)
             // if(node.right.node_type == "(literal)" || node.right.node_type == "(identifier)") {
             //     // arr[0] arr[index + 1]
             // }

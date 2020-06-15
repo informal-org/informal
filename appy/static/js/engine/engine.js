@@ -81,7 +81,7 @@ function runInterpreted(env) {
 function runGenerated(env) {
     defineNamespace(env.root)
     let code = genJs(env);
-    console.log(code);
+    // console.log(code);
 
     // 0: {id: 0, output: "Hello 2", error: ""}
     let result = execJs(code);
@@ -146,7 +146,6 @@ export function evaluate(state) {
     //         error: ""
     //     });
     // });
-    console.log(output);
 
     return {'results': output}
 }

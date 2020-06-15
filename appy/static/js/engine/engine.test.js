@@ -55,7 +55,6 @@ test('Evaluate basic expressions', () => {
     }
 
     let output = evaluate(state).results;
-    console.log(output);
     let outputDict = listToDict(output)
 
     expect(outputDict[1].value).toEqual(2)
@@ -150,7 +149,6 @@ test('Vector ops', () => {
         {   expr: "arr == 3"  },
     ]
     let result = evalExprs(prog);
-    console.log(result)
     expect(Array.from(result[0].value.iter())).toEqual([0, 1, 2, 3, 4, 5])
     expect(Array.from(result[1].value.iter())).toEqual([5, 6, 7, 8, 9, 10])
     expect(Array.from(result[2].value.iter())).toEqual([false, false, false, true, true, true])
