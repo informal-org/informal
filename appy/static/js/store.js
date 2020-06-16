@@ -147,7 +147,10 @@ const cellsSlice = createSlice({
             state.byId[id].params.push("")
         },
         addRow: (state, action) => {
-            var id = action.payload.id;
+            var refCellId = action.payload.id;
+            let newCellId = genID();
+            state.byId[newCellId] = newCell(newCellId);
+            state.byId[refCellId].body.push(newCellId)
             // TODO: Add to expr. Support expr as an array. Values should be cell ref objects or raw expression values.
             // state.byId[id].expr
         },

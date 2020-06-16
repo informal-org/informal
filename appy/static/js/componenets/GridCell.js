@@ -42,14 +42,12 @@ export default class GridCell extends AbstractBaseCell {
     }
 
     addRow = (event) => {
-        console.log("grid cell Add row");
-        console.log(event);
-        // window.store.dispatch(addRow({
-        //     id: this.props.cell.id
-        // }))
-
+        window.store.dispatch(addRow({
+            id: this.props.cell.id
+        }))
+        // We use a div button rather than <button>, which requires preventDefault instead.
         event.stopPropagation();
-        return true;
+        return false;
     }
 
     renderParams() {
@@ -109,6 +107,8 @@ export default class GridCell extends AbstractBaseCell {
                 
             }, 100);
 
+            
+
             return <div className={className}
                 id={"Cell_" + cell_id}
                 // onClick={this.setFocus}
@@ -164,12 +164,13 @@ export default class GridCell extends AbstractBaseCell {
             </div>
 
             <div className="row Cell-footer">
-                <div className="col-sm-8"></div>
+                <div className="col-sm-8">
+                </div>
 
                 <div className="col-sm-4">
-                    <button className="run-link btn btn-outline" onClick={this.addRow}>
+                    <div className="run-link btn btn-outline inline-block" onClick={this.addRow} type="text">
                     &#x2B;  &#160; New cell
-                    </button>
+                    </div>
                     <button className="run-link btn btn-primary" type="submit">
                         {/* &#8250; Run */}
                         &#x25b6;  &#160; Run
