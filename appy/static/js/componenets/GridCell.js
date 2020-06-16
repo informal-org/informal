@@ -41,10 +41,15 @@ export default class GridCell extends AbstractBaseCell {
         }))
     }
 
-    addRow = () => {
-        window.store.dispatch(addRow({
-            id: this.props.cell.id
-        }))
+    addRow = (event) => {
+        console.log("grid cell Add row");
+        console.log(event);
+        // window.store.dispatch(addRow({
+        //     id: this.props.cell.id
+        // }))
+
+        event.stopPropagation();
+        return true;
     }
 
     renderParams() {
@@ -102,10 +107,11 @@ export default class GridCell extends AbstractBaseCell {
                     document.getElementById(targetFocus).focus();
                 }
                 
-            }, 100)
+            }, 100);
+
             return <div className={className}
                 id={"Cell_" + cell_id}
-                onClick={this.setFocus}
+                // onClick={this.setFocus}
                 onKeyDown={this.onKeyDown}
                 autoFocus
                 tabIndex="0" data-cell={cell_id}>
@@ -132,6 +138,10 @@ export default class GridCell extends AbstractBaseCell {
                     {/* <input className="Cell-cellValue bg-blue-100 block Cell-cellValue--edit" placeholder="Value" type="text" onChange={this.changeInput} value={this.state.input}></input> */}
 
                     <label>Value: </label>
+
+                    <span className="Cell-action">&#x2026;</span>
+
+
                     <ul className="list-group col-sm-12">
                         <li className="list-group-item">
                             <Editor
@@ -150,10 +160,24 @@ export default class GridCell extends AbstractBaseCell {
 
                 </div>
 
+
             </div>
 
-            <div className="row">
+            <div className="row Cell-footer">
+                <div className="col-sm-8"></div>
+
+                <div className="col-sm-4">
+                    <button className="run-link btn btn-outline" onClick={this.addRow}>
+                    &#x2B;  &#160; New cell
+                    </button>
+                    <button className="run-link btn btn-primary" type="submit">
+                        {/* &#8250; Run */}
+                        &#x25b6;  &#160; Run
+                    </button>
+                </div>
+
                 
+
 
             </div>
 

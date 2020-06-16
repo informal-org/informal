@@ -11,6 +11,7 @@ export default class AbstractBaseCell extends React.Component {
     }
 
     setFocus = (event) => {
+        console.log("Set focus");
         this.props.reEvaluate();    // Potentially re-evaluate the result of previous cell modification.
         this.props.setOpen(true);
         this.props.setFocus(this.props.cell.id);

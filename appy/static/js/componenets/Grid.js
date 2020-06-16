@@ -12,6 +12,7 @@ export default class Grid extends React.Component {
         super(props);
     }
     addCellClick = () => {
+        console.log("Add cell click")
         window.store.dispatch(addCell())
     }
     isFocused = (cell) => {
@@ -154,7 +155,9 @@ export default class Grid extends React.Component {
             <div className="Grid" onKeyDown={this.onKeyDown}>
                 {cells}
 
-                <button className="btn btn-full btn-outline btn-square fg-primary" onClick={this.addCellClick}> + Add line </button>
+                <button className="btn btn-full btn-outline btn-square fg-primary" onClick={this.addCellClick}>
+                    &#x2B;  &#160; New cell
+                </button>
             </div>
 
         </div>

@@ -60,7 +60,7 @@
 
 .Cell-cellName {
   font-weight: bold;
-  display: inline-block;
+  display: block;
   width: 150px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -97,8 +97,9 @@
   border-width: 2px;
 }
 
-.Cell-edit {
+.Cell .Cell-edit {
   padding: 0.5rem;
+  cursor: auto;
 }
 
 .Cell-edit .Cell-cellName {
@@ -119,7 +120,7 @@
   border-right: 1px solid rgba(0,0,0,.125);
 }
 
-.Cell-edit .Cell-outputs {
+.Cell-edit .Cell-outputs textarea {
   /* padding: 0.5rem 1rem; */
   /* padding: 0; */
   /* background-color: #E2E8F0; */
@@ -138,7 +139,7 @@
   color: rgba(25, 25, 25, 0.75);
   font-size: 0.75rem;
   padding: 0;
-  display: block;
+  display: inline-block;
   margin: 0;
 }
 
@@ -365,4 +366,32 @@
   line-height: 1.5;
   white-space: nowrap;
 
+}
+
+.Cell-edit label.run-link {
+  /* color: #ff5959; */
+  color: #3182ce;
+  text-decoration: underline;
+  margin-right: 11px;
+}
+
+.Cell-edit .Cell-action {
+  float: right;
+  margin-right: 11px;
+  margin-top: -7px;
+  cursor: pointer;
+}
+
+.Cell-footer {
+  padding: 5px 0px;
+  text-align: right;
+}
+
+.Cell-footer button {
+  margin: 0 5px;
+}
+
+
+.Cell-nameHeader label {
+  padding-left: 8px;
 }
