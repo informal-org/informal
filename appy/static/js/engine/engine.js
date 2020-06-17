@@ -87,7 +87,7 @@ function runGenerated(env) {
     let result = execJs(code);
     let output = [];
 
-    env.root.body.forEach((cell) => {
+    Object.values(env.cell_map).forEach((cell) => {
         var cellResult = result[cell.id];
         if(cellResult === undefined) {cellResult = {}}
 
@@ -122,15 +122,9 @@ export function evaluate(state) {
     //     // [cell.params, cell.body] = traverseDown(raw_cell, env.createCell, cell);
     // })
 
-    
-    env.root.body.forEach((cell) => {
-        try {
-            cell.parsed = parseExpr(cell.expr)
-        }
-        catch(err) {
-            cell.error = err
-        }
-    })
+    console.log("raw map");
+    console.log(env.raw_map);
+    env.parseAll(root_id);
 
     // let output = runInterpreted(env);
     let output = runGenerated(env);

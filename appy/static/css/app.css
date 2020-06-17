@@ -394,3 +394,7 @@
 .Cell-nameHeader label {
   padding-left: 8px;
 }
+
+.Cell-body {
+  padding-left: 20px;
+}

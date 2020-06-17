@@ -66,6 +66,7 @@ export default class Grid extends React.Component {
                 return <GridCell 
                 cell={cell}
                 isFocused={this.isFocused(cell)}
+                byId={this.props.byId}
                 isOpen={this.props.open}
                 isError={false}
                 key={cell.id}

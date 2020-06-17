@@ -45,6 +45,7 @@ export default class GridCell extends AbstractBaseCell {
         window.store.dispatch(addRow({
             id: this.props.cell.id
         }))
+        this.props.reEvaluate();
         // We use a div button rather than <button>, which requires preventDefault instead.
         event.stopPropagation();
         return false;
@@ -73,6 +74,68 @@ export default class GridCell extends AbstractBaseCell {
             return <span></span>
         }
 
+    }
+
+    renderBody() {
+        if(this.props.cell.body.length > 0) {
+            var body = [];
+            this.props.cell.body.forEach((childId) => {
+                let child = this.props.byId[childId];
+                var elem = <span key={"Cellbody_" + childId}>
+                <GridCell
+                cell={child}
+                isFocused={false}
+                byId={this.props.byId}
+                isOpen={false}
+                isError={false}
+                key={child.id}
+                setModified={this.props.setModified}
+                setFocus={this.props.setFocus}
+                setOpen={this.props.setOpen}
+                moveFocus={this.props.moveFocus}
+                setInput={this.props.setInput}
+                setName={this.props.setName}
+                reEvaluate={this.props.reEvaluate}
+                />
+
+
+                    
+                </span>
+                body.push(elem)
+            })
+
+            return <div className="Cell-body">
+                {body}
+            </div>
+        } else {
+            return <span></span>
+        }
+    }
+
+    renderValueEditor() {
+        if(this.props.cell.body.length == 0) {
+            return <div className="Cell-outputs col-sm-10">
+
+                <label>Value: </label>
+
+                <span className="Cell-action">&#x2026;</span>
+
+                <ul className="list-group col-sm-12">
+                    <li className="list-group-item">
+                        <Editor
+                            value={this.state.input}
+                            onValueChange={this.changeInput}
+                            highlight={code => highlight(code, languages.aa)}
+                            padding={10}
+                            style={{
+                            fontFamily: '"Fira code", "Fira Mono", monospace',
+                            fontSize: 12,
+                            }}
+                        />
+                    </li>
+                </ul>
+            </div>
+        }
     }
 
     render() {
@@ -132,35 +195,14 @@ export default class GridCell extends AbstractBaseCell {
                 </div>
 
                 {this.renderParams()}
-                
 
-                <div className="Cell-outputs col-sm-10">
-                    {/* <input className="Cell-cellValue bg-blue-100 block Cell-cellValue--edit" placeholder="Value" type="text" onChange={this.changeInput} value={this.state.input}></input> */}
+                {this.renderValueEditor()}
+            </div>
 
-                    <label>Value: </label>
-
-                    <span className="Cell-action">&#x2026;</span>
-
-
-                    <ul className="list-group col-sm-12">
-                        <li className="list-group-item">
-                            <Editor
-                                value={this.state.input}
-                                onValueChange={this.changeInput}
-                                highlight={code => highlight(code, languages.aa)}
-                                padding={10}
-                                style={{
-                                fontFamily: '"Fira code", "Fira Mono", monospace',
-                                fontSize: 12,
-                                }}
-                            />
-                        </li>
-                        {/* <li className="list-group-item btn btn-placeholder w-full" onClick={this.addRow}>+ Add row </li> */}
-                    </ul>
-
+            <div className="row Cell-body">
+                <div className="col-sm-12">
+                {this.renderBody()}                    
                 </div>
-
-
             </div>
 
             <div className="row Cell-footer">

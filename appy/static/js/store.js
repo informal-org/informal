@@ -149,10 +149,18 @@ const cellsSlice = createSlice({
         addRow: (state, action) => {
             var refCellId = action.payload.id;
             let newCellId = genID();
+            let refCell = state.byId[refCellId]
+            if(refCell.body.length == 0) {              
+                // On first add, move the current cell into the body first
+                let migrateCellId = genID();
+                state.byId[migrateCellId] = newCell(migrateCellId, "", refCell.expr)
+                refCell.expr = ""
+                refCell.value = ""
+                refCell.body.push(migrateCellId);
+            }
             state.byId[newCellId] = newCell(newCellId);
-            state.byId[refCellId].body.push(newCellId)
-            // TODO: Add to expr. Support expr as an array. Values should be cell ref objects or raw expression values.
-            // state.byId[id].expr
+            refCell.body.push(newCellId)
+            state.modified = true;
         },
         setParam: (state, action) => {
             var id = action.payload.id;
