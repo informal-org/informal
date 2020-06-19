@@ -218,6 +218,24 @@ export class KeySignature {
 
         return true;
     }
+
+    toString() {
+        let signature = "";
+        if(this.type) {
+            signature += this.type + " "
+        }
+        if(this.name) {
+            signature += this.name
+        }
+        if(this.params.length > 0) {
+            signature += "(" + this.params.join(", ") + ")"
+        }
+        if(this.guard) {
+            // todo
+            signature += " [" + this.guard + "]"
+        }
+        return signature
+    }
 }
 
 const OP_FILTER = 1;

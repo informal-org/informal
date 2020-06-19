@@ -48,7 +48,10 @@ export default class CellValue extends React.PureComponent {
         else if(value != null && valtype === "object") {
             if(value.__type === "Stream") {
                 cellResults =  <div className="Cell-cellValue">{"" + Array.from(value.iter()) }</div>
-            } else {
+            } else if(value.__type == "KeySig") {
+                cellResults = <span>{"" + value}</span>
+            }
+            else {
                 // todo: Other checks to avoid infinite recursion
                 cellResults = <CellValue value={value}></CellValue>
             }
