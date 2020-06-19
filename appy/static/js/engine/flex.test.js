@@ -1,4 +1,4 @@
-import { Obj, Stream } from "./flex"
+import { Obj, Stream, KeySignature } from "./flex"
 
 test('Object with obj keys', () => {
     // When cells don't depend on each other, their order remains the same
@@ -8,7 +8,35 @@ test('Object with obj keys', () => {
 
     expect(obj.lookup(a)).toEqual("A_VALUE")
     expect(obj.getKey(a.$aa_key)).toEqual(a)
+
+    //  Do the same thing, but using constructor init
+    obj = new Obj([[a, "A_VALUE"]])
+    expect(obj.lookup(a)).toEqual("A_VALUE")
+    expect(obj.getKey(a.$aa_key)).toEqual(a)
 });
+
+
+test('add repr', () => {
+    let add = new Obj();    
+    let addFn = (a, b) => {
+        return a + b
+    }
+
+    let sig = new KeySignature("", null, [
+        new KeySignature("a"),
+        new KeySignature("b"),
+    ])
+    add.insert(sig, addFn);
+    
+    // console.log(fibo._values)
+    // console.log(fibo._keys)
+
+    expect(add.call(1, 1)).toEqual(2)
+    expect(add.call(2, 4)).toEqual(6)
+    expect(add.call(7, 5)).toEqual(12)
+});
+
+
 
 
 
@@ -16,12 +44,15 @@ test('fibo repr', () => {
     let fibo = new Obj();
     fibo.insert(0, 0)
     fibo.insert(1, 1)
-
-    let rec = new Obj((n) => {
+    
+    let rec = (n) => {
         return fibo.call(n - 1) + fibo.call(n - 2)
-    })
-    let n = new Obj(["n"]);
-    fibo.insert(n, rec);
+    }
+
+    let sig = new KeySignature("", null, [
+        new KeySignature("n")
+    ])
+    fibo.insert(sig, rec);
     
     // console.log(fibo._values)
     // console.log(fibo._keys)

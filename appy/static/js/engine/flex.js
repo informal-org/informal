@@ -2,14 +2,22 @@ import { genID, isObject, isFunction } from "../utils"
 
 
 export class Obj {
-    constructor(data) {
+    /*
+    A more generic object type which support object keys 
+    rather than just string keys like JS objects.
+    */
+
+    constructor(kv=[]) {
         // pseudokey -> value
         this._values = {};
-        // pseudokey -> key
+        // pseudokey -> original key object
         this._keys = {};
         this.$aa_key = "@" + genID();
-        this.data = data;
         this.__type = "Obj"
+
+        kv.forEach(([key, value]) => {
+            this.insert(key, value);
+        })
     }
     getPseudoKey(key) {
         // Convert a key of unknown type to a unique string identifier.
@@ -20,7 +28,7 @@ export class Obj {
             }
             return key.$aa_key
         } else if (Number.isInteger(key)) {
-            // Use numeric keys as-is without any modification
+            // Use numeric keys as-is without any modification so v8 stores as arrays.
             return key
         } else {
             // For string-y keys, append a prefix to prevent collision with objs
@@ -69,22 +77,25 @@ export class Obj {
     }
 
     isMatch(key, args) {
-        
         // Pattern match against the key, not the value
         // The value may be a function, but we're checking the key match
-        if(Array.isArray(key)) {
-            return key.length === args.length
-        } else {    // Assert: is Obj otherwise
-            if(Array.isArray(key.data)) {
-                return key.data.length === args.length
-            }
-            if(args.length === 1) {
-                // For object key match, assume single arg object.
-                // Shallow check of object keys against obj keys
-                let arg = args[0];
-                // Compare keys array
-                return JSON.stringify(arg.pseudokeys()) === JSON.stringify(key.pseudokeys())
-            }
+        // if(Array.isArray(key)) {
+        //     return key.length === args.length
+        // } else {    // Assert: is Obj otherwise
+        //     if(Array.isArray(key.data)) {
+        //         return key.data.length === args.length
+        //     }
+        //     if(args.length === 1) {
+        //         // For object key match, assume single arg object.
+        //         // Shallow check of object keys against obj keys
+        //         let arg = args[0];
+        //         // Compare keys array
+        //         return JSON.stringify(arg.pseudokeys()) === JSON.stringify(key.pseudokeys())
+        //     }
+        // }
+        // return false
+        if(typeof key == "object" && key.__type == "KeySig") {
+            return key.isMatch(args)
         }
         return false
     }
@@ -102,26 +113,43 @@ export class Obj {
             }
         }
         else if(args.length === 1 && this.hasKey(args[0])) {
+            // TODO: Named attribute lookup should be handled differently
             return this.lookup(args[0])
         } else {
             let val = this.findMatch(args);
             if(val) {
-                return val.call(...args)
+                return val(...args)
             }
             console.log("No match found in call");
         }
     }
 
+    getAttr(attr) {
+        if(this.hasKey(attr)) {
+            return this.lookup(attr);
+        } else {
+            // Look through named args
+            let pseudokeys = Object.keys(this._keys);
+            for(var i = 0; i < pseudokeys.length; i++) {
+                let pseudokey = pseudokeys[i];
+                let key = this._keys[pseudokey];
+
+                if(key.name != null && key.name === attr) {
+                    return this._values[pseudokey]
+                }
+            }
+        }
+    }
+
     findMatch(args) {
         // Linear search for a match with all non-standard keys
-        let keys = Object.keys(this._keys);
-        for(var i = 0; i < keys.length; i++) {
-            let pseudokey = keys[i];
+        let pseudokeys = Object.keys(this._keys);
+        for(var i = 0; i < pseudokeys.length; i++) {
+            let pseudokey = pseudokeys[i];
             let key = this._keys[pseudokey];
 
             if(this.isMatch(key, args)) {
-                let val = this._values[pseudokey];
-                return val
+                return this._values[pseudokey];
             }
         }
     }
@@ -144,6 +172,53 @@ export class Obj {
     }
 }
 
+// A generic signature used as keys in objects.
+// May denote an attribute, a guard, a param, a func or some combo of those.
+export class KeySignature {
+    constructor(name="", type=null, params=[], guard=null) {
+        this.name = name
+        this.type = type
+        // List of Abstract Identifiers
+        this.params = params
+        this.guard = guard      // Conditional function
+        this.__type = "KeySig"
+        this.$aa_key = "@" + genID();
+    }
+
+    isMatch(args) {
+        // TODO: Named argument match in the future
+        // TODO: Ommited arguments support?
+        if(this.params.length != args.length) {
+            return false;
+        }
+
+        // Pairwise match each parameter since lengths are equal
+        for(var i = 0; i < this.params.length; i++) {
+            let param = this.params[i];
+            let arg = args[i];
+
+            if(typeof param == "object" && param.__type == "KeySig") {
+                if(param.type !== null) {
+                    // TODO: Type check
+                }
+                if(param.guard !== null) {
+                    // TODO: Guard check
+                }
+            } else {
+                // It's a raw value. Do pattern matching
+                // TODO: type checking here?
+                if(param !== arg) {
+                    return false
+                }
+            }
+        }
+
+        // All of the parameters match, check guards.
+        // TODO: Guard check
+
+        return true;
+    }
+}
 
 const OP_FILTER = 1;
 const OP_MAP = 2;

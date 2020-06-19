@@ -43,6 +43,11 @@ export default class Grid extends React.Component {
         return ""
     }
     onKeyDown = (event) => {
+        // Shhh! Don't interrupt typing.
+        if(document.activeElement.tagName == "TEXTAREA" || document.activeElement.tagName == "INPUT") {
+            return false;
+        }
+
         if (event.keyCode == KEY_UP) {   // 
             event.stopPropagation();
             this.props.moveFocus(-1);

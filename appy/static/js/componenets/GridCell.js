@@ -7,8 +7,6 @@ import Editor from 'react-simple-code-editor';
 import CellParam from "./CellParam.js"
 import CellValue from "./CellValue"
 import { highlight, languages } from 'prismjs/components/prism-core';
-// import 'prismjs/components/prism-clike';
-// import 'prismjs/components/prism-javascript';
 import './prism-aa';
 
 import { addParam, addRow } from "../store.js"
@@ -218,9 +216,6 @@ export default class GridCell extends AbstractBaseCell {
                         &#x25b6;  &#160; Run
                     </button>
                 </div>
-
-                
-
 
             </div>
 
