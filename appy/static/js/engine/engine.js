@@ -122,8 +122,6 @@ export function evaluate(state) {
     //     // [cell.params, cell.body] = traverseDown(raw_cell, env.createCell, cell);
     // })
 
-    console.log("raw map");
-    console.log(env.raw_map);
     env.parseAll(root_id);
 
     // let output = runInterpreted(env);

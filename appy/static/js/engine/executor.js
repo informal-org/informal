@@ -1,4 +1,4 @@
-import { Obj, Stream } from "./flex"
+import { Obj, Stream, KeySignature } from "./flex"
 import { resolve } from "./namespace"
 
 class CyclicRefError extends Error {
@@ -27,6 +27,7 @@ global.Stream = Stream;
 global.CyclicRefError = CyclicRefError;
 global.ParseError = ParseError;
 global.RuntimeError = RuntimeError;
+global.KeySignature = KeySignature;
 
 
 // number (NaN), string, boolean, symbol, undefined, object (null), function

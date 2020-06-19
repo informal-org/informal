@@ -36,16 +36,9 @@ export class CellEnv {
     createCell(cell_id, parent) {
         let env = this;
         let raw_cell = env.getRawCell(cell_id);
-        console.log("cell_id: " + cell_id + " raw cell")
-        console.log(raw_cell);
-        console.log(this.raw_map);
-        
+
         let cell = new Cell(raw_cell, parent, env);
         env.cell_map[cell.id] = cell;
-        console.log("Create cell: " + cell_id);
-        console.log(cell);
-        console.log(this.cell_map);
-
 
         // Recursively create all children, with cell as parent.
         [cell.params, cell.body] = traverseDown(raw_cell, env.createCell, cell);
@@ -62,8 +55,6 @@ export class CellEnv {
         let env = this;
         let raw_cell = env.getRawCell(cell_id);
         let cell = env.getCell(cell_id);
-        console.log("Cell_id: " + cell_id);
-        console.log(cell);
 
         try {
             cell.parsed = parseExpr(cell.expr);

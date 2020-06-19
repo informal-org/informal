@@ -1,5 +1,5 @@
 import { orderCellBody } from "./order"
-import { Obj } from "./flex";
+import { Obj, KeySignature } from "./flex";
 import { syntaxError } from "./parser";
 
 // TODO: Ensure error equality on CYCLIC_ERR throws error.
@@ -79,8 +79,16 @@ function objToJs(node, kv_list, env, name) {
         } else if(k.node_type == "(grouping)") {
             // It's a parameter. Wrap in an object
             // "a","b"
-            key = "new Obj(['" + k.value.join("', '") + "'])"
-            value = "new Obj((" + k.value + ") => " + astToJs(v, env) + ")"
+            // key = "new Obj(['" + k.value.join("', '") + "'])"
+            let keySig = new KeySignature();
+            // TODO: Type support
+            let params = k.value.map((p) => {
+                return "new KeySignature('" + p + "')"
+            })
+            let paramString = params.join(" , ")
+            
+            key = "new KeySignature('', null, [" + paramString + "])"
+            value = "(" + k.value + ") => " + astToJs(v, env)
         } else {
             // For flat keys, evaluate both key and value
             key = astToJs(k, env)
