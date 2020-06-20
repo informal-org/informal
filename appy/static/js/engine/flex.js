@@ -202,7 +202,10 @@ export class KeySignature {
                     // TODO: Type check
                 }
                 if(param.guard !== null) {
-                    // TODO: Guard check
+                    // TODO: Generator support for param guards.
+                    if(!param.guard(...args)) {
+                        return false;
+                    }
                 }
             } else {
                 // It's a raw value. Do pattern matching
@@ -214,7 +217,12 @@ export class KeySignature {
         }
 
         // All of the parameters match, check guards.
-        // TODO: Guard check
+        if(this.guard !== null) {
+            if(!this.guard(...args)) {
+                return false;
+            }
+        }
+
 
         return true;
     }

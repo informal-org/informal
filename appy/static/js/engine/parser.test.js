@@ -58,3 +58,9 @@ test('test equality', () => {
     expect(parseExpr("x > 7 == false").toString()).toEqual("(== (> x 7) (false))")
 
 });
+
+
+test('test function signature', () => {
+    expect(parseExpr("(a, b) [a > 0]: a + b").toString()).toEqual("(: ([ ((grouping) a b) (> a 0)) (+ a b))")
+
+});

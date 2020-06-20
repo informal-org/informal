@@ -57,6 +57,18 @@ const UNARY_OPS = {
     "not": (left) => { return "__aa_not(" + left + ")" }
 }
 
+function paramsToJs(node) {
+    let params = node.value.map((p) => {
+        return "new KeySignature('" + p + "')"
+    })
+    return params.join(" , ")
+}
+
+function parseGuard(node, params, env) {
+    // TODO: Type support
+    return "(" + params.value + ") => " + astToJs(node, env)
+}
+
 function objToJs(node, kv_list, env, name) {
     let prefix = name ? "var " + name + " = " : "";
     let code = prefix + "new Obj();";
@@ -80,15 +92,23 @@ function objToJs(node, kv_list, env, name) {
             // It's a parameter. Wrap in an object
             // "a","b"
             // key = "new Obj(['" + k.value.join("', '") + "'])"
-            let keySig = new KeySignature();
             // TODO: Type support
-            let params = k.value.map((p) => {
-                return "new KeySignature('" + p + "')"
-            })
-            let paramString = params.join(" , ")
-            
+            let paramString = paramsToJs(k)
             key = "new KeySignature('', null, [" + paramString + "])"
             value = "(" + k.value + ") => " + astToJs(v, env)
+        } else if(k.node_type == "(where)") {
+            // Guard clauses
+            // "(: ([ ((grouping) a b) (> a 0)) (+ a b))"
+
+            console.log("Guard clause")
+            let paramNode = k.left;
+            // TODO: Generator support for parameter guards
+            let paramString = paramsToJs(paramNode)
+            let guard = parseGuard(k.right, paramNode, env);
+            
+            key = "new KeySignature('', null, [" + paramString + "],(" + guard + "))"
+            value = "(" + paramNode.value + ") => " + astToJs(v, env)
+
         } else {
             // For flat keys, evaluate both key and value
             key = astToJs(k, env)

@@ -184,3 +184,19 @@ test('Array filtering', () => {
     expect(Array.from(result[2].value.iter())).toEqual([9, 9, 10])
 });
 
+
+
+
+test('Conditional guards', () => {
+    let find_min = [
+        {   name: "find_min",   expr: "(x, y)[x <= y]: x\n(x, y): y"  },
+        {   expr: "find_min(5, 10)" },
+        {   expr: "find_min(10, 5)" },
+        {   expr: "find_min(5, 5)" },
+    ]
+    let result = evalExprs(find_min);
+    expect(result[1].value).toEqual(5)
+    expect(result[2].value).toEqual(5)
+    expect(result[3].value).toEqual(5)
+});
+
