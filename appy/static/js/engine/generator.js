@@ -1,5 +1,6 @@
 import { orderCellBody } from "./order"
 import { syntaxError } from "./parser";
+import {genID} from "../utils"
 
 // TODO: Ensure error equality on CYCLIC_ERR throws error.
 export const JS_PRE_CODE = `
@@ -70,6 +71,34 @@ class CodeGenContext {
     }
 }
 
+
+function findMinStart(node) {
+    let min = node.char_start;
+    if(node.left) {
+        let left_start = findMinStart(node.left)
+        min = left_start < min ? left_start : min
+    }
+    if(node.right) {
+        let right_start = findMinStart(node.right);
+        min = right_start < min ? right_start : min
+    }
+    return min
+}
+
+
+function findMaxEnd(node) {
+    let max = node.char_end;
+    if(node.left) {
+        let left_end = findMaxEnd(node.left)
+        max = left_end > max ? left_end : max
+    }
+    if(node.right) {
+        let right_end = findMaxEnd(node.right);
+        max = right_end > max ? right_end : max
+    }
+    return max
+}
+
 function paramsToJs(node) {
     // TODO: Preserve normal values as-is for pattern matching
     let params = node.value.map((p) => {
@@ -78,12 +107,24 @@ function paramsToJs(node) {
     return params.join(" , ")
 }
 
-function parseGuard(node, params, code) {
+function parseGuard(node, params, code, cell) {
     // TODO: Type support
-    return "(" + params.value + ") => " + astToJs(node, code)
+    var name = "__" + genID();
+    let guardFn = "(" + params.value + ") => " + astToJs(node, code, cell);
+    code.add(`var ${name} = ${guardFn};`)
+    // Add a text representation
+
+    let guard_start = findMinStart(node);
+    let guard_end = findMaxEnd(node);
+    let guard_expr = cell.expr.slice(guard_start, guard_end);
+
+    code.add(`${name}.toString = () => "${guard_expr}";`)
+
+    return name
 }
 
-function objToJs(node, kv_list, code, name) {
+
+function objToJs(node, kv_list, code, cell, name) {
     if(!name) {
         name = genID();
     }
@@ -104,33 +145,31 @@ function objToJs(node, kv_list, code, name) {
             // TODO: Tuple support for multiple parameters
             // Relies on implicit return in final expression
             // TODO: Return in the context of multiple lines.
-            value = astToJs(v, code) 
+            value = astToJs(v, code, cell) 
 
-        } else if(k.node_type == "(grouping)") {
-            // It's a parameter. Wrap in an object
-            // "a","b"
-            // key = "new Obj(['" + k.value.join("', '") + "'])"
-            // TODO: Type support
-            let paramString = paramsToJs(k)
-            key = "new KeySignature('', null, [" + paramString + "])"
-            value = "(" + k.value + ") => " + astToJs(v, code)
-        } else if(k.node_type == "(where)") {
-            // Guard clauses
-            // "(: ([ ((grouping) a b) (> a 0)) (+ a b))"
+        } else if(k.node_type == "(grouping)" || k.node_type == "(where)") {
 
-            console.log("Guard clause")
-            let paramNode = k.left;
+            let paramNode = k;
+            let guard = null;
+            if(k.node_type == "(where)") {
+                paramNode = k.left;
+                guard = parseGuard(k.right, paramNode, code, cell);
+            }
+
             // TODO: Generator support for parameter guards
             let paramString = paramsToJs(paramNode)
-            let guard = parseGuard(k.right, paramNode, code);
-            
-            key = "new KeySignature('', null, [" + paramString + "],(" + guard + "))"
-            value = "(" + paramNode.value + ") => " + astToJs(v, code)
 
+            // It's a parameter. Wrap in an object
+            // TODO: Type support
+            key = "new KeySignature('', null, [" + paramString + "],(" + guard + "))"
+
+            value = "(" + paramNode.value + ") => " + astToJs(v, code, cell)
+
+            
         } else {
             // For flat keys, evaluate both key and value
-            key = astToJs(k, code)
-            value = astToJs(v, code)
+            key = astToJs(k, code, cell)
+            value = astToJs(v, code, cell)
         }
         
         result += name + ".insert( (" + key + "),(" + value + "));"
@@ -139,18 +178,18 @@ function objToJs(node, kv_list, code, name) {
     return name
 }
 
-export function astToJs(node, code, name="") {
+export function astToJs(node, code, cell, name="") {
     // Convert a parsed abstract syntax tree into code
     let prefix = name ? "var " + name + " = " : "";
     if(!node || !node.node_type) { return undefined; }
     switch(node.node_type) {
         case "binary":
-            let left = astToJs(node.left, code);
-            let right = astToJs(node.right, code);
+            let left = astToJs(node.left, code, cell);
+            let right = astToJs(node.right, code, cell);
             // return prefix + "(" + BINARY_OPS[node.operator.keyword](left, right) + ")"
             return prefix + BINARY_OPS[node.operator.keyword](left, right)
         case "unary":
-            return prefix + UNARY_OPS[node.operator.keyword](astToJs(node.left, code))
+            return prefix + UNARY_OPS[node.operator.keyword](astToJs(node.left, code, cell))
         case "(literal)":
             return prefix + JSON.stringify(node.value)
         case "(identifier)":
@@ -159,15 +198,15 @@ export function astToJs(node, code, name="") {
             // let obj = new Obj();
             // let a = {"a": 1, "b": 2}
             // obj.insert(a, "A_VALUE")
-            return objToJs(node, node.value, code, name)
+            return objToJs(node, node.value, code, cell, name)
         }
         case "map": {
-            return objToJs(node, [node.value], code, name)
+            return objToJs(node, [node.value], code, cell, name)
         }
         case "(grouping)": {
             // Top level groupings are expressions
             if(node.value.length == 1) {
-                return "(" + astToJs(node.value[0], code, name) + ")"
+                return "(" + astToJs(node.value[0], code, cell, name) + ")"
             } else {
                 // TODO
                 syntaxError("Unexpected parentheses")
@@ -178,14 +217,14 @@ export function astToJs(node, code, name="") {
             // Left is verified to be an identifier
             let params = [];
             node.value.forEach((param) => {
-                params.push(astToJs(param, code))
+                params.push(astToJs(param, code, cell))
             })
             return prefix + node.left.value + ".call(" + params.join(",") + ")"
         }
         case "(array)": {
             let elems = [];
             node.value.forEach((elem) => {
-                elems.push(astToJs(elem, code))
+                elems.push(astToJs(elem, code, cell))
             })
             return prefix + "Stream.array([" + elems.join(",") + "])"
         }
@@ -195,7 +234,7 @@ export function astToJs(node, code, name="") {
             // }
 
             // TODO: Differentiate between indexing and filtering
-            return prefix + astToJs(node.left, code) + ".get(" + astToJs(node.right, code) + ")"
+            return prefix + astToJs(node.left, code, cell) + ".get(" + astToJs(node.right, code, cell) + ")"
         }
         default:
             console.log("Error: Could not translate ast node: ");
@@ -218,7 +257,7 @@ function cellToJs(code, cell) {
     // TODO: Variable name check
     var variable_name = cell.name ? cell.name : "__" + cell.id;
     code.add("\ntry { \n");
-    let expr = astToJs(cell.parsed, code, variable_name);
+    let expr = astToJs(cell.parsed, code, cell, variable_name);
 
     if(expr) {
         code.add(expr)

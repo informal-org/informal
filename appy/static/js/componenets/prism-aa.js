@@ -19,7 +19,7 @@ Prism.languages.appassembly = {
 		pattern: /((?:^|\s)def[ \t]+)[a-zA-Z_]\w*(?=\s*\()/g,
 		lookbehind: true
 	},
-	'keyword': /\b(?:and|as|in|is|not|or)\b/,
+	'keyword': /\b(?:and|as|in|is|not|or|if)\b/,
 	'builtin': /\b(?:all|any|bool|dict|float|int|list|max|min|next|object|pow|range|reduce|round|set|slice|str|sum|super)\b/,
 	'boolean': /\b(?:true|false|null)\b/,
 	'number': /(?:\b(?=\d)|\B(?=\.))(?:0[bo])?(?:(?:\d|0x[\da-f])[\da-f]*\.?\d*|\.\d+)(?:e[+-]?\d+)?j?\b/i,

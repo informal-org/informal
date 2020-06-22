@@ -33,6 +33,8 @@ export function resolveMember(node, context) {
         object = context.resolve(node.object.name);
     }
 
+    
+
     // console.log("object is");
     // console.log(object.name);
 
@@ -81,7 +83,7 @@ function runInterpreted(env) {
 function runGenerated(env) {
     defineNamespace(env.root)
     let code = genJs(env);
-    // console.log(code);
+    console.log(code);
 
     // 0: {id: 0, output: "Hello 2", error: ""}
     let result = execJs(code);

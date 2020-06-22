@@ -240,7 +240,9 @@ export class KeySignature {
         }
         if(this.guard) {
             // todo
-            signature += " [" + this.guard + "]"
+            // signature += " [" + this.guard + "]"
+
+            signature += " if(" + this.guard + ")"
         }
         return signature
     }

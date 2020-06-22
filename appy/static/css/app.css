@@ -22,13 +22,18 @@
   /* display: block; */
   display: block;
   font-size: 13px;
-  font-family: Arial;  
+  font-family: "Fira code", "Fira Mono", monospace;
   padding: 1rem;
   justify-content: center;
 
   width: 800px;
   margin: 40px auto;
 }
+
+.btn, label {
+  font-family: Arial;
+}
+
 
 .Cell {
   /* width: 180px;

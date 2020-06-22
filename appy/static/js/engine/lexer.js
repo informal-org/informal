@@ -187,7 +187,7 @@ function parseSymbol(it) {
 }
 
 function parseKeyword(it, length) {
-    let char_start = it.length;
+    let char_start = it.index;
     let kw = it.lookahead(length);
     if(kw.length == length && kw in KEYWORD_TABLE) {
         it.next(length)
