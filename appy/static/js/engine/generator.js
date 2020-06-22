@@ -118,7 +118,7 @@ function parseGuard(node, params, code, cell) {
     let guard_end = findMaxEnd(node);
     let guard_expr = cell.expr.slice(guard_start, guard_end);
 
-    code.add(`${name}.toString = () => "${guard_expr}";`)
+    code.add(`${name}.toString = () => ${JSON.stringify(guard_expr)};`)
 
     return name
 }
@@ -163,7 +163,18 @@ function objToJs(node, kv_list, code, cell, name) {
             // TODO: Type support
             key = "new KeySignature('', null, [" + paramString + "],(" + guard + "))"
 
-            value = "(" + paramNode.value + ") => " + astToJs(v, code, cell)
+            let value_name = "__" + genID();
+            let valueFn = "(" + paramNode.value + ") => " + astToJs(v, code, cell)
+            
+            code.add(`var ${value_name} = ${valueFn};\n`)
+            let value_start = findMinStart(v);
+            let value_end = findMaxEnd(v);
+            let value_expr = cell.expr.slice(value_start, value_end)
+            // TODO: Escape sequence
+            // code.add(`${value_name}.toString = () => "${value_expr}";\n`)
+            code.add(`${value_name}.toString = () => ${JSON.stringify(value_expr)};\n`)
+
+            value = value_name;
 
             
         } else {

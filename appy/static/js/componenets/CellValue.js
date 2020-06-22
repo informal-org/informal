@@ -26,7 +26,7 @@ export default class CellValue extends React.PureComponent {
         }
         else if(typeof value == "function") {
             let fun_string = "" + value;
-            fun_string = fun_string.slice(fun_string.indexOf("=>") + 2);
+            // fun_string = fun_string.slice(fun_string.indexOf("=>") + 2);
             return fun_string
         }
         else {
