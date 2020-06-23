@@ -38,7 +38,7 @@ h2 {
 h3 {
   @apply text-lg;
 }
-a {
+a, a:not([href]), a:not([href]):hover {
   @apply text-blue-600 underline;
 }
 
@@ -150,6 +150,11 @@ Imported from arevel
   background: none;
   border: none;
   cursor: pointer;
+}
+
+.link {
+  text-decoration: underline;
+  color: rgb(26, 13, 171);
 }
 
 .btn.btn-full {

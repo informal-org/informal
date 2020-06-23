@@ -35,6 +35,7 @@ export default class CellValue extends React.PureComponent {
     }
 
     highlightOutput(value) {
+
         // TODO: if no output
         // return {__html: highlight(this.formatOutput(value), languages.aa)}
         return {__html: highlight(this.formatOutput(value), languages.aa)}
@@ -55,7 +56,10 @@ export default class CellValue extends React.PureComponent {
                 </div>
             }
             else {
-                cellResults = <div className="Cell-cellValue">{"" + value }</div>
+                // TODO: Value here should be a summary of contents
+                cellResults = <div className="Cell-cellValue">
+                    <a className="link">{"" + value }</a>
+                </div>
             }
             
         } else {
