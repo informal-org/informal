@@ -14,6 +14,7 @@ export class Obj {
         this._keys = {};
         this.$aa_key = "@" + genID();
         this.__type = "Obj"
+        this._attrs = {};
 
         kv.forEach(([key, value]) => {
             this.insert(key, value);
@@ -44,12 +45,30 @@ export class Obj {
         // For other types, it can be computed
         if(isObject(key)) {
             this._keys[pseudokey] = key
+            
+            if(key.__type == "KeySig" && key.name) {
+                if(key.name in this._attrs) {
+                    this._attrs[key.name].push(pseudokey)
+                } else {
+                    this._attrs[key.name] = [pseudokey]
+                }
+            }
         }
     }
 
+    // map[]
     lookup(key, fallback=undefined) {
         let pseudokey = this.getPseudoKey(key);
         return pseudokey in this._values ? this._values[pseudokey] : fallback;
+    }
+
+    // obj.attr
+    attr(key) {
+        // TODO: Handling multiple definitions
+        if(key in this._attrs) {
+            let matches = this._attrs[key];
+            return this._values[matches[0]]
+        }
     }
 
     hasKey(key) {

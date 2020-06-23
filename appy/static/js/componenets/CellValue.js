@@ -36,6 +36,7 @@ export default class CellValue extends React.PureComponent {
 
     highlightOutput(value) {
         // TODO: if no output
+        // return {__html: highlight(this.formatOutput(value), languages.aa)}
         return {__html: highlight(this.formatOutput(value), languages.aa)}
     }
 
@@ -45,7 +46,7 @@ export default class CellValue extends React.PureComponent {
         if(Array.isArray(value)) {
             cellResults =  <div className="Cell-cellValue">{"" + value }</div>
         }
-        else if(value != null && valtype === "object") {
+        else if(value !== null && valtype === "object") {
             if(value.__type === "Stream") {
                 cellResults =  <div className="Cell-cellValue">{"" + Array.from(value.iter()) }</div>
             } else if(value.__type == "KeySig") {
@@ -71,7 +72,6 @@ export default class CellValue extends React.PureComponent {
         var rows = [];
         let obj = this.props.value;
         let i =0;
-        console.log(obj)
         if(obj === undefined || obj === null) {
             return <div className="Cell-cellValue"> &nbsp; </div>
         }

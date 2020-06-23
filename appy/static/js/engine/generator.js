@@ -30,7 +30,7 @@ const BINARY_OPS = {
     "or": mapToFn("__aa_or"),    
 
     ".": (left, right) => {
-        return (left + ".lookup('" + right + "')")
+        return (left + ".attr('" + right + "')")
     },
 
     
@@ -139,7 +139,7 @@ function objToJs(node, kv_list, code, cell, name) {
         let value;
         if(k.node_type == "(identifier)") {
             // It's a column name
-            key = "'" + k.value + "'"
+            key = `new KeySignature("${k.value}")`;
             // Functional KVs can't be evaluated immediately. Create a function instead
             
             // TODO: Tuple support for multiple parameters
@@ -170,7 +170,6 @@ function objToJs(node, kv_list, code, cell, name) {
             let value_start = findMinStart(v);
             let value_end = findMaxEnd(v);
             let value_expr = cell.expr.slice(value_start, value_end)
-            // TODO: Escape sequence
             // code.add(`${value_name}.toString = () => "${value_expr}";\n`)
             code.add(`${value_name}.toString = () => ${JSON.stringify(value_expr)};\n`)
 

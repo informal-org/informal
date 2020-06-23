@@ -22,7 +22,7 @@
   /* display: block; */
   display: block;
   font-size: 13px;
-  font-family: "Fira code", "Fira Mono", monospace;
+  font-family: 'Inconsolata', monospace;
   padding: 1rem;
   justify-content: center;
 
@@ -30,7 +30,11 @@
   margin: 40px auto;
 }
 
-.btn, label {
+.Grid textarea, .Grid input {
+  font-family: 'Inconsolata', monospace;
+}
+
+.Grid .btn, .Grid label {
   font-family: Arial;
 }
 
