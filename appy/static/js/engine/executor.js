@@ -268,7 +268,6 @@ global.__str_builtins = {
 
 global.__aa_attr = (left, right) => {
     if(typeof left == "string") {
-
         if(right == "split" || right == "chars") {
             // TODO: Wrap in stream
             if(right == "split") {
@@ -293,7 +292,11 @@ global.__aa_attr = (left, right) => {
             return left[jsFunName]
         }
     }
-    return left.attr(right)
+    if('attr' in left) {
+        return left.attr(right)
+    }
+    return left[right]
+    
 }
 
 global.__aa_call = (fn, ...args) => {
@@ -304,6 +307,57 @@ global.__aa_call = (fn, ...args) => {
         // Note that spread syntax doesn't work with .call when it's a native function
         // ((...args) => "hello"["charAt"](...args)).call(2)
         return fn.call(...args)
+    }
+}
+
+global.math = {
+    "abs": Math.abs,
+    "sqrt": Math.sqrt,
+    "log": (a, b=undefined) => {
+        if(b == undefined) {
+            return Math.log(a)
+        } else {
+            return Math.log(a) / Math.log(b)
+        }
+    },
+    "e": Math.E,
+    "pi": Math.PI,
+
+// TODO: Trig functions    
+    "ceil": Math.ceil,
+    "floor": Math.floor,
+    "truncate": Math.trunc,
+    "round": Math.round,
+    "min": Math.min,
+    "max": Math.max,
+}
+
+// TODO: Constants for min and max number
+
+global.sum = function(stream) {
+    let total = 0;
+    let it = stream.iter();
+    let elem =  it.next();
+    while(!elem.done){
+        total += elem.value
+        elem = it.next();
+    }
+    return total
+}
+
+global.min = function(...args) {
+    if(args.length == 1) {
+        // Find min in a stream
+        return Math.min(...args[0].iter())
+    }else {
+        return Math.min(...args)
+    }
+}
+global.max = function(...args) {
+    if(args.length == 1) {
+        return Math.max(...args[0].iter())
+    }else {
+        return Math.max(...args)
     }
 }
 

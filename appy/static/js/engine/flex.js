@@ -271,6 +271,7 @@ const OP_FILTER = 1;
 const OP_MAP = 2;
 const OP_BINARY = 3;
 const OP_COMBINED_FILTER = 4;
+const OP_FOLD = 5;
 
 export class Stream {
     constructor(sources) {
@@ -363,6 +364,11 @@ export class Stream {
     map(fn) {
         // todo: flags
         return this.addOperation({'type': OP_MAP, 'fn': fn})
+    }
+
+    fold(fn) {
+        // TODO: Handle this in iter
+        return this.addOperation({'type': OP_FOLD, 'fn': fn})
     }
 
     binaryOp(fn, right) {
