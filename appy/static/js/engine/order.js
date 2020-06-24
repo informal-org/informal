@@ -13,58 +13,34 @@ export function addDependency(env, cell_id, dep_id) {
 
 export function getReferences(node, context) {
     /* Parse through an expression tree and return list of dependencies */
-    if(node.type === "BinaryExpression") {
-        let left = getReferences(node.left, context)
-        let right = getReferences(node.right, context);
-        return left.concat(right);
-    } else if(node.type === "UnaryExpression") {
-        return getReferences(node.argument, context);
-    } else if(node.type === "Literal") {
-        return []
-    } else if(node.type === "Identifier") {
-        let uname = node.name.toUpperCase();
-        if(uname in BUILTIN_SYMBOLS){
-            return [];
-        }
 
-        // todo LOOKUP NAME
-        let id_resolution = resolve(context, node.name, null)
-        if(id_resolution !== undefined && id_resolution !== null) {
-            return [id_resolution]
-        }
-        return []
-    
-    } else if (node.type === "Compound") {
-        // a, b
-        let deps = [];
-        return node.body.map((subnode) => {
-            deps.concat(getReferences(subnode, context))
-        });
-        return deps;
-    } else if (node.type == "ThisExpression") {
-        // TODO: This expression handling.
-        return [];
-    } else if(node.type == "MemberExpression") {
-        return [resolveMember(node, context)];
-    } else if (node.type == "CallExpression") {
-        // TODO: Also add function when user definable functions are possible.
+    switch(node.node_type) {
+        case "binary":
+            let left = getReferences(node.left, context);
+            let right = getReferences(node.right, context);
+            // TODO: Check op. If == '.' - do resolve member
+            return left.concat(right)
+        case "unary":
+            return getReferences(node.left, context)
+        case "(literal)":
+            return []
+        case "(identifier)":
+            // TODO: Check built in symbols
+            let resolution = resolve(context)
+            // TODO: name lookup
 
-        let depArgs = [];
-        node.arguments.forEach(subnode => {
-            depArgs.concat(getReferences(subnode, context));
-        })
-
-        return depArgs;
-    } else {
-        console.log("UNHANDLED eval CASE")
-        console.log(node);
-
-        // Node.type == Identifier
-        // Name lookup
-        // TODO: Handle name errors better.
-        // TODO: Support [bracket name] syntax for spaces.
-        return [context.resolve(node.name)];
+            // return [id_resolution]
+        case "maplist":
+            // For each element in node.value
+        case "map":
+            // node.value
+        case "apply":
+            // Resolve each argument
+        default:
+            console.log("Could not find refs for ast node:");
+            console.log(node);
     }
+
 }
 
 

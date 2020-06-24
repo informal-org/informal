@@ -272,6 +272,8 @@ function cellToJs(code, cell) {
     if(expr) {
         code.add(expr)
         code.add(`\nctx.set("${cell.id}", ${variable_name});\n`)
+    } else {
+
     }
     code.add(`} catch(err) { console.log(err); ctx.setError("${cell.id}", err.message); }\n`)
 

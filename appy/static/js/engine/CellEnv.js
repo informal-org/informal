@@ -60,11 +60,16 @@ export class CellEnv {
             cell.parsed = parseExpr(cell.expr);
         }
         catch(err) {
-            cell.error = err
+            cell.error = err.message
         }
 
         traverseDown(raw_cell, env.parseAll);
     }
+
+    findDependencies(cell_id) {
+        
+    }
+
     static getDefaultSet(map, key) {
         // Lookup key in map with python defaultdict like functionality.
         if (!map.hasOwnProperty(key)) {

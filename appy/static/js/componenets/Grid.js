@@ -124,22 +124,22 @@ export default class Grid extends React.Component {
                         </div>
 
                         <div className="col-sm-2">
-                    <a href={ this.getPreviewUrl() } target="_blank">
+                    {/* <a href={ this.getPreviewUrl() } target="_blank">
                         <button className="btn btn-primary">Preview</button>
-                    </a>
+                    </a> */}
                     </div>
 
                     </div>
 
                     <div className="row">
                         <div className="col-sm-4">
-                            <label className="header-label">Route: </label>
+                            {/* <label className="header-label">Route: </label>
 
                             <EditableLabel 
         key={this.props.view_pattern}      // Ensure component is re-rendered when name is fetched
         value={this.props.view_pattern}
         onSave={this.setViewPattern}
-      ></EditableLabel>
+      ></EditableLabel> */}
 
 
               {/*

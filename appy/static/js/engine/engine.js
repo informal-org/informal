@@ -76,7 +76,6 @@ function runInterpreted(env) {
         })
     })
 
-
     return output;
 }
 

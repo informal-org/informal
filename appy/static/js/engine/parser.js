@@ -138,6 +138,8 @@ export class ASTNode {
         this.char_end = char_end
         this.left = null;
         this.right = null;
+        this.data_type = undefined;
+        
     }
     static OperatorNode(operator, char_start, char_end) {
         return new ASTNode(operator, operator.value, TOKEN_OPERATOR, char_start, char_end)

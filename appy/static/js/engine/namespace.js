@@ -1,4 +1,18 @@
 import { traverseDown, traverseUp } from "./iter";
+const hamt = require('hamt');
+
+
+class SymbolTable {
+    constructor(parent=null) {
+        this.parent = parent;       // Parent symbol table
+
+        this.namespace = hamt.empty;
+        // Name -> cell id, 
+        // Entries:
+        // Name, scope, type
+    }
+}
+
 
 export function defineNamespace(cell) {
     // Trace through child nodes and define reachable names at each point in the tree

@@ -261,6 +261,7 @@ export function execJs(code) {
     } catch(err) {
         console.log("Evaluation error")
         console.log(err);
+        console.log(code);
         return {}
     }
 }

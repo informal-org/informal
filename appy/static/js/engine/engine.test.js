@@ -111,7 +111,7 @@ test('Eval multiple args', () => {
 
 test('Attribute access', () => {
     let prog = [
-        {   name: "movie", expr: '"title": "The Martian"\n"year": 2015' }, 
+        {   name: "movie", expr: 'title: "The Martian"\nyear: 2015' }, 
         {   expr: "movie.year"  },
         {   expr: "movie.title"  }
     ]

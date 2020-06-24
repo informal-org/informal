@@ -23,6 +23,7 @@ export class Cell {
         this._num_pending_deps = undefined;
         // Numerical index of evaluation order in total ordering
         this._eval_index = -1;
+        this._depend_count = 0;
 
         this.parsed = {};
         this.error = null;

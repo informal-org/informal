@@ -11,7 +11,6 @@ export default class AbstractBaseCell extends React.Component {
     }
 
     setFocus = (event) => {
-        console.log("Set focus");
         this.props.reEvaluate();    // Potentially re-evaluate the result of previous cell modification.
         this.props.setOpen(true);
         this.props.setFocus(this.props.cell.id);
@@ -22,7 +21,6 @@ export default class AbstractBaseCell extends React.Component {
     }
 
     onKeyDown = (event) => {
-        console.log(event)
         // Only process events that happen directly on the outer div, not in inner inputs, etc.
         let isCellBase = event.target.dataset["cell"] === this.props.cell.id;
         let isCellInput = event.target.tagName === "INPUT" || event.target.tagName == "TEXTAREA";
