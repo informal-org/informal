@@ -253,19 +253,44 @@ global.__aa_gte_type_map = genComparisonOpMap(global.__aa_gte, (a, b) => a >= b)
 // TODO: Special case for eq
 global.__aa_eq_type_map = genComparisonOpMap(global.__aa_eq, (a, b) => a === b)
 
+
+global.__str_builtins = {
+    "length": "length",
+    "replace": "replace",
+    "add": "concat",
+    "slice": "slice",
+    "uppercase": "toUpperCase",
+    "lowercase": "toLowerCase",
+    "starts_with": "startsWith",
+    "ends_with": "endsWith",
+}
+
+
 global.__aa_attr = (left, right) => {
     if(typeof left == "string") {
 
-        let ref = left[right];
-        if(typeof ref == "function") {
+        if(right == "split" || right == "chars") {
+            // TODO: Wrap in stream
+            if(right == "split") {
+                return function(...args) {
+                    return Stream.array(left.split(...args))
+                }
+            } else {
+                return function() {
+                    return Stream.array(Array.from(left))
+                }
+            }
+        }
+
+        var jsFunName = __str_builtins[right]
+        if(typeof left[jsFunName] == "function") {
             // hello.toUpperCase
             return function(...args) {
-                console.log("Calling: " + right + " with : " + args)
-                return left[right](...args)
+                return left[jsFunName](...args)
             }
         } else {
             // "hello".length
-            return left[right]
+            return left[jsFunName]
         }
     }
     return left.attr(right)
