@@ -366,9 +366,10 @@ new Mixfix("(", 150, (node, tokenStream) => {
     // In infix mode, ( indicates a function call
     node.left = left;
 
-    if(node.left.node_type != TOKEN_IDENTIFIER) {
-        syntaxError("Error: Could not call " + node.left.operator.value + " as a function.")
-    }
+    // if(node.left.node_type != TOKEN_IDENTIFIER) {
+    //     console.log(node.left.node_type);
+    //     syntaxError("Error: Could not call " + node.left.operator.value + " as a function.")
+    // }
 
     node.node_type = "apply"
     node.value = [];

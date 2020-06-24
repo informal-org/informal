@@ -30,7 +30,7 @@ const BINARY_OPS = {
     "or": mapToFn("__aa_or"),    
 
     ".": (left, right) => {
-        return (left + ".attr('" + right + "')")
+        return "__aa_attr(" + left + ", '" + right + "' )"
     },
 
     
@@ -229,7 +229,8 @@ export function astToJs(node, code, cell, name="") {
             node.value.forEach((param) => {
                 params.push(astToJs(param, code, cell))
             })
-            return prefix + node.left.value + ".call(" + params.join(",") + ")"
+            let paramString = params ? ", " + params.join(",") : ""
+            return prefix + "__aa_call(" + astToJs(node.left) + paramString + ")"
         }
         case "(array)": {
             let elems = [];

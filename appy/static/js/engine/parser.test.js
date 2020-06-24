@@ -62,5 +62,9 @@ test('test equality', () => {
 
 test('test function signature', () => {
     expect(parseExpr("(a, b) [a > 0]: a + b").toString()).toEqual("(: ([ ((grouping) a b) (> a 0)) (+ a b))")
-
 });
+
+// test('test native function calls', () => {
+//     let result = parseExpr('"hello".uppercase()')
+//     expect(result.toString()).toEqual("(: ([ ((grouping) a b) (> a 0)) (+ a b))")
+// });

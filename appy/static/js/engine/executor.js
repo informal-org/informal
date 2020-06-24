@@ -253,6 +253,35 @@ global.__aa_gte_type_map = genComparisonOpMap(global.__aa_gte, (a, b) => a >= b)
 // TODO: Special case for eq
 global.__aa_eq_type_map = genComparisonOpMap(global.__aa_eq, (a, b) => a === b)
 
+global.__aa_attr = (left, right) => {
+    if(typeof left == "string") {
+
+        let ref = left[right];
+        if(typeof ref == "function") {
+            // hello.toUpperCase
+            return function(...args) {
+                console.log("Calling: " + right + " with : " + args)
+                return left[right](...args)
+            }
+        } else {
+            // "hello".length
+            return left[right]
+        }
+    }
+    return left.attr(right)
+}
+
+global.__aa_call = (fn, ...args) => {
+    if(typeof fn == "function") {
+        return fn(...args)
+    }
+    else {
+        // Note that spread syntax doesn't work with .call when it's a native function
+        // ((...args) => "hello"["charAt"](...args)).call(2)
+        return fn.call(...args)
+    }
+}
+
 
 export function execJs(code) {
     // TODO: Sandboxed execution
