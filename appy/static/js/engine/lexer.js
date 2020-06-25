@@ -191,7 +191,7 @@ function parseKeyword(it, length) {
     let kw = it.lookahead(length);
     if(kw.length == length && kw in KEYWORD_TABLE) {
         it.next(length)
-        return OperatorNode(KEYWORD_TABLE[kw], char_start, it.index)
+        return OperatorNode(KEYWORD_TABLE[kw], char_start, it.index + 2)
     }
 }
 
