@@ -364,3 +364,5 @@ global.max = function(...args) {
 }
 
 
+global.range = Stream.range
+

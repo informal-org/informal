@@ -49,7 +49,7 @@ export default class CellValue extends React.PureComponent {
         }
         else if(value !== null && valtype === "object") {
             if(value.__type === "Stream") {
-                cellResults =  <div className="Cell-cellValue">{"" + Array.from(value.iter()) }</div>
+                cellResults =  <div className="Cell-cellValue">{"" + Array.from(value.first(10)) }{ (value.length && value.length > 10) ? "..." : ""}</div>
             } else if(value.__type == "KeySig") {
                 cellResults = <div className="Cell-cellValue" 
                 dangerouslySetInnerHTML={this.highlightOutput(value)}    >

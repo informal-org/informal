@@ -296,10 +296,17 @@ export class Stream {
         // TODO: Optimization: Store slices of data, so for large generated ranges
         // it will store a sliding window and never more than the window bounds.
 
+        this.map = this.map.bind(this);
+        this.filter = this.filter.bind(this);
+        this.reduce = this.reduce.bind(this);
+        this.max = this.max.bind(this);
+        this.min = this.min.bind(this);
         this.fn_map = {
             'map': this.map,
             'filter': this.filter,
             'reduce': this.reduce,
+            'max': this.max,
+            'min': this.min
         }
     }
 
@@ -391,6 +398,14 @@ export class Stream {
             elem = it.next();
         }
         return result
+    }
+
+    max(){          // Terminal operation
+        return Math.max(...Array.from(this.iter()))
+    }
+
+    min(){          // Terminal operation
+        return Math.min(...Array.from(this.iter()))
     }
 
     attr(fn_name) {
@@ -549,6 +564,18 @@ export class Stream {
                 yield value;
             }
         }
+    }
+
+    * first(n) {
+        let it = this.iter();
+        for(var i = 0; i < n; i++) {
+            let val = it.next();
+            if(val.done) {
+                break
+            }
+            yield val.value
+        }
+        
     }
 
 }
