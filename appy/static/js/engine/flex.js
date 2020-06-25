@@ -297,7 +297,9 @@ export class Stream {
         // it will store a sliding window and never more than the window bounds.
 
         this.fn_map = {
-            'map': this.map
+            'map': this.map,
+            'filter': this.filter,
+            'reduce': this.reduce,
         }
     }
 
@@ -383,7 +385,7 @@ export class Stream {
         } else {
             result = init;
         }
-       
+        
         while(!elem.done) {
             result = __aa_call(fn, result, elem.value)
             elem = it.next();
@@ -395,6 +397,7 @@ export class Stream {
         if(fn_name == "length") {
             return this.length
         }
+        return this.fn_map[fn_name]
     }
 
     binaryOp(fn, right) {
@@ -495,12 +498,12 @@ export class Stream {
             for(var op_index = 0; op_index < this.operations.length; op_index++) {
                 let op = this.operations[op_index];
                 if(op.type == OP_FILTER) {
-                    if(!op.fn(value)) {
+                    if(!__aa_call(op.fn, value)) {
                         finished = false;
                         break;
                     }
                 } else if(op.type == OP_MAP) {
-                    value = op.fn(value);
+                    value = __aa_call(op.fn, value);
                 } else if(op.type == OP_BINARY) {
                     // Retrieve this stateful op from the array
                     let right;
@@ -521,7 +524,7 @@ export class Stream {
                         finished = false;
                         break;
                     } else {
-                        value = op.fn(value, right_elem.value)
+                        value = __aa_call(op.fn, value, right_elem.value);
                     }
                 } else if(op.type == OP_COMBINED_FILTER) {
                     let right;
@@ -530,7 +533,7 @@ export class Stream {
                     } else {
                         // Note: op.fn here vs op.right above since this isn't really a binary op
                         // More of an op between two streams
-                        right = op.fn();
+                        right = __aa_call(op.fn);
                         right_iters.push(right);
                         right_idx++;
                     }
