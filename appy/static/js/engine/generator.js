@@ -1,6 +1,5 @@
 import { orderCellBody } from "./order"
 import { syntaxError } from "./parser";
-import {genID} from "../utils"
 
 // TODO: Ensure error equality on CYCLIC_ERR throws error.
 export const JS_PRE_CODE = `
@@ -59,6 +58,8 @@ class CodeGenContext {
     constructor(env){
         this.code = JS_PRE_CODE;
         this.env = env;
+
+        this.variable_count = 0;
     }
     add(newCode) {
         this.code += newCode
@@ -68,6 +69,10 @@ class CodeGenContext {
     }
     getCode() {
         return this.code
+    }
+
+    genVariable() {
+        return "u_" + this.variable_count++
     }
 }
 
@@ -109,7 +114,7 @@ function paramsToJs(node) {
 
 function parseGuard(node, params, code, cell) {
     // TODO: Type support
-    var name = "__" + genID();
+    var name = "__" + code.genVariable();
     let guardFn = "(" + params.value + ") => " + astToJs(node, code, cell);
     code.add(`var ${name} = ${guardFn};`)
     // Add a text representation
@@ -126,7 +131,7 @@ function parseGuard(node, params, code, cell) {
 
 function objToJs(node, kv_list, code, cell, name) {
     if(!name) {
-        name = genID();
+        name = code.genVariable();
     }
 
     let prefix = name ? "var " + name + " = " : "";
@@ -163,7 +168,7 @@ function objToJs(node, kv_list, code, cell, name) {
             // TODO: Type support
             key = "new KeySignature('', null, [" + paramString + "],(" + guard + "))"
 
-            let value_name = "__" + genID();
+            let value_name = "__" + code.genVariable();
             let valueFn = "(" + paramNode.value + ") => " + astToJs(v, code, cell)
             
             code.add(`var ${value_name} = ${valueFn};\n`)
