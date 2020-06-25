@@ -115,3 +115,9 @@ test('stream indexing', () => {
     // Should just re-use the existing cached entry
     expect(stream.get(2)).toEqual(2)
 })
+
+test('stream fold', () => {
+    let stream = Stream.range(0, 10);
+    // fn, (init)
+    expect(stream.reduce((acc, x) => acc + x)).toEqual(45)
+})

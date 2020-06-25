@@ -2,7 +2,7 @@ import { CellEnv } from "./CellEnv";
 import { Cell } from "./Cell";
 import { parseExpr } from "./parser"
 import { genJs } from "./generator"
-import { execJs, interpret } from "./executor"
+import { execJs } from "./executor"
 import { defineNamespace } from "./namespace"
 
 // Dict, Value -> value | null
@@ -60,25 +60,6 @@ function resolve(state, name, scope) {
 }
 
 
-function runInterpreted(env) {
-    defineNamespace(env.root)
-    interpret(env)
-
-
-    let output = [];
-
-
-    env.root.body.forEach((cell) => {
-        output.push({
-            id: cell.id,
-            value: cell.result,
-            error: ""
-        })
-    })
-
-    return output;
-}
-
 function runGenerated(env) {
     defineNamespace(env.root)
     let code = genJs(env);
@@ -125,7 +106,6 @@ export function evaluate(state) {
 
     env.parseAll(root_id);
 
-    // let output = runInterpreted(env);
     let output = runGenerated(env);
 
     // ignore

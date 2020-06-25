@@ -1,4 +1,5 @@
 import { genID, isObject, isFunction } from "../utils"
+import { __aa_call } from "./builtins"
 
 
 export class Obj {
@@ -273,6 +274,7 @@ const OP_BINARY = 3;
 const OP_COMBINED_FILTER = 4;
 const OP_FOLD = 5;
 
+
 export class Stream {
     constructor(sources) {
         // Source: A generator for values. May be infinite
@@ -293,6 +295,10 @@ export class Stream {
 
         // TODO: Optimization: Store slices of data, so for large generated ranges
         // it will store a sliding window and never more than the window bounds.
+
+        this.fn_map = {
+            'map': this.map
+        }
     }
 
     elementAt(index) {
@@ -366,9 +372,29 @@ export class Stream {
         return this.addOperation({'type': OP_MAP, 'fn': fn})
     }
 
-    fold(fn) {
-        // TODO: Handle this in iter
-        return this.addOperation({'type': OP_FOLD, 'fn': fn})
+    reduce(fn, init=undefined) {
+        // Terminal operation. Apply the function and return the value.
+        let result;
+        let it = this.iter();
+        let elem = it.next();
+        if(init == undefined) {
+            result = elem.value;
+            elem = it.next();
+        } else {
+            result = init;
+        }
+       
+        while(!elem.done) {
+            result = __aa_call(fn, result, elem.value)
+            elem = it.next();
+        }
+        return result
+    }
+
+    attr(fn_name) {
+        if(fn_name == "length") {
+            return this.length
+        }
     }
 
     binaryOp(fn, right) {
