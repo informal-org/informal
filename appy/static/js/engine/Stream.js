@@ -37,6 +37,8 @@ export class Stream {
         this.sorted = this.sorted.bind(this);
         this.reversed = this.reversed.bind(this);
         this.head = this.head.bind(this);
+        this.tail = this.tail.bind(this);
+        this.concat = this.concat.bind(this);
         this.first = this.first.bind(this);
         this.fn_map = {
             'map': this.map,
@@ -46,7 +48,9 @@ export class Stream {
             'min': this.min,
             'sorted': this.sorted,
             'head': this.head,
+            'tail': this.tail,
             'reversed': this.reversed,
+            'concat': this.concat,
         }
     }
 
@@ -180,12 +184,14 @@ export class Stream {
     tail() {
         // TODO: This will use a lot of memory if you use it recursively.
         // Optimize
+        let parent = this;
         
-        let it = this.iter();
-        it.next();  // Skip over first value
         // TODO: maintain flags
         let s = new Stream([
             function* () {
+                let it = parent.iter();
+                it.next();  // Skip over first value
+                
                 var elem = it.next();
                 while(!elem.done) {
                     yield elem.value
