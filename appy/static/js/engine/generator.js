@@ -87,6 +87,12 @@ function findMinStart(node) {
         let right_start = findMinStart(node.right);
         min = right_start < min ? right_start : min
     }
+    if(node.value) {
+        for(var i = 0; i < node.value.length; i++){
+            let val_start = findMinStart(node.value[i]);
+            min = val_start < min ? val_start : min
+        }
+    }
     return min
 }
 
@@ -101,6 +107,12 @@ function findMaxEnd(node) {
         let right_end = findMaxEnd(node.right);
         max = right_end > max ? right_end : max
     }
+    if(node.value) {
+        for(var i = 0; i < node.value.length; i++){
+            let val_start = findMaxEnd(node.value[i]);
+            max = val_start > max ? val_start : max
+        }
+    }    
     return max
 }
 
@@ -152,11 +164,11 @@ function objToJs(node, kv_list, code, cell, name) {
             // TODO: Return in the context of multiple lines.
             value = astToJs(v, code, cell) 
 
-        } else if(k.node_type == "(grouping)" || k.node_type == "(where)") {
+        } else if(k.node_type == "(grouping)" || k.node_type == "(if)") {
 
             let paramNode = k;
             let guard = null;
-            if(k.node_type == "(where)") {
+            if(k.node_type == "(if)") {
                 paramNode = k.left;
                 guard = parseGuard(k.right, paramNode, code, cell);
             }
@@ -223,8 +235,9 @@ export function astToJs(node, code, cell, name="") {
             if(node.value.length == 1) {
                 return "(" + astToJs(node.value[0], code, cell, name) + ")"
             } else {
-                // TODO
-                syntaxError("Unexpected parentheses")
+                console.log("Unexpected parentheses")
+                console.log(node);
+                console.log(node.value);
             }
         }
         case "apply": {

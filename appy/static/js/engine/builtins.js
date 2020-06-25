@@ -1,4 +1,6 @@
-import { Obj, Stream, KeySignature } from "./flex"
+import { Obj, KeySignature } from "./flex"
+import { Stream } from "./Stream"
+import { __aa_call } from "../utils"
 
 class CyclicRefError extends Error {
     constructor(message) {
@@ -296,18 +298,6 @@ global.__aa_attr = (left, right) => {
     }
     return left[right]
     
-}
-
-
-export function __aa_call(fn, ...args) {
-    if(typeof fn == "function") {
-        return fn(...args)
-    }
-    else {
-        // Note that spread syntax doesn't work with .call when it's a native function
-        // ((...args) => "hello"["charAt"](...args)).call(2)
-        return fn.call(...args)
-    }
 }
 
 global.__aa_call = __aa_call

@@ -1,4 +1,5 @@
-import { Obj, Stream, KeySignature } from "./flex"
+import { Obj, KeySignature } from "./flex"
+import { Stream } from "./Stream"
 
 test('Object with obj keys', () => {
     // When cells don't depend on each other, their order remains the same

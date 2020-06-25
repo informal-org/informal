@@ -189,7 +189,7 @@ test('Array filtering', () => {
 
 test('Conditional guards', () => {
     let find_min = [
-        {   name: "find_min",   expr: "(x, y)[x <= y]: x\n(x, y): y"  },
+        {   name: "find_min",   expr: "(x, y) if(x <= y): x\n(x, y): y"  },
         {   expr: "find_min(5, 10)" },
         {   expr: "find_min(10, 5)" },
         {   expr: "find_min(5, 5)" },

@@ -20,6 +20,7 @@ export const TOKEN_START_BLOCK = "(startblock)";
 export const TOKEN_END_BLOCK = "(endblock)";
 export const TOKEN_WHERE = "(where)";       // []
 export const TOKEN_ARRAY = "(array)";
+export const TOKEN_COND = "(if)";
 
 class ParseIterator extends QIter {
     constructor(queue) {
@@ -89,13 +90,14 @@ class Prefix extends Keyword {
 class Infix extends Keyword {
     constructor(keyword_id, left_binding_power, left_denotation=null) {
         super(keyword_id, left_binding_power)
+        this.node_type = "binary"
         if(left_denotation) {
             this.left_denotation = left_denotation
         }
     }
     left_denotation(left, node, token_stream) {
         // console.log("Infix led for " + this.keyword_id);
-        node.node_type = "binary"
+        node.node_type = this.node_type
         node.left = left;
         node.right = expression(token_stream, this.left_binding_power)
         return node;
@@ -105,7 +107,7 @@ class Infix extends Keyword {
 // Infix with right associativity, like =
 class InfixRight extends Infix {
     left_denotation(left, node, token_stream) {
-        node.node_type = "binary"
+        node.node_type = this.node_type
         node.left = left;
         node.right = expression(token_stream, this.left_binding_power - 1)
         return node;
@@ -213,6 +215,9 @@ new Infix("in", 60)
 // Infix: "not in" TODO
 new Mixfix("not", 110, Prefix.null_denotation)  // was 60. Changed to 110
 new Infix("is", 60)     // TODO
+
+const COND = new Infix("if", 150);
+COND.node_type = TOKEN_COND;
 
 
 

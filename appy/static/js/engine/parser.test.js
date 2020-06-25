@@ -68,3 +68,8 @@ test('test function signature', () => {
 //     let result = parseExpr('"hello".uppercase()')
 //     expect(result.toString()).toEqual("(: ([ ((grouping) a b) (> a 0)) (+ a b))")
 // });
+
+
+test('test guard statements', () => {
+    expect(parseExpr("(a, b) if(a > 0): a + b").toString()).toEqual("(: (if ((grouping) a b) ((grouping) (> a 0))) (+ a b))")
+});
