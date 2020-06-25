@@ -193,6 +193,12 @@ global.__aa_or = (a, b) => {
 }
 
 
+global.__aa_bool = (a) => {
+    return !!a
+}
+
+
+
 global.__aa_sub_type_map = genNumericOpMap(global.__aa_sub, (a, b) => a - b);
 global.__aa_multiply_type_map = genNumericOpMap(global.__aa_multiply, (a, b) => a * b);
 global.__aa_divide_type_map = genNumericOpMap(global.__aa_divide, (a, b) => a / b);
@@ -353,6 +359,44 @@ global.max = function(...args) {
     }
 }
 
-
 global.range = Stream.range
 
+
+global.all = function(...args) {
+    var it;
+    if(args.length == 1) {          // It's a stream
+        it = args[0].iter()
+    } else {
+        it = args.values()
+    }
+
+    let elem = it.next();
+    while(!elem.done){
+        if(!global.__aa_bool(elem.value)){
+            return false
+        }
+        elem = it.next();
+    }
+    
+    return true
+}
+
+global.any = function(...args) {
+    var it;
+    if(args.length == 1) {          // It's a stream
+        it = args[0].iter()
+    } else {
+        it = args.values()
+    }
+
+    let elem = it.next();
+    while(!elem.done){
+        if(global.__aa_bool(elem.value)){
+            return true
+        }
+        elem = it.next();
+    }
+    
+    return false
+
+}

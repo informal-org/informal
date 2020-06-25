@@ -14,9 +14,9 @@ export class Stream {
         this.sources = sources
         this.operations = []
         // TODO: Future optimization flags to maintain between ops
-        this.sized = false;
-        this.sorted = false;
-        this.distinct = false;
+        this.is_sized = false;
+        this.is_sorted = false;
+        this.is_distinct = false;
         this.length = undefined;
         this.__type = "Stream"
 
@@ -34,12 +34,19 @@ export class Stream {
         this.reduce = this.reduce.bind(this);
         this.max = this.max.bind(this);
         this.min = this.min.bind(this);
+        this.sorted = this.sorted.bind(this);
+        this.reversed = this.reversed.bind(this);
+        this.head = this.head.bind(this);
+        this.first = this.first.bind(this);
         this.fn_map = {
             'map': this.map,
             'filter': this.filter,
             'reduce': this.reduce,
             'max': this.max,
-            'min': this.min
+            'min': this.min,
+            'sorted': this.sorted,
+            'head': this.head,
+            'reversed': this.reversed,
         }
     }
 
@@ -114,6 +121,85 @@ export class Stream {
         return this.addOperation({'type': OP_MAP, 'fn': fn})
     }
 
+    sorted() {
+        console.log("Sorted parent called")
+        // TODO: comparator function as input
+        let parent = this;
+        console.log("Parent arr: " + Array.from(this.iter()))
+        let s = new Stream([function () {
+            let arr = Array.from(parent.iter())
+            console.log("Array to sort: " + arr)
+            // Javascript sorts alphabetically. 
+            // Determine sort type by first element
+            // TODO: Better way to handle non-homogenous types?
+
+            if(arr.length > 0) {
+                if(typeof arr[0] == "number") {
+                    arr.sort((a, b) => a - b)
+                    return arr.values()
+                }
+            }
+
+            // Sort alphabetically
+            arr.sort();
+            return arr.values()    // Iterator
+        }])
+        this.copyFlags(s)
+        s.length = this.length
+        s.is_sorted = true;
+
+        return s
+
+    }
+
+    reversed() {
+        // TODO: Optimization - If it's backed by an array, change some iteration order
+        // without doing an actual reverse
+        // TODO: Prevent errors on infinite lists
+        let parent = this;
+        let s = new Stream([
+            function() {
+                let arr = Array.from(parent.iter())
+                arr.reverse()
+                return arr.values()
+            }
+        ])
+        this.copyFlags(s);
+        s.length = this.length
+        // TODO: Maintain asc/desc sorting information
+        s.is_sorted = false;
+        return s
+
+    }
+
+    head() {
+        let it = this.iter();
+        return it.next().value
+    }
+
+    tail() {
+        // TODO: This will use a lot of memory if you use it recursively.
+        // Optimize
+        
+        let it = this.iter();
+        it.next();  // Skip over first value
+        // TODO: maintain flags
+        let s = new Stream([
+            function* () {
+                var elem = it.next();
+                while(!elem.done) {
+                    yield elem.value
+                    elem = it.next();
+                }
+            }
+        ])
+        this.copyFlags(s);
+        if(this.sized && this.length > 0) {
+            s.length = this.length - 1;
+        }
+        return s;
+    }
+
     reduce(fn, init=undefined) {
         // Terminal operation. Apply the function and return the value.
         let result;
@@ -162,12 +248,12 @@ export class Stream {
         if(s.sized && stream.sized) {
             s.length = s.length + stream.length
         } else {
-            s.sized = false;
+            s.is_sized = false;
             s.length = undefined;
         }
         // We can't know anything about these when combined.
-        s.sorted = false;
-        s.distinct = false;
+        s.is_sorted = false;
+        s.is_distinct = false;
         return s
     }
 
@@ -181,11 +267,15 @@ export class Stream {
         // TODO: Change clone mechanism to point to parent stream instead.
         let s = new Stream([...this.sources]);
         s.operations = [...this.operations]      // Clone
-        s.sized = this.sized;
-        s.sorted = this.sorted;
-        s.distinct = this.distinct;
+        this.copyFlags(s)
         s.length = this.length;
         return s
+    }
+
+    copyFlags(dest) {
+        dest.is_sized = this.is_sized
+        dest.is_sorted = this.is_sorted
+        dest.is_distinct = this.is_distinct
     }
 
     // TODO: Common variant of this which just takes stop
