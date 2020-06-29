@@ -60,7 +60,11 @@ pub const EXPORT_GLOBAL: u8 = 0x03;
  * https://webassembly.github.io/spec/core/binary/instructions.html
  * https://webassembly.github.io/spec/core/appendix/index-instructions.html
  ***/
-pub const BLOCKTYPE_VOID: u8 = 0x40;    // Other block types are the value type equivalent
+pub const BLOCK_VOID: u8 = 0x40;    // Other block types are the value type equivalent
+pub const BLOCK_I32: u8 = 0x7F;
+pub const BLOCK_I64: u8 = 0x7E;
+pub const BLOCK_F32: u8 = 0x7D;
+pub const BLOCK_F64: u8 = 0x7C;
 
 pub const OP_UNREACHABLE: u8 = 0x00;
 pub const OP_NOP: u8 = 0x01;
