@@ -1,3 +1,8 @@
+use crate::bytecode::*;
+
+pub mod bytecode;
+
+
 // use wasm_bindgen::prelude::*;
 
 // // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
@@ -17,15 +22,11 @@
 // }
 
 
-extern "C" {
-    fn __aa_add(a: u64, b: u64) -> u64;
-}
-
 #[no_mangle]
-#[export_name = "userrun"]
-pub extern "C" fn userrun() -> u32 {
-    unsafe {
-        return __aa_add(12, 40) as u32
-    }
+#[export_name = "aa_gen_wasm"]
+pub extern "C" fn aa_gen_wasm() -> u32 {
+
+
+    return 0
 }
 
