@@ -1,6 +1,7 @@
 use crate::bytecode::*;
 
 pub mod bytecode;
+pub mod leb128;
 
 
 // use wasm_bindgen::prelude::*;
