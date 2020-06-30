@@ -9,9 +9,9 @@
  * ****/
 pub const VAL_I32: u8 = 0x7f;
 pub const VAL_I64: u8 = 0x7e;
-pub const VAL_f32: u8 = 0x7d;
-pub const VAL_f64: u8 = 0x7c;
-pub const VAL_v128: u8 = 0x7b;
+pub const VAL_F32: u8 = 0x7d;
+pub const VAL_F64: u8 = 0x7c;
+pub const VAL_V128: u8 = 0x7b;
 
 pub const FUNC_TYPE: u8 = 0x60;
 pub const RESULT_TYPE: u8 = 0x40;
