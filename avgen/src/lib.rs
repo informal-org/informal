@@ -7,13 +7,13 @@ pub mod leb128;
 pub mod encoding;
 
 
-// use wasm_bindgen::prelude::*;
+use wasm_bindgen::prelude::*;
 
 // // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
 // // allocator.
-// #[cfg(feature = "wee_alloc")]
-// #[global_allocator]
-// static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
+#[cfg(feature = "wee_alloc")]
+#[global_allocator]
+static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 // #[wasm_bindgen]
 // extern {
@@ -39,12 +39,12 @@ pub extern "C" fn aa_gen_wasm() -> Vec<u8> {
 
     let mut type_section = encode_section(SECTION_TYPE, encode_nested_vector(types));
 
-    println!("Type section: {:02x?}", type_section);
+    // println!("Type section: {:02x?}", type_section);
 
     let func_index_vec: Vec<u8> = vec![0x00];
     let mut func_section = encode_section(SECTION_FUNCTION, encode_vector(func_index_vec));
 
-    println!("Func section: {:02x?}", func_section);
+    // println!("Func section: {:02x?}", func_section);
 
     let mut export_fn0: Vec<u8> = vec![];
     export_fn0.append(&mut encode_string("run".to_string()));
@@ -54,7 +54,7 @@ pub extern "C" fn aa_gen_wasm() -> Vec<u8> {
 
     let all_exports = vec![export_fn0];
     let mut export_section = encode_section(SECTION_EXPORT, encode_nested_vector(all_exports));
-    println!("Export section: {:02x?}", export_section);
+    // println!("Export section: {:02x?}", export_section);
 
     let mut code: Vec<u8> = vec![];
     code.push(OP_LOCAL_GET);
@@ -71,7 +71,7 @@ pub extern "C" fn aa_gen_wasm() -> Vec<u8> {
     let all_functions = vec![encode_vector(func0)];
     let mut code_section = encode_section(SECTION_CODE, encode_nested_vector(all_functions));
 
-    println!("Code section: {:02x?}", code_section);
+    // println!("Code section: {:02x?}", code_section);
 
     let mut full_code: Vec<u8> = vec![];
     full_code.append(&mut MODULE_MAGIC.to_vec());
