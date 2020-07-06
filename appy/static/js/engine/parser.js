@@ -88,29 +88,34 @@ class Prefix extends Keyword {
 }
 
 class Infix extends Keyword {
-    constructor(keyword_id, left_binding_power, left_denotation=null) {
+    constructor(keyword_id, left_binding_power, left_denotation=null, node_type="binary") {
         super(keyword_id, left_binding_power)
-        this.node_type = "binary"
+        this.node_type = node_type
         if(left_denotation) {
             this.left_denotation = left_denotation
+        } else {
+            this.left_denotation = Infix.get_left_denotation(this.node_type, left_binding_power)
         }
     }
-    left_denotation(left, node, token_stream) {
-        // console.log("Infix led for " + this.keyword_id);
-        node.node_type = this.node_type
-        node.left = left;
-        node.right = expression(token_stream, this.left_binding_power)
-        return node;
+    static get_left_denotation(node_type, left_binding_power) {
+        return (left, node, token_stream) => {
+            node.node_type = node_type
+            node.left = left
+            node.right = expression(token_stream, left_binding_power)
+            return node
+        }
     }
 }
 
 // Infix with right associativity, like =
 class InfixRight extends Infix {
-    left_denotation(left, node, token_stream) {
-        node.node_type = this.node_type
-        node.left = left;
-        node.right = expression(token_stream, this.left_binding_power - 1)
-        return node;
+    constructor(keyword_id, left_binding_power, left_denotation=null, node_type="binary") {
+        super(keyword_id, left_binding_power, left_denotation, node_type)
+        if(!this.left_denotation) {
+            console.log("OVERWRITING Infix Right left denotation")
+            // Note the left binding power is reduced for infix right
+            this.left_denotation = Infix.get_left_denotation(node_type, left_binding_power - 1)
+        }
     }
 }
 
@@ -216,8 +221,7 @@ new Infix("in", 60)
 new Mixfix("not", 110, Prefix.null_denotation)  // was 60. Changed to 110
 new Infix("is", 60)     // TODO
 
-const COND = new Infix("if", 150);
-COND.node_type = TOKEN_COND;
+const COND = new Infix("if", 150, Prefix.null_denotation, TOKEN_COND);
 
 
 
