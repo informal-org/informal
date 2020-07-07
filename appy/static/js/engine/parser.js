@@ -76,14 +76,14 @@ class Identifier extends Keyword {
 class Prefix extends Keyword {
     constructor(keyword_id, left_binding_power, null_denotation=null) {
         super(keyword_id, left_binding_power)
-        if(null_denotation) {
-            this.null_denotation = null_denotation
-        }
+        this.null_denotation = null_denotation ? null_denotation : Prefix.get_null_denotation()
     }
-    static null_denotation(node, token_stream) {
-        node.left = expression(token_stream, 100);
-        node.node_type = "unary"
-        return node;
+    static get_null_denotation(node_type="unary") {
+        return (node, token_stream) => {
+            node.left = expression(token_stream, 100);
+            node.node_type = node_type
+            return node;            
+        }
     }
 }
 
@@ -91,11 +91,7 @@ class Infix extends Keyword {
     constructor(keyword_id, left_binding_power, left_denotation=null, node_type="binary") {
         super(keyword_id, left_binding_power)
         this.node_type = node_type
-        if(left_denotation) {
-            this.left_denotation = left_denotation
-        } else {
-            this.left_denotation = Infix.get_left_denotation(this.node_type, left_binding_power)
-        }
+        this.left_denotation = left_denotation ? left_denotation : Infix.get_left_denotation(node_type, left_binding_power)
     }
     static get_left_denotation(node_type, left_binding_power) {
         return (left, node, token_stream) => {
@@ -111,8 +107,7 @@ class Infix extends Keyword {
 class InfixRight extends Infix {
     constructor(keyword_id, left_binding_power, left_denotation=null, node_type="binary") {
         super(keyword_id, left_binding_power, left_denotation, node_type)
-        if(!this.left_denotation) {
-            console.log("OVERWRITING Infix Right left denotation")
+        if(!left_denotation) {
             // Note the left binding power is reduced for infix right
             this.left_denotation = Infix.get_left_denotation(node_type, left_binding_power - 1)
         }
@@ -218,10 +213,11 @@ new Infix("in", 60)
 
 // Prefix: when used as Not
 // Infix: "not in" TODO
-new Mixfix("not", 110, Prefix.null_denotation)  // was 60. Changed to 110
+new Mixfix("not", 110, Prefix.get_null_denotation())  // was 60. Changed to 110
 new Infix("is", 60)     // TODO
 
-const COND = new Infix("if", 150, Prefix.null_denotation, TOKEN_COND);
+
+const COND = new Mixfix("if", 150, Prefix.get_null_denotation(TOKEN_COND), Infix.get_left_denotation(TOKEN_COND, 150));
 
 
 
@@ -230,7 +226,7 @@ new Infix("+", 80).null_denotation = (node, token_stream) => {
     return expression(token_stream, 100)
 }
 // Support unary minus
-new Infix("-", 80).null_denotation = Prefix.null_denotation
+new Infix("-", 80).null_denotation = Prefix.get_null_denotation()
 
 new Infix("*", 85)
 new Infix("/", 85)

@@ -118,16 +118,23 @@ function findMaxEnd(node) {
 
 function paramsToJs(node) {
     // TODO: Preserve normal values as-is for pattern matching
-    let params = node.value.map((p) => {
-        return "new KeySignature('" + p + "')"
-    })
-    return params.join(" , ")
+    if(node && node.value) {
+        let params = node.value.map((p) => {
+            return "new KeySignature('" + p + "')"
+        })
+        return params.join(" , ")
+    } else {
+        return ""
+    }
 }
 
 function parseGuard(node, params, code, cell) {
     // TODO: Type support
     var name = "__" + code.genVariable();
-    let guardFn = "(" + params.value + ") => " + astToJs(node, code, cell);
+
+    var paramsStr = params ? "(" + params.value + ")" : "()";
+    let guardFn = paramsStr + " => " + astToJs(node, code, cell);
+
     code.add(`var ${name} = ${guardFn};`)
     // Add a text representation
 
@@ -149,6 +156,8 @@ function objToJs(node, kv_list, code, cell, name) {
     let prefix = name ? "var " + name + " = " : "";
     let result = prefix + "new Obj();";
 
+    var is_conditional = undefined;
+
     // Array of key value tuples
     kv_list.forEach((kv) => {
         let [k, v] = kv
@@ -169,21 +178,40 @@ function objToJs(node, kv_list, code, cell, name) {
             let paramNode = k;
             let guard = null;
             if(k.node_type == "(if)") {
-                paramNode = k.left;
-                guard = parseGuard(k.right, paramNode, code, cell);
+                if(k.right) {
+                    // Guard clause
+                    paramNode = k.left;
+                    is_conditional = false;
+                    guard = parseGuard(k.right, paramNode, code, cell);
+                } else {
+                    // Bare if clause
+                    if(is_conditional === undefined) {
+                        // Only if all clauses are conditionals, not mixed clauses.
+                        is_conditional = true;
+                    }
+                    guard = parseGuard(k.left, null, code, cell);
+                }
             }
 
             // TODO: Generator support for parameter guards
-            let paramString = paramsToJs(paramNode)
+            let paramSignature = paramsToJs(paramNode)
 
             // It's a parameter. Wrap in an object
             // TODO: Type support
-            key = "new KeySignature('', null, [" + paramString + "],(" + guard + "))"
+            // TODO: Function names
+            key = "new KeySignature('', null, [" + paramSignature + "],(" + guard + "))"
 
             let value_name = "__" + code.genVariable();
-            let valueFn = "(" + paramNode.value + ") => " + astToJs(v, code, cell)
+
+            let paramStr = paramNode && paramNode.value ? paramNode.value : ""
+            // let valueFn = "(" + paramStr + ") => " + astToJs(v, code, cell)
             
-            code.add(`var ${value_name} = ${valueFn};\n`)
+            // code.add(`var ${value_name} = ${valueFn};\n`)
+
+            code.add(`var ${value_name} = (${paramStr}) => {\n`)
+            code.add("\n return " + astToJs(v, code, cell))
+            code.add("\n};")
+
             let value_start = findMinStart(v);
             let value_end = findMaxEnd(v);
             let value_expr = cell.expr.slice(value_start, value_end)
@@ -202,6 +230,10 @@ function objToJs(node, kv_list, code, cell, name) {
         result += name + ".insert( (" + key + "),(" + value + "));"
     });
     code.add(result)
+
+    if(is_conditional === true) {
+        code.add(name + " = __aa_call(" + name + ");")
+    }
     return name
 }
 
