@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% load static from staticfiles %}
+
+{% block extra_css %}
+<link href='{% static "css/docs.css" %}?v=9' rel="stylesheet">
+{% endblock %}
+
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <nav class="col-md-2 d-none d-md-block sidebar">
+            <div class="sidebar-sticky">
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#">Getting Started</a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+    </div>
+</div>
+{% endblock %}

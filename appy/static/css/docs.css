@@ -1,0 +1,20 @@
+.sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 100;
+    padding: 58px 0 0;
+    box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1);
+}
+
+.sidebar-sticky {
+    position: sticky;
+    position: -webkit-sticky;
+    top: 0;
+    height: calc(100vh - 58px);
+    padding-top: .5rem;
+    overflow-x: hidden;
+    overflow-y: auto;
+    border-right: 1px solid #ccc;
+}
