@@ -13,6 +13,8 @@ A small core with flexible operations.
 # "Hello World"
 ```
 
+// todo: Variables. Order independent, immutable, scoped.
+
 ## Lists
 You can combine elements into lists. 
 ```ruby
@@ -49,7 +51,7 @@ You can create multi-dimensional arrays using `;`
 # [1, 0, 0;
 #  0, 1, 0;
 #  0, 0, 1]
-# You can also use a ; to define it inline
+# Use a ; to define it inline
 center_row = [0, 1, 0]
 matrix = [1, 0, 0; center_row; 0, 0, 1]
 ```
@@ -159,11 +161,21 @@ movie:
     starring: ["Leonardo DiCaprio", "Ellen Page", "Ken Watanabe", "Joseph Gordon-Levitt", "Marion Cotillard", "Tom Hardy",  "Cillian Murphy", "Michael Caine"]
     music: ["Hans Zimmer"]
     genre: [:sci_fi, :action, :adventure]
+
+movie.title     # "Inception"
 ```
-Attributes can be accessed with 
 
+This object is made up of mappings from symbolic names to their values. Symbols are not strings. Symbols represent an abstract idea, like the concept of `true`, `null` or `:title`. All of the keywords, function names and attributes you see in code are symbols. Once compiled, their attributes names don't matter, just the concept they represent. 
+```ruby
+movie.title       # "Inception"
+movie["title"]    # null
+movie[:title]     # "Inception"
+```
 
-// TODO: Inline map syntax
+The `:` operator allows you to define maps, enclosed by their whitespace block. You can also explicitly define a map inline using curly braces (`{ }`) and commas(`,`)
+```ruby
+movie: {title: "Wall-E", year: 2008, genre: [:animation, :adventure, :family]}
+```
 
 ## Tables
 ...
