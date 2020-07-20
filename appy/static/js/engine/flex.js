@@ -166,7 +166,9 @@ export class Obj {
             let pseudokey = pseudokeys[i];
             let key = this._keys[pseudokey];
 
-            if(this.isMatch(key, args)) {
+            let matchBindings = this.isMatch(key, args)
+            if(matchBindings !== false) {
+                // todo: return values + bindings
                 return this._values[pseudokey];
             }
         }
@@ -193,38 +195,76 @@ export class Obj {
 // A generic signature used as keys in objects.
 // May denote an attribute, a guard, a param, a func or some combo of those.
 export class KeySignature {
-    constructor(name="", type=null, params=[], guard=null) {
+    // Params - made up of raw values, value patterns (i.e. destructuring) and "normal" typed parameters
+    constructor(name="", type=null, params=[], guard=null, optional_index=1000, rest_param=false) {
         this.name = name
         this.type = type
         // List of Abstract Identifiers
         this.params = params
         this.guard = guard      // Conditional function
+
+        // Index where optional args start. Atleast that many args are required
+        this.optional_index = Math.min(optional_index, params.length)
+
+        // Index in params where a ... appears. optional_index > many_index
+        this.rest_param = rest_param
+        
         this.__type = "KeySig"
         this.$aa_key = "@" + genID();
     }
 
     isMatch(args) {
-        // TODO: Named argument match in the future
-        // TODO: Ommited arguments support?
-        if(this.params.length != args.length) {
+        let raw_args = args;
+        // Lower bound: Has at least the minimum number of arguments
+        if(args.length < this.optional_index) {
+            console.log("Args lower bound don't match")
+            console.log(args.length)
+            console.log(this.optional_index)
             return false;
         }
 
-        // Pairwise match each parameter since lengths are equal
-        for(var i = 0; i < this.params.length; i++) {
+        let rest;
+        // Args has an upper bound if it doesn't have a rest param
+        if(this.rest_param) {
+            // Then slice it into pieces at the boundary
+            let primary_params = args.slice(0, this.params.length - 1)
+            rest = args.slice(this.params.length - 1)
+            args = primary_params
+        } else if(args.length > this.params.length) {   // Else if fixed number of args, ensure upper bound
+            console.log("Args upper bound don't match")
+            return false
+        }
+
+        let upper_bound = Math.min(this.rest_param ? this.params.length - 1 : this.params.length, 
+            args.length)
+
+        let bindings = {}
+
+        // Args is atleast as long as optional_args, may be longer than params
+        for(var i = 0; i < upper_bound; i++) {
             let param = this.params[i];
             let arg = args[i];
 
-            if(typeof param == "object" && param.__type == "KeySig") {
-                if(param.type !== null) {
-                    // TODO: Type check
+            // TODO: Destructuring pattern support
+            if(typeof param == "object" && (param.__type == "KeySig" || param.__type == "Param")) {
+                let value_type = typeof arg;
+                if(value_type === "object" && "__type" in value) {
+                    value_type = value.__type
                 }
-                if(param.guard !== null) {
+
+                if(param.type !== null && param.type !== value_type) {
+                    console.log("Arg parameter type doesn't match")
+                    return false
+                }
+
+                if(param.guard) {
                     // TODO: Generator support for param guards.
-                    if(!param.guard(...args)) {
+                    if(!param.guard(...raw_args)) {
                         return false;
                     }
                 }
+
+                bindings[param.name] = arg
             } else {
                 // It's a raw value. Do pattern matching
                 // TODO: type checking here?
@@ -233,16 +273,24 @@ export class KeySignature {
                 }
             }
         }
+        // Do a check for the rest param
+        if(this.rest_param) {
+            let param = this.params[this.params.length - 1];
+            // Rest param can't be a value. It may have a type.
+            if(typeof param == "object" && (param.__type == "KeySig" || param.__type == "Param")) {
+                // todo - type check for rest array
+                bindings[param.name] = rest
+            }
+        }
 
         // All of the parameters match, check guards.
         if(this.guard !== null) {
-            if(!this.guard(...args)) {
+            if(!this.guard(...raw_args)) {
                 return false;
             }
         }
 
-
-        return true;
+        return bindings;
     }
 
     toString() {
@@ -265,3 +313,16 @@ export class KeySignature {
         return signature
     }
 }
+
+// Signature
+// return_type, name, guard, list of parameters/values (raw_value/param obj)
+export class Param {
+    // Params that are static values will be placed directly in list
+    constructor(type, name, default_value=undefined) {
+        this.type = type
+        this.name = name
+        this.default_value = default_value
+        this.__type = "Param"
+    }
+}
+

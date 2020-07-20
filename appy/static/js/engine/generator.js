@@ -1,6 +1,14 @@
 import { orderCellBody } from "./order"
 import { syntaxError } from "./parser";
 
+import * as core from "./core";
+
+console.log("core in generator is")
+console.log(core);
+console.log(Object.keys(core));
+
+
+
 // TODO: Ensure error equality on CYCLIC_ERR throws error.
 export const JS_PRE_CODE = `
 function ctx_init() {

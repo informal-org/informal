@@ -1,4 +1,4 @@
-import { Obj, KeySignature } from "./flex"
+import { Obj, KeySignature, Param } from "./flex"
 import { Stream } from "./Stream"
 
 test('Object with obj keys', () => {
@@ -36,9 +36,6 @@ test('add repr', () => {
     expect(add.call(2, 4)).toEqual(6)
     expect(add.call(7, 5)).toEqual(12)
 });
-
-
-
 
 
 test('fibo repr', () => {
@@ -122,3 +119,37 @@ test('stream fold', () => {
     // fn, (init)
     expect(stream.reduce((acc, x) => acc + x)).toEqual(45)
 })
+
+
+test('param type checking', () => {
+    let print = new Obj();
+    let print_string = (s) => {
+        console.log("Print strings")
+    }
+
+    let print_number = (n) => {
+        console.log("Print numbers")
+    }
+
+    let string_sig = new KeySignature("", null, [
+        new Param("string", "s")
+    ])
+    print.insert(string_sig, print_string);
+
+    let num_sig = new KeySignature("", null, [
+        new Param("number", "n")
+    ])
+    print.insert(num_sig, print_number);    
+    
+    // console.log(fibo._values)
+    // console.log(fibo._keys)
+    console.log("param type checking")
+    console.log(print.call("hello"))
+    console.log(print.call(1))
+    console.log(print.call(false))
+
+    // expect(fibo.call(1)).toEqual(1)
+    // expect(fibo.call(2)).toEqual(1)
+    // expect(fibo.call(7)).toEqual(13)
+});
+
