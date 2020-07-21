@@ -78,7 +78,7 @@ You can use ranges on characters as well.
 hex_characters = [["0"..,"9"]; ["a"..,"f"]]
 # ["a", "b", "c", "d", "e", "f"]
 ```
-You can also leave out the last element to generate an infinite sequence. Ranges are generated lazily on-demand, so these operations are fast and don't take up any space in memory.
+You can also leave out the last element to generate an infinite sequence. Ranges are generated lazily on-demand, so these operations are fast and don't take up any extra space in memory.
 
 Later on, you'll see how you can generate arbitrary lists with custom functions as well.
 
@@ -172,7 +172,7 @@ movie["title"]    # null
 movie[:title]     # "Inception"
 ```
 
-The `:` operator allows you to define maps, enclosed by their whitespace block. You can also explicitly define a map inline using curly braces (`{ }`) and commas(`,`)
+The `:` operator allows you to define maps, enclosed by their whitespace block. You can also define a map inline using curly braces (`{ }`) and commas(`,`)
 ```ruby
 movie: {title: "Wall-E", year: 2008, genre: [:animation, :adventure, :family]}
 ```
@@ -180,8 +180,49 @@ movie: {title: "Wall-E", year: 2008, genre: [:animation, :adventure, :family]}
 ## Tables
 ...
 
+## Conditionals
+```ruby
+happy = true
+know_it = true
+
+if happy and know_it:
+    "Clap"
+else:
+    ":("
+```
+The values `false`, `null`, `0`, `[]` and `{}` are considered logically false. Everything else is considered true when evaluating a condition. 
+Since everything in AppAssembly is built on immutable values, the `==` operator checks whether two **values** are equal, rather than checking if they share the same memory location. So two lists are equal when they contain the same values. Equality on maps and sets check for the same keys and values, irrespective of order.
+```ruby
+[0, 1, 2, 3, 4] == [0..5]
+# true
+```
+
+Conditionals are expressions too, so you can assign the result of a conditional to a variable
+```ruby
+n = 10
+odd_or_even = if n % 2 == 0:
+    "Even"
+else:
+    "Odd"
+# Or written inline
+odd_or_even = if n % 2 == 0 then "Even" else "Odd"
+```
+
+You can add multiple conditions using `else if` branches.
+```ruby
+if n % 3 and n % 5 == 0:
+    "FizzBuzz"
+else if n % 3 == 0:
+    "Fizz"
+else if n % 5 == 0:
+    "Buzz"
+else:
+    n
+```
+
 ## Pattern Matching
-Maps support all kinds of keys
+Maps support all kinds of keys beyond just basic types.
+Here we have a mapping from numerical grade to a letter grade using ranges.
 ```ruby
 grades:
     90..: "A"
@@ -189,11 +230,11 @@ grades:
     70..80: "C"
     60..70: "D"
     ..60: "F"
+
+grades(83)
 ```
 
 
-## Conditionals
-...
 
 ## Functions
 A function is a mapping from some input to some output, allowing you to define abstract relationships between things. Functions can be defined just like maps. The parentheses are required and denote the input parameters.
@@ -202,7 +243,7 @@ add(a, b): a + b
 add(5, 4)
 # 9
 ```
-With this, we can define a function to calculate fibonnaci numbers:
+With this, we can define a function to calculate fibonnaci numbers. 
 ```ruby
 fibo:
     0: 1
@@ -215,8 +256,8 @@ fibo = [1, 1, (index, arr): arr[-1] + arr[-2], ..]
 # 1, 1, 2, 3, 5, 8, 13 ...
 ```
 There! We have an infinite sequence of all of the fibonnaci numbers. We can index into this list, and it'll generate just enough of the list to return our result.
+The range function uses the function we provide to calculate the n-th element based on based on previous elements. 
 
-The range function can't generate the sequence itself, but we can give it a function it can use to calculate it based on previous elements. 
 There's actually a formula to calculate the nth fibonnaci number in constant time, without needing to know the previous elements.
 ```ruby
 binet_formula(n):
@@ -260,7 +301,8 @@ for key in greetings:
 # ["English!", "Malayalam!", "Hindi!", "Spanish!" "Computer!"]
 
 for key in greetings:
-    {}[key] = value
+    value : key
+# Array of map elements with key & value flipped.
 ```
 
 You can loop over multiple arrays simultaneously. This often comes in useful for "zipping" values together from multiple lists.
@@ -271,13 +313,13 @@ for x in arr, y in brr:
 # [11, 22, 33, 44, 55]
 ```
 The loop will terminate when you reach the end of the smaller array.
-You can specify an explicit condition for whether the loop should continue, having the iteration automatically stop when it's false.
+You can specify an explicit condition for whether the loop should "continue", having the iteration automatically "break" when it's false.
 ```ruby
 for x in [1..10] if x < 4:
     x + 10
 # [11, 12, 13]
 ```
-If you leave out the iteration clause, you get a while loop that continues as long as a condition is true. Since variables in AppAssembly are immutable and scoped to their block, setting a value inside a loop won't have a side effect outside of it.
+If you leave out the iteration clause, you get a while loop that continues as long as a condition is true. Since variables in AppAssembly are immutable and scoped to their block, setting a value inside a loop won't have a side effect outside of the loop.
 ```ruby
 # Hailstone sequence
 n = 12
