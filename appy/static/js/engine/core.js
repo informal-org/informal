@@ -45,3 +45,8 @@ GLOBAL_ENV.insert(sig("string", "__add", ["string", "a", "number", "b"]),
 (a, b) => a + b);
 
 // TODO: String + obj -> to String
+
+GLOBAL_ENV.insert(sig("number", "__sub", ["number", "a", "number", "b"]), 
+(a, b) => a - b);
+GLOBAL_ENV.insert(sig("number", "__sub", ["number", "a", "Stream", "b"]), 
+(a, b) => b.map((x) => __sub(a, x)));
