@@ -1,21 +1,33 @@
-# Introduction
-A simple language with a handful of flexible constructs to give you the full expressive power of programming language in a small package.
-A small core with flexible operations.
+# A New Language For The Web
+AppAssembly is a general purpose programming language for building full-stack web applications. We take a handful of simple concepts and combine them in flexible ways to give you the full expressive power of a modern programming language, in a friendly visual environment. This guide walks you through all of the concepts you need to get started programming in AppAssembly. 
 
-## Basic operations
-```ruby
-1 + 1        # 1
-10 * 2.5     # 25.0
-```
+## An Observable Visual Environment
+Most bugs in software stem from a disconnect between our mental models of the problem and the complexities of reality.
+So often, we're coding blind with vague requirements and a limited input-output view into what our software is actually doing. 
+AppAssembly removes this blindfold. You're connected directly to your running system, so you can explore the problem domain and incrementally compose code that you can see and interact with. 
 
+Try playing around with the expression in the cells below:
 ```ruby
 "Hello, " + "world!"
 # "Hello World"
 ```
 
+All code in AppAssembly lives in these spreadsheet like cells. You can write entire programs in these cells, but we recommend building your program out of many smaller cells you can observe. 
+```ruby
+1 + 1        # 1
+10 * 2.5     # 25.0
+```
+
+Cells have a name and an expression. You can reference a cell by its name and when the cell value changes, all of its references are automatically updated. Just like in Excel. 
+```ruby
+n = 5
+squared = n * n
+# 25
+```
+
 // todo: Variables. Order independent, immutable, scoped.
 
-## Lists
+## Array Programming
 You can combine elements into lists. 
 ```ruby
 [1, 2, 3]
@@ -56,7 +68,7 @@ center_row = [0, 1, 0]
 matrix = [1, 0, 0; center_row; 0, 0, 1]
 ```
 
-### Generating lists
+### Declarative Ranges
 You can specify a range of numbers using `..`
 ```ruby
 [1..10]
@@ -82,7 +94,7 @@ You can also leave out the last element to generate an infinite sequence. Ranges
 
 Later on, you'll see how you can generate arbitrary lists with custom functions as well.
 
-### Indexing
+### Composable Filtering
 You can get the element at a particular position in the list using the index operator `[]`
 ```ruby
 arr = [10, 20, 30, ..100]
@@ -126,9 +138,9 @@ arr[arr > 10]   # Read as arr where arr is greater than 10
 arr[arr % 10 == 0]
 # [10, 20]
 ```
-Later on, you'll see how functions let you perform even more flexible filtering.
+And that's just for starters. With functions, you'll be able to slice and dice through any dataset with ease. 
 
-## Maps
+## Pattern Matching Maps
 ```ruby
 greetings:
     "English": "Hello!"
@@ -176,9 +188,6 @@ The `:` operator allows you to define maps, enclosed by their whitespace block. 
 ```ruby
 movie: {title: "Wall-E", year: 2008, genre: [:animation, :adventure, :family]}
 ```
-
-## Tables
-...
 
 ## Conditionals
 ```ruby
@@ -235,8 +244,11 @@ grades(83)
 ```
 
 
+## Integrated Tables
+...
 
-## Functions
+
+## Functions are a Superpower
 A function is a mapping from some input to some output, allowing you to define abstract relationships between things. Functions can be defined just like maps. The parentheses are required and denote the input parameters.
 ```ruby
 add(a, b): a + b
@@ -278,7 +290,8 @@ Since this doesn't rely on the previous array elements parameter, the generator 
 
 TODO: Function guards, combining functions with maps, multi-methods.
 
-## Loops
+## One Loop `for` Everything
+that you probably don't even need. 
 Array operations, pattern matching, filtering and generators removes the need for most loops. When you do find yourself needing to write something out long-form, AppAssembly has a flexible `for` loop.
 ```ruby
 arr = [1, 2, 3, 4, 5]
@@ -334,15 +347,14 @@ n == 12
 # true
 ```
 
+## Types are the Essence of Data
 
-## Combinations
+## Extensible Modules with Cross-Project Refactoring
 
-## Types and classes
+## The Right (Embedded) Language for the Job
 
-## Extension functions
+## Concurrent by Default
 
-## Embedded languages
+## Resilient Error Handling
 
-## Actions and concurrency
-
-## Conclusion
+## What's Next?
