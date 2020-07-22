@@ -37,7 +37,7 @@ squared = n * n
 ```
 Cells are lexically scoped to the block they're defined in. They're order-independent, so you can think of them as stating facts that always hold true rather than issuing instructions. 
 
-Cells contain values, but they're not mutable variables. Values are immutable. Just like you don't mutate the meaning of a number when you do `2 + 3` or mutate a string when you do `"hello".uppercase()`, all operations return a new transformed value. Values are easier to observe and reason about, than state which may be mutated by each line of code. Under the hood, this is equivalent to the SSA (Static Single Assignment) form that many compilers use to optimize code.
+Cells contain values, but they're not mutable variables. Values are immutable. Just like you don't mutate the meaning of a number when you do `2 + 3` or mutate a string when you do `"hello".uppercase()`, all operations return a new transformed value. Values are easier to observe and reason about than state which may be mutated by each line of code. Under the hood, this is equivalent to the SSA (Static Single Assignment) form that many compilers use to optimize code.
 Even though values are immutable, you can re-bind a name to a new value using `=` for a familiar imperative style. 
 ```ruby
 n = 5
@@ -78,7 +78,7 @@ matrix = [1, 0, 0 ;; center_row ;; 0, 0, 1]
 #  [0, 0, 1]]
 ```
 
-Use `;` (read as "followed by") to combine lists, or to append or prepend elements onto a list. You can also use the spread syntax, `...`, to expand an list in-place.
+Use `;` (read as "followed by") to combine lists, or to append or prepend elements onto a list. You can also use the spread syntax, `...`, to expand a list in-place.
 ```ruby
 arr = [1, 2, 3]
 brr = [10, 20, 30]
@@ -93,8 +93,6 @@ combined = [arr; brr]
 [arr; 99, 100]
 # [1, 2, 3, 99, 100]
 ```
-
-
 
 ### Declarative Ranges
 Whenever possible, AppAssembly tries to define operations in a declarative style where you specify what the result should look like, rather than use separate functions like `concat`, `append`, `prepend`, `range`, etc.
@@ -120,7 +118,7 @@ They work on other data types as well, including characters.
 hex_characters = ["0"..,"9"; "a"..,"f"]
 # ["0", "1, "2", "3", "4", "5", ...]
 ```
-If we leave out the last element, we get a an infinite sequence. Beware though, infinity is often a tricky beast to wrangle. 
+If we leave out the last element, we get a an infinite sequence. 
 Ranges are generated lazily on-demand, so these operations are fast and don't take up any extra space in memory.
 
 Soon, with functions, you'll be able to generate any arbitrary sequence you can imagine!
@@ -351,7 +349,7 @@ months: {"January": 1, "February": 2, "March": 3, "April": 4,
         "May": 5, "June": 6, "July": 7, "August": 8, 
         "September": 9, "October": 10, "November": 11, "December": 12}
 
-# List of map elements with key & value flipped.
+# Invert the keys and values in the months map
 for month_str, month_num in months:
     { month_num : month_str }
 ```
@@ -452,7 +450,7 @@ This uses multiple dispatch to call the outer Counter generic class to create an
 ## Designed to Adapt
 It's not the fastest software that survives, nor the most elegant, but the one most adaptable to change. Change is that one constant in software we must contend with. Unfortunately software changes often mean breaking compatibility, introducing bugs or requiring a lot of cascading changes. As projects grow in size, they often become rigid and harder to change.
 
-AppAssembly deals with this in a number of ways. The **Type System** ensures that the underlying assumptions of the system remain true through changes. **Multi-methods** allow flexible compatibility for APIs. **Extension Functions** keeps libraries small and allow you adapt them to the needs of your project. **Contextual Behaviors** allow you to manage cross-cutting concerns without rippling changes. **Cross-Project Refactoring** extends tooling support for common refactoring tasks to work across project and library boundaries, without requiring manual effort.
+AppAssembly supports incremental software development in a number of ways. The **Type System** ensures that the underlying assumptions of the system remain true through changes. **Multi-methods** allow flexible compatibility for APIs. **Extension Functions** keeps libraries small and allow you adapt them to the needs of your project. **Contextual Behaviors** allow you to manage cross-cutting concerns without rippling changes. **Cross-Project Refactoring** extends tooling support for common refactoring tasks to work across project and library boundaries, without requiring manual effort.
 
 
 ### Extensible Modules with Cross-Project Refactoring
