@@ -1,9 +1,20 @@
 # A New Language For The Web
-AppAssembly is a general purpose programming language for building full-stack web applications. We take a handful of simple concepts and combine them in flexible ways to give you the full expressive power of a modern programming language, in a friendly visual environment. This guide walks you through all of the concepts you need to get started programming in AppAssembly. 
+AppAssembly is a general purpose programming language for building full-stack web applications. We take a handful of simple concepts and combine them in flexible ways to give you the full expressive power of a modern programming language, in a friendly visual environment. This guide walks you through all of the concepts you need to get started programming in AppAssembly.
+
+You'll learn how to:
+* Use array programming and pattern matching to reduce boilerplate code.
+* Write declarative code that favors plain data over abstractions. 
+* Use functions to boost expressiveness throughout the language.
+* Incrementally add gradual typing to add structure to your program.
+* Replace regex with a declarative patterns for common parsing tasks. 
+* Get 4-16x the performance with seamless concurrency. 
+* Simplify refactoring without breaking compatibility or requiring cascading changes.
+* Manage errors in a resilient way.
+* Extend and adapt the language to suit your needs.
+
 
 ## An Observable Visual Environment
-Most bugs in software stem from a disconnect between our mental models of the problem and the complexities of reality.
-So often, we're coding blind with vague requirements and a limited input-output view into what our software is actually doing. 
+Most bugs in software stem from a disconnect between our mental models of the problem and the complexities of reality. So often, we're coding blind with vague requirements and a limited input-output view into what our software is actually doing. 
 AppAssembly removes this blindfold. You're connected directly to your running system, so you can explore the problem domain and incrementally compose code that you can see and interact with. 
 
 Try playing around with the expression in the cells below:
@@ -12,7 +23,7 @@ Try playing around with the expression in the cells below:
 # "Hello World"
 ```
 
-All code in AppAssembly lives in these spreadsheet like cells. You can write entire programs in these cells, but we recommend building your program out of many smaller cells you can observe. 
+All code in AppAssembly lives in these spreadsheet-like cells. You can write entire programs in these cells, but we recommend building your program out of many smaller cells you can observe. 
 ```ruby
 1 + 1        # 1
 10 * 2.5     # 25.0
@@ -24,75 +35,95 @@ n = 5
 squared = n * n
 # 25
 ```
+Cells are lexically scoped to the block they're defined in. They're order-independent, so you can think of them as stating facts that always hold true rather than issuing instructions. 
 
-// todo: Variables. Order independent, immutable, scoped.
+Cells contain values, but they're not mutable variables. Values are immutable. Just like you don't mutate the meaning of a number when you do `2 + 3` or mutate a string when you do `"hello".uppercase()`, all operations return a new transformed value. Values are easier to observe and reason about, than state which may be mutated by each line of code. Under the hood, this is equivalent to the SSA (Static Single Assignment) form that many compilers use to optimize code.
+Even though values are immutable, you can re-bind a name to a new value using `=` for a familiar imperative style. 
+```ruby
+n = 5
+n = n * 2
+# n = 10
+```
+Later on, you'll see how you can use actions to manage state in a concurrency safe way.
 
 ## Array Programming
-You can combine elements into lists. 
+Lists in AppAssembly let you group elements together into a larger unit you can operate on. 
 ```ruby
 [1, 2, 3]
+# [1, 2, 3]
 ```
-
-AppAssembly lets you to perform operations on entire lists, avoiding a lot of loops.
-
+Lists can contain data of various types.
+```ruby
+[9, 27.0, true, false, "hello", :symbol]
+```
+You can perform operations over the entire collection. No loops required!
 ```ruby
 2 * [10, 20, 30]
 # [20, 40, 60]
 [10, 20, 30] + [5, 5, 5]
 # [15, 25, 35]
 ```
-
-Use `;` to combine lists, or to add elements before or after a list.
-```ruby
-arr = [1, 2, 3]
-brr = [10, 20, 30]
-combined = [arr; brr]
-# [1, 2, 3, 10, 20, 30]
-```
-
-Lists can contain data of various types
-```ruby
-[9, 27.0, true, false, "hello", :symbol]
-```
-
-You can create multi-dimensional arrays using `;` 
+Multi-dimensional arrays are created by defining each row on its own line.
 ```ruby
 [1, 0, 0
  0, 1, 0
  0, 0, 1]
-# [1, 0, 0;
-#  0, 1, 0;
-#  0, 0, 1]
-# Use a ; to define it inline
-center_row = [0, 1, 0]
-matrix = [1, 0, 0; center_row; 0, 0, 1]
+# [[1, 0, 0]
+#  [0, 1, 0]
+#  [0, 0, 1]]
+center_row = [0, 1, 0]  # Use ;; to define it inline
+matrix = [1, 0, 0 ;; center_row ;; 0, 0, 1]
+# [[1, 0, 0]
+#  [0, 1, 0]
+#  [0, 0, 1]]
 ```
 
+Use `;` (read as "followed by") to combine lists, or to append or prepend elements onto a list. You can also use the spread syntax, `...`, to expand an list in-place.
+```ruby
+arr = [1, 2, 3]
+brr = [10, 20, 30]
+sub_arrays = [arr, brr]
+# [[1, 2, 3], [10, 20, 30]]
+spread_array = [arr, ...brr]
+# [[1, 2, 3], 10, 20, 30]
+combined = [arr; brr]
+# [1, 2, 3, 10, 20, 30]
+[99; arr]
+# [99, 1, 2, 3]
+[arr; 99, 100]
+# [1, 2, 3, 99, 100]
+```
+
+
+
 ### Declarative Ranges
-You can specify a range of numbers using `..`
+Whenever possible, AppAssembly tries to define operations in a declarative style where you specify what the result should look like, rather than use separate functions like `concat`, `append`, `prepend`, `range`, etc.
+
+For example, to create a range of numbers, just specify the beginning and end.
 ```ruby
 [1..10]
 # [1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
-You can list out the first few elements and the range expression will try to fill in the values in between.
+You can list out the first few elements and the range expression will determine the step and fill in the values in between.
 ```ruby
 [0, 10, 20, .. 100]
 # [10, 20, 30, 40, 50, 60, 70, 80, 90]
 ```
-You can create an inclusive range by specifying elements that would appear after the range with a comma `..,`
+We can make this an inclusive range by specifying elements that would appear after the range with a comma `..,`
 ```ruby
 [100, 90, .., 10, 0]
 # [100, 90, 80, 70, 60, 50, 40, 30, 10, 0]
 ```
-
-You can use ranges on characters as well. 
+Ranges can figure out any sequences that can be expressed as `a*x + b`, so you can count up, down or sideways. 
+They work on other data types as well, including characters. 
 ```ruby
-hex_characters = [["0"..,"9"]; ["a"..,"f"]]
-# ["a", "b", "c", "d", "e", "f"]
+hex_characters = ["0"..,"9"; "a"..,"f"]
+# ["0", "1, "2", "3", "4", "5", ...]
 ```
-You can also leave out the last element to generate an infinite sequence. Ranges are generated lazily on-demand, so these operations are fast and don't take up any extra space in memory.
+If we leave out the last element, we get a an infinite sequence. Beware though, infinity is often a tricky beast to wrangle. 
+Ranges are generated lazily on-demand, so these operations are fast and don't take up any extra space in memory.
 
-Later on, you'll see how you can generate arbitrary lists with custom functions as well.
+Soon, with functions, you'll be able to generate any arbitrary sequence you can imagine!
 
 ### Composable Filtering
 You can get the element at a particular position in the list using the index operator `[]`
@@ -107,7 +138,7 @@ arr = [5, 10, 15, 20, 25]
 arr[-1]
 # 25
 ```
-You can also pass in a list of indexes and it'll give you the elements at those indexes in that order.
+Indexing is just a special case of filtering. So you can also pass in a list of indexes and it'll filter the list to the elements at those indexes, in the given order.
 ```ruby
 arr = [5, 10, 15, 20, 25]
 arr[-1, 2, 0]
@@ -141,6 +172,7 @@ arr[arr % 10 == 0]
 And that's just for starters. With functions, you'll be able to slice and dice through any dataset with ease. 
 
 ## Pattern Matching Maps
+Mapping defines the relationship or association between elements.
 ```ruby
 greetings:
     "English": "Hello!"
@@ -150,7 +182,7 @@ greetings:
     "Computer": "beep boop bop beep"
 ```
 
-You can access a map by a key or a list of keys.
+Just like list indexing, you can access a map by a key or a list of keys.
 ```ruby
 greetings["English"]
 # "Hello!"
@@ -184,12 +216,29 @@ movie["title"]    # null
 movie[:title]     # "Inception"
 ```
 
-The `:` operator allows you to define maps, enclosed by their whitespace block. You can also define a map inline using curly braces (`{ }`) and commas(`,`)
+The `:` (association) operator allows you to define maps, enclosed by their whitespace block. You can also define a map inline using curly braces `{ }`.
 ```ruby
 movie: {title: "Wall-E", year: 2008, genre: [:animation, :adventure, :family]}
 ```
+### Pattern Matching
+Maps support all kinds of keys beyond just basic types.
+Here we have a mapping from numerical grade to a letter grade using ranges.
+```ruby
+grades:
+    90..100: "A"
+    80..90: "B"
+    70..80: "C"
+    60..70: "D"
+    0..60: "F"
 
-## Conditionals
+grades(83)
+# B
+```
+
+// TODO: Pattern matching destructuring
+
+
+### Conditionals
 ```ruby
 happy = true
 know_it = true
@@ -199,8 +248,8 @@ if happy and know_it:
 else:
     ":("
 ```
-The values `false`, `null`, `0`, `[]` and `{}` are considered logically false. Everything else is considered true when evaluating a condition. 
-Since everything in AppAssembly is built on immutable values, the `==` operator checks whether two **values** are equal, rather than checking if they share the same memory location. So two lists are equal when they contain the same values. Equality on maps and sets check for the same keys and values, irrespective of order.
+The values `false`, `null`, `0`, `[]` and `{}` are considered logically false. Everything else is considered true. 
+Since AppAssembly is built on immutable values, the `==` operator checks whether two **values** are equal, rather than checking if they share the same memory location. So two lists are equal when they contain the same values. Equality on maps and sets check for the same keys and values, irrespective of order.
 ```ruby
 [0, 1, 2, 3, 4] == [0..5]
 # true
@@ -209,15 +258,16 @@ Since everything in AppAssembly is built on immutable values, the `==` operator 
 Conditionals are expressions too, so you can assign the result of a conditional to a variable
 ```ruby
 n = 10
+# Inline using 'then' in place of :
+odd_or_even = if n % 2 == 0 then "Even" else "Odd"
+# Or written in multiple lines
 odd_or_even = if n % 2 == 0:
     "Even"
 else:
     "Odd"
-# Or written inline
-odd_or_even = if n % 2 == 0 then "Even" else "Odd"
 ```
 
-You can add multiple conditions using `else if` branches.
+You can add multiple conditional branches using `else if`.
 ```ruby
 if n % 3 and n % 5 == 0:
     "FizzBuzz"
@@ -229,48 +279,33 @@ else:
     n
 ```
 
-## Pattern Matching
-Maps support all kinds of keys beyond just basic types.
-Here we have a mapping from numerical grade to a letter grade using ranges.
-```ruby
-grades:
-    90..: "A"
-    80..90: "B"
-    70..80: "C"
-    60..70: "D"
-    ..60: "F"
 
-grades(83)
-```
-
-
-## Integrated Tables
+### Sets and Tables
 ...
 
 
 ## Functions are a Superpower
-A function is a mapping from some input to some output, allowing you to define abstract relationships between things. Functions can be defined just like maps. The parentheses are required and denote the input parameters.
+A function is an abstract mapping from some input to some output, allowing you to define general relationships between data. So functions are just abstract maps.
 ```ruby
 add(a, b): a + b
 add(5, 4)
 # 9
 ```
-With this, we can define a function to calculate fibonnaci numbers. 
+The best type of code is just data. Data is plain, simple and easy to understand. It's practically equivalent to the unit tests you may write for it. Functions can be defined as just lookup tables of plain data, or as calculations. Whatever suits the problem.
 ```ruby
 fibo:
     0: 1
     1: 1
     (n): fibo(n-1) + fibo(n-2)
 ```
-The recursive definition of fibonnaci is elegant, but not the most efficient since it'll have to re-calculate the fibonnaci numbers repeatedly. Let's define it as a generator instead.
+This recursive definition of fibonnaci is elegant, but not the most efficient since it'll have to re-calculate the fibonnaci numbers repeatedly. Let's use a function to show the range expression how to generate the n'th fibonnaci number from previous elements.
 ```ruby
 fibo = [1, 1, (index, arr): arr[-1] + arr[-2], ..]
 # 1, 1, 2, 3, 5, 8, 13 ...
 ```
 There! We have an infinite sequence of all of the fibonnaci numbers. We can index into this list, and it'll generate just enough of the list to return our result.
-The range function uses the function we provide to calculate the n-th element based on based on previous elements. 
 
-There's actually a formula to calculate the nth fibonnaci number in constant time, without needing to know the previous elements.
+There's actually a formula to calculate the n'th fibonnaci number in constant time, without needing to know the previous elements.
 ```ruby
 binet_formula(n):
     phi = (sqrt(5) + 1) / 2
@@ -283,15 +318,18 @@ Now that we have a formula to calculate a fibonnaci number, we can easily genera
 ```ruby
 fibo_seq = [binet_formula, ..]
 # [1, 1, 2, 3, 5, 8, 13, ..]
-fibo_seq[1, 10, 20, 30]
-# [1, 55, 6765, 832040]
+fibo_seq[10, 20, 30]     # Select the fibonnacci numbers at indices
+# [55, 6765, 832040]
 ```
-Since this doesn't rely on the previous array elements parameter, the generator can return arbitrary elements lazily without calculating or storing the other elements. 
+Since this doesn't rely on the previous array elements, the generator can return arbitrary elements lazily without calculating or storing the other elements. 
+
+Alright, enough fibonnaci numbers. There's a lot more you can do with functions. 
 
 TODO: Function guards, combining functions with maps, multi-methods.
 
-## One Loop `for` Everything
-that you probably don't even need. 
+## The One Loop `for` Everything
+(that you probably won't even need...)
+
 Array operations, pattern matching, filtering and generators removes the need for most loops. When you do find yourself needing to write something out long-form, AppAssembly has a flexible `for` loop.
 ```ruby
 arr = [1, 2, 3, 4, 5]
@@ -315,7 +353,7 @@ for key in greetings:
 
 for key in greetings:
     value : key
-# Array of map elements with key & value flipped.
+# List of map elements with key & value flipped.
 ```
 
 You can loop over multiple arrays simultaneously. This often comes in useful for "zipping" values together from multiple lists.
@@ -325,7 +363,7 @@ for x in arr, y in brr:
     x + y
 # [11, 22, 33, 44, 55]
 ```
-The loop will terminate when you reach the end of the smaller array.
+The loop will terminate when you reach the end of the smaller list.
 You can specify an explicit condition for whether the loop should "continue", having the iteration automatically "break" when it's false.
 ```ruby
 for x in [1..10] if x < 4:
@@ -346,14 +384,43 @@ for if n != 1:
 n == 12
 # true
 ```
-
 ## Types are the Essence of Data
+Types are a set, class or category of data. They define the essential properties of the members of that type, allowing you to operate on them with clearly stated assumptions. A good type definition will make your code faster, safer and cleaner. Types are completely optional in AppAssembly. If you find yourself doing a lot of `if` validation checks within your function, that may be a good place to use types.
 
-## Extensible Modules with Cross-Project Refactoring
+For example, here's a Movie type stating that all movies have a `name` and `release_date`.
+```ruby
+Movie:
+    String name
+    Date released_on
+```
+We can require a parameter to be of a particular type in the function signature, and then use it with confidence in the function body.
+```ruby
+get_snippet(Movie movie):
+    movie.title + " (" + movie.released_on.year + ")"
+```
+Any Map that meets this type specification can be explicitly cast into a Movie.
+```ruby
+wall_e = {name: "Wall-E", released_on: Date(2008, 07, 27)}
+Movie wall_e = wall_e as Movie      # Cast wall_e to the type Movie
+```
+Constructors make it easier to create instances of a type. They always have the same name as the type.
+```ruby
+Movie:
+    Movie(String name, Date released_on)
 
-## The Right (Embedded) Language for the Job
+life_of_pi = Movie("Life of Pi", Date(2012, 11, 21))
+```
+This gives you a default constructor that automatically assigns those fields.
+
+## Designed to Adapt
+It's not the fastest software that survives, nor the most featureful, but the one most adaptable to change. 
+
+### Extensible Modules with Cross-Project Refactoring
+
+### The Right (Embedded) Language for the Job
 
 ## Concurrent by Default
+Moore's law is dead. 
 
 ## Resilient Error Handling
 
