@@ -3,11 +3,11 @@ AppAssembly is a general purpose programming language for building full-stack we
 
 You'll learn how to:
 * Use array programming and pattern matching to reduce boilerplate code.
-* Write declarative code that favors plain data over abstractions. 
+* Write declarative code that favors plain data over abstractions.
 * Use functions to boost expressiveness throughout the language.
 * Incrementally add gradual typing to add structure to your program.
-* Replace regex with a declarative patterns for common parsing tasks. 
-* Get 4-16x the performance with seamless concurrency. 
+* Replace regex with declarative patterns for common parsing tasks.
+* Get 4-16x the performance with seamless concurrency.
 * Simplify refactoring without breaking compatibility or requiring cascading changes.
 * Manage errors in a resilient way.
 * Extend and adapt the language to suit your needs.
@@ -17,7 +17,7 @@ You'll learn how to:
 Most bugs in software stem from a disconnect between our mental models of the problem and the complexities of reality. So often, we're coding blind with vague requirements and a limited input-output view into what our software is actually doing. 
 AppAssembly removes this blindfold. You're connected directly to your running system, so you can explore the problem domain and incrementally compose code that you can see and interact with. 
 
-Try playing around with the expression in the cells below:
+To get started, try playing around with the expression in the cells below:
 ```ruby
 "Hello, " + "world!"
 # "Hello World"
@@ -345,15 +345,15 @@ for index, value in arr:
 ```
 Similarly, you can loop over just the keys or the keys and values in maps
 
-// TODO: Better example
-```ruby
-for key in greetings:
-    key + "!"
-# ["English!", "Malayalam!", "Hindi!", "Spanish!" "Computer!"]
 
-for key in greetings:
-    value : key
+```ruby
+months: {"January": 1, "February": 2, "March": 3, "April": 4, 
+        "May": 5, "June": 6, "July": 7, "August": 8, 
+        "September": 9, "October": 10, "November": 11, "December": 12}
+
 # List of map elements with key & value flipped.
+for month_str, month_num in months:
+    { month_num : month_str }
 ```
 
 You can loop over multiple arrays simultaneously. This often comes in useful for "zipping" values together from multiple lists.
@@ -398,7 +398,7 @@ We can require a parameter to be of a particular type in the function signature,
 get_snippet(Movie movie):
     movie.title + " (" + movie.released_on.year + ")"
 ```
-Any Map that meets this type specification can be explicitly cast into a Movie.
+Any Map that meets the type specification can be explicitly cast into a Movie.
 ```ruby
 wall_e = {name: "Wall-E", released_on: Date(2008, 07, 27)}
 Movie wall_e = wall_e as Movie      # Cast wall_e to the type Movie
@@ -410,10 +410,50 @@ Movie:
 
 life_of_pi = Movie("Life of Pi", Date(2012, 11, 21))
 ```
-This gives you a default constructor that automatically assigns those fields.
+This gives you a default constructor that automatically initializes the fields.
+You can add methods to a class. 
+```ruby
+Counter:
+    Counter(Integer count)
+    inc(): this.count + 1
+    dec(): count - 1        # The "this" keyword is implicit when referencing instance variables defined in the class
+
+c1 = Counter(9)
+c2 = c1.inc()
+# c2 = Counter(10)
+```
+Methods allow you to group data together with the behaviors that operate on them. Here, the increment and decrement methods give you back a *new* instance of Counter. When you do `this.count + 1`, the result of that operation is a new instance of `this` with count incremented. At the end of this, c1 still has a count of 9, while we have a new counter, c2, with a count of 10. What if you wanted to modify c1 in-place? You'll see how to do that with Concurrent Actions, soon!
+The `this` keyword is implicitly present in all objects and allow you to unambiguously refer to the object's attributes.
+To define static class methods that are shared by all instances, define them under the Class's name.
+```ruby
+Counter:
+    Counter(Integer count)
+    inc(): this.count + 1
+    dec(): count - 1
+    Counter.max_count: 100
+
+# Call class methods by the class name
+Counter.max_count
+```
+In the next section, you'll see how this is used to implement interfaces and extension functions.
+
+Since these classes are defined just like functions and maps, we can pass parameters to use them as Generic Classes.
+```ruby
+Counter(T):
+    Counter(T count)
+    inc(T amount): count + amount
+
+IntCounter = Counter(Integer)
+FloatCounter = Counter(Float)
+```
+This uses multiple dispatch to call the outer Counter generic class to create an instance of the Counter class parameterized to the type T. 
+
 
 ## Designed to Adapt
-It's not the fastest software that survives, nor the most featureful, but the one most adaptable to change. 
+It's not the fastest software that survives, nor the most elegant, but the one most adaptable to change. Change is that one constant in software we must contend with. Unfortunately software changes often mean breaking compatibility, introducing bugs or requiring a lot of cascading changes. As projects grow in size, they often become rigid and harder to change.
+
+AppAssembly deals with this in a number of ways. The **Type System** ensures that the underlying assumptions of the system remain true through changes. **Multi-methods** allow flexible compatibility for APIs. **Extension Functions** keeps libraries small and allow you adapt them to the needs of your project. **Contextual Behaviors** allow you to manage cross-cutting concerns without rippling changes. **Cross-Project Refactoring** extends tooling support for common refactoring tasks to work across project and library boundaries, without requiring manual effort.
+
 
 ### Extensible Modules with Cross-Project Refactoring
 
