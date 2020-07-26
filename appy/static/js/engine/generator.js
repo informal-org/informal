@@ -312,7 +312,8 @@ export function astToJs(node, code, cell, name="") {
             // }
 
             // TODO: Differentiate between indexing and filtering
-            return prefix + astToJs(node.left, code, cell) + ".get(" + astToJs(node.right, code, cell) + ")"
+            let right = node.value[0]
+            return prefix + astToJs(node.left, code, cell) + ".get(" + astToJs(right, code, cell) + ")"
         }
         case "(if)": {
             // guard = parseGuard(node.left, null, code, cell);

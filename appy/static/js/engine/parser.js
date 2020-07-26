@@ -12,15 +12,16 @@ http://effbot.org/zone/simple-top-down-parsing.htm
 */
 
 export const KEYWORD_TABLE = {}
-export const TOKEN_LITERAL = "(literal)";
-export const TOKEN_IDENTIFIER = "(identifier)";
-export const TOKEN_OPERATOR = "(operator)";
-export const TOKEN_CONTINUE_BLOCK = "(continueblock)";
-export const TOKEN_START_BLOCK = "(startblock)";
-export const TOKEN_END_BLOCK = "(endblock)";
-export const TOKEN_WHERE = "(where)";       // []
-export const TOKEN_ARRAY = "(array)";
-export const TOKEN_COND = "(if)";
+export const TOKEN_LITERAL = "(literal)";               // 1, "str", true, null
+export const TOKEN_IDENTIFIER = "(identifier)";         // x
+export const TOKEN_OPERATOR = "(operator)";             // and, or, not, +
+export const TOKEN_START_BLOCK = "(startblock)";        // Increase indentation level
+export const TOKEN_CONTINUE_BLOCK = "(continueblock)";  // Same indentation level
+export const TOKEN_END_BLOCK = "(endblock)";            // Decrease indentation level
+export const TOKEN_WHERE = "(where)";       // a[]
+export const TOKEN_ARRAY = "(array)";       // [1, 2, 3]
+export const TOKEN_GROUPING = "(grouping)"
+export const TOKEN_COND = "(if)";           // if x < 10:
 export const TOKEN_ELSE = "(else)";
 export const TOKEN_THEN = "(then)";
 export const TOKEN_DEFAULT = "(default)";
@@ -162,15 +163,15 @@ export class ASTNode {
         if(kw == TOKEN_IDENTIFIER || kw == TOKEN_LITERAL) { return this.value; }
         else if(kw === '(') { kw = '(grouping)' }
 
-        let repr = "";
+        let repr = `${this.left ? " " + this.left : ""}`;
         if(Array.isArray(this.value)) {
             this.value.forEach((val) => {
                 repr += " " + val.toString();
             })
         }
-        else {
-            repr = `${this.left ? " " + this.left : ""}${this.right ? " " + this.right : ""}`
-        }
+        
+        repr += `${this.right ? " " + this.right : ""}`
+        
         return `(${kw}${repr})`
     }
 }
@@ -181,141 +182,18 @@ export const LiteralNode = ASTNode.LiteralNode;
 
 const END_OP = new Keyword("(end)")
 
-new Keyword(")")
-new Keyword("]")
-new Keyword(",")
-
-
-export const CONTINUE_BLOCK = new Infix(TOKEN_CONTINUE_BLOCK, 10)  // \n
-export const START_BLOCK = new Infix(TOKEN_START_BLOCK, 10)     // Tab +
-export const END_BLOCK = new Keyword(TOKEN_END_BLOCK, 10)       // Tab -
 
 new Literal("true", true)
 new Literal("false", false)
 new Literal("null", null)
 
-// , 10
+new Keyword(")")
+new Keyword("]")
+new Keyword(",")
 
-// And binds slightly more than or.
-new InfixRight("or", 24)
-new InfixRight("and", 25)
-
-// Ensure equality checks lower than comparison ops
-new InfixRight("==", 30)
-new InfixRight("!=", 30)
-
-
-new InfixRight("<", 40)
-new InfixRight(">", 40)
-new InfixRight("<=", 40)
-new InfixRight(">=", 40)
-
-
-new Infix("in", 60)
-
-
-// Prefix: when used as Not
-// Infix: "not in" TODO
-new Mixfix("not", 110, Prefix.get_null_denotation())  // was 60. Changed to 110
-new Infix("is", 60)     // TODO
-
-
-const COND = new Mixfix("if", 20, Prefix.get_null_denotation(TOKEN_COND), Infix.get_left_denotation(TOKEN_COND, 20));
-COND.null_denotation = (node, token_stream) => {
-    console.log("if null denotion");
-    node.left = expression(token_stream, 15);
-    console.log("Got left")
-    console.log(node.left)
-    node.node_type = "unary"
-    return node;
-}
-const COND_THEN = new Mixfix("then", 150, Prefix.get_null_denotation(TOKEN_THEN), Infix.get_left_denotation(TOKEN_THEN, 150));
-const COND_ELSE = new Mixfix("else", 150, Prefix.get_null_denotation(TOKEN_ELSE), Infix.get_left_denotation(TOKEN_ELSE, 150));
-const COND_DEFAULT = new Mixfix("default", 150, Prefix.get_null_denotation(TOKEN_DEFAULT), Infix.get_left_denotation(TOKEN_DEFAULT, 150));
-
-
-
-// Skip adding a node for unary plus.
-new Infix("+", 80).null_denotation = (node, token_stream) => {
-    return expression(token_stream, 100)
-}
-// Support unary minus
-new Infix("-", 80).null_denotation = Prefix.get_null_denotation()
-
-new Infix("*", 85)
-new Infix("/", 85)
-new Infix("%", 85)
-
-// More binding power than multiplication, but less than unary minus (100)
-new InfixRight("**", 88)
-
-
-new Infix(".", 150)
-
-const SQ_BK = new Mixfix("[", 150);
-// Defining an array
-SQ_BK.null_denotation = (node, tokenStream) => {
-    node.node_type = TOKEN_ARRAY
-    node.value = [];
-
-    if(tokenStream.currentKeyword() != "]"){ // []
-        while(tokenStream.hasNext()) {
-            node.value.push(expression(tokenStream, 10))
-            if(tokenStream.currentKeyword() == ",") {
-                tokenStream.next();
-            } else {
-                break;
-            }
-        }
-    }
-
-    tokenStream.advance("]")
-    return node
-}
-// As indexing
-SQ_BK.left_denotation = (left, node, tokenStream) => {
-    node.left = left;       // Left could be identifier, array, string.
-    node.node_type = TOKEN_WHERE;
-    
-    node.right = expression(tokenStream, 0)
-    tokenStream.advance("]")
-    return node;
-}
-
-
-function continuation(left, node, tokenStream) {
-    let right = expression(tokenStream, 10)
-    if(left.node_type == "maplist") {
-        if(right.node_type != "map") {
-            // TODO
-            syntaxError("Expected map to the right of a map.")
-        }
-        // If it's a map, add it onto the list.
-        left.value.push(right.value)
-    }
-    else if(left.node_type == 'map') {
-        if(right.node_type != "map") {
-            // TODO
-            syntaxError("Expected map to the right of a map")
-        }
-
-        // Convert the single entity into a list structure
-        left.node_type = "maplist"
-        left.value = [left.value, right.value]
-    } else {
-        // TODO
-        syntaxError("Unknown token to the left of , " + left)
-    }
-
-    return left
-}
-
-
-// TODO: Precedence level for this
-new Infix(",", 10).left_denotation = continuation;
-
-// Treat new lines as comma equivalents.
-CONTINUE_BLOCK.left_denotation = continuation;
+export const CONTINUE_BLOCK = new Infix(TOKEN_CONTINUE_BLOCK, 10)  // \n
+export const START_BLOCK = new Infix(TOKEN_START_BLOCK, 10)     // Tab +
+export const END_BLOCK = new Keyword(TOKEN_END_BLOCK, 10)       // Tab -
 
 START_BLOCK.null_denotation = (node, tokenStream) => {
     node.node_type = "maplist"
@@ -343,6 +221,40 @@ START_BLOCK.null_denotation = (node, tokenStream) => {
     return node;
 }
 
+// TODO: Test [(x): x + 1, ..]
+
+function continuation_led(left, node, tokenStream) {
+    let right = expression(tokenStream, 10)
+    if(left.node_type == "maplist") {
+        if(right.node_type != "map") {
+            // TODO
+            syntaxError("Expected map to the right of a map.")
+        }
+        // If it's a map, add it onto the list.
+        left.value.push(right.value)
+    }
+    else if(left.node_type == 'map') {
+        if(right.node_type != "map") {
+            // TODO
+            syntaxError("Expected map to the right of a map")
+        }
+
+        // Convert the single entity into a list structure
+        left.node_type = "maplist"
+        left.value = [left.value, right.value]
+    } else {
+        // TODO
+        syntaxError("Unknown token to the left of , " + left)
+    }
+
+    return left
+}
+
+let COMMA = new Infix(",", 10);
+COMMA.left_denotation = continuation_led;
+
+// Treat new lines as comma equivalents. Later on, differentiate comma and ;
+CONTINUE_BLOCK.left_denotation = continuation_led;
 
 
 new Infix(":", 15).left_denotation = (left, node, tokenStream) => {
@@ -354,59 +266,141 @@ new Infix(":", 15).left_denotation = (left, node, tokenStream) => {
 }
 
 
-new Mixfix("(", 150, (node, tokenStream) => {
-    // In Prefix mode ( indicates a parenthesized expression grouping
+const COND = new Mixfix("if", 20, Prefix.get_null_denotation(TOKEN_COND), Infix.get_left_denotation(TOKEN_COND, 20));
+COND.null_denotation = (node, token_stream) => {
+    console.log("if null denotion");
+    node.left = expression(token_stream, 15);
+    console.log("Got left")
+    console.log(node.left)
+    node.node_type = "unary"
+    return node;
+}
+const COND_THEN = new Mixfix("then", 20, Prefix.get_null_denotation(TOKEN_THEN), Infix.get_left_denotation(TOKEN_THEN, 20));
+const COND_ELSE = new Mixfix("else", 20, Prefix.get_null_denotation(TOKEN_ELSE), Infix.get_left_denotation(TOKEN_ELSE, 20));
+const COND_DEFAULT = new Mixfix("default", 20, Prefix.get_null_denotation(TOKEN_DEFAULT), Infix.get_left_denotation(TOKEN_DEFAULT, 20));
 
-    node.value = [];
-    node.node_type = "(grouping)"       // New: Always keep the grouping nodes
-    while(tokenStream.hasNext()) {
-        if(tokenStream.currentKeyword() == ")") {
-            break
-        }
-        node.value.push(expression(tokenStream, 10))
-        if(tokenStream.currentKeyword() == ",") {
-            // node.node_type = "(grouping)"
-            tokenStream.next();
-        } else {
-            break;
-        }
-        
-    }
 
-    tokenStream.advance(")")
+// , 10
 
-    if(node.node_type == "(grouping)") {
-        return node
-    } else {
-        return node.value[0]
-    }
+// And binds slightly more than or.
+new InfixRight("or", 24)
+new InfixRight("and", 25)
+
+// Ensure equality checks lower than comparison ops
+new InfixRight("==", 30)
+new InfixRight("!=", 30)
+
+
+new InfixRight("<", 40)
+new InfixRight(">", 40)
+new InfixRight("<=", 40)
+new InfixRight(">=", 40)
+
+
+new Infix("in", 60)
+
+
+// Prefix: when used as Not
+// Infix: "not in" TODO
+new Infix("is", 60)     // TODO
+
+
+// Skip adding a node for unary plus.
+new Infix("+", 80).null_denotation = (node, token_stream) => {
+    return expression(token_stream, 100)
+}
+// Support unary minus
+new Infix("-", 80).null_denotation = Prefix.get_null_denotation()
+
+new Infix("*", 85)
+new Infix("/", 85)
+new Infix("%", 85)
+
+// More binding power than multiplication, but less than unary minus (100)
+new InfixRight("**", 88)
+
+new Mixfix("not", 110, Prefix.get_null_denotation())  // was 60. Changed to 110
+
+
+
+new Infix(".", 150)
+
+const SQ_BK = new Mixfix("[", 150);
+// Defining an array
+SQ_BK.null_denotation = get_grouping_ned("]", TOKEN_ARRAY);
+SQ_BK.left_denotation = get_grouping_led("]", TOKEN_WHERE);
+
+// As indexing
+// SQ_BK.left_denotation = (left, node, tokenStream) => {
+//     node.left = left;       // Left could be identifier, array, string.
+//     node.node_type = TOKEN_WHERE;
     
-}, (left, node, tokenStream) => {
-    // In infix mode, ( indicates a function call
-    node.left = left;
+//     node.right = expression(tokenStream, 0)
+//     tokenStream.advance("]")
+//     return node;
+// }
 
-    // if(node.left.node_type != TOKEN_IDENTIFIER) {
-    //     console.log(node.left.node_type);
-    //     syntaxError("Error: Could not call " + node.left.operator.value + " as a function.")
-    // }
+// Prefix mode - indicates a parenthesized expression group
+function get_grouping_ned(end_group, node_type) {
+    return (node, tokenStream) => {
+        node.node_type = node_type
+        node.value = [];
 
-    node.node_type = "apply"
-    node.value = [];
-
-    if(tokenStream.currentKeyword() != ")") {   // f()
-        while(tokenStream.hasNext()) {
-            node.value.push(expression(tokenStream, 10))
+        while(tokenStream.hasNext()){
+            if(tokenStream.currentKeyword() == end_group) { break }
+            node.value.push(expression(tokenStream, 10));
             if(tokenStream.currentKeyword() == ",") {
                 tokenStream.next();
             } else {
                 break;
             }
         }
+
+        tokenStream.advance(end_group);
+        return node;
     }
+}
+
+function get_grouping_led(end_group, node_type) {
+    let ned = get_grouping_ned(end_group, node_type);
+    return (left, node, tokenStream) => {
+        node.left = left;
+        return ned(node, tokenStream);
+    }
+}
+
+
+
+new Mixfix("(", 150, get_grouping_ned(")", TOKEN_GROUPING), 
+get_grouping_led(")", "apply"));
+
+
+// (left, node, tokenStream) => {
+//     // In infix mode, ( indicates a function call
+//     node.left = left;
+
+//     // if(node.left.node_type != TOKEN_IDENTIFIER) {
+//     //     console.log(node.left.node_type);
+//     //     syntaxError("Error: Could not call " + node.left.operator.value + " as a function.")
+//     // }
+
+//     node.node_type = "apply"
+//     node.value = [];
+
+//     if(tokenStream.currentKeyword() != ")") {   // f()
+//         while(tokenStream.hasNext()) {
+//             node.value.push(expression(tokenStream, 10))
+//             if(tokenStream.currentKeyword() == ",") {
+//                 tokenStream.next();
+//             } else {
+//                 break;
+//             }
+//         }
+//     }
     
-    tokenStream.advance(")")
-    return node
-})
+//     tokenStream.advance(")")
+//     return node
+// })
 
 class SyntaxError extends Error {
     constructor(message) {

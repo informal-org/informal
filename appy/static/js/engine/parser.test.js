@@ -44,7 +44,8 @@ test('test function application', () => {
 });
 
 test('test filtering', () => {
-    expect(parseExpr("Users[id == 3 or points > 10]").toString()).toEqual("([ Users (or (== id 3) (> points 10)))")
+    let result = parseExpr("Users[id == 3 or points > 10]")
+    expect(result.toString()).toEqual("([ Users (or (== id 3) (> points 10)))")
 });
 
 
