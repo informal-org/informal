@@ -73,3 +73,8 @@ test('test function signature', () => {
 test('test guard statements', () => {
     expect(parseExpr("(a, b) if(a > 0): a + b").toString()).toEqual("(: (if ((grouping) a b) ((grouping) (> a 0))) (+ a b))")
 });
+
+test('test conditional statements', () => {
+    expect(parseExpr("if(a > 0): a + b").toString()).toEqual("(: (if ((grouping) (> a 0))) (+ a b))")
+    expect(parseExpr("if a > 0: a + b").toString()).toEqual("(: (if (> a 0)) (+ a b))")
+});

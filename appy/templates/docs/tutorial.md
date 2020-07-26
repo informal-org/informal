@@ -65,9 +65,9 @@ You can perform operations over the entire collection. No loops required!
 ```
 Multi-dimensional arrays are created by defining each row on its own line.
 ```ruby
-[1, 0, 0
- 0, 1, 0
- 0, 0, 1]
+1, 0, 0
+0, 1, 0
+0, 0, 1
 # [[1, 0, 0]
 #  [0, 1, 0]
 #  [0, 0, 1]]
@@ -278,7 +278,7 @@ else:
 ```
 
 
-### Sets and Tables
+### Set, Table and Matrix
 ...
 
 

@@ -137,6 +137,10 @@ function paramsToJs(node) {
 }
 
 function parseGuard(node, params, code, cell) {
+    console.log("Parse guard")
+    console.log(node);
+    console.log(params);
+    
     // TODO: Type support
     var name = "__" + code.genVariable();
 
@@ -165,6 +169,8 @@ function objToJs(node, kv_list, code, cell, name) {
     let result = prefix + "new Obj();";
 
     var is_conditional = undefined;
+    console.log("KV list: ")
+    console.log(kv_list)
 
     // Array of key value tuples
     kv_list.forEach((kv) => {
@@ -227,9 +233,12 @@ function objToJs(node, kv_list, code, cell, name) {
             code.add(`${value_name}.toString = () => ${JSON.stringify(value_expr)};\n`)
 
             value = value_name;
-
             
         } else {
+            console.log("Map flat keys");
+            console.log(k)
+            console.log(v)
+            console.log("---")
             // For flat keys, evaluate both key and value
             key = astToJs(k, code, cell)
             value = astToJs(v, code, cell)
@@ -304,6 +313,12 @@ export function astToJs(node, code, cell, name="") {
 
             // TODO: Differentiate between indexing and filtering
             return prefix + astToJs(node.left, code, cell) + ".get(" + astToJs(node.right, code, cell) + ")"
+        }
+        case "(if)": {
+            // guard = parseGuard(node.left, null, code, cell);
+            // console.log("Guard: ");
+            // console.log(guard);
+
         }
         default:
             console.log("Error: Could not translate ast node: ");

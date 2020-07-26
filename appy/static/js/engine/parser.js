@@ -21,6 +21,9 @@ export const TOKEN_END_BLOCK = "(endblock)";
 export const TOKEN_WHERE = "(where)";       // []
 export const TOKEN_ARRAY = "(array)";
 export const TOKEN_COND = "(if)";
+export const TOKEN_ELSE = "(else)";
+export const TOKEN_THEN = "(then)";
+export const TOKEN_DEFAULT = "(default)";
 
 class ParseIterator extends QIter {
     constructor(queue) {
@@ -82,7 +85,7 @@ class Prefix extends Keyword {
         return (node, token_stream) => {
             node.left = expression(token_stream, 100);
             node.node_type = node_type
-            return node;            
+            return node;
         }
     }
 }
@@ -194,7 +197,7 @@ new Literal("null", null)
 // , 10
 
 // And binds slightly more than or.
-new InfixRight("or", 20)
+new InfixRight("or", 24)
 new InfixRight("and", 25)
 
 // Ensure equality checks lower than comparison ops
@@ -217,7 +220,18 @@ new Mixfix("not", 110, Prefix.get_null_denotation())  // was 60. Changed to 110
 new Infix("is", 60)     // TODO
 
 
-const COND = new Mixfix("if", 150, Prefix.get_null_denotation(TOKEN_COND), Infix.get_left_denotation(TOKEN_COND, 150));
+const COND = new Mixfix("if", 20, Prefix.get_null_denotation(TOKEN_COND), Infix.get_left_denotation(TOKEN_COND, 20));
+COND.null_denotation = (node, token_stream) => {
+    console.log("if null denotion");
+    node.left = expression(token_stream, 15);
+    console.log("Got left")
+    console.log(node.left)
+    node.node_type = "unary"
+    return node;
+}
+const COND_THEN = new Mixfix("then", 150, Prefix.get_null_denotation(TOKEN_THEN), Infix.get_left_denotation(TOKEN_THEN, 150));
+const COND_ELSE = new Mixfix("else", 150, Prefix.get_null_denotation(TOKEN_ELSE), Infix.get_left_denotation(TOKEN_ELSE, 150));
+const COND_DEFAULT = new Mixfix("default", 150, Prefix.get_null_denotation(TOKEN_DEFAULT), Infix.get_left_denotation(TOKEN_DEFAULT, 150));
 
 
 
@@ -331,7 +345,7 @@ START_BLOCK.null_denotation = (node, tokenStream) => {
 
 
 
-new Infix(":", 90).left_denotation = (left, node, tokenStream) => {
+new Infix(":", 15).left_denotation = (left, node, tokenStream) => {
     node.node_type = "map"
     // Key, value. Store in a list which will be appended upon
     // node.value = [left, expression(tokenStream, 80)]
