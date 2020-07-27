@@ -156,14 +156,16 @@ class Grouping extends Mixfix {
                     break;
                 }
             }
-    
-            tokenStream.advance(end_group);
+
+            if(tokenStream.current() && tokenStream.current().operator.keyword == "(end)") { }
+            else { tokenStream.advance(end_group) }
+            
             return node;
         }
     }
 
-    static get_left_denotation(node_type, end_group) {
-        let ned = Grouping.get_null_denotation(node_type, end_group);
+    static get_left_denotation(node_type, end_group, continuation=",") {
+        let ned = Grouping.get_null_denotation(node_type, end_group, continuation);
         return (left, node, tokenStream) => {
             node.left = left;
             return ned(node, tokenStream);
@@ -241,9 +243,8 @@ let COMMA = new Infix(",", 10);
 
 // This parser is only used for root level commas that are not wrapped in 
 // other grouping expressions. They're defined to be implicit map.
-let continue_to_end = Grouping.get_left_denotation("maplist", TOKEN_END)
-function continuation_led(left, node, tokenStream) {
-    let implicit_node = continue_to_end(left, node, tokenStream);
+function merge_nodes(implicit_node) {
+    // let implicit_node = continue_to_end(left, node, tokenStream);
     // At this point, node.operator.keyword = ",", node.left = map, node.value = [map, map, map]
     // Combine it into one logical structure and wrap in an explicit grouping node.
 
@@ -254,13 +255,20 @@ function continuation_led(left, node, tokenStream) {
     return grouping_node
 }
 
-COMMA.left_denotation = continuation_led;
+let continue_to_newline = Grouping.get_left_denotation("maplist", "(continueblock)", ",")
+COMMA.left_denotation = (left, node, tokenStream) => {
+    return merge_nodes(continue_to_newline(left, node, tokenStream))
+};
 
-// // Treat new lines as comma equivalents. Later on, differentiate comma and ;
-CONTINUE_BLOCK.left_denotation = continuation_led;
+// Treat new lines as comma equivalents. Later on, differentiate comma and ;
+let continue_to_end = Grouping.get_left_denotation("maplist", TOKEN_END_BLOCK, "(continueblock)")
+CONTINUE_BLOCK.left_denotation = (left, node, tokenStream) => {
+    return merge_nodes(continue_to_end(left, node, tokenStream))
+};
 
 
-const DEF_OP = new Infix(":", 15);
+const DEF_OP_LBP = 15;
+const DEF_OP = new Infix(":", DEF_OP_LBP);
 DEF_OP.left_denotation = (left, node, tokenStream) => {
     node.node_type = "map"
     // Key, value. Store in a list which will be appended upon
@@ -272,8 +280,8 @@ DEF_OP.left_denotation = (left, node, tokenStream) => {
 
 const COND = new Mixfix("if", 20, Prefix.get_null_denotation(TOKEN_COND), Infix.get_left_denotation(TOKEN_COND, 20));
 COND.null_denotation = (node, token_stream) => {
-    node.left = expression(token_stream, 15);
-    node.node_type = "unary"
+    node.left = expression(token_stream, DEF_OP_LBP);
+    node.node_type = TOKEN_COND
     return node;
 }
 const COND_THEN = new Mixfix("then", 20, Prefix.get_null_denotation(TOKEN_THEN), Infix.get_left_denotation(TOKEN_THEN, 20));
@@ -291,18 +299,14 @@ new InfixRight("and", 25)
 new InfixRight("==", 30)
 new InfixRight("!=", 30)
 
-
 new InfixRight("<", 40)
 new InfixRight(">", 40)
 new InfixRight("<=", 40)
 new InfixRight(">=", 40)
 
-
 new Infix("in", 60)
 
-
 new Infix("is", 60)     // TODO
-
 
 // Skip adding a node for unary plus.
 new Infix("+", 80).null_denotation = (node, token_stream) => {
@@ -318,6 +322,10 @@ new Infix("%", 85)
 
 // More binding power than multiplication, but less than unary minus (100)
 new InfixRight("**", 88)
+
+////////////////////////////////////////
+//  100: Prefix operation precedence  //
+////////////////////////////////////////
 
 // Prefix: when used as Not
 // Infix: "not in" TODO

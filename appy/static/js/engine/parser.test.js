@@ -95,3 +95,20 @@ test('test indentation blocks', () => {
     let result = parseExpr("(x, y) if(x <= y): x\n(x, y): y");
     expect(result.toString()).toEqual("({ (: (if ((grouping) x y) ((grouping) (<= x y))) x) (: ((grouping) x y) y))")
 })
+
+test('test multiline blocks', () => {
+    let expr = "0: 1\n2: 10\n3: 15"
+    let result = parseExpr(expr)
+    expect(result.toString()).toEqual("({ (: 0 1) (: 2 10) (: 3 15))")
+})
+
+test('test multiblock conditional', () => {
+    let expr = `0: 1
+(x, y):
+    if x < y or x > 23: x
+    if x > y: y
+    if x == y: "Equal"`
+    let result = parseExpr(expr);
+    console.log(result);
+    expect(result.toString()).toEqual("({ (: 0 1) (: ((grouping) x y) ((startblock) (: (if (or (< x y) (> x 23))) x) (: (if (> x y)) y) (: (if (== x y)) Equal))))")
+})

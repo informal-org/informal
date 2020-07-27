@@ -282,6 +282,7 @@ else:
 ...
 
 
+
 ## Functions are a Superpower
 A function is an abstract mapping from some input to some output, allowing you to define general relationships between data. So functions are just abstract maps.
 ```ruby
