@@ -1,5 +1,6 @@
 import { orderCellBody } from "./order"
 import { syntaxError } from "./parser";
+import { findMinStart, findMaxEnd } from "../utils/ast"
 
 import * as core from "./core";
 
@@ -30,11 +31,6 @@ const BINARY_OPS = {
     "and": mapToFn("__aa_and"),
     "or": mapToFn("__aa_or"),    
 
-    ".": (left, right) => {
-        return "__aa_attr(" + left + ", '" + right + "' )"
-    },
-
-    
     "+": mapToFn("__aa_add"),
     "-": mapToFn("__aa_sub"),
     "*": mapToFn("__aa_multiply"),
@@ -48,74 +44,17 @@ const BINARY_OPS = {
 
     "==": mapToFn("__aa_eq"),
     "!=": mapToFn("__aa_neq"),
+
+    ".": (left, right) => {
+        // Quote the right hand side attribute
+        return "__aa_attr(" + left + ", '" + right + "' )"
+    },    
 }
 
 // TODO: Vector support for unary minus
 const UNARY_OPS = {
     "-": (left) => { return "-" + left },
     "not": (left) => { return "__aa_not(" + left + ")" }
-}
-
-class CodeGenContext {
-    constructor(env){
-        this.code = JS_PRE_CODE;
-        this.env = env;
-
-        this.variable_count = 0;
-    }
-    add(newCode) {
-        this.code += newCode
-    }
-    finalize() {
-        this.code += JS_POST_CODE;
-    }
-    getCode() {
-        return this.code
-    }
-
-    genVariable() {
-        return "u_" + this.variable_count++
-    }
-}
-
-
-function findMinStart(node) {
-    let min = node.char_start;
-    if(node.left) {
-        let left_start = findMinStart(node.left)
-        min = left_start < min ? left_start : min
-    }
-    if(node.right) {
-        let right_start = findMinStart(node.right);
-        min = right_start < min ? right_start : min
-    }
-    if(node.value) {
-        for(var i = 0; i < node.value.length; i++){
-            let val_start = findMinStart(node.value[i]);
-            min = val_start < min ? val_start : min
-        }
-    }
-    return min
-}
-
-
-function findMaxEnd(node) {
-    let max = node.char_end;
-    if(node.left) {
-        let left_end = findMaxEnd(node.left)
-        max = left_end > max ? left_end : max
-    }
-    if(node.right) {
-        let right_end = findMaxEnd(node.right);
-        max = right_end > max ? right_end : max
-    }
-    if(node.value) {
-        for(var i = 0; i < node.value.length; i++){
-            let val_start = findMaxEnd(node.value[i]);
-            max = val_start > max ? val_start : max
-        }
-    }    
-    return max
 }
 
 function paramsToJs(node) {
@@ -131,10 +70,6 @@ function paramsToJs(node) {
 }
 
 function parseGuard(node, params, code, cell) {
-    console.log("Parse guard")
-    console.log(node);
-    console.log(params);
-    
     // TODO: Type support
     var name = "__" + code.genVariable();
 
@@ -142,25 +77,24 @@ function parseGuard(node, params, code, cell) {
     let guardFn = paramsStr + " => " + astToJs(node, code, cell);
 
     code.add(`var ${name} = ${guardFn};`)
+    
     // Add a text representation
-
-    let guard_start = findMinStart(node);
-    let guard_end = findMaxEnd(node);
-    let guard_expr = cell.expr.slice(guard_start, guard_end);
-
-    code.add(`${name}.toString = () => ${JSON.stringify(guard_expr)};`)
-
+    code.add(`${name}.toString = () => ${getNodeText(node, cell)};`)
     return name
 }
 
+function getNodeText(node, cell) {
+    let node_start = findMinStart(node);
+    let node_end = findMaxEnd(node);
+    let node_expr = cell.expr.slice(node_start, node_end)
+    return JSON.stringify(node_expr)
+}
 
 function objToJs(node, kv_list, code, cell, name) {
     if(!name) {
         name = code.genVariable();
     }
-
-    let prefix = name ? "var " + name + " = " : "";
-    let result = prefix + "new Obj();";
+    let result = "var " + name + " = new Obj();";
 
     var is_conditional = undefined;
 
@@ -214,29 +148,16 @@ function objToJs(node, kv_list, code, cell, name) {
             key = "new KeySignature('', null, [" + paramSignature + "],(" + guard + "))"
 
             let value_name = "__" + code.genVariable();
-
             let paramStr = paramNode && paramNode.value ? paramNode.value : ""
-            // let valueFn = "(" + paramStr + ") => " + astToJs(v, code, cell)
             
-            // code.add(`var ${value_name} = ${valueFn};\n`)
-
-            code.add(`var ${value_name} = (${paramStr}) => {\n`)
-            code.add("\n return " + astToJs(v, code, cell))
-            code.add("\n};")
-
-            let value_start = findMinStart(v);
-            let value_end = findMaxEnd(v);
-            let value_expr = cell.expr.slice(value_start, value_end)
-            // code.add(`${value_name}.toString = () => "${value_expr}";\n`)
-            code.add(`${value_name}.toString = () => ${JSON.stringify(value_expr)};\n`)
-
+            code.add(`
+    var ${value_name} = (${paramStr}) => {
+        return ${astToJs(v, code, cell)}
+    };
+    ${value_name}.toString = () => ${getNodeText(v, cell)};\n`)
             value = value_name;
             
         } else {
-            console.log("Map flat keys");
-            console.log(k)
-            console.log(v)
-            console.log("---")
             // For flat keys, evaluate both key and value
             key = astToJs(k, code, cell)
             value = astToJs(v, code, cell)
@@ -359,6 +280,28 @@ function cellToJs(code, cell) {
         })
     }
     return code
+}
+
+class CodeGenContext {
+    constructor(env){
+        this.code = JS_PRE_CODE;
+        this.env = env;
+
+        this.variable_count = 0;
+    }
+    add(newCode) {
+        this.code += newCode
+    }
+    finalize() {
+        this.code += JS_POST_CODE;
+    }
+    getCode() {
+        return this.code
+    }
+
+    genVariable() {
+        return "u_" + this.variable_count++
+    }
 }
 
 export function genJs(env) {
