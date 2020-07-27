@@ -3,12 +3,6 @@ import { syntaxError } from "./parser";
 
 import * as core from "./core";
 
-console.log("core in generator is")
-console.log(core);
-console.log(Object.keys(core));
-
-
-
 // TODO: Ensure error equality on CYCLIC_ERR throws error.
 export const JS_PRE_CODE = `
 function ctx_init() {
@@ -169,12 +163,16 @@ function objToJs(node, kv_list, code, cell, name) {
     let result = prefix + "new Obj();";
 
     var is_conditional = undefined;
-    console.log("KV list: ")
-    console.log(kv_list)
 
     // Array of key value tuples
-    kv_list.forEach((kv) => {
-        let [k, v] = kv
+    kv_list.forEach((kv_node) => {
+        if(kv_node.node_type != "map") {
+            syntaxError("Unexpected node found in map " + kv_node)
+        }
+        // TODO: Possibly convert from kv list format to left-right kv.
+        let k = kv_node.value[0];
+        let v = kv_node.value[1];
+        
         let key;
         let value;
         if(k.node_type == "(identifier)") {
@@ -277,7 +275,7 @@ export function astToJs(node, code, cell, name="") {
             return objToJs(node, node.value, code, cell, name)
         }
         case "map": {
-            return objToJs(node, [node.value], code, cell, name)
+            return objToJs(node, [node], code, cell, name)
         }
         case "(grouping)": {
             // Top level groupings are expressions

@@ -12,6 +12,7 @@ http://effbot.org/zone/simple-top-down-parsing.htm
 */
 
 export const KEYWORD_TABLE = {}
+export const TOKEN_END = "(end)";
 export const TOKEN_LITERAL = "(literal)";               // 1, "str", true, null
 export const TOKEN_IDENTIFIER = "(identifier)";         // x
 export const TOKEN_OPERATOR = "(operator)";             // and, or, not, +
@@ -20,11 +21,13 @@ export const TOKEN_CONTINUE_BLOCK = "(continueblock)";  // Same indentation leve
 export const TOKEN_END_BLOCK = "(endblock)";            // Decrease indentation level
 export const TOKEN_WHERE = "(where)";       // a[]
 export const TOKEN_ARRAY = "(array)";       // [1, 2, 3]
+export const TOKEN_MAP = "(map)";
 export const TOKEN_GROUPING = "(grouping)"
 export const TOKEN_COND = "(if)";           // if x < 10:
 export const TOKEN_ELSE = "(else)";
 export const TOKEN_THEN = "(then)";
 export const TOKEN_DEFAULT = "(default)";
+export const TOKEN_APPLY = "apply";     // TODO: Consistency
 
 class ParseIterator extends QIter {
     constructor(queue) {
@@ -131,6 +134,43 @@ class Mixfix extends Keyword {
     }
 }
 
+// For (), [], {}, whitespace blocks, etc.
+class Grouping extends Mixfix {
+    constructor(keyword_id, left_binding_power, null_node_type, left_node_type, end_group) {
+        super(keyword_id, left_binding_power, 
+            Grouping.get_null_denotation(null_node_type, end_group),
+            Grouping.get_left_denotation(left_node_type, end_group));
+    }
+
+    static get_null_denotation(node_type, end_group, continuation=",") {
+        return (node, tokenStream) => {
+            node.node_type = node_type
+            node.value = [];
+    
+            while(tokenStream.hasNext()){
+                if(tokenStream.currentKeyword() == end_group) { break }
+                node.value.push(expression(tokenStream, 10));
+                if(continuation == "" || tokenStream.currentKeyword() == continuation) {
+                    tokenStream.next();
+                } else {
+                    break;
+                }
+            }
+    
+            tokenStream.advance(end_group);
+            return node;
+        }
+    }
+
+    static get_left_denotation(node_type, end_group) {
+        let ned = Grouping.get_null_denotation(node_type, end_group);
+        return (left, node, tokenStream) => {
+            node.left = left;
+            return ned(node, tokenStream);
+        }
+    }
+
+}
 
 const ID_OP = new Identifier(TOKEN_IDENTIFIER);
 const LITERAL_OP = new Literal(TOKEN_LITERAL)
@@ -182,82 +222,46 @@ export const LiteralNode = ASTNode.LiteralNode;
 
 const END_OP = new Keyword("(end)")
 
+new Keyword(")")
+new Keyword("]")
+new Keyword(",")
 
 new Literal("true", true)
 new Literal("false", false)
 new Literal("null", null)
 
-new Keyword(")")
-new Keyword("]")
-new Keyword(",")
-
-export const CONTINUE_BLOCK = new Infix(TOKEN_CONTINUE_BLOCK, 10)  // \n
 export const START_BLOCK = new Infix(TOKEN_START_BLOCK, 10)     // Tab +
+export const CONTINUE_BLOCK = new Infix(TOKEN_CONTINUE_BLOCK, 10)  // \n
 export const END_BLOCK = new Keyword(TOKEN_END_BLOCK, 10)       // Tab -
 
-START_BLOCK.null_denotation = (node, tokenStream) => {
-    node.node_type = "maplist"
-    node.value = []
-
-    // assert: Immediate endblock impossible?
-    while(tokenStream.hasNext()) {
-        let right = expression(tokenStream, 10);
-        if(right.node_type == "map") {
-            // Merge the map key value into this map list.
-            node.value.push(right.value)
-        } else {
-            console.log("Found unexpected node type in block: " + right.node_type)
-            node.value.push(right)
-        }
-        if(tokenStream.currentKeyword() == "(endblock)") {
-            break;
-        } else {
-            console.log("Absorbing: " + tokenStream.currentKeyword())
-            tokenStream.next();
-        }
-    }
-    tokenStream.advance("(endblock)")
-
-    return node;
-}
+START_BLOCK.null_denotation = Grouping.get_null_denotation("maplist", TOKEN_END_BLOCK, "")
 
 // TODO: Test [(x): x + 1, ..]
+let COMMA = new Infix(",", 10);
 
+// This parser is only used for root level commas that are not wrapped in 
+// other grouping expressions. They're defined to be implicit map.
+let continue_to_end = Grouping.get_left_denotation("maplist", TOKEN_END)
 function continuation_led(left, node, tokenStream) {
-    let right = expression(tokenStream, 10)
-    if(left.node_type == "maplist") {
-        if(right.node_type != "map") {
-            // TODO
-            syntaxError("Expected map to the right of a map.")
-        }
-        // If it's a map, add it onto the list.
-        left.value.push(right.value)
-    }
-    else if(left.node_type == 'map') {
-        if(right.node_type != "map") {
-            // TODO
-            syntaxError("Expected map to the right of a map")
-        }
+    let implicit_node = continue_to_end(left, node, tokenStream);
+    // At this point, node.operator.keyword = ",", node.left = map, node.value = [map, map, map]
+    // Combine it into one logical structure and wrap in an explicit grouping node.
 
-        // Convert the single entity into a list structure
-        left.node_type = "maplist"
-        left.value = [left.value, right.value]
-    } else {
-        // TODO
-        syntaxError("Unknown token to the left of , " + left)
-    }
-
-    return left
+    let value = [implicit_node.left, ...implicit_node.value];
+    let char_start = value[0].char_start;
+    let char_end = value[value.length - 1].char_end;
+    let grouping_node = new ASTNode(CURLY_BK, value, "maplist", char_start, char_end);
+    return grouping_node
 }
 
-let COMMA = new Infix(",", 10);
 COMMA.left_denotation = continuation_led;
 
-// Treat new lines as comma equivalents. Later on, differentiate comma and ;
+// // Treat new lines as comma equivalents. Later on, differentiate comma and ;
 CONTINUE_BLOCK.left_denotation = continuation_led;
 
 
-new Infix(":", 15).left_denotation = (left, node, tokenStream) => {
+const DEF_OP = new Infix(":", 15);
+DEF_OP.left_denotation = (left, node, tokenStream) => {
     node.node_type = "map"
     // Key, value. Store in a list which will be appended upon
     // node.value = [left, expression(tokenStream, 80)]
@@ -268,10 +272,7 @@ new Infix(":", 15).left_denotation = (left, node, tokenStream) => {
 
 const COND = new Mixfix("if", 20, Prefix.get_null_denotation(TOKEN_COND), Infix.get_left_denotation(TOKEN_COND, 20));
 COND.null_denotation = (node, token_stream) => {
-    console.log("if null denotion");
     node.left = expression(token_stream, 15);
-    console.log("Got left")
-    console.log(node.left)
     node.node_type = "unary"
     return node;
 }
@@ -300,8 +301,6 @@ new InfixRight(">=", 40)
 new Infix("in", 60)
 
 
-// Prefix: when used as Not
-// Infix: "not in" TODO
 new Infix("is", 60)     // TODO
 
 
@@ -309,7 +308,8 @@ new Infix("is", 60)     // TODO
 new Infix("+", 80).null_denotation = (node, token_stream) => {
     return expression(token_stream, 100)
 }
-// Support unary minus
+
+// Support unary minus. 
 new Infix("-", 80).null_denotation = Prefix.get_null_denotation()
 
 new Infix("*", 85)
@@ -319,88 +319,24 @@ new Infix("%", 85)
 // More binding power than multiplication, but less than unary minus (100)
 new InfixRight("**", 88)
 
+// Prefix: when used as Not
+// Infix: "not in" TODO
 new Mixfix("not", 110, Prefix.get_null_denotation())  // was 60. Changed to 110
-
-
 
 new Infix(".", 150)
 
-const SQ_BK = new Mixfix("[", 150);
-// Defining an array
-SQ_BK.null_denotation = get_grouping_ned("]", TOKEN_ARRAY);
-SQ_BK.left_denotation = get_grouping_led("]", TOKEN_WHERE);
+// Null = Defining an array. Left = indexing
+const SQ_BK = new Grouping("[", 150, TOKEN_ARRAY, TOKEN_WHERE, "]");
 
-// As indexing
-// SQ_BK.left_denotation = (left, node, tokenStream) => {
-//     node.left = left;       // Left could be identifier, array, string.
-//     node.node_type = TOKEN_WHERE;
-    
-//     node.right = expression(tokenStream, 0)
-//     tokenStream.advance("]")
-//     return node;
-// }
-
-// Prefix mode - indicates a parenthesized expression group
-function get_grouping_ned(end_group, node_type) {
-    return (node, tokenStream) => {
-        node.node_type = node_type
-        node.value = [];
-
-        while(tokenStream.hasNext()){
-            if(tokenStream.currentKeyword() == end_group) { break }
-            node.value.push(expression(tokenStream, 10));
-            if(tokenStream.currentKeyword() == ",") {
-                tokenStream.next();
-            } else {
-                break;
-            }
-        }
-
-        tokenStream.advance(end_group);
-        return node;
-    }
-}
-
-function get_grouping_led(end_group, node_type) {
-    let ned = get_grouping_ned(end_group, node_type);
-    return (left, node, tokenStream) => {
-        node.left = left;
-        return ned(node, tokenStream);
-    }
-}
+// Null = parenthesized expression grouping. Left = Function call
+const PARENS = new Grouping("(", 150, TOKEN_GROUPING, TOKEN_APPLY, ")");
 
 
+// TODO: Is there a LED for this? f{ a }
+const CURLY_BK = new Prefix("{", 150,
+Grouping.get_null_denotation(TOKEN_MAP, "}"))
 
-new Mixfix("(", 150, get_grouping_ned(")", TOKEN_GROUPING), 
-get_grouping_led(")", "apply"));
 
-
-// (left, node, tokenStream) => {
-//     // In infix mode, ( indicates a function call
-//     node.left = left;
-
-//     // if(node.left.node_type != TOKEN_IDENTIFIER) {
-//     //     console.log(node.left.node_type);
-//     //     syntaxError("Error: Could not call " + node.left.operator.value + " as a function.")
-//     // }
-
-//     node.node_type = "apply"
-//     node.value = [];
-
-//     if(tokenStream.currentKeyword() != ")") {   // f()
-//         while(tokenStream.hasNext()) {
-//             node.value.push(expression(tokenStream, 10))
-//             if(tokenStream.currentKeyword() == ",") {
-//                 tokenStream.next();
-//             } else {
-//                 break;
-//             }
-//         }
-//     }
-    
-//     tokenStream.advance(")")
-//     return node
-// })
 
 class SyntaxError extends Error {
     constructor(message) {
@@ -433,7 +369,6 @@ export function parseTokens(tokenQueue) {
     tokenQueue.push(new ASTNode(END_OP, null, TOKEN_OPERATOR, -1, -1))
     let tokenStream = new ParseIterator(tokenQueue);
     let parsed = expression(tokenStream, 0)
-
 
     if(tokenStream.hasNext()) {
         // TODO
