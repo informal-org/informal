@@ -26,6 +26,7 @@ export class Cell {
         this._depend_count = 0;
 
         this.parsed = {};
+        this.expr_node = null;
         this.error = null;
         this.result = null
         this.namespace = hamt.empty;
@@ -34,4 +35,9 @@ export class Cell {
     toString() {
         return "Cell(" + this.id + "," + this.name + ")";
     }
+
+    getCellName(this) {
+        return this.name ? this.name : "__" + this.id;
+    }
+
 }

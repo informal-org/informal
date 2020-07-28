@@ -11,6 +11,17 @@ export function traverseDown(cell, cb, ...args) {
     return [paramReturns, bodyReturns]
 }
 
+export function traverseDownCell(cell, cb, ...args) {
+    let paramReturns = cell.params.map((param) => {
+        return cb(param, ...args)
+    })
+    let body = orderCellBody(cell);
+    let bodyReturns = body.map((child) => {
+        return cb(child, ...args)
+    })
+    return [paramReturns, bodyReturns]
+}
+
 export function traverseUp(cell, cb, ...args) {
     if(cell.parent) {
         return cb(cell.parent, ...args);

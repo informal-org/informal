@@ -1,7 +1,8 @@
 import { Cell } from "./Cell";
 import { addDependency } from "./order.js"
-import { traverseDown, traverseUp } from "./iter.js"
+import { traverseDown, traverseDownCell, traverseUp } from "./iter.js"
 import { parseExpr } from "./parser"
+import { astToJs } from "./generator";
 
 export class CellEnv {
     // Analogous to an AST. Contains metadata shared across cells.
@@ -26,6 +27,8 @@ export class CellEnv {
         // Bind this to the object for any functions called in higher-order traversals
         this.createCell = this.createCell.bind(this);
         this.parseAll = this.parseAll.bind(this);
+        this.exprAll = this.exprAll.bind(this);
+        this.emitJs = this.emitJs.bind(this);
         this.create = this.create.bind(this);
     }
     create(raw_map, root_id) {
@@ -51,6 +54,7 @@ export class CellEnv {
 
         return cell
     }
+    
     parseAll(cell_id) {
         let env = this;
         let raw_cell = env.getRawCell(cell_id);
@@ -64,6 +68,40 @@ export class CellEnv {
         }
 
         traverseDown(raw_cell, env.parseAll);
+    }
+
+    exprAll(cell) {
+        let env = this;
+
+        if(cell.error) { return }
+        if(cell.id in env.cyclic_deps) {
+            return
+        }
+
+        cell.expr_node = astToExpr(cell, cell.parsed);
+        traverseDownCell(cell, env.exprAll);
+    }
+
+    emitJs(cell, target) {
+        let env = this;
+        
+        if(cell.error) { return }
+        if(cell.id in env.cyclic_deps) { 
+            target.emitCellError(cell, "CyclicRefError")
+            return target
+        }
+
+        target.emitTry();
+        let result = cell.expr_node.emitJS(target)
+        if(result) {
+            target.emit(target.declaration(cell.getCellName(), result))
+            target.emitCellResult(cell);
+        }
+        
+        target.emitCatchAll(this);
+
+        traverseDownCell(cell, env.emitJs, target);
+        return target
     }
 
     findDependencies(cell_id) {

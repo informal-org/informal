@@ -251,6 +251,10 @@ global.__aa_not = (a) => {
     }
 }
 
+global.__aa_uminus = (a) => {
+    return -a
+}
+
 
 
 global.__aa_lt_type_map = genComparisonOpMap(global.__aa_lt, (a, b) => a < b)
