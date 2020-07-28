@@ -31,8 +31,6 @@ test('test power operator', () => {
 
 test('test map definition', () => {
     let result = parseExpr("a: 2, b: 3, c: 5");
-    console.log("Map definition")
-    console.log(result);
     // expect(result.toString()).toEqual("(: a,2 b,3 c,5)")
     expect(result.toString()).toEqual("({ (: a 2) (: b 3) (: c 5))")
     // expect(parseExpr("a: 2 + (3 * 5), b: 8").toString()).toEqual("(: a,(+ 2 ((grouping) (* 3 5))) b,8)")

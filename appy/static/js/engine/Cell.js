@@ -36,7 +36,7 @@ export class Cell {
         return "Cell(" + this.id + "," + this.name + ")";
     }
 
-    getCellName(this) {
+    getCellName() {
         return this.name ? this.name : "__" + this.id;
     }
 

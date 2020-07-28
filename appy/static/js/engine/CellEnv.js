@@ -3,6 +3,7 @@ import { addDependency } from "./order.js"
 import { traverseDown, traverseDownCell, traverseUp } from "./iter.js"
 import { parseExpr } from "./parser"
 import { astToJs } from "./generator";
+import { astToExpr } from "./compiler"
 
 export class CellEnv {
     // Analogous to an AST. Contains metadata shared across cells.
@@ -28,7 +29,7 @@ export class CellEnv {
         this.createCell = this.createCell.bind(this);
         this.parseAll = this.parseAll.bind(this);
         this.exprAll = this.exprAll.bind(this);
-        this.emitJs = this.emitJs.bind(this);
+        this.emitJS = this.emitJS.bind(this);
         this.create = this.create.bind(this);
     }
     create(raw_map, root_id) {
@@ -75,6 +76,7 @@ export class CellEnv {
 
         if(cell.error) { return }
         if(cell.id in env.cyclic_deps) {
+            console.log("Cyclic errors for cell: " + cell.id)
             return
         }
 
@@ -82,7 +84,7 @@ export class CellEnv {
         traverseDownCell(cell, env.exprAll);
     }
 
-    emitJs(cell, target) {
+    emitJS(cell, target) {
         let env = this;
         
         if(cell.error) { return }
@@ -90,17 +92,21 @@ export class CellEnv {
             target.emitCellError(cell, "CyclicRefError")
             return target
         }
-
-        target.emitTry();
-        let result = cell.expr_node.emitJS(target)
-        if(result) {
-            target.emit(target.declaration(cell.getCellName(), result))
-            target.emitCellResult(cell);
-        }
+        if(cell.expr_node) {
+            target.emitTry();
         
-        target.emitCatchAll(this);
+            let result = cell.expr_node.emitJS(target);
+            console.log("Expr emit js result: ");
+            console.log(result);
+            if(result) {
+                target.emit(target.declaration(cell.getCellName(), result))
+                target.emitCellResult(cell);
+            }
+    
+            target.emitCatchAll(this);
+        }
 
-        traverseDownCell(cell, env.emitJs, target);
+        traverseDownCell(cell, env.emitJS, target);
         return target
     }
 

@@ -1,3 +1,6 @@
+import { orderCellBody } from "./order"
+
+
 export function traverseDown(cell, cb, ...args) {
     // General pattern of iteration used across most functions
     let paramReturns = cell.params.map((param) => {

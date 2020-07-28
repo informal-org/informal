@@ -121,35 +121,35 @@ test('stream fold', () => {
 })
 
 
-test('param type checking', () => {
-    let print = new Obj();
-    let print_string = (s) => {
-        console.log("Print strings")
-    }
+// test('param type checking', () => {
+//     let print = new Obj();
+//     let print_string = (s) => {
+//         console.log("Print strings")
+//     }
 
-    let print_number = (n) => {
-        console.log("Print numbers")
-    }
+//     let print_number = (n) => {
+//         console.log("Print numbers")
+//     }
 
-    let string_sig = new KeySignature("", null, [
-        new Param("string", "s")
-    ])
-    print.insert(string_sig, print_string);
+//     let string_sig = new KeySignature("", null, [
+//         new Param("string", "s")
+//     ])
+//     print.insert(string_sig, print_string);
 
-    let num_sig = new KeySignature("", null, [
-        new Param("number", "n")
-    ])
-    print.insert(num_sig, print_number);    
+//     let num_sig = new KeySignature("", null, [
+//         new Param("number", "n")
+//     ])
+//     print.insert(num_sig, print_number);    
     
-    // console.log(fibo._values)
-    // console.log(fibo._keys)
-    console.log("param type checking")
-    console.log(print.call("hello"))
-    console.log(print.call(1))
-    console.log(print.call(false))
+//     // console.log(fibo._values)
+//     // console.log(fibo._keys)
+//     console.log("param type checking")
+//     console.log(print.call("hello"))
+//     console.log(print.call(1))
+//     console.log(print.call(false))
 
-    // expect(fibo.call(1)).toEqual(1)
-    // expect(fibo.call(2)).toEqual(1)
-    // expect(fibo.call(7)).toEqual(13)
-});
+//     // expect(fibo.call(1)).toEqual(1)
+//     // expect(fibo.call(2)).toEqual(1)
+//     // expect(fibo.call(7)).toEqual(13)
+// });
 

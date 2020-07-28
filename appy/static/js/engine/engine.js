@@ -4,6 +4,7 @@ import { parseExpr } from "./parser"
 import { genJs } from "./generator"
 import { execJs } from "./executor"
 import { defineNamespace } from "./namespace"
+import { compileJS } from "./compiler";
 
 // Dict, Value -> value | null
 export function resolveMember(node, context) {
@@ -62,8 +63,9 @@ function resolve(state, name, scope) {
 
 function runGenerated(env) {
     defineNamespace(env.root)
-    let code = genJs(env);
-    // console.log(code);
+    // let code = genJs(env);
+    let code = compileJS(env);
+    console.log(code);
 
     // 0: {id: 0, output: "Hello 2", error: ""}
     let result = execJs(code);
