@@ -32,15 +32,15 @@ class Expr {
         this.cell = cell;
         this.node = node;
     }
-    emitJs(target, gen) { 
+    emitJS(target, gen) { 
         // Emits a js version of the expression and return a reference to it
         // target: Backend specific code emitter
         // gen: Language specific code generator
-        console.log("Emit JS not implemented for " + this);
+        console.log("Emit JS not implemented for " + typeof this);
     }
     evaluate() { 
         // Evaluates the Expression and returns the result
-        console.log("Evaluated not implemented for " + this);
+        console.log("Evaluated not implemented for " + typeof this);
     }
     static parse(cell, node) { 
         // Should parse the relevant bits from the node into a structure
@@ -111,8 +111,7 @@ class MapExpr extends Expr {
 
 class ArrayExpr extends Expr {
     constructor(cell, node, elements) {
-        this.cell = cell;
-        this.node = node;
+        super(cell, node)
         this.elements = elements;
     }
     emitJS(target) {
@@ -126,10 +125,20 @@ class ArrayExpr extends Expr {
 }
 
 class FilteringExpr extends Expr {
-    static parse(cell, node) {
-        let right = node.value[0];
-        
+    constructor(cell, node, arr, filter) {
+        super(cell, node);
+        this.arr = arr;
+        this.filter = filter;
+    }
 
+    emitJS(target){
+        return target.method(this.arr.emitJS(target), "get", this.filter.emitJS(target))
+    }
+
+    static parse(cell, node) {
+        let arr = astToExpr(cell, node.left);
+        let filter = astToExpr(cell, node.value[0]);
+        return new FilteringExpr(cell, node, arr, filter)
     }
 }
 
@@ -141,15 +150,15 @@ class InvokeExpr extends Expr {
         this.params = params;
     }
 
-    emitJs(target) {
+    emitJS(target) {
         let paramsJS = this.params.map((p) => p.emitJS(target))
-        return target.functionCall("__aa_call", fn, ...paramsJS)
+        return target.functionCall("__aa_call", this.fn.emitJS(target), ...paramsJS)
     }
 
     static parse(cell, node) {
         let params = node.value.map((p) => astToExpr(cell, p))
         let fn = astToExpr(cell, node.left);
-        return InvokeExpr(cell, node, fn, params)
+        return new InvokeExpr(cell, node, fn, params)
     }
 }
 
@@ -168,6 +177,22 @@ class AssignmentExpr extends Expr {
 
 class MemberExpr extends Expr {
     // Obj.attr dot access
+    constructor(cell, node, obj, attr) {
+        super(cell, node);
+        this.obj = obj;
+        this.attr = attr;
+    }
+
+    emitJS(target) {
+        // Quote the attribute name.
+        return target.functionCall("__aa_attr", this.obj.emitJS(target), "" + this.attr.emitJS(target))
+    }
+
+    static parse(cell, node) {
+        let obj = astToExpr(cell, node.left);
+        let attr = astToExpr(cell, node.right);
+        return new MemberExpr(cell, node, obj, attr)
+    }
 
 }
 
@@ -183,6 +208,10 @@ class JSCodeGen extends CodeGen {
 
     functionCall(fn, ...args) {
         return fn + "(" + args.join(",") + ")"
+    }
+
+    method(obj, fn, ...args) {
+        return obj + "." + fn + "(" + args.join(",") + ")"
     }
 
     declaration(name, value) {
@@ -269,6 +298,10 @@ export function astToExpr(cell, node) {
             return ArrayExpr.parse(cell, node)
         case "(where)":
             return FilteringExpr.parse(cell, node)
+        case "(member)":
+            return MemberExpr.parse(cell, node)
+        default:
+            console.log("Unknown AST node type: " + node.node_type);
         
         
         

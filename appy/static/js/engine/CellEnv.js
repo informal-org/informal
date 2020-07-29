@@ -96,8 +96,6 @@ export class CellEnv {
             target.emitTry();
         
             let result = cell.expr_node.emitJS(target);
-            console.log("Expr emit js result: ");
-            console.log(result);
             if(result) {
                 target.emit(target.declaration(cell.getCellName(), result))
                 target.emitCellResult(cell);

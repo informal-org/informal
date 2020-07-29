@@ -28,6 +28,7 @@ export const TOKEN_ELSE = "(else)";
 export const TOKEN_THEN = "(then)";
 export const TOKEN_DEFAULT = "(default)";
 export const TOKEN_APPLY = "apply";     // TODO: Consistency
+export const TOKEN_MEMBER = "(member)";
 
 class ParseIterator extends QIter {
     constructor(queue) {
@@ -331,7 +332,7 @@ new InfixRight("**", 88)
 // Infix: "not in" TODO
 new Mixfix("not", 110, Prefix.get_null_denotation())  // was 60. Changed to 110
 
-new Infix(".", 150)
+new Infix(".", 150, Infix.get_left_denotation(TOKEN_MEMBER, 150), TOKEN_MEMBER)
 
 // Null = Defining an array. Left = indexing
 const SQ_BK = new Grouping("[", 150, TOKEN_ARRAY, TOKEN_WHERE, "]");
