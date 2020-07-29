@@ -24,6 +24,7 @@ export const TOKEN_ARRAY = "(array)";       // [1, 2, 3]
 export const TOKEN_MAP = "(map)";
 export const TOKEN_GROUPING = "(grouping)"
 export const TOKEN_COND = "(if)";           // if x < 10:
+export const TOKEN_GUARD = "(guard)";
 export const TOKEN_ELSE = "(else)";
 export const TOKEN_THEN = "(then)";
 export const TOKEN_DEFAULT = "(default)";
@@ -279,7 +280,7 @@ DEF_OP.left_denotation = (left, node, tokenStream) => {
 }
 
 
-const COND = new Mixfix("if", 20, Prefix.get_null_denotation(TOKEN_COND), Infix.get_left_denotation(TOKEN_COND, 20));
+const COND = new Mixfix("if", 20, Prefix.get_null_denotation(TOKEN_COND), Infix.get_left_denotation(TOKEN_GUARD, 20));
 COND.null_denotation = (node, token_stream) => {
     node.left = expression(token_stream, DEF_OP_LBP);
     node.node_type = TOKEN_COND

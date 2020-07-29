@@ -4,6 +4,7 @@ and either evaluates or generates bytecode
 */
 
 import { JS_PRE_CODE, JS_POST_CODE } from "../constants"
+import { syntaxError } from "./parser";
 
 const BINARY_OPS = {
     "and": "__aa_and",
@@ -105,8 +106,51 @@ class IdentifierExpr extends Expr {
     }
 }
 
-class MapExpr extends Expr {
+class KeySignatureExpr extends Expr {
+    // TODO: Optional_index and rest_params
+    constructor(cell, node, name, type, params, guard) {
+        super(cell, node);
+        this.name = name;
+        this.type = type;
+        this.params = params;
+        this.guard = guard;
+    }
 
+    static parse(cell, node) {
+
+    }
+}
+
+class AssocExpr extends Expr {
+    constructor(cell, node, key, value) {
+        super(cell, node);
+        this.key = key;
+        this.value = value;
+    }
+
+    static parse(cell, node) {
+        let k, v = node.value;
+
+        let key = astToExpr(cell, k);
+        let value = astToExpr(cell, v);
+    }
+
+}
+
+class MapExpr extends Expr {
+    constructor(cell, node, kv_list) {
+
+    }
+
+    static parse(cell, node) {
+        // Array of key-value tuples
+        let kv_list = node.value.map( (kv_node) => {
+            if(kv_node.node_type != "map") { syntaxError("Unexpected node found in map " + kv_node)}
+            return AssocExpr.parse(cell, kv_node)
+        });
+
+
+    }
 }
 
 class ArrayExpr extends Expr {
@@ -164,6 +208,26 @@ class InvokeExpr extends Expr {
 
 class ConditionalExpr extends Expr {
 
+}
+
+class GuardExpr extends Expr {
+    constructor(cell, node, condition, params) {
+        super(cell, node);
+        this.condition = condition;
+        this.params = params;
+    }
+
+    static parse(cell, node) {
+        if(node.right) {
+            let condition = astToExpr(node.right);
+            let params = astToExpr(node.left);
+            return new GuardExpr(cell, node, condition, params);
+        } else {
+            let condition = astToExpr(node.left);
+            let params = [];
+            return new GuardExpr(cell, node, condition, params)
+        }
+    }
 }
 
 class LoopExpr extends Expr {
@@ -300,6 +364,12 @@ export function astToExpr(cell, node) {
             return FilteringExpr.parse(cell, node)
         case "(member)":
             return MemberExpr.parse(cell, node)
+        case "(map)":
+            return AssocExpr.parse(cell, node)
+        case "(maplist)":
+            return MapExpr.parse(cell, node)
+        case "(guard)":
+            return GuardExpr.parse(cell, node)
         default:
             console.log("Unknown AST node type: " + node.node_type);
         
