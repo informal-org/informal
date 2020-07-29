@@ -49,7 +49,6 @@ class Expr {
     }
 }
 
-
 class BinaryExpr extends Expr {
     constructor(cell, node, left, right) {
         super(cell, node)
@@ -65,7 +64,7 @@ class BinaryExpr extends Expr {
     }
     static parse(cell, node) {
         let left = astToExpr(cell, node.left)
-        let right = astToExpr(cell, node.left)
+        let right = astToExpr(cell, node.right)
         return new BinaryExpr(cell, node, left, right);
     }
 }
@@ -104,7 +103,6 @@ class IdentifierExpr extends Expr {
     emitJS(target) {
         return target.identifier(this.node.value)
     }
-
 }
 
 class MapExpr extends Expr {
@@ -112,16 +110,47 @@ class MapExpr extends Expr {
 }
 
 class ArrayExpr extends Expr {
-
+    constructor(cell, node, elements) {
+        this.cell = cell;
+        this.node = node;
+        this.elements = elements;
+    }
+    emitJS(target) {
+        let elements_js = this.elements.map((elem) => elem.emitJS(target))
+        return target.functionCall("Stream.array", target.array(elements_js))
+    }
+    static parse(cell, node) {
+        let elements = node.value.map((elem) => astToExpr(cell, elem))
+        return new ArrayExpr(cell, node, elements);
+    }
 }
 
 class FilteringExpr extends Expr {
+    static parse(cell, node) {
+        let right = node.value[0];
+        
 
+    }
 }
 
 class InvokeExpr extends Expr {
     // Call/Invoke a "function" ()
+    constructor(cell, node, fn, params) {
+        super(cell, node);
+        this.fn = fn;
+        this.params = params;
+    }
 
+    emitJs(target) {
+        let paramsJS = this.params.map((p) => p.emitJS(target))
+        return target.functionCall("__aa_call", fn, ...paramsJS)
+    }
+
+    static parse(cell, node) {
+        let params = node.value.map((p) => astToExpr(cell, p))
+        let fn = astToExpr(cell, node.left);
+        return InvokeExpr(cell, node, fn, params)
+    }
 }
 
 class ConditionalExpr extends Expr {
@@ -166,6 +195,10 @@ class JSCodeGen extends CodeGen {
 
     identifier(name) {
         return name
+    }
+
+    array(elements) {
+        return "[" + elements.join(",") + "]"
     }
 
     newVariable() {
@@ -226,6 +259,18 @@ export function astToExpr(cell, node) {
             return new LiteralExpr(cell, node)
         case "(identifier)":
             return new IdentifierExpr(cell, node)
+        case "(grouping)": 
+            // Swallow parens - order is explicit in the AST form
+            if(node.value.length != 1) { throw SyntaxError("Unexpected Parentheses") }
+            return astToExpr(cell, node.value[0])
+        case "apply":
+            return InvokeExpr.parse(cell, node)
+        case "(array)":
+            return ArrayExpr.parse(cell, node)
+        case "(where)":
+            return FilteringExpr.parse(cell, node)
+        
+        
         
     }
 }

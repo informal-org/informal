@@ -34,8 +34,6 @@ export function resolveMember(node, context) {
         object = context.resolve(node.object.name);
     }
 
-    
-
     // console.log("object is");
     // console.log(object.name);
 
