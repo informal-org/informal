@@ -116,8 +116,38 @@ class KeySignatureExpr extends Expr {
         this.guard = guard;
     }
 
-    static parse(cell, node) {
+    emitJS(target) {
+        let paramSig = this.getParamJS();
+        let guardSig = this.guard.emitJS();
+        return target.create("KeySignature", "", null, paramSig, guardSig);
+    }
 
+    getParamJS(target) {
+        return this.params.map((p) => p.emitJS());
+    }
+
+    static parse(cell, node) {
+        switch(node.node_type) {
+            case "(identifier)":
+                return new KeySignatureExpr(cell, node, astToExpr(cell, node.value))
+            case "(grouping)":
+                var params = node.value.map((p) => astToExpr(cell, p))
+                return new KeySignatureExpr(cell, node, '', null, params)
+            case "(if)":
+                var guard, params;
+                if(node.right) {
+                    guard = astToExpr(cell, node.right);
+                    params = node.left.value ? node.left.value.map((p) => astToExpr(cell, p)) : [];
+                } else {
+                    guard = astToExpr(cell, node.left);
+                    params = [];
+                }
+                return new KeySignatureExpr(cell, node, '', null, params, guard)
+            default:
+                // Note: Flat keys are not wrapped in a key signature.
+                return astToExpr(cell, node)
+
+        }
     }
 }
 
@@ -128,18 +158,51 @@ class AssocExpr extends Expr {
         this.value = value;
     }
 
+    emitJS(target) {
+        // TODO move map expr loop body here
+    }
+
     static parse(cell, node) {
         let k, v = node.value;
 
         let key = astToExpr(cell, k);
         let value = astToExpr(cell, v);
+        return new AssocExpr(cell, node, key, value);
     }
 
 }
 
 class MapExpr extends Expr {
     constructor(cell, node, kv_list) {
+        super(cell, node);
+        this.kv_list = kv_list;
+    }
 
+    emitJS(target) {
+        let mapName = target.newVariable();
+        let obj = target.create("Obj");
+        target.emit(target.declaration(mapName, obj) + ";")
+
+        this.kv_list.forEach((kv) => {
+            let key, value = kv;
+
+            let keyJS, valJS;
+            keyJS = key.emitJS(target);
+
+            if(key instanceof KeySignatureExpr) {
+                let fnBody = value.emitJS(target);
+                let valName = target.newVariable();
+                let params = key.getParamJS();
+
+                valJS = target.declaration(valName, target.lambdaDeclaration(params, fnBody))
+                target.emit(valFn);
+                // TODO: toString for value
+            } 
+
+            target.emit(target.method(mapName, "insert", keyJS, valJS))
+
+        })
+        return mapName;
     }
 
     static parse(cell, node) {
@@ -149,7 +212,7 @@ class MapExpr extends Expr {
             return AssocExpr.parse(cell, kv_node)
         });
 
-
+        return new MapExpr(cell, node, kv_list)
     }
 }
 
@@ -274,8 +337,19 @@ class JSCodeGen extends CodeGen {
         return fn + "(" + args.join(",") + ")"
     }
 
+    lambdaDeclaration(params, body) {
+        return `( ${params.join(",")} ) => {
+            return ${ body }
+        };
+        `
+    }
+
     method(obj, fn, ...args) {
         return obj + "." + fn + "(" + args.join(",") + ")"
+    }
+
+    create(cls, ...args) {
+        return "new " + cls + "(" + args.join(",") + ")"
     }
 
     declaration(name, value) {
@@ -353,10 +427,15 @@ export function astToExpr(cell, node) {
         case "(identifier)":
             return new IdentifierExpr(cell, node)
         case "(grouping)": 
-            // Swallow parens - order is explicit in the AST form
-            if(node.value.length != 1) { throw SyntaxError("Unexpected Parentheses") }
-            return astToExpr(cell, node.value[0])
-        case "apply":
+            if(node.value.length == 1) {
+                // Swallow parens - order is explicit in the AST form
+                return astToExpr(cell, node.value[0])
+            } else {
+                // TODO: These should probably be split up into a separate tuple node type.
+                return node.value.map((elem) => astToExpr(cell, elem))
+            }
+            
+        case "apply":       // todo, NAME
             return InvokeExpr.parse(cell, node)
         case "(array)":
             return ArrayExpr.parse(cell, node)
@@ -364,9 +443,9 @@ export function astToExpr(cell, node) {
             return FilteringExpr.parse(cell, node)
         case "(member)":
             return MemberExpr.parse(cell, node)
-        case "(map)":
+        case "map":         // TODO: name
             return AssocExpr.parse(cell, node)
-        case "(maplist)":
+        case "maplist":     // todo, NAME
             return MapExpr.parse(cell, node)
         case "(guard)":
             return GuardExpr.parse(cell, node)
