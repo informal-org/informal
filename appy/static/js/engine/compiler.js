@@ -119,7 +119,7 @@ class KeySignatureExpr extends Expr {
 
     emitJS(target) {
         let paramSig = this.quoteParamJs(target);
-        let guardSig = this.guard.emitJS(target);
+        let guardSig = this.guard ? this.guard.emitJS(target) : "null";
         return target.create("KeySignature", '""', "null", paramSig, guardSig);
     }
 
@@ -176,8 +176,6 @@ class AssocExpr extends Expr {
     }
 
     getKeyJS(target) {
-        console.log("This key is");
-        console.log(this.key);
         if(Array.isArray(this.key)) {
             // TODO: Refactor grouping into a param node
             let paramSigs = this.key.map((p) => target.create("KeySignature", '"' + p.emitJS(target) + '"' ))
@@ -232,10 +230,10 @@ class MapExpr extends Expr {
     emitJS(target) {
         let mapName = target.newVariable();
         let obj = target.create("Obj");
-        target.emit(target.declaration(mapName, obj) + ";")
+        target.emit(target.declaration(mapName, obj) + ";\n")
 
         this.kv_list.forEach((kv) => {
-            target.emit(target.method(mapName, "insert", kv.getKeyJS(target), kv.getValJS(target)))
+            target.emit(target.method(mapName, "insert", kv.getKeyJS(target), kv.getValJS(target)) + ";\n")
         })
         return mapName;
     }
@@ -316,14 +314,11 @@ class GuardExpr extends Expr {
     }
 
     emitJS(target) {
-        console.log("Guard expression parts");
-        console.log(this.params);
-        console.log(this.condition);
         let name = target.newVariable();
-        let paramsJS = this.params.map((p) => p.emitJS(target))
+        // let paramsJS = this.params.map((p) => p.emitJS(target))
+        // let paramsJS = this.params.emitJS(target);
+        let paramsJS = this.params.getParamJS(target);
         let conditionBody = this.condition.emitJS(target)
-        console.log("Guard fn: " + paramsJS + " => " + conditionBody);
-
         let guardFn = target.lambdaDeclaration(paramsJS, conditionBody)
 
         // TODO: toString for this
@@ -479,16 +474,13 @@ export function astToExpr(cell, node) {
         case "(identifier)":
             return new IdentifierExpr(cell, node)
         case "(grouping)": 
-            console.log("Found grouping")
             if(node.value.length == 1) {
-                console.log("Extracting grouping")
                 // Swallow parens - order is explicit in the AST form
-                let ret = astToExpr(cell, node.value[0])
-                console.log(ret)
-                return ret
+                return astToExpr(cell, node.value[0])
             } else {
                 // TODO: These should probably be split up into a separate tuple node type.
-                return node.value.map((elem) => astToExpr(cell, elem))
+                // return node.value.map((elem) => astToExpr(cell, elem))
+                return KeySignatureExpr.parse(cell, node)
             }
             
         case "apply":       // todo, NAME
