@@ -205,7 +205,7 @@ class AssocExpr extends Expr {
             }
             
 
-            let valFn = target.declaration(valName, target.lambdaDeclaration(params, fnBody))
+            let valFn = target.declaration(valName, target.lambdaDeclaration(params, fnBody) + ";\n")
             target.emit(valFn);
 
             return valName;
@@ -390,7 +390,7 @@ class JSCodeGen extends CodeGen {
     lambdaDeclaration(params, body) {
         return `( ${params.join(",")} ) => {
             return ${ body }
-        };
+        }
         `
     }
 
