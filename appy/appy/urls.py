@@ -53,6 +53,7 @@ urlpatterns = [
 
     path('docs/', TemplateView.as_view(template_name="docs/index.html")),
     path('docs/getting_started/', TemplateView.as_view(template_name="docs/getting_started.html")),
+    # path('docs/getting_started/', TemplateView.as_view(template_name="docs/tutorial.html")),
 
 
 ]

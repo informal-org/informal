@@ -5,7 +5,7 @@ You'll learn how to:
 * Use array programming and pattern matching to reduce boilerplate code.
 * Write declarative code that favors plain data over abstractions.
 * Use functions to boost expressiveness throughout the language.
-* Incrementally add gradual typing to add structure to your program.
+* Incrementally add gradual typing to make your programs cleaner, faster and safer.
 * Replace regex with declarative patterns for common parsing tasks.
 * Get 4-16x the performance with seamless concurrency.
 * Simplify refactoring without breaking compatibility or requiring cascading changes.
@@ -14,8 +14,9 @@ You'll learn how to:
 
 
 ## An Observable Visual Environment
-Most bugs in software stem from a disconnect between our mental models of the problem and the complexities of reality. So often, we're coding blind with vague requirements and a limited input-output view into what our software is actually doing. 
-AppAssembly removes this blindfold. You're connected directly to your running system, so you can explore the problem domain and incrementally compose code that you can see and interact with. 
+Most bugs in software stem from a disconnect between our mental models of the problem and the complexities of reality. So often, we're coding blind with a limited input-output view into what our software is actually doing.
+Observability is one of the fundamental principles of AppAssembly. Code should be transparent and interactive, so it's easy to understand and easy to change.
+We do this by connecting you directly to your running system, so you can explore the problem domain and incrementally compose code that you can see and interact with. 
 
 To get started, try playing around with the expression in the cells below:
 ```ruby
@@ -38,13 +39,13 @@ squared = n * n
 Cells are lexically scoped to the block they're defined in. They're order-independent, so you can think of them as stating facts that always hold true rather than issuing instructions. 
 
 Cells contain values, but they're not mutable variables. Values are immutable. Just like you don't mutate the meaning of a number when you do `2 + 3` or mutate a string when you do `"hello".uppercase()`, all operations return a new transformed value. Values are easier to observe and reason about than state which may be mutated by each line of code. Under the hood, this is equivalent to the SSA (Static Single Assignment) form that many compilers use to optimize code.
-Even though values are immutable, you can re-bind a name to a new value using `=` for a familiar imperative style. 
+Even though values are immutable, you can re-bind a name to a new value using `=` for a familiar coding style. 
 ```ruby
 n = 5
 n = n * 2
 # n = 10
 ```
-Later on, you'll see how you can use actions to manage state in a concurrency safe way.
+Later on, you'll see how you can use *Actions* to manage state changes in a concurrency safe way.
 
 ## Array Programming
 Lists in AppAssembly let you group elements together into a larger unit you can operate on. 
@@ -200,14 +201,13 @@ movie:
     title: "Inception"
     year: 2010
     director: ["Christopher Nolan"]
-    starring: ["Leonardo DiCaprio", "Ellen Page", "Ken Watanabe", "Joseph Gordon-Levitt", "Marion Cotillard", "Tom Hardy",  "Cillian Murphy", "Michael Caine"]
     music: ["Hans Zimmer"]
     genre: [:sci_fi, :action, :adventure]
 
 movie.title     # "Inception"
 ```
 
-This object is made up of mappings from symbolic names to their values. Symbols are not strings. Symbols represent an abstract idea, like the concept of `true`, `null` or `:title`. All of the keywords, function names and attributes you see in code are symbols. Once compiled, their attributes names don't matter, just the concept they represent. 
+This object is made up of mappings from symbolic names to their values. Symbols are not strings. Symbols represent an abstract idea, like the concept of `true`, `null` or `:title`. All of the keywords, function names and attributes you see in code are symbols. Once compiled, their attribute names don't matter, just the concepts they represent. 
 ```ruby
 movie.title       # "Inception"
 movie["title"]    # null
@@ -459,7 +459,8 @@ AppAssembly supports incremental software development in a number of ways. The *
 ### The Right (Embedded) Language for the Job
 
 ## Concurrent by Default
-Moore's law is dead. 
+Moore's law is dead. Single threaded performance of CPUs aren't increasing as fast as they used to.
+Most of the performance gains in the future are going to come from parallel and distributed computing. The traditional, imperative paradigm of software as a sequence of mutable instructions falls apart in a concurrent world where many things happen simultaneously. 
 
 ## Resilient Error Handling
 

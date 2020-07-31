@@ -146,3 +146,5 @@ stats.json
 # General
 
 .DS_Store
+
+appy/templates/docs/tutorial.html
