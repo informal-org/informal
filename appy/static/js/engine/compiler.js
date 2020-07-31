@@ -182,7 +182,11 @@ class AssocExpr extends Expr {
             
             // return "(" + .join(",") + ")"
             return target.create("KeySignature", '""', "null", target.array(paramSigs));
-        } else {
+        }
+        else if(this.key.node.node_type === "(identifier)") {
+            return target.create("KeySignature", '"' + this.key.emitJS(target) + '"')
+        }
+        else {
             return this.key.emitJS(target)
         }
         
@@ -358,7 +362,7 @@ class MemberExpr extends Expr {
 
     emitJS(target) {
         // Quote the attribute name.
-        return target.functionCall("__aa_attr", this.obj.emitJS(target), "" + this.attr.emitJS(target))
+        return target.functionCall("__aa_attr", this.obj.emitJS(target), '"' + this.attr.emitJS(target) + '"')
     }
 
     static parse(cell, node) {
@@ -463,7 +467,6 @@ export function astToExpr(cell, node) {
 
     // console.log("AST TO EXPR OF " + cell.id);
     if(!node || !node.node_type) { return undefined; }
-    console.log(node.node_type);
     switch(node.node_type) {
         case "binary":
             return BinaryExpr.parse(cell, node)

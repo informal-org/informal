@@ -97,7 +97,7 @@ export class CellEnv {
         
             let result = cell.expr_node.emitJS(target);
             if(result) {
-                target.emit(target.declaration(cell.getCellName(), result))
+                target.emit(target.declaration(cell.getCellName(), result) + ";")
                 target.emitCellResult(cell);
             }
     
