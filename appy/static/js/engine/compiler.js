@@ -38,6 +38,7 @@ class Expr {
         // target: Backend specific code emitter
         // gen: Language specific code generator
         console.log("Emit JS not implemented for " + typeof this);
+        console.log(this);
     }
     evaluate() { 
         // Evaluates the Expression and returns the result
@@ -117,13 +118,18 @@ class KeySignatureExpr extends Expr {
     }
 
     emitJS(target) {
-        let paramSig = this.getParamJS();
-        let guardSig = this.guard.emitJS();
-        return target.create("KeySignature", "", null, paramSig, guardSig);
+        let paramSig = this.quoteParamJs(target);
+        let guardSig = this.guard.emitJS(target);
+        return target.create("KeySignature", '""', "null", paramSig, guardSig);
     }
 
     getParamJS(target) {
-        return this.params.map((p) => p.emitJS());
+        return this.params.map((p) => p.emitJS(target));
+    }
+
+    quoteParamJs(target) {
+        let paramSigs = this.params.map((p) => target.create("KeySignature", '"' + p.emitJS(target) + '"'));
+        return target.array(paramSigs)
     }
 
     static parse(cell, node) {
@@ -132,7 +138,7 @@ class KeySignatureExpr extends Expr {
                 return new KeySignatureExpr(cell, node, astToExpr(cell, node.value))
             case "(grouping)":
                 var params = node.value.map((p) => astToExpr(cell, p))
-                return new KeySignatureExpr(cell, node, '', null, params)
+                return new KeySignatureExpr(cell, node, '""', "null", params)
             case "(if)":
                 var guard, params;
                 if(node.right) {
@@ -142,7 +148,7 @@ class KeySignatureExpr extends Expr {
                     guard = astToExpr(cell, node.left);
                     params = [];
                 }
-                return new KeySignatureExpr(cell, node, '', null, params, guard)
+                return new KeySignatureExpr(cell, node,  '""', "null", params, guard)
             default:
                 // Note: Flat keys are not wrapped in a key signature.
                 return astToExpr(cell, node)
@@ -159,14 +165,59 @@ class AssocExpr extends Expr {
     }
 
     emitJS(target) {
-        // TODO move map expr loop body here
+        let mapName = target.newVariable();
+        let obj = target.create("Obj");
+        target.emit(target.declaration(mapName, obj) + ";\n")
+
+
+        target.emit(target.method(mapName, "insert", this.getKeyJS(target), this.getValJS(target)) + ";\n")
+
+        return mapName
+    }
+
+    getKeyJS(target) {
+        console.log("This key is");
+        console.log(this.key);
+        if(Array.isArray(this.key)) {
+            // TODO: Refactor grouping into a param node
+            let paramSigs = this.key.map((p) => target.create("KeySignature", '"' + p.emitJS(target) + '"' ))
+            
+            // return "(" + .join(",") + ")"
+            return target.create("KeySignature", '""', "null", target.array(paramSigs));
+        } else {
+            return this.key.emitJS(target)
+        }
+        
+    }
+
+    getValJS(target) {
+        if(this.key instanceof KeySignatureExpr || Array.isArray(this.key)) {
+            let fnBody = this.value.emitJS(target);
+            let valName = target.newVariable();
+
+            let params;
+            if(Array.isArray(this.key)) {
+                params = this.key.map((p) => p.emitJS(target))
+            } else {
+                params = this.key.getParamJS(target);
+            }
+            
+
+            let valFn = target.declaration(valName, target.lambdaDeclaration(params, fnBody))
+            target.emit(valFn);
+
+            return valName;
+        } else {
+            return this.value.emitJS(target)
+        }
     }
 
     static parse(cell, node) {
-        let k, v = node.value;
+        let [k, v] = node.value;
 
         let key = astToExpr(cell, k);
         let value = astToExpr(cell, v);
+
         return new AssocExpr(cell, node, key, value);
     }
 
@@ -184,23 +235,7 @@ class MapExpr extends Expr {
         target.emit(target.declaration(mapName, obj) + ";")
 
         this.kv_list.forEach((kv) => {
-            let key, value = kv;
-
-            let keyJS, valJS;
-            keyJS = key.emitJS(target);
-
-            if(key instanceof KeySignatureExpr) {
-                let fnBody = value.emitJS(target);
-                let valName = target.newVariable();
-                let params = key.getParamJS();
-
-                valJS = target.declaration(valName, target.lambdaDeclaration(params, fnBody))
-                target.emit(valFn);
-                // TODO: toString for value
-            } 
-
-            target.emit(target.method(mapName, "insert", keyJS, valJS))
-
+            target.emit(target.method(mapName, "insert", kv.getKeyJS(target), kv.getValJS(target)))
         })
         return mapName;
     }
@@ -280,13 +315,29 @@ class GuardExpr extends Expr {
         this.params = params;
     }
 
+    emitJS(target) {
+        console.log("Guard expression parts");
+        console.log(this.params);
+        console.log(this.condition);
+        let name = target.newVariable();
+        let paramsJS = this.params.map((p) => p.emitJS(target))
+        let conditionBody = this.condition.emitJS(target)
+        console.log("Guard fn: " + paramsJS + " => " + conditionBody);
+
+        let guardFn = target.lambdaDeclaration(paramsJS, conditionBody)
+
+        // TODO: toString for this
+        return guardFn;
+        
+    }
+
     static parse(cell, node) {
         if(node.right) {
-            let condition = astToExpr(node.right);
-            let params = astToExpr(node.left);
+            let condition = astToExpr(cell, node.right);
+            let params = astToExpr(cell, node.left);
             return new GuardExpr(cell, node, condition, params);
         } else {
-            let condition = astToExpr(node.left);
+            let condition = astToExpr(cell, node.left);
             let params = [];
             return new GuardExpr(cell, node, condition, params)
         }
@@ -414,9 +465,10 @@ class JSCodeGen extends CodeGen {
 }
 
 export function astToExpr(cell, node) {
+
     // console.log("AST TO EXPR OF " + cell.id);
-    // console.log(node);
     if(!node || !node.node_type) { return undefined; }
+    console.log(node.node_type);
     switch(node.node_type) {
         case "binary":
             return BinaryExpr.parse(cell, node)
@@ -427,9 +479,13 @@ export function astToExpr(cell, node) {
         case "(identifier)":
             return new IdentifierExpr(cell, node)
         case "(grouping)": 
+            console.log("Found grouping")
             if(node.value.length == 1) {
+                console.log("Extracting grouping")
                 // Swallow parens - order is explicit in the AST form
-                return astToExpr(cell, node.value[0])
+                let ret = astToExpr(cell, node.value[0])
+                console.log(ret)
+                return ret
             } else {
                 // TODO: These should probably be split up into a separate tuple node type.
                 return node.value.map((elem) => astToExpr(cell, elem))

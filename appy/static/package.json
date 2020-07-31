@@ -9,7 +9,7 @@
     "purgecss": "mkdir -p dist/static/tmpcss && mv dist/static/css/*.css dist/static/tmpcss && purgecss --css dist/static/tmpcss/*.css --content ../templates/*.html -o dist/static/css && rm dist/static/tmpcss",
     "stats": "webpack --profile --json > stats.json",
     "test": "jest",
-    "watchtest": "jest --watch"
+    "watchtest": "jest --watchAll"
   },
   "dependencies": {
     "bootstrap": "^4.4.1",
