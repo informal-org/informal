@@ -97,92 +97,92 @@ function evalExprs(exprs) {
     return outputDict
 }
 
-// test('Eval order of ops', () => {
-//     expect(evalExprs([{expr: "(2 + 3) * 4"}])[0].value).toEqual(20)
-// });
+test('Eval order of ops', () => {
+    expect(evalExprs([{expr: "(2 + 3) * 4"}])[0].value).toEqual(20)
+});
 
-// test('Eval multiple args', () => {
-//     expect(evalExprs([{
-//             name: "add", "expr": "(a, b): a + b"
-//         }, {
-//             expr: "add(4, 5)"
-//         }])[1].value).toEqual(9)
-// });
+test('Eval multiple args', () => {
+    expect(evalExprs([{
+            name: "add", "expr": "(a, b): a + b"
+        }, {
+            expr: "add(4, 5)"
+        }])[1].value).toEqual(9)
+});
 
-// test('Attribute access', () => {
-//     let prog = [
-//         {   name: "movie", expr: 'title: "The Martian"\nyear: 2015' }, 
-//         {   expr: "movie.year"  },
-//         {   expr: "movie.title"  }
-//     ]
-//     let result = evalExprs(prog);
-//     expect(result[1].value).toEqual(2015)
-//     expect(result[2].value).toEqual("The Martian")
+test('Attribute access', () => {
+    let prog = [
+        {   name: "movie", expr: 'title: "The Martian"\nyear: 2015' }, 
+        {   expr: "movie.year"  },
+        {   expr: "movie.title"  }
+    ]
+    let result = evalExprs(prog);
+    expect(result[1].value).toEqual(2015)
+    expect(result[2].value).toEqual("The Martian")
 
-//     // Accessing unknown attribute
-//     // Expressions on attribute access
-// });
-
-
-// test('Array indexing', () => {
-//     let prog = [
-//         {   name: "arr", expr: '[0, 1, 2, 3, 4, 5]' }, 
-//         {   expr: "arr[0]"  },
-//         {   expr: "arr[2]"  },
-//         {   expr: "arr[5]"  }
-//     ]
-//     let result = evalExprs(prog);
-//     expect(Array.from(result[0].value.iter())).toEqual([0, 1, 2, 3, 4, 5])
-//     expect(result[1].value).toEqual(0)
-//     expect(result[2].value).toEqual(2)
-//     expect(result[3].value).toEqual(5)
-
-//     // Index out of bounds.
-//     // Length check
-// });
-
-// test('Vector ops', () => {
-//     let prog = [
-//         {   name: "arr", expr: '[0, 1, 2, 3, 4, 5]' }, 
-//         {   expr: "arr + 5"  },
-//         {   expr: "arr > 2"  },
-//         {   expr: "arr == 3"  },
-//     ]
-//     let result = evalExprs(prog);
-//     expect(Array.from(result[0].value.iter())).toEqual([0, 1, 2, 3, 4, 5])
-//     expect(Array.from(result[1].value.iter())).toEqual([5, 6, 7, 8, 9, 10])
-//     expect(Array.from(result[2].value.iter())).toEqual([false, false, false, true, true, true])
-//     expect(Array.from(result[3].value.iter())).toEqual([false, false, false, true, false, false])
+    // Accessing unknown attribute
+    // Expressions on attribute access
+});
 
 
-//     prog = [
-//         {   name: "arr", expr: '[0, 1, 2, 3, 4, 5]' }, 
-//         {   expr: "arr > 2 == false"  },
-//         {   expr: "not (arr > 2)"  },
-//     ]
-//     result = evalExprs(prog);
-//     expect(Array.from(result[0].value.iter())).toEqual([0, 1, 2, 3, 4, 5])
-//     expect(Array.from(result[1].value.iter())).toEqual([true, true, true, false, false, false])
-//     expect(Array.from(result[2].value.iter())).toEqual([true, true, true, false, false, false])
+test('Array indexing', () => {
+    let prog = [
+        {   name: "arr", expr: '[0, 1, 2, 3, 4, 5]' }, 
+        {   expr: "arr[0]"  },
+        {   expr: "arr[2]"  },
+        {   expr: "arr[5]"  }
+    ]
+    let result = evalExprs(prog);
+    expect(Array.from(result[0].value.iter())).toEqual([0, 1, 2, 3, 4, 5])
+    expect(result[1].value).toEqual(0)
+    expect(result[2].value).toEqual(2)
+    expect(result[3].value).toEqual(5)
+
+    // Index out of bounds.
+    // Length check
+});
+
+test('Vector ops', () => {
+    let prog = [
+        {   name: "arr", expr: '[0, 1, 2, 3, 4, 5]' }, 
+        {   expr: "arr + 5"  },
+        {   expr: "arr > 2"  },
+        {   expr: "arr == 3"  },
+    ]
+    let result = evalExprs(prog);
+    expect(Array.from(result[0].value.iter())).toEqual([0, 1, 2, 3, 4, 5])
+    expect(Array.from(result[1].value.iter())).toEqual([5, 6, 7, 8, 9, 10])
+    expect(Array.from(result[2].value.iter())).toEqual([false, false, false, true, true, true])
+    expect(Array.from(result[3].value.iter())).toEqual([false, false, false, true, false, false])
 
 
-//     // Index out of bounds.
-//     // Length check
-// });
+    prog = [
+        {   name: "arr", expr: '[0, 1, 2, 3, 4, 5]' }, 
+        {   expr: "arr > 2 == false"  },
+        {   expr: "not (arr > 2)"  },
+    ]
+    result = evalExprs(prog);
+    expect(Array.from(result[0].value.iter())).toEqual([0, 1, 2, 3, 4, 5])
+    expect(Array.from(result[1].value.iter())).toEqual([true, true, true, false, false, false])
+    expect(Array.from(result[2].value.iter())).toEqual([true, true, true, false, false, false])
+
+
+    // Index out of bounds.
+    // Length check
+});
 
 
 
-// test('Array filtering', () => {
-//     let prog = [
-//         {   name: "arr", expr: '[9, 9, 10, 12, 15, 23]' }, 
-//         {   expr: "arr <= 10"  },
-//         {   expr: "arr[arr <= 10]"  },
-//     ]
-//     let result = evalExprs(prog);
-//     expect(Array.from(result[0].value.iter())).toEqual([9, 9, 10, 12, 15, 23])
-//     expect(Array.from(result[1].value.iter())).toEqual([true, true, true, false, false, false])
-//     expect(Array.from(result[2].value.iter())).toEqual([9, 9, 10])
-// });
+test('Array filtering', () => {
+    let prog = [
+        {   name: "arr", expr: '[9, 9, 10, 12, 15, 23]' }, 
+        {   expr: "arr <= 10"  },
+        {   expr: "arr[arr <= 10]"  },
+    ]
+    let result = evalExprs(prog);
+    expect(Array.from(result[0].value.iter())).toEqual([9, 9, 10, 12, 15, 23])
+    expect(Array.from(result[1].value.iter())).toEqual([true, true, true, false, false, false])
+    expect(Array.from(result[2].value.iter())).toEqual([9, 9, 10])
+});
 
 
 

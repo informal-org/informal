@@ -73,14 +73,20 @@ export class CellEnv {
 
     exprAll(cell) {
         let env = this;
-
+        
         if(cell.error) { return }
         if(cell.id in env.cyclic_deps) {
             console.log("Cyclic errors for cell: " + cell.id)
             return
         }
 
-        cell.expr_node = astToExpr(cell, cell.parsed);
+        try {
+            cell.expr_node = astToExpr(cell, cell.parsed);
+        } catch(err) {
+            console.log("Error during code generation");
+            console.log(err);
+        }
+
         traverseDownCell(cell, env.exprAll);
     }
 
@@ -95,7 +101,14 @@ export class CellEnv {
         if(cell.expr_node) {
             target.emitTry();
         
-            let result = cell.expr_node.emitJS(target);
+            let result;
+            try {
+                result = cell.expr_node.emitJS(target);
+            } catch(err) {
+                console.log("Error during code generation");
+                console.log(err);
+            }
+            
             if(result) {
                 target.emit(target.declaration(cell.getCellName(), result) + ";")
                 target.emitCellResult(cell);

@@ -37,3 +37,10 @@ export function findMaxEnd(node) {
     }    
     return max
 }
+
+export function getNodeText(cell, node) {
+    let node_start = findMinStart(node);
+    let node_end = findMaxEnd(node);
+    let node_expr = cell.expr.slice(node_start, node_end)
+    return JSON.stringify(node_expr)
+}

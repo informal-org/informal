@@ -1,6 +1,6 @@
 import { orderCellBody } from "./order"
 import { syntaxError } from "./parser";
-import { findMinStart, findMaxEnd } from "../utils/ast"
+import { getNodeText } from "../utils/ast"
 import { JS_PRE_CODE, JS_POST_CODE } from "../constants"
 import * as core from "./core";
 
@@ -63,16 +63,11 @@ function parseGuard(node, params, code, cell) {
     code.add(`var ${name} = ${guardFn};`)
     
     // Add a text representation
-    code.add(`${name}.toString = () => ${getNodeText(node, cell)};`)
+    code.add(`${name}.toString = () => ${getNodeText(cell, node)};`)
     return name
 }
 
-function getNodeText(node, cell) {
-    let node_start = findMinStart(node);
-    let node_end = findMaxEnd(node);
-    let node_expr = cell.expr.slice(node_start, node_end)
-    return JSON.stringify(node_expr)
-}
+
 
 function objToJs(node, kv_list, code, cell, name) {
     if(!name) {
@@ -138,7 +133,7 @@ function objToJs(node, kv_list, code, cell, name) {
     var ${value_name} = (${paramStr}) => {
         return ${astToJs(v, code, cell)}
     };
-    ${value_name}.toString = () => ${getNodeText(v, cell)};\n`)
+    ${value_name}.toString = () => ${getNodeText(cell, v)};\n`)
             value = value_name;
             
         } else {

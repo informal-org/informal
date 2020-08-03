@@ -5,6 +5,7 @@ and either evaluates or generates bytecode
 
 import { JS_PRE_CODE, JS_POST_CODE } from "../constants"
 import { syntaxError } from "./parser";
+import { getNodeText } from "../utils/ast"
 
 const BINARY_OPS = {
     "and": "__aa_and",
@@ -120,17 +121,17 @@ class KeySignatureExpr extends Expr {
 
     emitJS(target) {
         // let paramSig = this.quoteParamJs(target);
-        let paramSig = this.params.emitSignature(target);
+        let paramSig = this.params instanceof ParamsExpr ? this.params.emitSignature(target) : "null";
         let guardSig = this.guard ? this.guard.emitJS(target) : "null";
         return target.create("KeySignature", '""', "null", paramSig, guardSig);
     }
 
     getParamJS(target) {
-        return this.params.emitJS(target);
+        return this.params instanceof ParamsExpr ? this.params.emitJS(target) : "";
     }
 
     quoteParamJs(target) {
-        return this.params.emitSignature(target);
+        return this.params instanceof ParamsExpr ? this.params.emitSignature(target) : "null";
     }
 
     static parse(cell, node) {
@@ -178,25 +179,35 @@ class AssocExpr extends Expr {
     }
 
     getValJS(target) {
-        if(this.key instanceof KeySignatureExpr || Array.isArray(this.key)) {
-            let fnBody = this.value.emitJS(target);
-            let valName = target.newVariable();
-
+        let valName = target.newVariable();
+        let valJS;
+        if(this.key instanceof KeySignatureExpr) {
             let params = this.key.getParamJS(target);
-
-            let valFn = target.declaration(valName, target.lambdaDeclaration(params, fnBody) + ";\n")
-            target.emit(valFn);
-
-            return valName;
+            valJS = target.lambdaDeclaration(params, this.value.emitJS(target));
         } else {
-            return this.value.emitJS(target)
+            valJS = this.value.emitJS(target);
         }
+
+        target.emit(target.declaration(valName, valJS + ";\n"));
+        
+        let repr = getNodeText(this.cell, this.value.node);
+        target.emit(target.repr(valName, repr));
+        return valName;
     }
 
     static parse(cell, node) {
         let [k, v] = node.value;
 
-        let key = astToExpr(cell, k);
+        let key;
+        if(k.node_type == "(grouping)") {
+            // Ensure it's parsed as params and not as a bare value.
+            key = KeySignatureExpr.parse(cell, k);
+        } else {
+            key = astToExpr(cell, k);
+        }
+        
+
+
         let value = astToExpr(cell, v);
 
         return new AssocExpr(cell, node, key, value);
@@ -294,17 +305,18 @@ class GuardExpr extends Expr {
         super(cell, node);
         this.condition = condition;
         this.params = params;
+        this.repr = "";
     }
-
 
     emitJS(target) {
         let name = target.newVariable();
-        let paramsJS = this.params.emitJS(target);
+        let paramsJS = this.params instanceof ParamsExpr ? this.params.emitJS(target) : "null";
         let conditionBody = this.condition.emitJS(target)
         let guardFn = target.lambdaDeclaration(paramsJS, conditionBody)
+        target.emit(target.declaration(name, guardFn));
+        target.emit(target.repr(name, getNodeText(this.cell, this.condition.node)));
 
-        // TODO: toString for this
-        return guardFn;
+        return name;
     }
 
     static parse(cell, node) {
@@ -397,6 +409,10 @@ class JSCodeGen extends CodeGen {
         return obj + "." + fn + "(" + args.join(",") + ")"
     }
 
+    repr(obj, str) {
+        return `${obj}.toString = () => ${str};`
+    }
+
     create(cls, ...args) {
         return "new " + cls + "(" + args.join(",") + ")"
     }
@@ -439,14 +455,14 @@ class JSCodeGen extends CodeGen {
     emitCellResult(cell) {
         this.emit("\n");
         this.emit(
-            this.functionCall('ctx.set', "" + cell.id, cell.getCellName()) + ";\n")
+            this.functionCall('ctx.set', '"' + cell.id + '"', cell.getCellName()) + ";\n")
     }
 
     emitCellError(cell, error, ...err_args) {
         this.emit(
             this.functionCall(
                 "ctx.set", 
-                "" + cell.id, 
+                '"' + cell.id + '"', 
                 this.error(error, ...err_args)
             ) + ";\n"
         )
@@ -498,6 +514,7 @@ export function astToExpr(cell, node) {
         case "maplist":     // todo, NAME
             return MapExpr.parse(cell, node)
         case "(guard)":
+        case "(if)":
             // return GuardExpr.parse(cell, node)
             return KeySignatureExpr.parse(cell, node)
         default:
