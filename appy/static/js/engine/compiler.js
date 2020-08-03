@@ -120,6 +120,8 @@ class KeySignatureExpr extends Expr {
     emitJS(target) {
         let paramSig = this.quoteParamJs(target);
         let guardSig = this.guard ? this.guard.emitJS(target) : "null";
+        console.log("Param sig: " + paramSig);
+        console.log("Guard sig: " + guardSig);
         return target.create("KeySignature", '""', "null", paramSig, guardSig);
     }
 
@@ -140,15 +142,18 @@ class KeySignatureExpr extends Expr {
                 var params = node.value.map((p) => astToExpr(cell, p))
                 return new KeySignatureExpr(cell, node, '""', "null", params)
             case "(if)":
-                var guard, params;
-                if(node.right) {
-                    guard = astToExpr(cell, node.right);
-                    params = node.left.value ? node.left.value.map((p) => astToExpr(cell, p)) : [];
-                } else {
-                    guard = astToExpr(cell, node.left);
-                    params = [];
-                }
-                return new KeySignatureExpr(cell, node,  '""', "null", params, guard)
+            case "(guard)":
+                var guard = GuardExpr.parse(cell, node);
+                // var guard, params;
+                // if(node.right) {
+                //     guard = astToExpr(cell, node.right);
+                //     params = node.left.value ? node.left.value.map((p) => astToExpr(cell, p)) : [];
+                // } else {
+                //     guard = astToExpr(cell, node.left);
+                //     params = [];
+                // }
+                // return new KeySignatureExpr(cell, node,  '""', "null", params, guard)
+                return new KeySignatureExpr(cell, node,  '""', "null", guard.params, guard)
             default:
                 // Note: Flat keys are not wrapped in a key signature.
                 return astToExpr(cell, node)
@@ -187,6 +192,8 @@ class AssocExpr extends Expr {
             return target.create("KeySignature", '"' + this.key.emitJS(target) + '"')
         }
         else {
+            console.log("Assoc expr key is");
+            console.log(this.key);
             return this.key.emitJS(target)
         }
         
@@ -317,23 +324,27 @@ class GuardExpr extends Expr {
         this.params = params;
     }
 
+    getParamJS(target) {
+        return this.params.map((p) => p.emitJS(target));
+    }
+
     emitJS(target) {
         let name = target.newVariable();
         // let paramsJS = this.params.map((p) => p.emitJS(target))
         // let paramsJS = this.params.emitJS(target);
-        let paramsJS = this.params.getParamJS(target);
+        let paramsJS = this.getParamJS(target);
         let conditionBody = this.condition.emitJS(target)
         let guardFn = target.lambdaDeclaration(paramsJS, conditionBody)
 
         // TODO: toString for this
         return guardFn;
-        
     }
 
     static parse(cell, node) {
         if(node.right) {
             let condition = astToExpr(cell, node.right);
-            let params = astToExpr(cell, node.left);
+            // let params = astToExpr(cell, node.left);
+            let params = node.left.value ? node.left.value.map((p) => astToExpr(cell, p)) : [];
             return new GuardExpr(cell, node, condition, params);
         } else {
             let condition = astToExpr(cell, node.left);
@@ -499,7 +510,8 @@ export function astToExpr(cell, node) {
         case "maplist":     // todo, NAME
             return MapExpr.parse(cell, node)
         case "(guard)":
-            return GuardExpr.parse(cell, node)
+            // return GuardExpr.parse(cell, node)
+            return KeySignatureExpr.parse(cell, node)
         default:
             console.log("Unknown AST node type: " + node.node_type);
         
