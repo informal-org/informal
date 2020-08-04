@@ -141,7 +141,6 @@ class KeySignatureExpr extends Expr {
             case "(grouping)":
                 var params = ParamsExpr.parse(cell, node);
                 return new KeySignatureExpr(cell, node, '""', "null", params)
-            case "(if)":
             case "(guard)":
                 var guard = GuardExpr.parse(cell, node);
                 return new KeySignatureExpr(cell, node,  '""', "null", guard.params, guard)
@@ -172,6 +171,10 @@ class AssocExpr extends Expr {
         if(this.key.node.node_type === "(identifier)") {
             return target.create("KeySignature", '"' + this.key.emitJS(target) + '"')
         }
+        else if(this.key instanceof ConditionalExpr) {
+            console.log("Found conditional clause");
+            return this.key.emitJS(target)
+        }
         else {
             return this.key.emitJS(target)
         }
@@ -184,7 +187,10 @@ class AssocExpr extends Expr {
         if(this.key instanceof KeySignatureExpr) {
             let params = this.key.getParamJS(target);
             valJS = target.lambdaDeclaration(params, this.value.emitJS(target));
-        } else {
+        } else if(this.key instanceof ConditionalExpr) {
+            valJS = this.value.emitJS(target) + " }"
+        }
+        else {
             valJS = this.value.emitJS(target);
         }
 
@@ -297,7 +303,22 @@ class InvokeExpr extends Expr {
 }
 
 class ConditionalExpr extends Expr {
+    constructor(cell, node, condition) {
+        super(cell, node);
+        this.condition = condition;
+    }
+    
+    emitJS(target) {
+        // Use ternary expressions instead of "if" statements.
+        // We need the return value.
+        return "(" + this.condition.emitJS(target) + ")"
+    }
 
+    static parse(cell, node) {
+        console.log("Parsing conditional expr");
+        console.log(node);
+        return new ConditionalExpr(cell, node, astToExpr(cell, node.left));
+    }
 }
 
 class GuardExpr extends Expr {
@@ -305,7 +326,6 @@ class GuardExpr extends Expr {
         super(cell, node);
         this.condition = condition;
         this.params = params;
-        this.repr = "";
     }
 
     emitJS(target) {
@@ -410,7 +430,7 @@ class JSCodeGen extends CodeGen {
     }
 
     repr(obj, str) {
-        return `${obj}.toString = () => ${str};`
+        return `${obj}.toString = () => ${str};\n`
     }
 
     create(cls, ...args) {
@@ -514,9 +534,10 @@ export function astToExpr(cell, node) {
         case "maplist":     // todo, NAME
             return MapExpr.parse(cell, node)
         case "(guard)":
-        case "(if)":
-            // return GuardExpr.parse(cell, node)
+            // Guards are wrapped in a key signature
             return KeySignatureExpr.parse(cell, node)
+        case "(if)":
+            return ConditionalExpr.parse(cell, node)
         default:
             console.log("Unknown AST node type: " + node.node_type);
         

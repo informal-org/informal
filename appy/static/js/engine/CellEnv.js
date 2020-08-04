@@ -85,6 +85,7 @@ export class CellEnv {
         } catch(err) {
             console.log("Error during code generation");
             console.log(err);
+            cell.error = err;
         }
 
         traverseDownCell(cell, env.exprAll);
@@ -107,6 +108,7 @@ export class CellEnv {
             } catch(err) {
                 console.log("Error during code generation");
                 console.log(err);
+                cell.error = err;
             }
             
             if(result) {
@@ -114,7 +116,7 @@ export class CellEnv {
                 target.emitCellResult(cell);
             }
     
-            target.emitCatchAll(this);
+            target.emitCatchAll(cell);
         }
 
         traverseDownCell(cell, env.emitJS, target);

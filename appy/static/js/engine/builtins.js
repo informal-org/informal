@@ -303,6 +303,10 @@ global.__aa_attr = (left, right) => {
             return left[jsFunName]
         }
     }
+    if(left === undefined) {
+        // TODO: Better errors
+        throw Error("No attribute on undefined")
+    }
     if('attr' in left) {
         return left.attr(right)
     }
