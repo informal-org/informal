@@ -1,3 +1,7 @@
+// DEPRECATED
+// Refactored into compiler.js
+// Which is longer but clearer and easier to change.
+
 import { orderCellBody } from "./order"
 import { syntaxError } from "./parser";
 import { getNodeText } from "../utils/ast"

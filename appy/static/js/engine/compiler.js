@@ -202,6 +202,8 @@ class AssocExpr extends Expr {
     }
 
     static parse(cell, node) {
+        console.log("Assoc expr parse");
+        console.log(node)
         let [k, v] = node.value;
 
         let key;
@@ -212,13 +214,88 @@ class AssocExpr extends Expr {
             key = astToExpr(cell, k);
         }
         
-
-
         let value = astToExpr(cell, v);
-
         return new AssocExpr(cell, node, key, value);
     }
+}
 
+class MapEntryExpr extends Expr {
+    constructor(cell, node, key, value) {
+        super(cell, node);
+        this.key = key;
+        this.value = value;
+    }
+
+    getKeyJS(target) {
+        return this.key.emitJS(target);
+    }
+
+    getValJS(target) {
+        let valName = target.newVariable();
+        let valJS;
+        if(this.key instanceof KeySignatureExpr) {
+            let params = this.key.getParamJS(target);
+            valJS = target.lambdaDeclaration(params, this.value.emitJS(target));
+        }
+        else {
+            valJS = this.value.emitJS(target);
+        }
+        
+        target.emit(target.declaration(valName, valJS + ";\n"));
+        
+        let repr = getNodeText(this.cell, this.value.node);
+        target.emit(target.repr(valName, repr));
+        return valName;
+    }
+
+    static parse(cell, node) {
+        let [k, v] = node.value;
+
+        let key = KeySignatureExpr.parse(cell, k);
+        let value = astToExpr(cell, v);
+        return new MapEntryExpr(cell, node, key, value);
+    }
+}
+
+class BlockExpr extends Expr {
+    constructor(cell, node, expressions) {
+        super(cell, node);
+        this.expressions = expressions
+    }
+    static parse(cell, node) {
+        let expressions = [];
+        // The list of expressions may be made up of groups of sub-expressions
+        // i.e. if-else chains, maps, etc. Iterate over it and break it up into groups.
+
+        let subBlock = null;
+
+        node.value.forEach((expr) => {
+            // Terminating conditions for sub-blocks.
+            if(subBlock == null || !("append" in subBlock) || !subBlock.append(cell, node)) {
+                // Will return false if it's not a valid node that can be added.
+                // End-current block
+                if(subBlock) { expressions.push(subBlock); }
+                // Start new block based on the first key type.
+                subBlock = astToExpr(cell, expr)
+
+                switch(expr.node_type) {
+                    case "(if)":
+                        // Conditional block
+                        
+                        break
+                    default:
+                        subBlock = astToExpr(cell, expr);
+                        break;
+                }
+                
+
+
+                subBlock = astToExpr(cell, expr);
+            }
+        })
+
+        return new BlockExpr(cell, node, expressions);
+    }
 }
 
 class MapExpr extends Expr {
@@ -238,7 +315,17 @@ class MapExpr extends Expr {
         return mapName;
     }
 
+    append(cell, node) {
+        if(node.node_type == "map") {
+            this.kv_list.push(MapEntryExpr.parse(cell, node))
+            return true
+        }
+        return false
+    }
+
     static parse(cell, node) {
+        console.log("Map expr parse");
+        console.log(node)
         // Array of key-value tuples
         let kv_list = node.value.map( (kv_node) => {
             if(kv_node.node_type != "map") { syntaxError("Unexpected node found in map " + kv_node)}
@@ -372,7 +459,6 @@ class ParamsExpr extends Expr {
         return new ParamsExpr(cell, node, params);
     }
 }
-
 
 class LoopExpr extends Expr {
 
