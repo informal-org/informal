@@ -341,24 +341,68 @@ class InvokeExpr extends Expr {
     }
 }
 
-class ConditionalEntryExpr extends Expr {
+class ConditionalClauseExpr extends Expr {
     constructor(cell, node, condition, body) {
         super(cell, node);
         this.condition = condition
         this.body = body;
+        this.alternative = null;
+    }
+
+    setAlternative(alternative) {
+        // Do not add if this is the last else clause
+        if(this.isTerminal()) {
+            return false
+        }
+
+        this.alternative = alternative;
+        return true;
     }
     
+    isTerminal() {
+        // Condition is left blank for the terminal "else" clause.
+        return this.condition == null
+    }
+
     emitJS(target) {
-        return "CONDITIONAL_ENTRY_EXPR"
+        if(this.condition) {
+            // if / else if clause
+            let cond_code = this.condition.emitJS(target) + " ? " + this.body.emitJS(target) + " : "
+
+            if(this.alternative) {
+                cond_code += this.alternative.emitJS(target);
+            } else {
+                cond_code += " null"
+            }
+
+            return cond_code
+        } else {
+            // Else clause. No condition, just body.
+            
+            return this.body.emitJS(target)
+        }
     }
 
     static parse(cell, node) {
-        console.log("A single condition is: ");
-        console.log(node);
-        let condition = astToExpr(cell, node.left);
-        let body = astToExpr(cell, node.right);
+        if(node.value.length == 2) {
+            let condition;
+            
+            if(node.value[0].node_type == "(if)") {
+                // The condition node itself would loop back here.
+                // Extract the inner conditional portion instead.
+                condition = astToExpr(cell, node.value[0].left);
+                // assert: right & value are null.
+            } else {
+                syntaxError("Unexpected node found in condition " + node.value[0])
+            }
 
-        return new ConditionalEntryExpr(cell, node, condition, body);
+            let body = astToExpr(cell, node.value[1]);
+            return new ConditionalClauseExpr(cell, node, condition, body);
+        } else {
+            // Last else clause
+            let body = astToExpr(cell, node.value[0]);
+            return new ConditionalClauseExpr(cell, node, null, body);
+        }
     }
 }
 
@@ -367,23 +411,38 @@ class ConditionalExpr extends Expr {
         super(cell, node);
         this.conditions = conditions
     }
-    
+
     emitJS(target) {
-        // Use ternary expressions instead of "if" statements.
-        // We need the return value.
-        return "CONDITIONAL_EXPR"
+        // This will emit code for all of the chained branches.
+        return this.conditions[0].emitJS(target);
+    }
+
+    append(cell, node) {
+        // Disallow adding more clauses after the final "else" clause.
+        if(this.conditions && this.conditions[this.conditions.length - 1].isTerminal()) {
+            return false;
+        }
+        
+
+        // TODO - Add support for else-case
+        // if(node.node_type == TOKEN_HEADER) {
+        //     this.kv_list.push(MapEntryExpr.parse(cell, node))
+        //     return true
+        // }
+        
+        // TODO: Set condition.alternative for this.conditions[-1]
+        return false
     }
 
     static parse(cell, node) {
-        console.log("Parsing conditional expr");
-        console.log(node);
         // let conditions = node.value.map( (condition_node) => {
         //     console.log(condition_node)
         //     // TODO: Support if-else chains properly
         //     if(condition_node.node_type != TOKEN_COND) { syntaxError("Unexpected node found in conditional chain " + condition_node)}
-        //     return ConditionalEntryExpr.parse(cell, condition_node)
+        //     return ConditionalClauseExpr.parse(cell, condition_node)
         // });
-        let conditions = [ConditionalEntryExpr.parse(cell, node)];
+        let conditions = [ConditionalClauseExpr.parse(cell, node)];
+        // TODO: Validate - first condition has a header, not an else clause.
 
         return new ConditionalExpr(cell, node, conditions);
     }
