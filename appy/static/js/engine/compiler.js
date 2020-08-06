@@ -4,7 +4,7 @@ and either evaluates or generates bytecode
 */
 
 import { JS_PRE_CODE, JS_POST_CODE } from "../constants"
-import { syntaxError } from "./parser";
+import { syntaxError, TOKEN_HEADER, TOKEN_COND } from "./parser";
 import { getNodeText } from "../utils/ast"
 
 const BINARY_OPS = {
@@ -152,70 +152,20 @@ class KeySignatureExpr extends Expr {
     }
 }
 
-class AssocExpr extends Expr {
-    constructor(cell, node, key, value) {
-        super(cell, node);
-        this.key = key;
-        this.value = value;
-    }
-
-    emitJS(target) {
-        let mapName = target.newVariable();
-        let obj = target.create("Obj");
-        target.emit(target.declaration(mapName, obj) + ";\n")
-        target.emit(target.method(mapName, "insert", this.getKeyJS(target), this.getValJS(target)) + ";\n")
-        return mapName
-    }
-
-    getKeyJS(target) {
-        if(this.key.node.node_type === "(identifier)") {
-            return target.create("KeySignature", '"' + this.key.emitJS(target) + '"')
-        }
-        else if(this.key instanceof ConditionalExpr) {
-            console.log("Found conditional clause");
-            return this.key.emitJS(target)
-        }
-        else {
-            return this.key.emitJS(target)
-        }
-        
-    }
-
-    getValJS(target) {
-        let valName = target.newVariable();
-        let valJS;
-        if(this.key instanceof KeySignatureExpr) {
-            let params = this.key.getParamJS(target);
-            valJS = target.lambdaDeclaration(params, this.value.emitJS(target));
-        } else if(this.key instanceof ConditionalExpr) {
-            valJS = this.value.emitJS(target) + " }"
-        }
-        else {
-            valJS = this.value.emitJS(target);
-        }
-
-        target.emit(target.declaration(valName, valJS + ";\n"));
-        
-        let repr = getNodeText(this.cell, this.value.node);
-        target.emit(target.repr(valName, repr));
-        return valName;
-    }
+// Any expression with a : - map, conditions, loops, etc.
+class HeaderExpr extends Expr {
 
     static parse(cell, node) {
         console.log("Assoc expr parse");
         console.log(node)
         let [k, v] = node.value;
 
-        let key;
-        if(k.node_type == "(grouping)") {
-            // Ensure it's parsed as params and not as a bare value.
-            key = KeySignatureExpr.parse(cell, k);
+        if(k.node_type == TOKEN_COND) {
+            return ConditionalExpr.parse(cell, node);
         } else {
-            key = astToExpr(cell, k);
+            // key = astToExpr(cell, k);
+            return MapExpr.parse(cell, node);
         }
-        
-        let value = astToExpr(cell, v);
-        return new AssocExpr(cell, node, key, value);
     }
 }
 
@@ -279,9 +229,9 @@ class BlockExpr extends Expr {
                 subBlock = astToExpr(cell, expr)
 
                 switch(expr.node_type) {
-                    case "(if)":
+                    case TOKEN_COND:
                         // Conditional block
-                        
+                        ConditionalExpr
                         break
                     default:
                         subBlock = astToExpr(cell, expr);
@@ -316,7 +266,7 @@ class MapExpr extends Expr {
     }
 
     append(cell, node) {
-        if(node.node_type == "map") {
+        if(node.node_type == TOKEN_HEADER) {
             this.kv_list.push(MapEntryExpr.parse(cell, node))
             return true
         }
@@ -326,11 +276,13 @@ class MapExpr extends Expr {
     static parse(cell, node) {
         console.log("Map expr parse");
         console.log(node)
+        let kv_list = [MapEntryExpr.parse(cell, node)]
         // Array of key-value tuples
-        let kv_list = node.value.map( (kv_node) => {
-            if(kv_node.node_type != "map") { syntaxError("Unexpected node found in map " + kv_node)}
-            return AssocExpr.parse(cell, kv_node)
-        });
+        // let kv_list = node.value.map( (kv_node) => {
+        //     console.log(kv_node)
+        //     if(kv_node.node_type != TOKEN_HEADER) { syntaxError("Unexpected node found in map " + kv_node)}
+        //     return MapEntryExpr.parse(cell, kv_node)
+        // });
 
         return new MapExpr(cell, node, kv_list)
     }
@@ -389,22 +341,51 @@ class InvokeExpr extends Expr {
     }
 }
 
-class ConditionalExpr extends Expr {
-    constructor(cell, node, condition) {
+class ConditionalEntryExpr extends Expr {
+    constructor(cell, node, condition, body) {
         super(cell, node);
-        this.condition = condition;
+        this.condition = condition
+        this.body = body;
+    }
+    
+    emitJS(target) {
+        return "CONDITIONAL_ENTRY_EXPR"
+    }
+
+    static parse(cell, node) {
+        console.log("A single condition is: ");
+        console.log(node);
+        let condition = astToExpr(cell, node.left);
+        let body = astToExpr(cell, node.right);
+
+        return new ConditionalEntryExpr(cell, node, condition, body);
+    }
+}
+
+class ConditionalExpr extends Expr {
+    constructor(cell, node, conditions) {
+        super(cell, node);
+        this.conditions = conditions
     }
     
     emitJS(target) {
         // Use ternary expressions instead of "if" statements.
         // We need the return value.
-        return "(" + this.condition.emitJS(target) + ")"
+        return "CONDITIONAL_EXPR"
     }
 
     static parse(cell, node) {
         console.log("Parsing conditional expr");
         console.log(node);
-        return new ConditionalExpr(cell, node, astToExpr(cell, node.left));
+        // let conditions = node.value.map( (condition_node) => {
+        //     console.log(condition_node)
+        //     // TODO: Support if-else chains properly
+        //     if(condition_node.node_type != TOKEN_COND) { syntaxError("Unexpected node found in conditional chain " + condition_node)}
+        //     return ConditionalEntryExpr.parse(cell, condition_node)
+        // });
+        let conditions = [ConditionalEntryExpr.parse(cell, node)];
+
+        return new ConditionalExpr(cell, node, conditions);
     }
 }
 
@@ -615,8 +596,8 @@ export function astToExpr(cell, node) {
             return FilteringExpr.parse(cell, node)
         case "(member)":
             return MemberExpr.parse(cell, node)
-        case "map":         // TODO: name
-            return AssocExpr.parse(cell, node)
+        case TOKEN_HEADER:
+            return HeaderExpr.parse(cell, node)
         case "maplist":     // todo, NAME
             return MapExpr.parse(cell, node)
         case "(guard)":

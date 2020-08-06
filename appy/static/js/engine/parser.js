@@ -21,7 +21,7 @@ export const TOKEN_CONTINUE_BLOCK = "(continueblock)";  // Same indentation leve
 export const TOKEN_END_BLOCK = "(endblock)";            // Decrease indentation level
 export const TOKEN_WHERE = "(where)";       // a[]
 export const TOKEN_ARRAY = "(array)";       // [1, 2, 3]
-export const TOKEN_MAP = "(map)";
+export const TOKEN_HEADER = "(header)";
 export const TOKEN_GROUPING = "(grouping)"
 export const TOKEN_COND = "(if)";           // if x < 10:
 export const TOKEN_GUARD = "(guard)";
@@ -272,7 +272,7 @@ CONTINUE_BLOCK.left_denotation = (left, node, tokenStream) => {
 const DEF_OP_LBP = 15;
 const DEF_OP = new Infix(":", DEF_OP_LBP);
 DEF_OP.left_denotation = (left, node, tokenStream) => {
-    node.node_type = "map"
+    node.node_type = TOKEN_HEADER
     // Key, value. Store in a list which will be appended upon
     // node.value = [left, expression(tokenStream, 80)]
     node.value = [left, expression(tokenStream, 10)]
@@ -344,7 +344,7 @@ const PARENS = new Grouping("(", 150, TOKEN_GROUPING, TOKEN_APPLY, ")");
 
 // TODO: Is there a LED for this? f{ a }
 const CURLY_BK = new Prefix("{", 150,
-Grouping.get_null_denotation(TOKEN_MAP, "}"))
+Grouping.get_null_denotation(TOKEN_HEADER, "}"))
 
 
 
