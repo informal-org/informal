@@ -5,6 +5,9 @@ import { parseExpr } from "./parser"
 import { astToJs } from "./generator";
 import { astToExpr } from "./compiler"
 
+var treeify = require('treeify');
+
+
 export class CellEnv {
     // Analogous to an AST. Contains metadata shared across cells.
     constructor() {
@@ -31,6 +34,7 @@ export class CellEnv {
         this.exprAll = this.exprAll.bind(this);
         this.emitJS = this.emitJS.bind(this);
         this.create = this.create.bind(this);
+        this.debugAll = this.debugAll.bind(this);
     }
     create(raw_map, root_id) {
         this.raw_map = raw_map;
@@ -121,6 +125,15 @@ export class CellEnv {
 
         traverseDownCell(cell, env.emitJS, target);
         return target
+    }
+
+    debugAll(cell) {
+        let env = this;
+        if(cell.error || cell.id in env.cyclic_deps) { return }
+        if(cell.expr_node) {
+            console.log("Cell: " + cell.getCellName() + "\n\n" + treeify.asTree(cell.expr_node.debug(), true));
+        }
+        traverseDownCell(cell, env.debugAll);
     }
 
     findDependencies(cell_id) {

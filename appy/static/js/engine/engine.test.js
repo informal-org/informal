@@ -201,17 +201,17 @@ test('Conditional guards', () => {
 });
 
 test('Conditions', () => {
-    let find_min = [
-        {   name: "find_min",   expr: `
+    let find_min2 = [
+        {   name: "find_min2",   expr: `
 (x, y):
     if(x < y): x
     if(x > y): y
     if(x == y): "Equal"`  },
-        {   expr: "find_min(5, 10)" },
-        {   expr: "find_min(10, 5)" },
-        {   expr: "find_min(5, 5)" },
+        {   expr: "find_min2(5, 10)" },
+        {   expr: "find_min2(10, 5)" },
+        {   expr: "find_min2(5, 5)" },
     ]
-    let result = evalExprs(find_min);
+    let result = evalExprs(find_min2);
     expect(result[1].value).toEqual(5)
     expect(result[2].value).toEqual(5)
     expect(result[3].value).toEqual("Equal")
