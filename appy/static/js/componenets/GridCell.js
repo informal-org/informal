@@ -1,7 +1,8 @@
 import React from "react";
 import ReactDOM from "react-dom";
 import AbstractBaseCell from "./AbstractBaseCell.js"
-import { cellGet, formatCellOutput } from "../utils"
+import { cellGet } from "../utils"
+import { formatCellOutput } from "appassembly"
 
 import Editor from 'react-simple-code-editor';
 import CellParam from "./CellParam.js"

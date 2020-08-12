@@ -1,8 +1,9 @@
 import { configureStore, createSlice } from 'redux-starter-kit'
 import { parseEverything } from './controller.js'
-import { apiPost, apiPatch, genID } from './utils'
-import { evaluate } from "./engine/engine.js"
-import { Cell } from './engine/Cell.js'
+import { apiPost, apiPatch } from './utils'
+import { evaluate, genID } from "appassembly";
+
+
 
 
 
@@ -316,7 +317,7 @@ const reEvaluate = () => {
         }
 
         // var result = evaluate(parsed);
-        var result = evaluate(state);
+        var result = evaluate(state.cellsReducer.byId, state.cellsReducer.currentRoot);
 
         dispatch(saveOutput({
             'status': true,

@@ -12,6 +12,7 @@
     "watchtest": "jest --watchAll"
   },
   "dependencies": {
+    "appassembly": "file:../../../appassembly",
     "bootstrap": "^4.4.1",
     "core-js": "^3.6.5",
     "esprima": "^4.0.1",

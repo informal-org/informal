@@ -1,7 +1,8 @@
 import React from "react";
 import AbstractBaseCell from "./AbstractBaseCell.js"
 import GridCell from "./GridCell.js"
-import { cellGet, formatCellOutput } from "../utils"
+import { cellGet } from "../utils"
+import { formatCellOutput } from "appassembly"
 
 export default class GridList extends AbstractBaseCell {
     constructor(props){

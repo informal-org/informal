@@ -1,5 +1,5 @@
 import React from "react";
-import { formatCellOutput } from "../utils"
+import { formatCellOutput } from "appassembly"
 import { KEY_DOWN, KEY_UP, KEY_ENTER, KEY_ESC } from "../constants"
 
 
