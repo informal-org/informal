@@ -230,14 +230,46 @@ export default class GridCell extends AbstractBaseCell {
                 onKeyDown={this.onKeyDown}
                 tabIndex="0" data-cell={this.props.cell.id}>
                 <span className="row">
-                    <div className="Cell-cellName col-sm-2">{this.state.name}</div>
+                    <div className="Cell-cellName col-sm-2">
+                        <div>{this.state.name}</div>
+                        <dl className="paramSig">
+                                <dt className="name">field</dt> 
+                                <dd className="type">JsonField</dd>
 
-                    <div className="col-sm-9">
+                                <dt className="name">field_config</dt> 
+                                <dd className="type"> &nbsp;</dd>
+
+                                <dt className="name">serializer</dt> 
+                                <dd className="type">JsonSerializer</dd>
+
+                                <dt className="name">tabs</dt> 
+                                <dd className="type">Integer</dd>
+                        </dl>
+
+
+                        <div className="returnSig">
+                            Integer
+                        </div>
+                        
+                        <div className="guardSig">
+                            i % 2 == 0
+                        </div>
+                    
+                    </div>
+
+                    <div className="col-sm-6 Cell-cellResults">
                         {cellResults}
                     </div>
 
-                    <div className="col-sm-1 text-right">
-                        <span className="">&#x2026;</span>
+                    <div className="col-sm-4 text-right">
+                        {/* <p className="docs">Code comments would go here in a long descriptive line. <br></br> May contain multiple lines of text.
+                        Even some <b>content</b> or <i>italics</i> or images or whatever.</p> */}
+
+                        <p className="docs">
+                        Lewis Carroll, author of Alice in Wonderland, was fond of asking children mathematical puzzles. Here's a famous one: Can you draw the following design on a sheet of paper without lifting the pencil from the paper (no intersections allowed)
+                        </p>
+
+                        {/* <span className="">&#x2026;</span> */}
                     </div>
                 </span>
             </div>
@@ -247,3 +279,9 @@ export default class GridCell extends AbstractBaseCell {
 
     
 }
+
+// 2 6 4
+
+// 2 
+
+// 7 3 2

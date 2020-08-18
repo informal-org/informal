@@ -26,8 +26,17 @@
   padding: 1rem;
   justify-content: center;
 
-  width: 800px;
+  min-width: 1024px;
+  max-width: 1366px;
+  width: 100%;
   margin: 40px auto;
+}
+
+.editor-header {
+  padding: 16px 24px;
+  min-width: 1024px;
+  max-width: 1366px;
+  width: 100%;
 }
 
 .Grid textarea, .Grid input {
@@ -55,7 +64,7 @@
   /* outline: 1px dotted rgba(160, 174, 192, 0.55); */
 
   margin: 0;
-  border: 1px solid rgba(160,174,191,.25);
+  /* border-top: 1px solid rgba(160,174,191,.25); */
   /* border-radius: 0.25rem; */
   border-radius: 0;
 
@@ -63,6 +72,8 @@
   margin-top: -1px;
 
   outline: none;
+
+  margin: 10px 0;
 
 }
 
@@ -81,8 +92,6 @@
   color: #24292e;   /* Standard text editor identifier name */
 
   text-align: left;
-
-  padding: 0
 }
 
 .box-icon {
@@ -297,7 +306,7 @@
 }
 
 #aa-sidebar {
-  min-width: 180px;
+  min-width: 220px;
   max-width: 256px;
   min-height: 100vh;
   height: 100vh;
@@ -344,12 +353,6 @@
   #aa-sidebar.active {
       margin-left: 0;
   }
-}
-
-
-.editor-header {
-  padding: 16px 24px;
-  width: 800px;
 }
 
 .fnSymbol {
@@ -407,4 +410,57 @@
 
 .Cell-body {
   padding-left: 20px;
+}
+
+.docs {
+  white-space: normal;
+  text-align: left;
+}
+
+.paramSig {
+  font-weight: normal;
+  margin-left: 10px;
+
+  width: 100%;
+  overflow: hidden;
+  font-size: 12px;
+}
+
+.paramSig .name {
+  float: left;
+  width: 50%;
+  font-weight: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.paramSig .type {
+  margin: 0;
+  float: left;
+  width: 50%;
+  font-style: italic;
+  opacity: 0.75;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.returnSig {
+  float: right;
+  font-style: italic;
+  width: 50%;
+  padding-left: 10px;
+}
+
+.guardSig {
+  font-weight: normal;
+  opacity: 0.75;
+  width: 50%;
+}
+
+.Cell-cellResults {
+  background-color: #282824;
+  color: #fafbfc;
+  border-radius: 5px;
 }
