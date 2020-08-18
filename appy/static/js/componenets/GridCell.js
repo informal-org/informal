@@ -231,21 +231,24 @@ export default class GridCell extends AbstractBaseCell {
                 tabIndex="0" data-cell={this.props.cell.id}>
                 <span className="row">
                     <div className="Cell-cellName col-sm-2">
-                        <div>{this.state.name}</div>
-                        <dl className="paramSig">
-                                <dt className="name">field</dt> 
-                                <dd className="type">JsonField</dd>
 
-                                <dt className="name">field_config</dt> 
-                                <dd className="type"> &nbsp;</dd>
+                        <div className="name">{this.state.name}</div>
 
-                                <dt className="name">serializer</dt> 
-                                <dd className="type">JsonSerializer</dd>
+                        <div className="signature">
+                            <dl className="paramSig">
+                                    <dt className="name">field</dt> 
+                                    <dd className="type">JsonField</dd>
 
-                                <dt className="name">tabs</dt> 
-                                <dd className="type">Integer</dd>
-                        </dl>
+                                    <dt className="name">field_config</dt> 
+                                    <dd className="type"> &nbsp;</dd>
 
+                                    <dt className="name">serializer</dt> 
+                                    <dd className="type">JsonSerializer</dd>
+
+                                    <dt className="name">tabs</dt> 
+                                    <dd className="type">Integer</dd>
+                            </dl>
+                        </div>
 
                         <div className="returnSig">
                             Integer
@@ -254,8 +257,9 @@ export default class GridCell extends AbstractBaseCell {
                         <div className="guardSig">
                             i % 2 == 0
                         </div>
+
+                        </div>
                     
-                    </div>
 
                     <div className="col-sm-6 Cell-cellResults">
                         {cellResults}

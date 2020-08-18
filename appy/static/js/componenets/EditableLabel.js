@@ -45,10 +45,14 @@ export default class EditableLabel extends React.Component {
                 paddingLeft: "0.65rem"
             }
 
+            var labelStyle = {
+                cursor: "text"
+            }
+
             return <span className="inline-block">
-                <label>{this.props.value}</label> &nbsp;
+                <label style={labelStyle} onClick={this.setEdit}>{this.props.value}</label> &nbsp;
                 <small style={editStyle}>
-                    <a onClick={this.setEdit}>Edit</a>
+                    {/* <a onClick={this.setEdit}>Edit</a> */}
                 </small>
             </span>
         }

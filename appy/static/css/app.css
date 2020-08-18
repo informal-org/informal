@@ -26,17 +26,18 @@
   padding: 1rem;
   justify-content: center;
 
-  min-width: 1024px;
-  max-width: 1366px;
   width: 100%;
-  margin: 40px auto;
+  margin: 0px auto;
 }
 
 .editor-header {
-  padding: 16px 24px;
-  min-width: 1024px;
-  max-width: 1366px;
+  padding: 16px;
   width: 100%;
+}
+
+.editor-header .docs {
+  margin: 0;
+  opacity: 0.75;
 }
 
 .Grid textarea, .Grid input {
@@ -47,11 +48,11 @@
   font-family: Arial;
 }
 
-
 .Cell {
   /* width: 180px;
   height: 100px; */
-  padding: 10px 20px 10px 34px;
+  /* padding: 10px 20px 10px 34px; */
+  padding: 10px;
 
   font-size: 14px;
 
@@ -81,7 +82,6 @@
 .Cell-cellName {
   font-weight: bold;
   display: block;
-  width: 150px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -345,15 +345,57 @@
 }
 
 
-/* Hide sidebar by default on small screens */
+/* Mobile */
 @media (max-width: 768px) {
+  /* Hide sidebar by default on mobile */
   #aa-sidebar {
       margin-left: -250px;
   }
   #aa-sidebar.active {
       margin-left: 0;
   }
+
+  .Cell {
+    border-top: 1px solid rgba(160,174,191,.25);
+    margin: 0;
+  }
+
+  .Cell-cellName .name {
+    width: 50%;
+    display: inline-block;
+    vertical-align: top;
+  }
+
+  .Cell-cellName .signature {
+    width: 50%;
+    display: inline-block;
+  }
+
+
+  .Cell-cellResults {
+    margin: 15px 0;
+  }
 }
+
+/* Desktop */
+@media (min-width: 768px) {
+  .Grid {
+    min-width: 1024px;
+    max-width: 1366px;  
+  }
+
+  .editor-header {
+    min-width: 1024px;
+    max-width: 1366px;  
+  }
+
+  .Cell-cellName {
+    width: 150px;
+  }  
+
+}
+
+
 
 .fnSymbol {
   background-color: white;

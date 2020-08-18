@@ -132,6 +132,11 @@ export default class Grid extends React.Component {
                     </div>
 
                     <div className="row">
+
+                        <div className="col-sm-12">
+                            <p className="docs">Lewis Carroll, author of Alice in Wonderland, was fond of asking children mathematical puzzles. Here's a famous one: Can you draw the following design on a sheet of paper without lifting the pencil from the paper (no intersections allowed)</p>
+                        </div>
+
                         <div className="col-sm-4">
                             {/* <label className="header-label">Route: </label>
 
