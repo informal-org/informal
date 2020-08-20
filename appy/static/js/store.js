@@ -29,7 +29,7 @@ Dictionaries are stored as ordered keys and values lists.
 Nested arrays and objects should be stored as a reference.
 */
 
-function newCell(id, name="", expr="", params=[], parent=null) {
+function newCell(id, name="", expr="", params=[], parent=null, docs="") {
     return {
         id: id, 
         type: "cell",
@@ -39,7 +39,7 @@ function newCell(id, name="", expr="", params=[], parent=null) {
 //        parent: parent,
         body: [],
 
-        docs: "",
+        docs: docs,
 
         value: null,    // Computed result value
         error: null,
@@ -88,7 +88,7 @@ const cellsSlice = createSlice({
 
             cells.forEach((cell) => {
                 let id = cell.id;
-                state.byId[id] = newCell(cell.id, cell.name, cell.expr, cell.params, cell.parent);
+                state.byId[id] = newCell(cell.id, cell.name, cell.expr, cell.params, cell.parent, cell.docs);
                 if(cell.name in state.byName) {
                     state.byName[cell.name].push(cell.id);
                 } else {
@@ -189,7 +189,6 @@ const cellsSlice = createSlice({
                 let stateCell = state.byId[responseCell.id];
                 stateCell.value = responseCell.value;
                 stateCell.error = responseCell.error;
-                stateCell.ast = responseCell.cell;
             });
             // Short-circuit re-evaluation until a change happens.
             state.modified = false;
