@@ -17,7 +17,8 @@ export default class GridCell extends AbstractBaseCell {
         super(props)
         this.state = {
             input: cellGet(props.cell, "expr"),
-            name: cellGet(props.cell, "name")
+            name: cellGet(props.cell, "name"),
+            docs: cellGet(props.cell, "docs")
         }
     }
 
@@ -97,8 +98,6 @@ export default class GridCell extends AbstractBaseCell {
                 reEvaluate={this.props.reEvaluate}
                 />
 
-
-                    
                 </span>
                 body.push(elem)
             })
@@ -113,7 +112,7 @@ export default class GridCell extends AbstractBaseCell {
 
     renderValueEditor() {
         if(this.props.cell.body.length == 0) {
-            return <div className="Cell-outputs col-sm-10">
+            return <div className="Cell-outputs col-sm-6">
 
                 <label>Value: </label>
 
@@ -134,6 +133,31 @@ export default class GridCell extends AbstractBaseCell {
                     </li>
                 </ul>
             </div>
+        }
+    }
+
+    renderDocsEditor() {
+        return <div className="col-sm-4 Cell-cellDocs">
+            <label>Description: </label>
+            
+            <textarea id="variable_name" 
+                    className="inline-block Cell-cellDocs--edit" 
+                    placeholder="Docs" 
+                    type="textarea" 
+                    onChange={this.changeDocs} 
+                    autoComplete="off"
+                    value={this.state.docs}></textarea> 
+
+        </div>
+    }
+
+    renderDocs() {
+        if(this.state.docs) {
+            return <p className="docs">
+            {this.state.docs}
+            </p>
+        } else {
+            return <span></span>
         }
     }
 
@@ -196,13 +220,19 @@ export default class GridCell extends AbstractBaseCell {
                 {this.renderParams()}
 
                 {this.renderValueEditor()}
+
+
+                { this.renderDocsEditor() }
+
             </div>
 
             <div className="row Cell-body">
                 <div className="col-sm-12">
-                {this.renderBody()}                    
+                {this.renderBody()}           
                 </div>
             </div>
+
+            
 
             <div className="row Cell-footer">
                 <div className="col-sm-8">
@@ -217,7 +247,6 @@ export default class GridCell extends AbstractBaseCell {
                         &#x25b6;  &#160; Run
                     </button>
                 </div>
-
             </div>
 
             <input type="submit" className="hidden"/>
@@ -232,9 +261,9 @@ export default class GridCell extends AbstractBaseCell {
                 <span className="row">
                     <div className="Cell-cellName col-sm-2">
 
-                        <div className="name">{this.state.name}</div>
+                        <span className="name inline-block">{this.state.name}</span>
 
-                        <div className="signature">
+                        {/* <div className="signature">
                             <dl className="paramSig">
                                     <dt className="name">field</dt> 
                                     <dd className="type">JsonField</dd>
@@ -248,17 +277,13 @@ export default class GridCell extends AbstractBaseCell {
                                     <dt className="name">tabs</dt> 
                                     <dd className="type">Integer</dd>
                             </dl>
-                        </div>
+                        </div> */}
 
-                        <div className="returnSig">
+                        {/* <span className="returnSig inline-block">
                             Integer
-                        </div>
+                        </span> */}
                         
-                        <div className="guardSig">
-                            i % 2 == 0
-                        </div>
-
-                        </div>
+                    </div>
                     
 
                     <div className="col-sm-6 Cell-cellResults">
@@ -269,9 +294,7 @@ export default class GridCell extends AbstractBaseCell {
                         {/* <p className="docs">Code comments would go here in a long descriptive line. <br></br> May contain multiple lines of text.
                         Even some <b>content</b> or <i>italics</i> or images or whatever.</p> */}
 
-                        <p className="docs">
-                        Lewis Carroll, author of Alice in Wonderland, was fond of asking children mathematical puzzles. Here's a famous one: Can you draw the following design on a sheet of paper without lifting the pencil from the paper (no intersections allowed)
-                        </p>
+                        { this.renderDocs() }
 
                         {/* <span className="">&#x2026;</span> */}
                     </div>

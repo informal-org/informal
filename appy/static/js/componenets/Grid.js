@@ -81,6 +81,7 @@ export default class Grid extends React.Component {
                 moveFocus={this.props.moveFocus}
                 setInput={this.props.setInput}
                 setName={this.props.setName}
+                setDocs={this.props.setDocs}
                 reEvaluate={this.props.reEvaluate}
                 />
             }else if (cell.type === "list") {
@@ -101,6 +102,7 @@ export default class Grid extends React.Component {
                 moveFocus={this.props.moveFocus}
                 setInput={this.props.setInput}
                 setName={this.props.setName}
+                setDocs={this.props.setDocs}
                 reEvaluate={this.props.reEvaluate}
                 values = {values}
                 />

@@ -78,6 +78,12 @@ export default class AbstractBaseCell extends React.Component {
         this.props.setModified();
     }
 
+    changeDocs = (event) => {
+        let docs = event.target.value;
+        this.props.setDocs({id: this.props.cell.id, docs: docs})
+        this.setState({docs: docs});
+    }
+
     formatOutput = () => {
         return formatCellOutput(this.props.cell);
     }

@@ -39,8 +39,11 @@ function newCell(id, name="", expr="", params=[], parent=null) {
 //        parent: parent,
         body: [],
 
+        docs: "",
+
         value: null,    // Computed result value
         error: null,
+        ast: null
 
 //        parsed: null,
 //        depends_on: [],
@@ -136,6 +139,10 @@ const cellsSlice = createSlice({
             }
             state.modified = true;
         },
+        setDocs: (state, action) => {
+            let cell = state.byId[action.payload.id];
+            cell.docs = action.payload.docs;
+        },
         addCell: (state, action) => {
             let id = genID();
             state.byId[id] = newCell(id);
@@ -182,6 +189,7 @@ const cellsSlice = createSlice({
                 let stateCell = state.byId[responseCell.id];
                 stateCell.value = responseCell.value;
                 stateCell.error = responseCell.error;
+                stateCell.ast = responseCell.cell;
             });
             // Short-circuit re-evaluation until a change happens.
             state.modified = false;
@@ -248,6 +256,7 @@ const viewSlice = createSlice({
 
 const setInput = cellsSlice.actions.setInput;
 const setName = cellsSlice.actions.setName;
+const setDocs = cellsSlice.actions.setDocs;
 const saveOutput = cellsSlice.actions.saveOutput;
 const setFocus = cellsSlice.actions.setFocus;
 const setOpen = cellsSlice.actions.setOpen;
@@ -373,5 +382,5 @@ export const mapStateToProps = (state /*, ownProps*/) => {
     }
 }
 
-export const mapDispatchToProps = {setFocus, setOpen, setInput, setName, reEvaluate,
+export const mapDispatchToProps = {setFocus, setOpen, setInput, setName, setDocs, reEvaluate,
     moveFocus, setModified, addCell, initView, patchView, addParam, setParam, addRow}

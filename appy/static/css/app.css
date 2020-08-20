@@ -37,7 +37,7 @@
 
 .editor-header .docs {
   margin: 0;
-  opacity: 0.75;
+  color: rgba(33, 37, 41, 0.75);
 }
 
 .Grid textarea, .Grid input {
@@ -183,8 +183,10 @@
   border-radius: 0 0 0.25rem 0.25rem;
 }
 
-.Cell.Cell--error {
-  @apply border border-red-500;
+.Cell.Cell--error .Cell-cellResults {
+  border: 1px solid #f56565;
+  box-shadow: none;
+
   white-space: normal;
 }
 
@@ -288,6 +290,7 @@
 #aa-body {
   width: 100%;
   position: static;
+  background: #F9F9F9;
 }
 
 #aa-sidebar label {
@@ -461,6 +464,8 @@
 
 .paramSig {
   font-weight: normal;
+  margin: 0;
+  margin-bottom: 5px;
   margin-left: 10px;
 
   width: 100%;
@@ -482,7 +487,6 @@
   float: left;
   width: 50%;
   font-style: italic;
-  opacity: 0.75;
   text-overflow: ellipsis;
   white-space: nowrap;
   overflow: hidden;
@@ -497,12 +501,41 @@
 
 .guardSig {
   font-weight: normal;
-  opacity: 0.75;
+  color: rgba(33, 37, 41, 0.75);
   width: 50%;
 }
 
 .Cell-cellResults {
-  background-color: #282824;
-  color: #fafbfc;
-  border-radius: 5px;
+  /* border: 1px solid #e8e8e8; */
+  border: 1px solid transparent;
+  border-top: none;
+  border-bottom: 1px solid #DDD;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,.39), 0 -1px 1px #FFF, 0 1px 0 #FFF;
+  background-color: #FFF;
+  /* color: #fafbfc; */
+  border-radius: 4px;
+  padding-top: 5px;
+  padding-bottom: 5px;
+
+}
+
+.Cell-cellName .name {
+  width: 50%;
+}
+
+.Cell-cellName .returnSig {
+  width: 50%;
+  font-weight: normal;
+}
+
+.Cell-cellDocs--edit {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  border-radius: 4px;
+  background: transparent;
+}
+
+.Cell-cellDocs label {
+  padding-left: 10px;
 }
