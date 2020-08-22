@@ -1,6 +1,10 @@
-from editor.models import View
+from editor.models import View, Ancestor
 from editor.constants import DEFAULT_CONTENT
+from django.db import transaction
+from editor.utils import Sync
 import shortuuid
+
+
 
 def get_user_ip(request):
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
@@ -37,8 +41,6 @@ def get_user_properties(request, user=None):
 
 
 
-
-
 def create_home_view(app):
     view = View.objects.create(
         app=app, 
@@ -49,3 +51,28 @@ def create_home_view(app):
         content=DEFAULT_CONTENT)
     return view
 
+MAX_DEPTH = 100
+
+def get_ancestors(cell):
+    parent = cell.parent
+    ancestors = set()
+    # Navigate up to the root. Assert - no loops
+    while parent and parent not in ancestors:
+        ancestors.add(parent.id)
+        parent = parent.parent
+    return ancestors
+
+
+@transaction.atomic
+def create_ancestors(cell):
+    ancestors = get_ancestors(cell)
+    # Sync Ancestors
+    existing_ancestors = Ancestor.objects.filter(child=cell).values_list("ancestor__id")
+    print("Existing ancestors: " + str(existing_ancestors))
+    print("New ancestors: " + str(ancestors))
+    sync = Sync(ancestors, existing_ancestors)
+    # Do bulk operations
+    print("Ignore: " + sync.existing)
+    print("Create: " + sync.create)
+    print("Remove: " + sync.remove)
+    

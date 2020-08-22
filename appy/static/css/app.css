@@ -69,7 +69,6 @@
   /* border-radius: 0.25rem; */
   border-radius: 0;
 
-  cursor: pointer; 
   margin-top: -1px;
 
   outline: none;
@@ -93,6 +92,17 @@
 
   text-align: left;
 }
+
+.Cell-cellName .name {
+  color: #212529;
+  text-decoration: none;
+}
+
+.Cell-cellName .name:hover {
+  color: #3182ce;
+  text-decoration: underline;
+} 
+
 
 .box-icon {
   border: 1px solid rgba(160,174,191,.25);

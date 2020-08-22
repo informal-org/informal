@@ -261,7 +261,9 @@ export default class GridCell extends AbstractBaseCell {
                 <span className="row">
                     <div className="Cell-cellName col-sm-2">
 
-                        <span className="name inline-block">{this.state.name}</span>
+                        <a className="name inline-block" href="/cell/">
+                            {this.state.name}
+                        </a>
 
                         {/* <div className="signature">
                             <dl className="paramSig">

@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.contrib.postgres.fields import ArrayField
 from django.utils.text import slugify
 from editor.utils import *
 import random
@@ -34,6 +35,7 @@ class View(models.Model):
     app = models.ForeignKey(App, on_delete=models.CASCADE)
     name = models.CharField(max_length=64, blank=True)
     uuid = models.UUIDField(db_index=True, default=uuid.uuid4, editable=False)
+    root_cell = models.ForeignKey("Cell", on_delete=models.SET_NULL, null=True)
 
     mime_type = models.CharField(max_length=64)
     remote_url = models.URLField(null=True, blank=True)
@@ -55,6 +57,42 @@ class View(models.Model):
     def get_edit_url(self):
         return "/apps/%s/views/%s/edit" % (str(self.app.slug), str(encode_uuid(self.uuid)))
 
+
+class Cell(models.Model):
+    app = models.ForeignKey(App, on_delete=models.CASCADE)
+    uuid = models.UUIDField(db_index=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=64, blank=True, db_index=True)
+
+    expr = models.TextField(blank=True)
+    guard_expr = models.TextField(blank=True)
+
+    docs = models.TextField(blank=True)
+    
+    # TODO: Type
+    parent = models.ForeignKey("Cell", on_delete=models.CASCADE, null=True)
+
+    params = ArrayField(models.CharField(max_length=64), blank=True, null=True)
+    param_types = ArrayField(models.CharField(max_length=64), blank=True, null=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)    
+    
+
+# Each cell will have a reference to each of its ancestors up the tree to the root.
+class Ancestor(models.Model):
+    child = models.ForeignKey(Cell, on_delete=models.CASCADE, related_name="child_cells")
+    ancestor = models.ForeignKey(Cell, on_delete=models.CASCADE, related_name="ancestor_cells")
+
+    class Meta:
+        unique_together = ["child", "ancestor"]
+
+class Dependency(models.Model):
+    base_cell = models.ForeignKey(Cell, on_delete=models.CASCADE, related_name="base_cells")
+    ref_cell = models.ForeignKey(Cell, on_delete=models.CASCADE, related_name="ref_cells")
+    name = models.CharField(max_length=64)
+
+    class Meta:
+            unique_together = ["base_cell", "ref_cell"]    
 
 
 # class Route(models.Model):
