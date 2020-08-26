@@ -239,9 +239,9 @@ export default class GridCell extends AbstractBaseCell {
                 </div>
 
                 <div className="col-sm-4">
-                    <div className="run-link btn btn-outline inline-block" onClick={this.addRow} type="text">
+                    {/* <div className="run-link btn btn-outline inline-block" onClick={this.addRow} type="text">
                     &#x2B;  &#160; New cell
-                    </div>
+                    </div> */}
                     <button className="run-link btn btn-primary" type="submit">
                         {/* &#8250; Run */}
                         &#x25b6;  &#160; Run
@@ -261,7 +261,7 @@ export default class GridCell extends AbstractBaseCell {
                 <span className="row">
                     <div className="Cell-cellName col-sm-2">
 
-                        <a className="name inline-block" href="/cell/">
+                        <a className="name inline-block">
                             {this.state.name}
                         </a>
 
