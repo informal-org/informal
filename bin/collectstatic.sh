@@ -13,4 +13,4 @@ source .aaenv/bin/activate
 python appy/manage.py collectstatic
 
 # Upload to GCP for immediate distribution
-gsutil cp -m -R -a public-read -z css -z js appy/static/dist/collectstatic/* gs://static.aasm.app/aa/
+gsutil cp -R -a public-read -z css -z js appy/static/dist/collectstatic/* gs://static.aasm.app/aa/
