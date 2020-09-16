@@ -87,8 +87,7 @@ class ViewCreateView(LoginRequiredMixin, DetailView, AppPermissionMixin):
             name="New View",
             mime_type="application/aasm",
             pattern="/new_view",
-            pattern_regex="/new_view",
-            content=DEFAULT_CONTENT)
+            pattern_regex="/new_view")
             
         return redirect(view.get_edit_url())
 
