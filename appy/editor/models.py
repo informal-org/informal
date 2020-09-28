@@ -35,7 +35,7 @@ class View(models.Model):
     app = models.ForeignKey(App, on_delete=models.CASCADE)
     name = models.CharField(max_length=64, blank=True)
     uuid = models.UUIDField(db_index=True, default=uuid.uuid4, editable=False)
-    root_cell = models.ForeignKey("Cell", on_delete=models.SET_NULL, null=True)
+    root_cell = models.ForeignKey("Cell", on_delete=models.SET_NULL, null=True, blank=True)
 
     mime_type = models.CharField(max_length=64)
     remote_url = models.URLField(null=True, blank=True)
@@ -69,7 +69,7 @@ class Cell(models.Model):
     docs = models.TextField(blank=True)
     
     # TODO: Type
-    parent = models.ForeignKey("Cell", on_delete=models.CASCADE, null=True)
+    parent = models.ForeignKey("Cell", on_delete=models.CASCADE, null=True, blank=True)
 
     params = ArrayField(models.CharField(max_length=64), blank=True, null=True)
     param_types = ArrayField(models.CharField(max_length=64), blank=True, null=True)

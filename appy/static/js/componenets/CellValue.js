@@ -41,6 +41,17 @@ export default class CellValue extends React.PureComponent {
         return {__html: highlight(this.formatOutput(value), languages.aa)}
     }
 
+    formatArray(value) {
+        return value.map((x) => this.formatOutput(x)).join(", ")
+    }
+
+    highlightArrayOutput(value) {
+        let arrStr = this.formatArray(Array.from(value.first(10)));
+        arrStr += value.length && value.length > 10 ? "..." : "";
+      
+        return {__html: highlight("[" + arrStr + "]", languages.aa)}
+    }
+
     renderValue(value) {
         let valtype = typeof value;
         let cellResults;
@@ -49,7 +60,9 @@ export default class CellValue extends React.PureComponent {
         }
         else if(value !== null && valtype === "object") {
             if(value.__type === "Stream") {
-                cellResults =  <div className="Cell-cellValue">{"" + Array.from(value.first(10)) }{ (value.length && value.length > 10) ? "..." : ""}</div>
+                cellResults =  <div className="Cell-cellValue"
+                dangerouslySetInnerHTML={this.highlightArrayOutput(value)}>
+                </div>
             } else if(value.__type == "KeySig") {
                 cellResults = <div className="Cell-cellValue" 
                 dangerouslySetInnerHTML={this.highlightOutput(value)}    >
