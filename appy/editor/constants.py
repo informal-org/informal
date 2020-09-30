@@ -181,7 +181,7 @@ DEFAULT_CONTENT = json.dumps(
         {
             "id": "ZDtzrqKuwwgYraBfRsJLz3",
             "name": "cart",
-            "expr": "items: [\"milk\", \"eggs\", \"sugar\"]\nprices: [2.70, 3.00, 4.97]\nquantity: [2, 1, 1]",
+            "expr": "items: [\"milk\", \"eggs\", \"sugar\"]\nprices: [2.75, 2.50, 4.00]\nquantity: [2, 1, 1]",
             "params": [],
             "docs": ""
         },
@@ -195,7 +195,7 @@ DEFAULT_CONTENT = json.dumps(
         {
             "id": "SMPGvrWRzwmAZ64HiT2J52",
             "name": "",
-            "expr": "grand_total == 13.37",
+            "expr": "grand_total == 12.00",
             "params": [],
             "docs": ""
         },
