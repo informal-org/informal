@@ -106,12 +106,12 @@ For example, to create a range of numbers, just specify the beginning and end.
 You can list out the first few elements and the range expression will determine the step and fill in the values in between.
 ```ruby
 [0, 10, 20, .. 100]
-# [10, 20, 30, 40, 50, 60, 70, 80, 90]
+# [0, 10, 20, 30, 40, 50, 60, 70, 80, 90]
 ```
 We can make this an inclusive range by specifying elements that would appear after the range with a comma `..,`
 ```ruby
-[100, 90, .., 10, 0]
-# [100, 90, 80, 70, 60, 50, 40, 30, 10, 0]
+[50, 40, .., 10, 0]
+# [50, 40, 30, 20, 10, 0]
 ```
 Ranges can figure out any sequences that can be expressed as `a*x + b`, so you can count up, down or sideways. 
 They work on other data types as well, including characters. 
