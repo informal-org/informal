@@ -1,0 +1,17 @@
+0
+3.14159
+true
+false
+null
+"Hello World"
+key: "Value"
+(a, b, c): value
+foo: {
+    1: "A"
+    2: "B"
+    3: "C"
+}
+foo(2)
+Symbol("foo")
+quote(1 + 2)
+// Comment

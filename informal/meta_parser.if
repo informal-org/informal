@@ -1,0 +1,116 @@
+// This file can parse and evaluate itself.
+// It forms the base, bootstrapping subset of the Informal programming language.
+
+// Lexer
+// Literals: 0, 3.1415, true, false, null, "Hello world"
+Whitespace = Choice(" ", "\t", "\n")
+Parens = Choice("(", ")")
+Brackets = Choice("[", "]")
+Braces = Choice("{", "}")
+Quotes = Choice("'", '"')
+Grouping = Choice(Parens, Brackets, Braces)
+Delimiters = Choice(Grouping, Whitespace, Quotes, ",", ".", ":", "=")
+Digit = Choice("0", "1", "2", "3", "4", "5", "6", "7", "8", "9")        // "0".."9"
+// This base version of the language just supports ASCII, while the full version has proper unicode support.
+Alpha = Choice("A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K")     // "A".."Z", "a".."z"
+
+
+ExponentPart: {
+    Choice("e", "E")
+    sign: Choice("+", "-", "")
+    digits: [Digit]         // Min length of 1..
+}
+
+FractionalPart: {
+    "."
+    fractions: [Digit]      // 1..
+}
+
+NumericLiteral: {
+    sign: Choice("+", "-", "")
+    whole: Choice([Digit], "")
+    fraction: Choice(FractionalPart, "")
+    exponent: Choice(ExponentPart, "")
+}
+
+EscapeSequence: {
+    "\\"
+    esc: Choice("\\", "\'", "\"", "n", "r", "t")
+}
+
+// Minimal version of string. No interpolation.
+StringLiteral: {
+    start: Quotes
+    contents: [Choice(EscapeSequence, not(Choice(Quotes, "\\")) )]
+    end: start          // Start and end quotes must match.
+}
+
+BooleanLiteral: {
+    value: Choice("true", "false")
+}
+
+NullLiteral: { value: Choice("null") }
+
+// TODO: Array literals and map literals
+LiteralNode: Choice(BooleanLiteral, NullLiteral, NumericLiteral, StringLiteral)
+
+IdentifierNode: {
+    name: [Alpha, [Choice(Alpha, Digit, "_")]]
+}
+
+// Base syntax only supports single-line comments.
+CommentNode: {
+    "//"
+    comment
+    Choice("\n", "")        // New line or end of stream
+}
+
+// key: value declarations. Key can be any pattern. Value can be an expression or a block.
+DeclarationNode: {
+    key: PatternNode
+    ":"
+    value: Choice(ExprNode, BlockNode)
+}
+
+ParamNode: {
+    value: Choice(LiteralNode, DeclarationNode)
+    ","
+}
+
+FinalParam: {
+    rest: Choice("...", "")
+    value: Choice(LiteralNode, DeclarationNode)
+}
+
+ParamSignatureNode: {
+    "("
+    params: [ParamPart]
+    lastParam: Choice(FinalParam, "")
+    ")"
+}
+
+PatternNode: {
+
+    pattern: Choice(LiteralNode, ParamSignatureNode)
+}
+
+ExprNode: {
+
+}
+
+BlockNode: {
+    "{"
+    exprs: [ExprNode]
+    "}"
+}
+
+// Pattern: Literal, parameter bindings (a, b, c), or combinations. 
+
+// Blocks contain multi-line expression wrapped in {}. Whitespace blocks are built out of this.
+
+// Matching evaluation - func(arg1, arg2, arg3)
+
+// Special functions: Symbol, quote
+
+// AST -> Value
+eval: {}
