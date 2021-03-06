@@ -1,69 +1,87 @@
-// This file can parse and evaluate itself.
-// It forms the base, bootstrapping subset of the Informal programming language.
+// This file can parse and evaluate itself with a minimal subset of the Informal programming language.
 
-// Lexer
-// Literals: 0, 3.1415, true, false, null, "Hello world"
-Whitespace = Choice(" ", "\t", "\n")
+Indentation = Choice("\t", " ")
+Whitespace = Choice("\n", Indentation)
 Parens = Choice("(", ")")
 Brackets = Choice("[", "]")
 Braces = Choice("{", "}")
 Quotes = Choice("'", '"')
 Grouping = Choice(Parens, Brackets, Braces)
-Delimiters = Choice(Grouping, Whitespace, Quotes, ",", ".", ":", "=")
+Sign = Choice("+", "-")
+Delimiter = Choice(Grouping, Whitespace, Quotes, ",", ".", ":", "=")
 Digit = Choice("0", "1", "2", "3", "4", "5", "6", "7", "8", "9")        // "0".."9"
 // This base version of the language just supports ASCII, while the full version has proper unicode support.
 Alpha = Choice("A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K")     // "A".."Z", "a".."z"
 
+Optional(token): Choice(token, "")
+
+NullLiteral: "null"
+BooleanLiteral: Choice("true", "false")
 
 ExponentPart: {
     Choice("e", "E")
-    sign: Choice("+", "-", "")
-    digits: [Digit]         // Min length of 1..
+    sign: Optional(Sign)
+    digits: List(Digit, Range(1))       // 1 or more digits
 }
 
 FractionalPart: {
     "."
-    fractions: [Digit]      // 1..
+    fractions: List(Digit, Range(1))
 }
 
+// TODO: Test case to ensure empty string doesn't match
 NumericLiteral: {
-    sign: Choice("+", "-", "")
-    whole: Choice([Digit], "")
-    fraction: Choice(FractionalPart, "")
-    exponent: Choice(ExponentPart, "")
+    sign: Optional(Sign)
+    whole: Optioanl(List(Digit))
+    fraction: Optional(FractionalPart)
+    exponent: Optional(ExponentPart)
 }
 
 EscapeSequence: {
     "\\"
-    esc: Choice("\\", "\'", "\"", "n", "r", "t")
+    esc: Choice("\\", "'", '"', "n", "r", "t")
 }
 
 // Minimal version of string. No interpolation.
 StringLiteral: {
     start: Quotes
-    contents: [Choice(EscapeSequence, not(Choice(Quotes, "\\")) )]
+    contents: List(Choice(EscapeSequence, not(Choice(Quotes, "\\"))))
     end: start          // Start and end quotes must match.
 }
 
-BooleanLiteral: {
-    value: Choice("true", "false")
-}
-
-NullLiteral: { value: Choice("null") }
-
-// TODO: Array literals and map literals
-LiteralNode: Choice(BooleanLiteral, NullLiteral, NumericLiteral, StringLiteral)
-
-IdentifierNode: {
-    name: [Alpha, [Choice(Alpha, Digit, "_")]]
-}
-
 // Base syntax only supports single-line comments.
-CommentNode: {
+CommentToken: {
     "//"
     comment
-    Choice("\n", "")        // New line or end of stream
+    Optional("\n")        // Comments end with a new line or end of stream
 }
+
+// TODO: Array literals and map literals?
+// Literals: 0, 3.1415, true, false, null, "Hello world"
+LiteralNode: Choice(BooleanLiteral, NullLiteral, NumericLiteral, StringLiteral)
+
+// Identifiers start with a letter and contain letters, digits or underscores
+IdentifierToken: {
+    Choice(Alpha, "_")
+    List(Choice(Alpha, Digit, "_"), Range(0, 20))
+}
+
+// Leading whitespace before any tokens or in the middle of a line. Usually ignored.
+InsigIndentToken: List(Indentation)
+
+LeadingIndentToken: {
+    "\n"
+    List(Indentation)
+}
+
+// Match a non-alphanumeric character. Tokens like "++" will need to be grouped together at later stages.
+SpecialToken: not(Choice(Alpha, Digit, "_"))
+
+// This defines the lexer, which can take a string and split it into a list of tokens.
+Tokens: List(Choice(InsigIndentToken, LeadingIndentToken, LiteralNode, IdentifierToken, CommentToken, SpecialToken))
+
+// Group multi-part tokens into a single token. // TODO: Incorporate this
+SpreadToken: "..."
 
 // key: value declarations. Key can be any pattern. Value can be an expression or a block.
 DeclarationNode: {
@@ -73,44 +91,78 @@ DeclarationNode: {
 }
 
 ParamNode: {
-    value: Choice(LiteralNode, DeclarationNode)
+    // Optional(InsigIndentToken)
+    value: Choice(LiteralNode, DeclarationNode, IdentifierToken)
     ","
 }
 
-FinalParam: {
-    rest: Choice("...", "")
+FinalParam: {   // Handle this separately to deal with ,
+    rest: Optional("...")
     value: Choice(LiteralNode, DeclarationNode)
 }
 
 ParamSignatureNode: {
     "("
-    params: [ParamPart]
-    lastParam: Choice(FinalParam, "")
+    params: List(ParamNode)
+    lastParam: Optional(FinalParam)
     ")"
 }
 
-PatternNode: {
+// Todo: Arbitrary expressions in pattern or not?
+// Pattern: Literal, parameter bindings (a, b, c), or combinations. 
+PatternNode: Choice(ParamSignatureNode, LiteralNode, IdentifierToken)
 
-    pattern: Choice(LiteralNode, ParamSignatureNode)
+// TODO: Is this the same as PatternNode?
+DestructuringPatternNode: Choice(LiteralNode, IdentifierToken)
+
+MatchNode: {
+    left: DestructuringPatternNode
+    "="
+    right: ExprNode
 }
 
-ExprNode: {
-
+MemberAccessNode: {
+    left: IdentifierToken
+    "."
+    right: IdentifierToken
 }
 
+CallParamsListNode: List(ExprNode, List(",", ExprNode))
+
+// TODO: Dot access?
+CallNode: {
+    IdentifierToken
+    "("
+    params: Optional(CallParamsListNode)
+    ")"
+}
+
+// The only type of expression in the minimal version are function calls and assignment.
+// Matching evaluation - func(arg1, arg2, arg3)
+ExprNode: Choice(MatchNode, CallNode, LiteralNode, IdentifierToken)
+
+// Blocks contain multi-line expression wrapped in {}. Whitespace blocks are built out of this.
+// TODO: Change the syntax of blocks so that you don't need the colon if there's {}?
 BlockNode: {
     "{"
-    exprs: [ExprNode]
+        exprs: List(ExprNode)
     "}"
 }
 
-// Pattern: Literal, parameter bindings (a, b, c), or combinations. 
-
-// Blocks contain multi-line expression wrapped in {}. Whitespace blocks are built out of this.
-
-// Matching evaluation - func(arg1, arg2, arg3)
-
-// Special functions: Symbol, quote
+// Special functions: Symbol, quote, list
 
 // AST -> Value
-eval: {}
+eval(ast): {
+    
+}
+
+AST: List(Choice(DeclarationNode, ExprNode))
+
+parse(tokens): {
+    ast = AST(tokens)
+}
+
+// String -> AST
+lex(str): {
+    tokens = Tokens(str)
+}

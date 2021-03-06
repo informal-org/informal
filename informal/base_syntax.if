@@ -15,3 +15,10 @@ foo(2)
 Symbol("foo")
 quote(1 + 2)
 // Comment
+
+// Base structures
+List
+Choice
+Range
+not
+Few
