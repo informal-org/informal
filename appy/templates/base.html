@@ -1,0 +1,44 @@
+{% load static from staticfiles %}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"/>
+    <meta name="description" content="AppAssembly is a new visual programming language and serverless platform to create and run dynamic web applications.">
+
+    <title>{% block title %}AppAssembly - Serverless WebAssembly platform for Web Applications.{% endblock %}</title>
+    
+    {% block extra_meta %}{% endblock %}
+    <!-- <link href="https://unpkg.com/tailwindcss@^1.0/dist/tailwind.min.css" rel="stylesheet"> -->
+    <link href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,600" rel="stylesheet">
+      
+    <link href='{% static "css/base.css" %}?v=9' rel="stylesheet">
+
+    {% block extra_css %}{% endblock %}
+      
+  </head>
+  <body>
+    {% block body %}
+
+    {% block navbar %}
+      {% include "_navbar.html" %}
+    {% endblock %}
+
+    {% block messages %}
+      {% include "_messages.html" %}
+    {% endblock %}
+
+    {% block sidebar %}
+    {% endblock %}    
+    
+    {% block content %}
+    {% endblock %}
+
+    {% block extra_js %}
+    {% endblock %}
+
+    {% endblock %}
+
+  </body>
+</html>

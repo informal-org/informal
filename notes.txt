@@ -1,0 +1,29 @@
+Data types:
+value, expression, list, lambda, function, struct, class, object, conditional
+
+Value
+{
+    id: id, 
+    type: "value",
+    name: "width",
+    expr: 42,
+    params: [],
+    body: []
+}
+
+Function
+
+{
+    id: id,
+    type: "function",
+    name: "square",
+    expr: cell_id of return value,
+    params: ["param_name", ["other_param", default_value]],      // Use tuple for default value so you can use Array.isArray to differentiate the two
+    body: [list of cell refs]
+}
+
+Change allIds to rootIds to differentiate the two. 
+The dictionary byId is still valid for all of the cells globally.
+
+-----------------
+

@@ -1,0 +1,551 @@
+.Grid {
+  /* display: inline-flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+	flex-direction: column;
+  height: 500px; */
+
+  /* 
+  Standard spreadsheet cells are 200x40 
+  Font size: 10pt; = 13px for Arial.
+  12pt is more readable at 16px;
+  Arial is the standard font used there. 
+  Let's stick with it here for now unless needed.
+  WxH - 2.4142 silver ratio
+
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+
+  160x60 previous
+  163x72
+  */
+
+  /* display: block; */
+  display: block;
+  font-size: 13px;
+  font-family: 'Inconsolata', monospace;
+  padding: 1rem;
+  justify-content: center;
+
+  width: 100%;
+  margin: 0px auto;
+}
+
+.editor-header {
+  padding: 16px;
+  width: 100%;
+}
+
+.editor-header .docs {
+  margin: 0;
+  color: rgba(33, 37, 41, 0.75);
+}
+
+.Grid textarea, .Grid input {
+  font-family: 'Inconsolata', monospace;
+}
+
+.Grid .btn, .Grid label {
+  font-family: Arial;
+}
+
+.Cell {
+  /* width: 180px;
+  height: 100px; */
+  /* padding: 10px 20px 10px 34px; */
+  padding: 10px;
+
+  font-size: 14px;
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  position: relative;
+
+  /* outline: 1px solid #a0aec0; */
+  /* outline: 1px dotted rgba(160, 174, 192, 0.55); */
+
+  margin: 0;
+  /* border-top: 1px solid rgba(160,174,191,.25); */
+  /* border-radius: 0.25rem; */
+  border-radius: 0;
+
+  margin-top: -1px;
+
+  outline: none;
+
+  margin: 10px 0;
+
+}
+
+
+.Cell-cellName {
+  font-weight: bold;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+  background-color: transparent;
+  /* color: #718096;   /* Grey-600 */
+
+  color: #24292e;   /* Standard text editor identifier name */
+
+  text-align: left;
+}
+
+.Cell-cellName .name {
+  color: #212529;
+  text-decoration: none;
+}
+
+.Cell-cellName .name:hover {
+  color: #3182ce;
+  text-decoration: underline;
+} 
+
+
+.box-icon {
+  border: 1px solid rgba(160,174,191,.25);
+  border-radius: 3px;
+  padding: 2px;
+}
+
+.Cell-cellResult {
+  background-color: white;
+}
+
+.Cell.Cell--open {
+  padding: 0;
+}
+
+.Cell.Cell--focused {
+  /* background-color: #EBF8FF;  Blue 100 */
+  outline: none;
+  border-color: #4299E1;
+  border-width: 2px;
+}
+
+.Cell .Cell-edit {
+  padding: 0.5rem;
+  cursor: auto;
+}
+
+.Cell-edit .Cell-cellName {
+  /* border-bottom: 1px solid #BEE3F8; */
+  /* border-bottom: 1px solid rgb(206, 212, 217); */
+  /* border-bottom: 1px solid rgba(0, 0, 0, 0.125); */
+  width: 100%;
+  cursor: text;
+  z-index: 10;
+  padding: 0.5rem 0.5rem;
+}
+
+
+.Cell-edit .Cell-inputs {
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  background-color: rgb(250, 250, 250);
+  border-right: 1px solid rgba(0,0,0,.125);
+}
+
+.Cell-edit .Cell-outputs textarea {
+  /* padding: 0.5rem 1rem; */
+  /* padding: 0; */
+  /* background-color: #E2E8F0; */
+  /* background-color: #EBF8FF; */
+  /* background-color: rgb(250, 250, 250); */
+  /* background-color: white; */
+  cursor: text;
+
+  /* border: 1px solid rgba(0,0,0,.125); */
+}
+
+
+
+.Cell-edit label {
+  font-weight: bold;
+  color: rgba(25, 25, 25, 0.75);
+  font-size: 0.75rem;
+  padding: 0;
+  display: inline-block;
+  margin: 0;
+}
+
+.Cell-outputs .list-group {
+  background-color: white;
+  padding: 0;
+}
+
+.Cell-outputs .list-group-item {
+  padding: 0;
+}
+
+/* .Cell-output .list-group-item.btn-placeholder {
+  background-color: rgba(255, 255, 255, 0.5);
+} */
+
+.Cell-outputs .list-group-item:hover {
+  @apply shadow;
+}
+
+.list-group-item.btn {
+  padding: .5rem 1rem;
+  border-radius: 0 0 0.25rem 0.25rem;
+}
+
+.Cell.Cell--error .Cell-cellResults {
+  border: 1px solid #f56565;
+  box-shadow: none;
+
+  white-space: normal;
+}
+
+.Cell.Cell--focused.Cell--error {
+  border-width: 2px;
+}
+
+.Cell-cellError {
+  @apply text-red-500;
+}
+
+.Cell-cellValue {
+  white-space: pre-line;
+  display: inline-block;
+  background-color: transparent;
+}
+
+.Cell-cellValue--edit {
+  /* padding: 5px 7px; */
+  padding: 0.5rem 1rem;
+  width: 100%;
+}
+
+.Cell-cellValue--edit:focus, .Cell-cellName--edit:focus {
+  outline-width: 2px;
+}
+
+.Cell-cellName--edit {
+  /* padding: 3px 7px; */
+  padding: 0.5rem 1rem;
+  padding-right: 0.25rem;
+}
+
+.Cell--focused .Cell-cellResult {
+  padding: 0.5rem;
+  padding-left: 166px;
+}
+
+.Cell-edit .Cell-paramName {
+  padding: .5rem 1rem;
+  border: 1px solid #e2e8f0;
+  margin: 0;
+  width: 100%;
+  border-radius: .25rem;
+  background-color: transparent;
+  border-color: transparent;
+  border-color: #e2e8f0;
+}
+
+.Cell-edit .Cell-paramName:hover, .Cell-edit .Cell-paramName:focus {
+  background-color: white;
+  border-color: #e2e8f0;
+}
+
+.Cell-cellResult {
+  white-space: normal;
+  overflow: scroll;
+  text-overflow: ellipsis;
+  width: 100%;
+}
+
+
+.maximize {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  cursor: pointer;
+  cursor: nesw-resize;
+}
+
+.ActionBar {
+  @apply border bg-gray-300;
+  
+}
+
+.ActionBar-action {
+  @apply border-l border-r px-3 py-2 inline-block;
+}
+
+
+/* Tailwind utility syntax - sm, md, lg, xl */
+/* @screen sm { } */
+
+
+
+.aa-root {
+  display: flex;
+}
+
+#aa-sidebar {
+  position: static;
+  min-width: 180px;
+  max-width: 256px;
+  width: 100%;
+
+  min-height: 100vh;
+  height: 100vh;
+  display: block;
+}
+
+#aa-body {
+  width: 100%;
+  position: static;
+  background: #F9F9F9;
+}
+
+#aa-sidebar label {
+  font-weight: bold;
+}
+
+.edit-label {
+  font-size: 0.75rem;
+  padding-left: 0.75rem;
+}
+
+
+#aa-sidebar-wrapper {
+  display: flex;
+  align-items: stretch;
+}
+
+#aa-sidebar {
+  min-width: 220px;
+  max-width: 256px;
+  min-height: 100vh;
+  height: 100vh;
+
+  border-right: 1px solid #e8e8e8;
+
+  font-size: 14px;
+
+}
+
+#aa-sidebar.active {
+  margin-left: -250px;
+}
+
+.aa-sidebar-section {
+  font-size: 14px;
+  padding: 0 24px;
+}
+
+.aa-sidebar-section h3 {
+  font-size: 16px;
+  margin-top: 24px;
+  margin-bottom: 0;
+  padding-bottom: 0;
+  
+  line-height: 30px;
+  font-weight: bold;
+}
+
+.sidebar-list li {
+  padding-left: 14px;
+}
+
+.aa-sidebar-section button {
+  margin-top: 14px;
+}
+
+
+/* Mobile */
+@media (max-width: 768px) {
+  /* Hide sidebar by default on mobile */
+  #aa-sidebar {
+      margin-left: -250px;
+  }
+  #aa-sidebar.active {
+      margin-left: 0;
+  }
+
+  .Cell {
+    border-top: 1px solid rgba(160,174,191,.25);
+    margin: 0;
+  }
+
+  .Cell-cellName .name {
+    width: 50%;
+    display: inline-block;
+    vertical-align: top;
+  }
+
+  .Cell-cellName .signature {
+    width: 50%;
+    display: inline-block;
+  }
+
+
+  .Cell-cellResults {
+    margin: 15px 0;
+  }
+}
+
+/* Desktop */
+@media (min-width: 768px) {
+  .Grid {
+    min-width: 1024px;
+    max-width: 1366px;  
+  }
+
+  .editor-header {
+    min-width: 1024px;
+    max-width: 1366px;  
+  }
+
+  .Cell-cellName {
+    width: 150px;
+  }  
+
+}
+
+
+
+.fnSymbol {
+  background-color: white;
+  font-weight: bold;
+  padding: 3px;
+}
+
+.outputCode {
+  display: inline-block;
+  width: 100%;
+}
+
+
+.header-title label {
+  font-weight: 600;
+  font-size: 20px;
+  line-height: 32px;
+}
+
+.header-label {
+  display: inline-block;
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: nowrap;
+
+}
+
+.Cell-edit label.run-link {
+  /* color: #ff5959; */
+  color: #3182ce;
+  text-decoration: underline;
+  margin-right: 11px;
+}
+
+.Cell-edit .Cell-action {
+  float: right;
+  margin-right: 11px;
+  margin-top: -7px;
+  cursor: pointer;
+}
+
+.Cell-footer {
+  padding: 5px 0px;
+  text-align: right;
+}
+
+.Cell-footer button {
+  margin: 0 5px;
+}
+
+.Cell-nameHeader label {
+  padding-left: 8px;
+}
+
+.Cell-body {
+  padding-left: 20px;
+}
+
+.docs {
+  white-space: normal;
+  text-align: left;
+}
+
+.paramSig {
+  font-weight: normal;
+  margin: 0;
+  margin-bottom: 5px;
+  margin-left: 10px;
+
+  width: 100%;
+  overflow: hidden;
+  font-size: 12px;
+}
+
+.paramSig .name {
+  float: left;
+  width: 50%;
+  font-weight: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.paramSig .type {
+  margin: 0;
+  float: left;
+  width: 50%;
+  font-style: italic;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.returnSig {
+  float: right;
+  font-style: italic;
+  width: 50%;
+  padding-left: 10px;
+}
+
+.guardSig {
+  font-weight: normal;
+  color: rgba(33, 37, 41, 0.75);
+  width: 50%;
+}
+
+.Cell-cellResults {
+  /* border: 1px solid #e8e8e8; */
+  border: 1px solid transparent;
+  border-top: none;
+  border-bottom: 1px solid #DDD;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,.39), 0 -1px 1px #FFF, 0 1px 0 #FFF;
+  background-color: #FFF;
+  /* color: #fafbfc; */
+  border-radius: 4px;
+  padding-top: 5px;
+  padding-bottom: 5px;
+
+}
+
+.Cell-cellName .name {
+  width: 50%;
+}
+
+.Cell-cellName .returnSig {
+  width: 50%;
+  font-weight: normal;
+}
+
+.Cell-cellDocs--edit {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  border-radius: 4px;
+  background: transparent;
+}
+
+.Cell-cellDocs label {
+  padding-left: 10px;
+}
