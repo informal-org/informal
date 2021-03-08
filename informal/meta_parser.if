@@ -15,6 +15,10 @@ Alpha = Choice("A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K")     // "A"
 
 Optional(token): Choice(token, "")
 
+Range(start): {
+    start: start
+}
+
 NullLiteral: "null"
 BooleanLiteral: Choice("true", "false")
 
