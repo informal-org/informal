@@ -1,0 +1,52 @@
+* Current
+** Parser
+*** TODO Scope (scope, parent. get function.)
+*** TODO Assignment operator
+*** TODO Error state on evaluation failure
+*** TODO Revaluate on change
+*** TODO Single cell failure doesn't block whole thing
+*** TODO Dependency graph
+*** TODO Use IDs rather than names transparently.
+*** TODO List operators
+*** TODO String operators
+*** TODO Figure out separate process for code execution, with timeouts.
+*** TODO Add db indexes.
+** UI/UX
+*** DONE Arrow key navigation
+*** TODO handlebars for resize
+*** TODO Expand collapse
+*** TODO Delete to clear cell.
+*** TODO Cut/paste.
+*** TODO Undo/redo.
+* Next
+
+* Backlog
+** Product
+*** Setup homepage
+*** Setup user signup
+*** Security access control
+** Language
+*** DONE Basic runtime that can return a response
+** Operational
+*** Setup stackdriver logging
+*** Setup amplitude analytics
+*** Setup mongodb
+*** Setup proper https certificates
+*** Buy media server domain and setup media server bucket
+*** Try out argo
+
+* Deferred
+** UI
+*** Drag handler
+*** UP and Down movement with grid calculation.
+*** Virtualized grid - deffered in favor of a cell limit.
+
+
+* Done
+** DONE Finish setting up load balancer and webapp
+** DONE Floating point numbers
+** DONE Variables
+** DONE Boolean expressions
+** DONE Comparison operators
+** DONE Send and execute a whole program beyond individual cells
+** DONE Feed output back to cells
