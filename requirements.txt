@@ -1,0 +1,12 @@
+Django==1.11.12
+raven==6.5.0
+django-allauth==0.35.0
+django-settings-export==1.2.1
+django-crispy-forms==1.7.0
+django-sendgrid-v5==0.6.87
+django-plans==0.8.12
+stripe==1.79.1
+google-cloud-logging==1.6.0
+MySQL-python==1.2.5
+django-mysql==2.4.1
+shortuuid==0.5.0

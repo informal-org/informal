@@ -1,0 +1,152 @@
+/*
+ * Copyright (c) 2016, Globo.com (https://github.com/globocom)
+ *
+ * License: MIT
+ */
+/*
+ * Copyright (c) 2018, Globo.com (https://github.com/globocom)
+ *
+ * License: MIT
+ */
+.toolbar {
+  background: yellow;
+  height: 0;
+  position: absolute;
+  display: none;
+  z-index: 10;
+}
+
+.toolbar--open {
+  display: block;
+}
+
+.toolbar__error-msg {
+  margin: 0;
+  height: 0;
+  height: 0;
+  -webkit-transition: height 0.2s ease-in-out;
+  transition: height 0.2s ease-in-out;
+}
+
+.toolbar--error .toolbar__wrapper {
+  background-color: #E83F26;
+}
+
+.toolbar--error .toolbar__arrow {
+  border-color: #E83F26 transparent transparent;
+}
+
+.toolbar--error .toolbar__error-msg {
+  color: #FFF;
+  margin: -8px 0 0 20px;
+  padding-bottom: 12px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  height: 28px;
+}
+
+.toolbar--error .toolbar__button {
+  color: #FFF;
+}
+
+.toolbar--error ::-webkit-input-placeholder {
+  color: #FFF;
+}
+
+.toolbar--error :-moz-placeholder {
+  color: #FFF;
+}
+
+.toolbar--error ::-moz-placeholder {
+  color: #FFF;
+}
+
+.toolbar--error :-ms-input-placeholder {
+  color: #FFF;
+}
+
+.toolbar__wrapper {
+  background-color: #181818;
+  border-radius: 4px;
+  -webkit-box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.4);
+          box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.4);
+  left: -50%;
+  position: relative;
+  -webkit-transition: background-color 0.2s ease-in-out;
+  transition: background-color 0.2s ease-in-out;
+}
+
+.toolbar__list {
+  padding: 0 8px;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.toolbar__arrow {
+  display: inline-block;
+  top: 100%;
+  left: 50%;
+  height: 0;
+  width: 0;
+  position: absolute;
+  pointer-events: none;
+  border-width: 8px;
+  border-style: solid;
+  border-color: #181818 transparent transparent;
+  margin-left: -8px;
+  -webkit-transition: border-color 0.2s ease-in-out;
+  transition: border-color 0.2s ease-in-out;
+}
+
+.toolbar__item {
+  display: inline-block;
+  color: #ccc;
+}
+
+.toolbar__item:hover {
+  color: #fff;
+}
+
+.toolbar__item--active {
+  color: #3192e7;
+}
+
+.toolbar__item--active:hover {
+  color: #3192e7;
+}
+
+.toolbar__item--separator {
+  border-right: 1px solid #333;
+  height: 20px;
+  margin: 0 8px;
+}
+
+.toolbar__button {
+  padding: 0;
+  color: inherit;
+  cursor: pointer;
+  border: 0;
+  height: 56px;
+  width: 40px;
+  background: transparent;
+}
+
+.toolbar__input {
+  background-color: transparent;
+  border: none;
+  color: #fafafa;
+  font-size: 0.875rem;
+  height: auto;
+  line-height: 1.2rem;
+  margin: 0;
+  padding: 20px;
+  width: 250px;
+}
+
+.toolbar__input:focus {
+  outline: none;
+}
+
+.toolbar__input-button {
+  padding-right: 16px;
+}
