@@ -1,0 +1,9 @@
+{
+    "name": "@appassembly/runtime",
+    "version": "1.0.0",
+    "description": "AppAssembly runtime",
+    "main": "index.js",
+    "license": "Apache-2.0",
+    "private": true
+  }
+  
