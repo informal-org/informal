@@ -1,0 +1,166 @@
+test "eval arithmetic": 
+    eval("1 + 1") is 2
+    eval("23 + 19") is 42
+    eval("3 + 4 * 5") is 23
+    eval("(3 + 4) * 5") is 35
+    eval("(3 + 4) * -10") is -70
+    eval("(3.5 + 4) * -10") is -75.0
+    eval("(-.5 + 4) * 10") is 35.0
+
+test "unary negative": eval("1 + 5 * -3") is -14
+test "bool equality check": eval("1 + 1 is 2") is true
+
+
+/* Tests ported from elixir
+
+  test "Simple multi cell evaluation" do
+    body = %{
+      "id01" => %{
+        "depends_on" => [],
+        "id" => "id01",
+        "input" => "1 + 1",
+        "parsed" => %{
+          "left" => %{"raw" => "1", "type" => "Literal", "value" => 1},
+          "operator" => "+",
+          "right" => %{"raw" => "1", "type" => "Literal", "value" => 1},
+          "type" => "BinaryExpression"
+        }
+      },
+      "id02" => %{
+        "depends_on" => [],
+        "id" => "id02",
+        "input" => "2 + 3",
+        "parsed" => %{
+          "left" => %{"raw" => "2", "type" => "Literal", "value" => 2},
+          "operator" => "+",
+          "right" => %{"raw" => "3", "type" => "Literal", "value" => 3},
+          "type" => "BinaryExpression"
+        }
+      }
+    }
+    VM.eval(body)
+
+  end
+
+  test "Simple dependency evaluation" do
+    body = %{
+      "id01" => %{
+        "depends_on" => [],
+        "id" => "id01",
+        "input" => "1 + 1",
+        "parsed" => %{
+          "left" => %{"raw" => "1", "type" => "Literal", "value" => 1},
+          "operator" => "+",
+          "right" => %{"raw" => "1", "type" => "Literal", "value" => 1},
+          "type" => "BinaryExpression"
+        }
+      },
+      "id02" => %{
+        "depends_on" => ["id01"],
+        "id" => "id02",
+        "input" => "2 + id01",
+        "parsed" => %{
+          "left" => %{"raw" => "2", "type" => "Literal", "value" => 2},
+          "operator" => "+",
+          "right" => %{"name" => "id01", "type" => "Identifier"},
+          "type" => "BinaryExpression"
+        }
+      }
+    }
+
+    VM.eval(body)
+  end
+
+  test "Circular dependency filtering" do
+    body = %{
+      "id01" => %{
+        "depends_on" => ["id02"],
+        "id" => "id01",
+        "input" => "id02 + 1",
+        "parsed" => %{
+          "left" => %{"name" => "id02", "type" => "Identifier"},
+          "operator" => "+",
+          "right" => %{"raw" => "1", "type" => "Literal", "value" => 1},
+          "type" => "BinaryExpression"
+        }
+      },
+      "id02" => %{
+        "depends_on" => ["id01"],
+        "id" => "id02",
+        "input" => "2 + id01",
+        "parsed" => %{
+          "left" => %{"raw" => "2", "type" => "Literal", "value" => 2},
+          "operator" => "+",
+          "right" => %{"name" => "id01", "type" => "Identifier"},
+          "type" => "BinaryExpression"
+        }
+      },
+      "id03" => %{
+        "depends_on" => [],
+        "id" => "id03",
+        "input" => "1 + 1",
+        "parsed" => %{
+          "left" => %{"raw" => "1", "type" => "Literal", "value" => 1},
+          "operator" => "+",
+          "right" => %{"raw" => "1", "type" => "Literal", "value" => 1},
+          "type" => "BinaryExpression"
+        }
+      },
+      "id04" => %{
+        "depends_on" => ["id03"],
+        "id" => "id04",
+        "input" => "id03 + 3",
+        "parsed" => %{
+          "left" => %{"name" => "id03", "type" => "Identifier"},
+          "operator" => "+",
+          "right" => %{"raw" => "3", "type" => "Literal", "value" => 3},
+          "type" => "BinaryExpression"
+        }
+      }
+    }
+
+    VM.eval(body)
+  end
+
+  test "Cyclic node filtering" do
+    cycles = ["id02", "id01"]
+    dep_map = [{"id01", ["id02"]}, {"id02", ["id01"]}, {"id03", []}, {"id04", ["id03"]}]
+    assert VM.filter_cycles(dep_map, cycles) == [{"id03", []}, {"id04", ["id03"]}]
+  end
+
+  test "Load testing" do
+    range = 1..500000
+    cells = %{}
+    cells = Enum.map(range, fn x ->
+      c1 = "id#{x}"
+      # c2 = "id02"
+
+      {c1, %{
+          "depends_on" => [],
+          "id" => c1,
+          "input" => "1 + 1",
+          "parsed" => %{
+            "left" => %{"raw" => "1", "type" => "Literal", "value" => 1},
+            "operator" => "+",
+            "right" => %{"raw" => "1", "type" => "Literal", "value" => 1},
+            "type" => "BinaryExpression"
+          }
+        }
+      }
+
+      # cells = Map.put(cells, c2, %{
+      #   "depends_on" => [c1],
+      #   "id" => c2,
+      #   "input" => "2 + " c1,
+      #   "parsed" => %{
+      #     "left" => %{"raw" => "2", "type" => "Literal", "value" => 2},
+      #     "operator" => "+",
+      #     "right" => %{"name" => c1, "type" => "Identifier"},
+      #     "type" => "BinaryExpression"
+      #   }
+      # })
+    end)
+    cells = Enum.into(cells, %{})
+    VM.eval(cells)
+
+*/

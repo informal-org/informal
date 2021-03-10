@@ -1,6 +1,0 @@
-env: flex
-runtime: gs://elixir-runtime/elixir.yaml
-runtime_config:
-    release_app: arevel
-beta_settings:
-    cloud_sql_instances: arevel-209217:us-central1:arevelprod

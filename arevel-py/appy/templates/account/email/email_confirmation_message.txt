@@ -1,9 +1,0 @@
-{% load account %}
-Welcome to AppAssembly!
-
-AppAssembly is a rapid development platform to help you build and launch your web app.
-To complete your registration, verify your email by going to: 
-{{ activate_url }}
-
-If you have any questions for us, just reply to this email and we will get right back to you.
-
