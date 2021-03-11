@@ -1,60 +1,61 @@
 // This file can parse and evaluate itself with a minimal subset of the Informal programming language.
 
-Indentation = Choice("\t", " ")
-Whitespace = Choice("\n", Indentation)
-Parens = Choice("(", ")")
-Brackets = Choice("[", "]")
-Braces = Choice("{", "}")
-Quotes = Choice("'", '"')
-Grouping = Choice(Parens, Brackets, Braces)
-Sign = Choice("+", "-")
-Delimiter = Choice(Grouping, Whitespace, Quotes, ",", ".", ":", "=")
-Digit = Choice("0", "1", "2", "3", "4", "5", "6", "7", "8", "9")        // "0".."9"
+let Indentation = Choice("\t", " ")
+let Whitespace = Choice("\n", Indentation)
+let Parens = Choice("(", ")")
+let Brackets = Choice("[", "]")
+let Braces = Choice("{", "}")
+let Quotes = Choice("'", '"')
+let Grouping = Choice(Parens, Brackets, Braces)
+let Sign = Choice("+", "-")
+let Delimiter = Choice(Grouping, Whitespace, Quotes, ",", ".", ":", "=")
+let Digit = Choice("0", "1", "2", "3", "4", "5", "6", "7", "8", "9")        // "0".."9"
 // This base version of the language just supports ASCII, while the full version has proper unicode support.
-Alpha = Choice("A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K")     // "A".."Z", "a".."z"
+let Alpha = Choice("A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K")     // "A".."Z", "a".."z"
 
-Optional(token): Choice(token, "")
+type Optional(token): Choice(token, "")
 
-Range(start): {
-    start: start
+// TODO
+type Range(start) {
+    start = start
 }
 
-NullLiteral: "null"
-BooleanLiteral: Choice("true", "false")
+let NullLiteral = "null"
+let BooleanLiteral = Choice("true", "false")
 
-ExponentPart: {
+type ExponentPart {
     Choice("e", "E")
-    sign: Optional(Sign)
-    digits: List(Digit, Range(1))       // 1 or more digits
+    sign Optional(Sign)
+    digits List(Digit, Range(1))       // 1 or more digits
 }
 
-FractionalPart: {
+type FractionalPart {
     "."
-    fractions: List(Digit, Range(1))
+    fractions List(Digit, Range(1))
 }
 
 // TODO: Test case to ensure empty string doesn't match
-NumericLiteral: {
-    sign: Optional(Sign)
-    whole: Optioanl(List(Digit))
-    fraction: Optional(FractionalPart)
-    exponent: Optional(ExponentPart)
+type NumericLiteral {
+    sign Optional(Sign)
+    whole Optional(List(Digit))
+    fraction Optional(FractionalPart)
+    exponent Optional(ExponentPart)
 }
 
-EscapeSequence: {
+type EscapeSequence {
     "\\"
-    esc: Choice("\\", "'", '"', "n", "r", "t")
+    esc Choice("\\", "'", '"', "n", "r", "t")
 }
 
 // Minimal version of string. No interpolation.
-StringLiteral: {
-    start: Quotes
-    contents: List(Choice(EscapeSequence, not(Choice(Quotes, "\\"))))
-    end: start          // Start and end quotes must match.
+type StringLiteral {
+    start Quotes
+    contents List(Choice(EscapeSequence, not(Choice(Quotes, "\\"))))
+    end == start          // Start and end quotes must match.
 }
 
 // Base syntax only supports single-line comments.
-CommentToken: {
+type CommentToken {
     "//"
     comment
     Optional("\n")        // Comments end with a new line or end of stream
@@ -62,30 +63,30 @@ CommentToken: {
 
 // TODO: Array literals and map literals?
 // Literals: 0, 3.1415, true, false, null, "Hello world"
-LiteralNode: Choice(BooleanLiteral, NullLiteral, NumericLiteral, StringLiteral)
+type LiteralNode = Choice(BooleanLiteral, NullLiteral, NumericLiteral, StringLiteral)
 
 // Identifiers start with a letter and contain letters, digits or underscores
-IdentifierToken: {
+type IdentifierToken {
     Choice(Alpha, "_")
     List(Choice(Alpha, Digit, "_"), Range(0, 20))
 }
 
 // Leading whitespace before any tokens or in the middle of a line. Usually ignored.
-InsigIndentToken: List(Indentation)
+type InsigIndentToken = List(Indentation)
 
-LeadingIndentToken: {
+type LeadingIndentToken {
     "\n"
     List(Indentation)
 }
 
 // Match a non-alphanumeric character. Tokens like "++" will need to be grouped together at later stages.
-SpecialToken: not(Choice(Alpha, Digit, "_"))
+type SpecialToken = not(Choice(Alpha, Digit, "_"))
 
 // This defines the lexer, which can take a string and split it into a list of tokens.
-Tokens: List(Choice(InsigIndentToken, LeadingIndentToken, LiteralNode, IdentifierToken, CommentToken, SpecialToken))
+type Tokens = List(Choice(InsigIndentToken, LeadingIndentToken, LiteralNode, IdentifierToken, CommentToken, SpecialToken))
 
 // Group multi-part tokens into a single token. // TODO: Incorporate this
-SpreadToken: "..."
+let SpreadToken = "..."
 
 // key: value declarations. Key can be any pattern. Value can be an expression or a block.
 DeclarationNode: {
