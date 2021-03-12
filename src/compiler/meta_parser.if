@@ -1,61 +1,61 @@
 // This file can parse and evaluate itself with a minimal subset of the Informal programming language.
 
-let Indentation = Choice("\t", " ")
-let Whitespace = Choice("\n", Indentation)
-let Parens = Choice("(", ")")
-let Brackets = Choice("[", "]")
-let Braces = Choice("{", "}")
-let Quotes = Choice("'", '"')
-let Grouping = Choice(Parens, Brackets, Braces)
-let Sign = Choice("+", "-")
-let Delimiter = Choice(Grouping, Whitespace, Quotes, ",", ".", ":", "=")
-let Digit = Choice("0", "1", "2", "3", "4", "5", "6", "7", "8", "9")        // "0".."9"
+Indentation = Choice("\t", " ")
+Whitespace = Choice("\n", Indentation)
+Parens = Choice("(", ")")
+Brackets = Choice("[", "]")
+Braces = Choice("{", "}")
+Quotes = Choice("'", '"')
+Grouping = Choice(Parens, Brackets, Braces)
+Sign = Choice("+", "-")
+Delimiter = Choice(Grouping, Whitespace, Quotes, ",", ".", ":", "=")
+Digit = Choice("0", "1", "2", "3", "4", "5", "6", "7", "8", "9")        // "0".."9"
 // This base version of the language just supports ASCII, while the full version has proper unicode support.
-let Alpha = Choice("A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K")     // "A".."Z", "a".."z"
+Alpha = Choice("A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K")     // "A".."Z", "a".."z"
 
-type Optional(token): Choice(token, "")
+Optional(token): Choice(token, "")
 
 // TODO
-type Range(start) {
+Range(start) {
     start = start
 }
 
-let NullLiteral = "null"
-let BooleanLiteral = Choice("true", "false")
+NullLiteral = "null"
+BooleanLiteral = Choice("true", "false")
 
-type ExponentPart {
+ExponentPart = {
     Choice("e", "E")
     sign Optional(Sign)
     digits List(Digit, Range(1))       // 1 or more digits
 }
 
-type FractionalPart {
+FractionalPart {
     "."
     fractions List(Digit, Range(1))
 }
 
 // TODO: Test case to ensure empty string doesn't match
-type NumericLiteral {
+NumericLiteral {
     sign Optional(Sign)
     whole Optional(List(Digit))
     fraction Optional(FractionalPart)
     exponent Optional(ExponentPart)
 }
 
-type EscapeSequence {
+EscapeSequence {
     "\\"
     esc Choice("\\", "'", '"', "n", "r", "t")
 }
 
 // Minimal version of string. No interpolation.
-type StringLiteral {
+StringLiteral {
     start Quotes
     contents List(Choice(EscapeSequence, not(Choice(Quotes, "\\"))))
     end == start          // Start and end quotes must match.
 }
 
 // Base syntax only supports single-line comments.
-type CommentToken {
+CommentToken {
     "//"
     comment
     Optional("\n")        // Comments end with a new line or end of stream
@@ -63,30 +63,30 @@ type CommentToken {
 
 // TODO: Array literals and map literals?
 // Literals: 0, 3.1415, true, false, null, "Hello world"
-type LiteralNode = Choice(BooleanLiteral, NullLiteral, NumericLiteral, StringLiteral)
+LiteralNode = Choice(BooleanLiteral, NullLiteral, NumericLiteral, StringLiteral)
 
 // Identifiers start with a letter and contain letters, digits or underscores
-type IdentifierToken {
+IdentifierToken {
     Choice(Alpha, "_")
     List(Choice(Alpha, Digit, "_"), Range(0, 20))
 }
 
 // Leading whitespace before any tokens or in the middle of a line. Usually ignored.
-type InsigIndentToken = List(Indentation)
+InsigIndentToken = List(Indentation)
 
-type LeadingIndentToken {
+LeadingIndentToken {
     "\n"
     List(Indentation)
 }
 
 // Match a non-alphanumeric character. Tokens like "++" will need to be grouped together at later stages.
-type SpecialToken = not(Choice(Alpha, Digit, "_"))
+SpecialToken = not(Choice(Alpha, Digit, "_"))
 
 // This defines the lexer, which can take a string and split it into a list of tokens.
-type Tokens = List(Choice(InsigIndentToken, LeadingIndentToken, LiteralNode, IdentifierToken, CommentToken, SpecialToken))
+Tokens = List(Choice(InsigIndentToken, LeadingIndentToken, LiteralNode, IdentifierToken, CommentToken, SpecialToken))
 
 // Group multi-part tokens into a single token. // TODO: Incorporate this
-let SpreadToken = "..."
+SpreadToken = "..."
 
 // key: value declarations. Key can be any pattern. Value can be an expression or a block.
 DeclarationNode: {
@@ -142,7 +142,7 @@ CallNode: {
     ")"
 }
 
-// The only type of expression in the minimal version are function calls and assignment.
+// The only of expression in the minimal version are function calls and assignment.
 // Matching evaluation - func(arg1, arg2, arg3)
 ExprNode: Choice(MatchNode, CallNode, LiteralNode, IdentifierToken)
 
