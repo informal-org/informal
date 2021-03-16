@@ -1,5 +1,23 @@
 // This file can parse and evaluate itself with a minimal subset of the Informal programming language.
 
+Either(A, _): A
+Either(_, B): B
+
+Optional(token): Either(token, "")
+
+Choice(optionA, optionB): Either(optionA, optionB)
+Choice(...options): Either(first(option), Choice(...rest(options)))
+
+Pair(A, B) { left=A, right=B }
+Pair(A, null) { left=A, right=null }
+
+List(elem): Pair(elem, null)
+List(...elements): Pair(first(elements), List(...rest(elements)))
+
+
+NullLiteral = "null"
+BooleanLiteral = Choice("true", "false")
+
 Indentation = Choice("\t", " ")
 Whitespace = Choice("\n", Indentation)
 Parens = Choice("(", ")")
@@ -9,19 +27,22 @@ Quotes = Choice("'", '"')
 Grouping = Choice(Parens, Brackets, Braces)
 Sign = Choice("+", "-")
 Delimiter = Choice(Grouping, Whitespace, Quotes, ",", ".", ":", "=")
-Digit = Choice("0", "1", "2", "3", "4", "5", "6", "7", "8", "9")        // "0".."9"
-// This base version of the language just supports ASCII, while the full version has proper unicode support.
-Alpha = Choice("A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K")     // "A".."Z", "a".."z"
 
-Optional(token): Choice(token, "")
 
 // TODO
 Range(start) {
     start = start
 }
+Range(start, end) {
+    start = start
+    end = end
+}
 
-NullLiteral = "null"
-BooleanLiteral = Choice("true", "false")
+Digit = Choice("0", "1", "2", "3", "4", "5", "6", "7", "8", "9")        // "0".."9"
+// This base version of the language just supports ASCII, while the full version has proper unicode support.
+Alpha = Choice("A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K")     // "A".."Z", "a".."z"
+
+
 
 ExponentPart = {
     Choice("e", "E")

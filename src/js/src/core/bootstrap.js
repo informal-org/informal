@@ -1,3 +1,5 @@
+
+
 export class Pattern {
     // Match function:
     // Return [match, restOfPattern] or false
