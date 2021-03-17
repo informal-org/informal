@@ -1,29 +1,40 @@
 // Pseudokey -> value for plain values
 // For relational multiple values redefined, store as Choice
 
+import { enableMapSet } from "immer"
+enableMapSet()
+import produce from "immer"
+import { isSymbol } from "@informal/shared/type"
+
 export class Obj {
-    MAX_ID = 0;
-    constructor(kv) {
-        this._map = new Map();
-        this._id = Obj.MAX_ID++;
-        
-        // Set directly - assuming the old KV is well-formed
-        kv.forEach((value, key) => {    this._map.set(key, value)   })
+    constructor(kv=undefined, id=undefined) {
+        this._map = kv === undefined ? new Map() : kv;
+        this._id = id === undefined ? Obj.MAX_ID++ : id;
     }
 
     set(key, value) {
-        if(this._map.has(key)) {
-            // Relational maps can contain multiple values for a single key
-            let oldVal = this._map.get(key);
-            value = oldVal instanceof Choice ? oldVal.addChoice(value) : new Choice(oldVal, value)
-        }
-        this._map.set(key, value)
-        // TODO: Inserting pattern signatures
+        return new Obj(produce(
+            this._map, (map) => {
+                if(map.has(key)) {
+                    // Relational maps can contain multiple values for a single key
+                    let oldVal = map.get(key);
+                    value = oldVal instanceof Choice ? oldVal.addChoice(value) : new Choice(oldVal, value)
+                }
+                map.set(key, value)
+            }
+        ), this._id)
+        // Should the derived object have the same ID or a different one?
+        // We can check exact equality with ===, so use this for derived equality.
     }
 
     get(key) {
         // TODO: Fallback/default needed?
         return this._map.get(key)
+    }
+
+    value(key) {
+        // Resolve a variable reference to its base value. Should be tail-call optimized
+        return isSymbol(key) && this._map.has(key) ? this.value(this._map.get(key)) : key
     }
 
     // Symbols are used as namespaced variables.
@@ -41,7 +52,30 @@ export class Obj {
     keys() {
         return this._map.keys()
     }
+
+    // Unify symbol variables A and B in this given state.
+    unify(a, b) {
+        a = this.value(a);
+        b = this.value(b);
+
+        // Already unified
+        // TODO: Stricter equality?
+        if(a === b) {    return this     }
+        else if(isSymbol(a)) {
+            console.log
+            return this.set(a, b)
+        } else if(isSymbol(b)) {
+            return this.set(b, a)
+        }
+        return null     // Could not unify
+    }
+
+    toString() {
+        return "Obj{" + this._map.entries() + "}"
+    }
 }
+
+Obj.MAX_ID = Obj.MAX_ID === undefined ? 0 : Obj.MAX_ID;
 
 export class Value {
     constructor(value, types) {
@@ -68,187 +102,187 @@ export class Choice {
 
 
 
-export class Pattern {
-    // Match function:
-    // Return [match, restOfPattern] or false
+// export class Pattern {
+//     // Match function:
+//     // Return [match, restOfPattern] or false
 
-    match() {
-        // Objects of {fn: fn, args: [args]}
-        let choices = [];
+//     match() {
+//         // Objects of {fn: fn, args: [args]}
+//         let choices = [];
 
-        while(choices.length > 0) {   // todo
+//         while(choices.length > 0) {   // todo
 
-            let m = match();
-            if(m.next) {
-                choices.push(m.next)
-            }
+//             let m = match();
+//             if(m.next) {
+//                 choices.push(m.next)
+//             }
 
             
 
-        }
+//         }
 
 
 
 
-    }
-}
+//     }
+// }
 
-class StrPattern {
-    constructor(pattern) {
-        this.pattern = pattern;
-    }
-    // partial match. TODO: Separate functions for partial vs exact match?
-    match(value) {
-        if(value.startsWith(this.pattern)) {
-            return [str, value.slice(str.length)]
-        }
-    }
-}
+// class StrPattern {
+//     constructor(pattern) {
+//         this.pattern = pattern;
+//     }
+//     // partial match. TODO: Separate functions for partial vs exact match?
+//     match(value) {
+//         if(value.startsWith(this.pattern)) {
+//             return [str, value.slice(str.length)]
+//         }
+//     }
+// }
 
-class ValuePattern {
-    constructor(pattern) {
-        this.pattern = pattern;
-    }
-    match(value) {
-        return this.pattern === value
-    }
-}
+// class ValuePattern {
+//     constructor(pattern) {
+//         this.pattern = pattern;
+//     }
+//     match(value) {
+//         return this.pattern === value
+//     }
+// }
 
-class ChoicePattern {
-    constructor(...args) {
-        this.patterns = args;
-    }
-    * match(value) {
-        let pMatch;
-        for(var i = i; i < this.patterns.length; i++) {
-            let pMatch = this.patterns[i].match(value);
-            if(pMatch !== false) {
-                yield pMatch
-            }
-        }
-    }
+// class ChoicePattern {
+//     constructor(...args) {
+//         this.patterns = args;
+//     }
+//     * match(value) {
+//         let pMatch;
+//         for(var i = i; i < this.patterns.length; i++) {
+//             let pMatch = this.patterns[i].match(value);
+//             if(pMatch !== false) {
+//                 yield pMatch
+//             }
+//         }
+//     }
 
-    match(value, index) {
-        if(index < this.patterns.length) {
-            let next = index + 1 < this.patterns.length ? {
-                fn: this.match,
-                args: [value, index+1]
-            } : null;
+//     match(value, index) {
+//         if(index < this.patterns.length) {
+//             let next = index + 1 < this.patterns.length ? {
+//                 fn: this.match,
+//                 args: [value, index+1]
+//             } : null;
 
-            return {
-                result: this.patterns[index].match(value),
-                next: next
-            }
-        }
-        return {}
-    }
-}
+//             return {
+//                 result: this.patterns[index].match(value),
+//                 next: next
+//             }
+//         }
+//         return {}
+//     }
+// }
 
-class ListPattern {
-    constructor(...args) {
-        this.patterns = args;
-    }
+// class ListPattern {
+//     constructor(...args) {
+//         this.patterns = args;
+//     }
 
-    match(value, partial) {
-        // let choices = [];
-        // This iteration is responsible for finding the single next element.
-        if(partial.length < this.patterns.length){
-            let fn = this.patterns[partial.length].match;
-            let args = [value]
+//     match(value, partial) {
+//         // let choices = [];
+//         // This iteration is responsible for finding the single next element.
+//         if(partial.length < this.patterns.length){
+//             let fn = this.patterns[partial.length].match;
+//             let args = [value]
 
-            do {
-                let pMatch = fn(...args);
-                // if(pMatch._next) {
-                    // If the current choice doesn't work, what result to try next.
-                    // pMatch._next["partial"] = partial.slice();     // clone
-                    // choices.push(pMatch._next);
-                // }
+//             do {
+//                 let pMatch = fn(...args);
+//                 // if(pMatch._next) {
+//                     // If the current choice doesn't work, what result to try next.
+//                     // pMatch._next["partial"] = partial.slice();     // clone
+//                     // choices.push(pMatch._next);
+//                 // }
     
-                if(pMatch.result) {
-                    // Clone current state and add this as a result
-                    let newPartial = partial.slice().push(pMatch.result.match);
-                    let withThisChoice = this.match(pMatch.result.value, newPartial);
-                    if(withThisChoice) {
-                        return withThisChoice
-                    }
-                }
+//                 if(pMatch.result) {
+//                     // Clone current state and add this as a result
+//                     let newPartial = partial.slice().push(pMatch.result.match);
+//                     let withThisChoice = this.match(pMatch.result.value, newPartial);
+//                     if(withThisChoice) {
+//                         return withThisChoice
+//                     }
+//                 }
 
-                fn = pMatch.next.fn;
-                args = pMatch.next.args
-            } while(fn !== null)
-        }
+//                 fn = pMatch.next.fn;
+//                 args = pMatch.next.args
+//             } while(fn !== null)
+//         }
 
-        // for(var i = partial.length; i < this.patterns.length; i++) {
+//         // for(var i = partial.length; i < this.patterns.length; i++) {
             
-        // }
-    }
+//         // }
+//     }
 
-    match(value) {
-        let pMatch;
-        let hasMatch = this.patterns.every((p) => {
-            return pMatch = p.match(value)
-        });
-        // Todo: Return value for list patterns.
-        return hasMatch
-    }
-}
+//     match(value) {
+//         let pMatch;
+//         let hasMatch = this.patterns.every((p) => {
+//             return pMatch = p.match(value)
+//         });
+//         // Todo: Return value for list patterns.
+//         return hasMatch
+//     }
+// }
 
-class ObjPattern {
-    constructor(...args) {
+// class ObjPattern {
+//     constructor(...args) {
 
-    }
-    match(value) {
+//     }
+//     match(value) {
 
-    }
-}
+//     }
+// }
 
-export class RangePattern {
-    constructor(start, end=null) {
-        this.start = start;
-        this.end = end;
-    }
+// export class RangePattern {
+//     constructor(start, end=null) {
+//         this.start = start;
+//         this.end = end;
+//     }
 
-    match(value) {
-        if(this.start !== null && value >= this.start) {
-            if(this.end !== null && value >= this.end) {
-                return false
-            }
-            return true
-        }
-        return false
-    }
-}
+//     match(value) {
+//         if(this.start !== null && value >= this.start) {
+//             if(this.end !== null && value >= this.end) {
+//                 return false
+//             }
+//             return true
+//         }
+//         return false
+//     }
+// }
 
-class NotPattern {
-    constructor(expr) {
-        this.expr = expr;
-    }
-    match(value) {
-        return this.expr.match(value) === false ? true : false;
-    }
-}
+// class NotPattern {
+//     constructor(expr) {
+//         this.expr = expr;
+//     }
+//     match(value) {
+//         return this.expr.match(value) === false ? true : false;
+//     }
+// }
 
-export class PatternMap {
+// export class PatternMap {
 
-}
+// }
 
 
-function Optional(token) {
-    return new ChoicePattern(token, "")
-}
+// function Optional(token) {
+//     return new ChoicePattern(token, "")
+// }
 
-// For objects
-// name (optional) type (optional) value (optional)
-// <numeric id> - Literal
-// Keys ordered
-// Matching an object = matching all of the clauses.
-// Match should be defined using pattern matching.
+// // For objects
+// // name (optional) type (optional) value (optional)
+// // <numeric id> - Literal
+// // Keys ordered
+// // Matching an object = matching all of the clauses.
+// // Match should be defined using pattern matching.
 
-continuation = {
-    result: result,
-    fn: func,
-    args: []
-}
+// continuation = {
+//     result: result,
+//     fn: func,
+//     args: []
+// }
 
 // check
 // output

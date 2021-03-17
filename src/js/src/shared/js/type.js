@@ -15,3 +15,8 @@ export function isCallable(val) {
 export function isNumber(val) {
     return (typeof val === "number")
 }
+
+// Note: Transpilers may create object wrappers instead.
+export function isSymbol(val) {
+    return typeof val === "symbol"
+}

@@ -19,7 +19,8 @@
     "@informal/compiler": "file:src/compiler",
     "@informal/core": "file:src/core",
     "@informal/runtime": "file:src/runtime/js",
-    "@informal/shared": "file:src/shared/js"
+    "@informal/shared": "file:src/shared/js",
+    "immer": "^8.0.2"
   },
   "devDependencies": {
     "@babel/core": "^7.9.0",
