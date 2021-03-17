@@ -3,7 +3,7 @@
 Either(A, _): A
 Either(_, B): B
 
-Optional(token): Either(token, "")
+Optional(token): Either(token, null)
 
 Choice(optionA, optionB): Either(optionA, optionB)
 Choice(...options): Either(first(option), Choice(...rest(options)))

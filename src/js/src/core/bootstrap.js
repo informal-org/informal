@@ -1,3 +1,71 @@
+// Pseudokey -> value for plain values
+// For relational multiple values redefined, store as Choice
+
+export class Obj {
+    MAX_ID = 0;
+    constructor(kv) {
+        this._map = new Map();
+        this._id = Obj.MAX_ID++;
+        
+        // Set directly - assuming the old KV is well-formed
+        kv.forEach((value, key) => {    this._map.set(key, value)   })
+    }
+
+    set(key, value) {
+        if(this._map.has(key)) {
+            // Relational maps can contain multiple values for a single key
+            let oldVal = this._map.get(key);
+            value = oldVal instanceof Choice ? oldVal.addChoice(value) : new Choice(oldVal, value)
+        }
+        this._map.set(key, value)
+        // TODO: Inserting pattern signatures
+    }
+
+    get(key) {
+        // TODO: Fallback/default needed?
+        return this._map.get(key)
+    }
+
+    // Symbols are used as namespaced variables.
+    // Get(symbol) to get its value.
+    symbolFor(name) {
+        // Note - Symbol is primitive. Don't use "new"
+        // return name in this._symbols ? this._symbols[name] : this._symbols[name] = Symbol(name)
+        return Symbol.for("@" + this._id + "." + name)
+    }
+
+    has(key) {
+        return this._map.has(key)
+    }
+
+    keys() {
+        return this._map.keys()
+    }
+}
+
+export class Value {
+    constructor(value, types) {
+        this.value = value      // Literal or expression
+        this.types =  types     // Type array
+    }
+}
+
+export class Invocation {
+    constructor(fn, ...args) {
+        this.fn = fn
+        this.args = args
+    }
+}
+
+export class Choice {
+    constructor(...choices) {
+        this.choices = choices
+    }
+    addChoice(option) {
+        return new Choice(...this.choices, option)
+    }
+}
+
 
 
 export class Pattern {
