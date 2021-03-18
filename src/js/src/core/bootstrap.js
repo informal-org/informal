@@ -4,12 +4,13 @@
 import { enableMapSet } from "immer"
 enableMapSet()
 import produce from "immer"
-import { isSymbol } from "@informal/shared/type"
+import { isNumber, isSymbol } from "@informal/shared/type"
 
 export class Obj {
     constructor(kv=undefined, id=undefined) {
         this._map = kv === undefined ? new Map() : kv;
         this._id = id === undefined ? Obj.MAX_ID++ : id;
+        this._type = "Obj"
     }
 
     set(key, value) {
@@ -32,9 +33,9 @@ export class Obj {
         return this._map.get(key)
     }
 
-    value(key) {
+    resolve(key) {
         // Resolve a variable reference to its base value. Should be tail-call optimized
-        return isSymbol(key) && this._map.has(key) ? this.value(this._map.get(key)) : key
+        return isSymbol(key) && this._map.has(key) ? this.resolve(this._map.get(key)) : key
     }
 
     // Symbols are used as namespaced variables.
@@ -55,19 +56,68 @@ export class Obj {
 
     // Unify symbol variables A and B in this given state.
     unify(a, b) {
-        a = this.value(a);
-        b = this.value(b);
+        a = this.resolve(a);
+        b = this.resolve(b);
 
         // Already unified
         // TODO: Stricter equality?
         if(a === b) {    return this     }
         else if(isSymbol(a)) {
-            console.log
             return this.set(a, b)
         } else if(isSymbol(b)) {
             return this.set(b, a)
         }
+
         return null     // Could not unify
+    }
+
+    // TODO: This should be checked in the bindings context.
+    typecheck(type, value) {
+        // For the minimal version, each value just has a single type
+        if(typeof type == "object" && type.__type == "Obj") {
+            return type.structuralMatch(value) !== null
+        }
+        // TODO: Type check for primitive types
+        return false
+    }
+
+    // TODO: This should be an iterable. 
+    structuralMatch(args) {
+        // Match two objects by key and any type-constraints.
+        var i = 0;
+        let bindings = this;
+
+        for([param, type] of this._map.entries()) {
+            let arg = args[i]
+            if(isSymbol(param) && this.typecheck(bindings.resolve(type), arg)) {
+                // TODO: The type should give back the value if it matches.
+                bindings = bindings.set(param, arg)
+            } else if(param === arg) {
+                bindings = bindings.set(param, arg)
+            } else {
+                return null;
+            }
+            i++;
+        }
+    }
+
+    match(args) {
+        for([signature, body] of this._map.entries()) {
+            if(typeof signature == "object" && signature.__type == "Obj") {
+                let bindings = signature.structuralMatch(args)
+                if(bindings !== null) {
+                    return [bindings, body]
+                }
+            }
+        }
+    }
+
+    call(...args) {
+        if(args.length == 1 && this._map.has(args[0])) {
+            return this._map.get(args[0])
+        }else {
+
+        }
     }
 
     toString() {

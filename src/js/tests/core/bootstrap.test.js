@@ -1,6 +1,6 @@
 import { Obj } from "@informal/core/bootstrap.js"
 
-test('Test obj', () => {
+test('Test obj unification', () => {
     let obj = new Obj();
     let x = obj.symbolFor("x");
     obj = obj.unify(x, 5)
@@ -10,3 +10,4 @@ test('Test obj', () => {
     expect(obj.value(x)).toEqual(5)
     expect(obj.value(y)).toEqual(5)
 });
+
