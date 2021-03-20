@@ -11,3 +11,12 @@ test('Test obj unification', () => {
     expect(obj.value(y)).toEqual(5)
 });
 
+test('Test function selection', () => {
+    let obj = new Obj();
+    let foo = obj.symbolFor("foo");
+    obj = obj.set(foo, "Foo")
+
+    expect(obj.select(foo)).toEqual(5)
+    expect(obj.value(y)).toEqual(5)
+});
+

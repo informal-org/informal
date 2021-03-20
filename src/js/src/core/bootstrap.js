@@ -6,11 +6,10 @@ enableMapSet()
 import produce from "immer"
 import { isNumber, isSymbol } from "@informal/shared/type"
 
-export class Obj {
+export class AbstractForm {
     constructor(kv=undefined, id=undefined) {
         this._map = kv === undefined ? new Map() : kv;
-        this._id = id === undefined ? Obj.MAX_ID++ : id;
-        this._type = "Obj"
+        // this._id = id === undefined ? Obj.MAX_ID++ : id;
     }
 
     set(key, value) {
@@ -28,11 +27,6 @@ export class Obj {
         // We can check exact equality with ===, so use this for derived equality.
     }
 
-    get(key) {
-        // TODO: Fallback/default needed?
-        return this._map.get(key)
-    }
-
     resolve(key) {
         // Resolve a variable reference to its base value. Should be tail-call optimized
         return isSymbol(key) && this._map.has(key) ? this.resolve(this._map.get(key)) : key
@@ -43,13 +37,9 @@ export class Obj {
     symbolFor(name) {
         // Note - Symbol is primitive. Don't use "new"
         // return name in this._symbols ? this._symbols[name] : this._symbols[name] = Symbol(name)
-        return Symbol.for("@" + this._id + "." + name)
+        return Symbol.for(name)
     }
-
-    has(key) {
-        return this._map.has(key)
-    }
-
+    
     keys() {
         return this._map.keys()
     }
@@ -74,16 +64,16 @@ export class Obj {
     // TODO: This should be checked in the bindings context.
     typecheck(type, value) {
         // For the minimal version, each value just has a single type
-        if(typeof type == "object" && type.__type == "Obj") {
-            return type.structuralMatch(value) !== null
+        if(typeof type == "object" && type instanceof AbstractForm) {
+            return type.bind(value) !== null
         }
         // TODO: Type check for primitive types
         return false
     }
 
     // TODO: This should be an iterable. 
-    structuralMatch(args) {
-        // Match two objects by key and any type-constraints.
+    bind(args) {
+        // Structural match two objects by key and any type-constraints.
         var i = 0;
         let bindings = this;
 
@@ -101,10 +91,11 @@ export class Obj {
         }
     }
 
-    match(args) {
+    select(args) {
+        // Select and bind the key pattern that matches the args
         for([signature, body] of this._map.entries()) {
             if(typeof signature == "object" && signature.__type == "Obj") {
-                let bindings = signature.structuralMatch(args)
+                let bindings = signature.bind(args)
                 if(bindings !== null) {
                     return [bindings, body]
                 }
@@ -121,11 +112,17 @@ export class Obj {
     }
 
     toString() {
-        return "Obj{" + this._map.entries() + "}"
+        return "Form {" + this._map.entries() + "}"
     }
 }
 
-Obj.MAX_ID = Obj.MAX_ID === undefined ? 0 : Obj.MAX_ID;
+class Form extends AbstractForm {}
+
+class CompoundForm extends Form {}
+
+
+
+// Obj.MAX_ID = Obj.MAX_ID === undefined ? 0 : Obj.MAX_ID;
 
 export class Value {
     constructor(value, types) {
