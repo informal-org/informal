@@ -6,14 +6,18 @@ enableMapSet()
 import produce from "immer"
 import { isNumber, isSymbol } from "@informal/shared/type"
 
+// Abstract form is material implication, indicated by : informally. Key implies type.
 export class AbstractForm {
-    constructor(kv=undefined, id=undefined) {
+    constructor(kv=undefined) {
         this._map = kv === undefined ? new Map() : kv;
-        // this._id = id === undefined ? Obj.MAX_ID++ : id;
+    }
+
+    _build(map) {
+        return new AbstractForm(map)
     }
 
     set(key, value) {
-        return new Obj(produce(
+        return this._build(produce(
             this._map, (map) => {
                 if(map.has(key)) {
                     // Relational maps can contain multiple values for a single key
@@ -22,9 +26,7 @@ export class AbstractForm {
                 }
                 map.set(key, value)
             }
-        ), this._id)
-        // Should the derived object have the same ID or a different one?
-        // We can check exact equality with ===, so use this for derived equality.
+        ))
     }
 
     resolve(key) {
@@ -32,16 +34,17 @@ export class AbstractForm {
         return isSymbol(key) && this._map.has(key) ? this.resolve(this._map.get(key)) : key
     }
 
-    // Symbols are used as namespaced variables.
-    // Get(symbol) to get its value.
+    // Future: This may be namespaced. Get(symbol) to get its value.
     symbolFor(name) {
-        // Note - Symbol is primitive. Don't use "new"
-        // return name in this._symbols ? this._symbols[name] : this._symbols[name] = Symbol(name)
-        return Symbol.for(name)
+        return Symbol.for(name)     // Note - Symbol is primitive. Don't use "new"
     }
     
     keys() {
         return this._map.keys()
+    }
+
+    values() {
+        return this._map.values()
     }
 
     // Unify symbol variables A and B in this given state.
@@ -64,7 +67,7 @@ export class AbstractForm {
     // TODO: This should be checked in the bindings context.
     typecheck(type, value) {
         // For the minimal version, each value just has a single type
-        if(typeof type == "object" && type instanceof AbstractForm) {
+        if(type instanceof AbstractForm) {
             return type.bind(value) !== null
         }
         // TODO: Type check for primitive types
@@ -72,6 +75,7 @@ export class AbstractForm {
     }
 
     // TODO: This should be an iterable. 
+    // (a : Int, b: Int) bind (2: Int, 3: Int) = (a: 2, b: 2)
     bind(args) {
         // Structural match two objects by key and any type-constraints.
         var i = 0;
@@ -79,14 +83,17 @@ export class AbstractForm {
 
         for([param, type] of this._map.entries()) {
             let arg = args[i]
-            if(isSymbol(param) && this.typecheck(bindings.resolve(type), arg)) {
-                // TODO: The type should give back the value if it matches.
-                bindings = bindings.set(param, arg)
-            } else if(param === arg) {
-                bindings = bindings.set(param, arg)
-            } else {
-                return null;
-            }
+
+            bindings = bindings.unify(type, arg)
+
+            // if(isSymbol(param) && this.typecheck(bindings.resolve(type), arg)) {
+            //     // TODO: The type should give back the value if it matches.
+            //     bindings = bindings.set(param, arg)
+            // } else if(param === arg) {
+            //     bindings = bindings.set(param, arg)
+            // } else {
+            //     return null;
+            // }
             i++;
         }
     }
@@ -94,7 +101,7 @@ export class AbstractForm {
     select(args) {
         // Select and bind the key pattern that matches the args
         for([signature, body] of this._map.entries()) {
-            if(typeof signature == "object" && signature.__type == "Obj") {
+            if(signature instanceof AbstractForm) {
                 let bindings = signature.bind(args)
                 if(bindings !== null) {
                     return [bindings, body]
@@ -107,7 +114,8 @@ export class AbstractForm {
         if(args.length == 1 && this._map.has(args[0])) {
             return this._map.get(args[0])
         }else {
-
+            let [bindings, body] = this.select(args)
+            return body(...bindings.values().slice(1))
         }
     }
 
@@ -116,227 +124,20 @@ export class AbstractForm {
     }
 }
 
-class Form extends AbstractForm {}
-
-class CompoundForm extends Form {}
-
-
-
-// Obj.MAX_ID = Obj.MAX_ID === undefined ? 0 : Obj.MAX_ID;
-
-export class Value {
-    constructor(value, types) {
-        this.value = value      // Literal or expression
-        this.types =  types     // Type array
+// Form is equality (logical implication), indicated by = informally. Key = value
+class Form extends AbstractForm {
+    _build(map) {
+        return new Form(map)
     }
+
 }
 
-export class Invocation {
-    constructor(fn, ...args) {
-        this.fn = fn
-        this.args = args
+// Compound form glues other forms together. 
+// ex. when things have both a type (abstract) and value (form). 
+class CompoundForm extends Form {
+    _build(map) {
+        return new CompoundForm(map)
     }
+
 }
 
-export class Choice {
-    constructor(...choices) {
-        this.choices = choices
-    }
-    addChoice(option) {
-        return new Choice(...this.choices, option)
-    }
-}
-
-
-
-// export class Pattern {
-//     // Match function:
-//     // Return [match, restOfPattern] or false
-
-//     match() {
-//         // Objects of {fn: fn, args: [args]}
-//         let choices = [];
-
-//         while(choices.length > 0) {   // todo
-
-//             let m = match();
-//             if(m.next) {
-//                 choices.push(m.next)
-//             }
-
-            
-
-//         }
-
-
-
-
-//     }
-// }
-
-// class StrPattern {
-//     constructor(pattern) {
-//         this.pattern = pattern;
-//     }
-//     // partial match. TODO: Separate functions for partial vs exact match?
-//     match(value) {
-//         if(value.startsWith(this.pattern)) {
-//             return [str, value.slice(str.length)]
-//         }
-//     }
-// }
-
-// class ValuePattern {
-//     constructor(pattern) {
-//         this.pattern = pattern;
-//     }
-//     match(value) {
-//         return this.pattern === value
-//     }
-// }
-
-// class ChoicePattern {
-//     constructor(...args) {
-//         this.patterns = args;
-//     }
-//     * match(value) {
-//         let pMatch;
-//         for(var i = i; i < this.patterns.length; i++) {
-//             let pMatch = this.patterns[i].match(value);
-//             if(pMatch !== false) {
-//                 yield pMatch
-//             }
-//         }
-//     }
-
-//     match(value, index) {
-//         if(index < this.patterns.length) {
-//             let next = index + 1 < this.patterns.length ? {
-//                 fn: this.match,
-//                 args: [value, index+1]
-//             } : null;
-
-//             return {
-//                 result: this.patterns[index].match(value),
-//                 next: next
-//             }
-//         }
-//         return {}
-//     }
-// }
-
-// class ListPattern {
-//     constructor(...args) {
-//         this.patterns = args;
-//     }
-
-//     match(value, partial) {
-//         // let choices = [];
-//         // This iteration is responsible for finding the single next element.
-//         if(partial.length < this.patterns.length){
-//             let fn = this.patterns[partial.length].match;
-//             let args = [value]
-
-//             do {
-//                 let pMatch = fn(...args);
-//                 // if(pMatch._next) {
-//                     // If the current choice doesn't work, what result to try next.
-//                     // pMatch._next["partial"] = partial.slice();     // clone
-//                     // choices.push(pMatch._next);
-//                 // }
-    
-//                 if(pMatch.result) {
-//                     // Clone current state and add this as a result
-//                     let newPartial = partial.slice().push(pMatch.result.match);
-//                     let withThisChoice = this.match(pMatch.result.value, newPartial);
-//                     if(withThisChoice) {
-//                         return withThisChoice
-//                     }
-//                 }
-
-//                 fn = pMatch.next.fn;
-//                 args = pMatch.next.args
-//             } while(fn !== null)
-//         }
-
-//         // for(var i = partial.length; i < this.patterns.length; i++) {
-            
-//         // }
-//     }
-
-//     match(value) {
-//         let pMatch;
-//         let hasMatch = this.patterns.every((p) => {
-//             return pMatch = p.match(value)
-//         });
-//         // Todo: Return value for list patterns.
-//         return hasMatch
-//     }
-// }
-
-// class ObjPattern {
-//     constructor(...args) {
-
-//     }
-//     match(value) {
-
-//     }
-// }
-
-// export class RangePattern {
-//     constructor(start, end=null) {
-//         this.start = start;
-//         this.end = end;
-//     }
-
-//     match(value) {
-//         if(this.start !== null && value >= this.start) {
-//             if(this.end !== null && value >= this.end) {
-//                 return false
-//             }
-//             return true
-//         }
-//         return false
-//     }
-// }
-
-// class NotPattern {
-//     constructor(expr) {
-//         this.expr = expr;
-//     }
-//     match(value) {
-//         return this.expr.match(value) === false ? true : false;
-//     }
-// }
-
-// export class PatternMap {
-
-// }
-
-
-// function Optional(token) {
-//     return new ChoicePattern(token, "")
-// }
-
-// // For objects
-// // name (optional) type (optional) value (optional)
-// // <numeric id> - Literal
-// // Keys ordered
-// // Matching an object = matching all of the clauses.
-// // Match should be defined using pattern matching.
-
-// continuation = {
-//     result: result,
-//     fn: func,
-//     args: []
-// }
-
-// check
-// output
-// solve
-// choice - this is the critical step. 
-// If you can re-order the choices, you can apply smart heuristics.
-// first
-// next(P, s)
-
-// accept, reject callbacks.
