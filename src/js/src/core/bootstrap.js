@@ -6,7 +6,8 @@ enableMapSet()
 import produce from "immer"
 import { isNumber, isSymbol } from "@informal/shared/type"
 
-// Abstract form is material implication, indicated by : informally. Key implies type.
+// AbstractForm is logical implication, indicated by = informally. Key => implies value
+// An ordered directed graph representing the relation between a key and many values
 export class AbstractForm {
     constructor(kv=undefined) {
         this._map = kv === undefined ? new Map() : kv;
@@ -124,20 +125,19 @@ export class AbstractForm {
     }
 }
 
-// Form is equality (logical implication), indicated by = informally. Key = value
+// Form is implication (material implication), indicated by : informally. Key -> implies type
+// Directed, unordered map. Transformation. Mapping.
 class Form extends AbstractForm {
     _build(map) {
         return new Form(map)
     }
-
 }
 
-// Compound form glues other forms together. 
-// ex. when things have both a type (abstract) and value (form). 
+// Compound form glues forms together. ex. when having both a type (abstract) and value (form). 
+// Ordered list (linked list/array). Positional.
 class CompoundForm extends Form {
     _build(map) {
         return new CompoundForm(map)
     }
-
 }
 
