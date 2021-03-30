@@ -28,19 +28,19 @@ test('Test add function', () => {
     //      (a Type, b Type) Type : fn()
 
     let addSig = new AbstractForm();
-
     let Integer = addSig.symbolFor("Integer")
 
-    let symbolA = addSig.symbolFor("a")
-    let symbolB = addSig.symbolFor("b")
+    let paramA = new Form()
+    paramA = paramA.set(paramA.symbolFor("a"), Integer)
 
-    let symbolReturn = addSig.symbolFor("return")
+    let paramB = new Form()
+    paramB = paramB.set(paramB.symbolFor("b"), Integer)
 
-    // Return type. Always the first entry.
-    addSig = addSig.set(symbolReturn, Integer)
+    let params = new CompoundForm([paramA, paramB]);
 
-    addSig = addSig.set(symbolA, Integer)
-    addSig = addSig.set(symbolB, Integer)
+    // [a: Integer, b: Integer] -> Integer
+    addSig = addSig.set(params, Integer)
+
 
     // Fn = signature -> body
     let fn = new AbstractForm();
