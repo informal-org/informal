@@ -25,26 +25,34 @@ export class AbstractForm {
         ), this._list.concat([key, value]))
     }
 
-    // TODO: Generator
-    resolve(key) {
-        // Resolve a variable reference to its base value. Should be tail-call optimized
-        return isSymbol(key) && this._data.has(key) ? this.resolve(this._data.get(key)) : key
-    }
+    // Resolve a variable reference to its base value. Should be tail-call optimized
+    // * resolve(key) {
+    //     if(isSymbol(key) && this._data.has(key)) {
+    //         let values = this._data.get(key);
+    //         for(value in values) {
+    //             yield this.resolve(value)
+    //         }
+    //     } else {
+    //         return key
+    //     }
+    // }
 
-    // Future: This may be namespaced. Get(symbol) to get its value.
-    symbolFor(name) {
-        return Symbol.for(name)     // Note - Symbol is primitive. Don't use "new"
-    }
-    
-    keys()   {  return this._data.keys()    }
-    values() {  return Array.from(this._data.values()).flat() }
-    * entries(){    // Unroll entries
-        for(key, values of this._data.entries()) {
-            for(value in values){
-                yield [key, value]
-            }
+    resolve(key) {
+        // TODO: This isn't quite right. Need something closer to the generator version above.
+        if(isSymbol(key) && this._data.has(key)) {
+            return this._data.get(key);
+        } else {
+            return key
         }
     }
+
+
+    // Future: This may be namespaced. Get(symbol) to get its value. 
+    // Note - Symbol is primitive. Don't use "new"
+    symbolFor(name) {   return Symbol.for(name) }
+    keys()   {  return this._data.keys()    }
+    values() {  return Array.from(this._data.values()).flat() }
+    entries(){  return this._list.values()  }
 
     // Unify symbol variables A and B in this given state.
     unify(a, b) {
@@ -109,13 +117,9 @@ export class AbstractForm {
         }
     }
 
-    call(...args) {
-        if(args.length == 1 && this._data.has(args[0])) {
-            return this._data.get(args[0])
-        }else {
-            let [bindings, body] = this.select(args)
-            return body(...bindings.values().slice(1))
-        }
+    apply(args) {
+        let [bindings, body] = this.select(args)
+        return body(...bindings.values())
     }
 
     toString() {
@@ -125,8 +129,9 @@ export class AbstractForm {
 
 // Form is implication (material implication), indicated by : informally. Key -> implies type
 // Directed, unordered map. Transformation. Mapping.
-class Form extends AbstractForm {
+export class Form extends AbstractForm {
     constructor(map=undefined) {
+        super(map)
         this._data = map === undefined ? new Map() : map;
     }
 
@@ -137,20 +142,39 @@ class Form extends AbstractForm {
         return new Form(produce(this._data, (map) => map.set(key, value)))
     }
 
+    // Resolve a variable reference to its base value. Should be tail-call optimized
+    resolve(key) {
+        return isSymbol(key) && this._data.has(key) ? this.resolve(this._data.get(key)) : key
+    }
 
 }
 
 // Compound form glues forms together. ex. when having both a type (abstract) and value (form). 
 // Ordered list (linked list/array). Positional.
-class CompoundForm extends Form {
+export class CompoundForm extends Form {
     constructor(list=undefined) {
+        super(undefined, list)
         this._data = list === undefined ? [] : list;
+    }
+
+    select(args) {
+        let env = this;
+        if(args.length === this._data.length) {
+            for(var i = 0; i < args.length; i++) {
+                env = env.unify(args[i], this._data[i])
+            }
+        }
+        return env
     }
 
     set(index, value) {
         if(index > 0 && index < this._data.length) {
             return new CompoundForm(produce(this._data, (list) => list[index] = value))
         }
+    }
+
+    push(value) {
+        return new CompoundForm(produce(this._data, (list) => list.push(value)))
     }
 
 }
