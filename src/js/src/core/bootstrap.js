@@ -25,47 +25,40 @@ export class AbstractForm {
         ), this._list.concat([key, value]))
     }
 
-    // Resolve a variable reference to its base value. Should be tail-call optimized
-    // * resolve(key) {
-    //     if(isSymbol(key) && this._data.has(key)) {
-    //         let values = this._data.get(key);
-    //         for(value in values) {
-    //             yield this.resolve(value)
-    //         }
-    //     } else {
-    //         return key
-    //     }
-    // }
-
     resolve(key) {
-        // TODO: This isn't quite right. Need something closer to the generator version above.
         if(isSymbol(key) && this._data.has(key)) {
-            return this._data.get(key);
+            return this._data.get(key).map((val) => {
+                this.resolve(val)
+            }).flat()
         } else {
-            return key
+            return [key]
         }
     }
 
-
-    // Future: This may be namespaced. Get(symbol) to get its value. 
-    // Note - Symbol is primitive. Don't use "new"
     symbolFor(name) {   return Symbol.for(name) }
     keys()   {  return this._data.keys()    }
     values() {  return Array.from(this._data.values()).flat() }
     entries(){  return this._list.values()  }
 
     // Unify symbol variables A and B in this given state.
+    // TODO: Cycle check
     unify(a, b) {
-        a = this.resolve(a);
-        b = this.resolve(b);
+        let aVals = this.resolve(a);
+        let bVals = this.resolve(b);
 
         // Already unified
         // TODO: Stricter equality?
-        if(a === b) {    return this     }
-        else if(isSymbol(a)) {
-            return this.set(a, b)
-        } else if(isSymbol(b)) {
-            return this.set(b, a)
+        for(var aVal of aVals) {
+            for(var bVal of bVals) {
+
+                if(aVal === bVal) {    return this     }
+                else if(isSymbol(aVal)) {
+                    return this.set(aVal, bVal)
+                } else if(isSymbol(bVal)) {
+                    return this.set(bVal, aVal)
+                }
+
+            }
         }
 
         return null     // Could not unify
@@ -147,6 +140,23 @@ export class Form extends AbstractForm {
         return isSymbol(key) && this._data.has(key) ? this.resolve(this._data.get(key)) : key
     }
 
+    // Unify symbol variables A and B in this given state.
+    unify(a, b) {
+        a = this.resolve(a);
+        b = this.resolve(b);
+
+        // Already unified
+        // TODO: Stricter equality?
+        if(a === b) {    return this     }
+        else if(isSymbol(a)) {
+            return this.set(a, b)
+        } else if(isSymbol(b)) {
+            return this.set(b, a)
+        }
+
+        return null     // Could not unify
+    }    
+
 }
 
 // Compound form glues forms together. ex. when having both a type (abstract) and value (form). 
@@ -155,6 +165,16 @@ export class CompoundForm extends Form {
     constructor(list=undefined) {
         super(undefined, list)
         this._data = list === undefined ? [] : list;
+    }
+
+    set(index, value) {
+        if(index > 0 && index < this._data.length) {
+            return new CompoundForm(produce(this._data, (list) => list[index] = value))
+        }
+    }
+
+    push(value) {
+        return new CompoundForm(produce(this._data, (list) => list.push(value)))
     }
 
     select(args) {
@@ -167,14 +187,8 @@ export class CompoundForm extends Form {
         return env
     }
 
-    set(index, value) {
-        if(index > 0 && index < this._data.length) {
-            return new CompoundForm(produce(this._data, (list) => list[index] = value))
-        }
-    }
-
-    push(value) {
-        return new CompoundForm(produce(this._data, (list) => list.push(value)))
+    match(pattern, env) {
+        
     }
 
 }

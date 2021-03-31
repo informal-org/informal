@@ -70,3 +70,39 @@ export class QIter {
     }
 
 }
+
+// Intersperse two arrays together. Example output of [a, b, c], [1, 2, 3]
+// a, 1, b, 2, c, 3, b, 1, c, 2, a, 3, c, 1, a, 2, b, 3
+export function* intersperseArr(arr, brr) {
+    if(arr.length < brr.length) {
+        return intersperseArr(brr, arr)
+    } else {    // arr is >= than brr
+        for(var offset = 0; offset < arr.length; offset++) {
+            for(var index = 0; index < arr.length; index++) {
+                yield arr[(index + offset) % arr.length];
+                yield arr[(index) % brr.length];  // Keep b fixed, no offset.
+            }
+        }
+    }
+}
+
+export function* interleave(streamA, streamB) {
+    let aDone, bDone = false;
+    let aVal, bVal;
+    while(!aDone || !bDone) {
+        if(!aDone) {
+            aVal = streamA.next();
+            aDone = aVal.done
+            if(!aDone || aVal.value !== undefined) {
+                yield aVal.value
+            }
+        }
+        if(!bDone) {
+            bVal = streamB.next()
+            bDone = bVal.done
+            if(!bDone || bVal.value !== undefined) {
+                yield bVal.value
+            }
+        }
+    }
+}
