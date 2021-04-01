@@ -14,7 +14,8 @@ members = [
   "avs",
   "site",
   "avgen",
-  "runtime"
+  "runtime",
+  "experiments"
 ]
 
 [dependencies]
