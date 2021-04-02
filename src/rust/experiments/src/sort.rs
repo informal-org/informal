@@ -3,6 +3,8 @@ use std::cmp::Ordering;
 use std::vec::Vec;
 use sorts;
 
+const INSERTION_THRESHOLD: usize = 20;
+
 fn binary_insert(list: &mut Vec<u64>, elem: u64) {
     if list.len() <= 1 {
         list.push(elem)
@@ -17,7 +19,7 @@ fn binary_insert(list: &mut Vec<u64>, elem: u64) {
     //         }
     //     }
     // }
-    else if list.len() < 16 {
+    else if list.len() < INSERTION_THRESHOLD {
         let idx = list[1..].binary_search(&elem).unwrap_or_else(|x| x);
         list.insert(idx + 1, elem);
     } else {
@@ -66,12 +68,33 @@ fn graph_sort(list: &[u64]) -> Vec<u64> {
                 // Create a new pivot if it's too expensive to shift the old one.
                 let mut subVec: Vec<u64> = Vec::with_capacity(16);
                 subVec.push(*elem);
-                pivots.push(subVec)                
+                pivots.push(subVec)
             }
 
         } else {
             // println!("Binary inserting into arr");
-            binary_insert(&mut pivots[pivotIdx], *elem);
+            if pivots[pivotIdx].len() > 32 {
+                // This bucket's getting too big, split it up first.
+                let mut pivotArr = &mut pivots[pivotIdx];
+                let old_pivot = pivotArr[0];
+
+                let midpoint = pivotArr.len() / 2;
+                let new_pivot = pivotArr[midpoint];
+                let mut second_half = pivotArr.split_off(midpoint);
+
+                pivotArr[0] = new_pivot;
+                second_half[0] = old_pivot;  // Replace new_pivot with old_pivot in place
+
+                if *elem < new_pivot {
+                    binary_insert(&mut pivotArr, *elem);
+                } else {    
+                    binary_insert(&mut second_half, *elem);
+                }
+
+                pivots.insert(pivotIdx + 1, second_half)
+            } else {
+                binary_insert(&mut pivots[pivotIdx], *elem);
+            }
         }
     }
 
@@ -79,10 +102,12 @@ fn graph_sort(list: &[u64]) -> Vec<u64> {
     let mut sorted: Vec<u64> = Vec::with_capacity(list.len());
     // println!("Pivots {:?}", pivots);
     for arr in pivots.iter() {
-        if arr.len() >= 16 {
+        if arr.len() >= INSERTION_THRESHOLD {
             // All elements following the pivot are less than pivot. Sub-sort it. 
             // Optimization: Using insertion sort if this sub-array is small.
-            sorted.append(&mut graph_sort(&arr[1..]));
+            // sorted.append(&mut graph_sort(&arr[1..]));
+
+            sorted.append(&mut graph_sort(&arr[1..]))
         } else {
             // The list should already be sorted
             sorted.extend_from_slice(&arr[1..]);
@@ -237,7 +262,7 @@ mod tests {
         let mut arr: Vec<u64> = Vec::with_capacity(length as usize);
         for _ in 0..length {
             let i: u64 = rand::random();
-            // arr.push(i % 1000);
+            // arr.push(i % 10000);
             arr.push(i);
         }
         return arr
@@ -312,5 +337,9 @@ test sort::tests::bench_graph_sort      ... bench:     911,466 ns/iter (+/- 9,83
 test sort::tests::bench_heap_array_sort ... bench:   1,302,285 ns/iter (+/- 29,507)
 test sort::tests::bench_std_sort        ... bench:     347,782 ns/iter (+/- 4,698)
 
+Added a heuristic to split a large bucket into sub-buckets if it gets too large.
+test sort::tests::bench_graph_sort      ... bench:     758,606 ns/iter (+/- 96,407)
+test sort::tests::bench_heap_array_sort ... bench:   1,507,595 ns/iter (+/- 260,397)
+test sort::tests::bench_std_sort        ... bench:     356,525 ns/iter (+/- 29,152)
 
 */
