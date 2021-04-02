@@ -17,7 +17,7 @@ fn binary_insert(list: &mut Vec<u64>, elem: u64) {
     //         }
     //     }
     // }
-    else if list.len() < 64 {
+    else if list.len() < 16 {
         let idx = list[1..].binary_search(&elem).unwrap_or_else(|x| x);
         list.insert(idx + 1, elem);
     } else {
@@ -79,7 +79,7 @@ fn graph_sort(list: &[u64]) -> Vec<u64> {
     let mut sorted: Vec<u64> = Vec::with_capacity(list.len());
     // println!("Pivots {:?}", pivots);
     for arr in pivots.iter() {
-        if arr.len() >= 64 {
+        if arr.len() >= 16 {
             // All elements following the pivot are less than pivot. Sub-sort it. 
             // Optimization: Using insertion sort if this sub-array is small.
             sorted.append(&mut graph_sort(&arr[1..]));
@@ -307,6 +307,10 @@ Did not make a big different. (Max bucket size of 8. Seemed to be the sweet spot
 test sort::tests::bench_graph_sort ... bench:     906,551 ns/iter (+/- 35,091)
 test sort::tests::bench_std_sort   ... bench:     345,090 ns/iter (+/- 1,171)
 
+Tried out a buffered heap sort (buffer size of 16)
+test sort::tests::bench_graph_sort      ... bench:     911,466 ns/iter (+/- 9,835)
+test sort::tests::bench_heap_array_sort ... bench:   1,302,285 ns/iter (+/- 29,507)
+test sort::tests::bench_std_sort        ... bench:     347,782 ns/iter (+/- 4,698)
 
 
 */
