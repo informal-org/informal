@@ -1,6 +1,3 @@
-// Pseudokey -> value for plain values
-// For relational multiple values redefined, store as Choice
-
 import { enableMapSet } from "immer"
 enableMapSet()
 import produce from "immer"
@@ -8,6 +5,7 @@ import { isNumber, isSymbol } from "@informal/shared/type"
 
 // AbstractForm is logical implication, indicated by = informally. Key => implies value
 // An ordered directed graph representing the relation between a key and many values
+// TODO: Shouldn't equality be "undirected" - essentially, having a pair of entries for each entry.
 export class AbstractForm {
     constructor(map=undefined, list=undefined) {
         this._data = map === undefined ? new Map() : map;
@@ -75,7 +73,10 @@ export class AbstractForm {
     // }
 
     // TODO: This should be an iterable. 
-    // (a : Int, b: Int) bind (2: Int, 3: Int) = (a: 2, b: 2)
+    // (a : Int, b: Int) bind (2: Int, 3: Int) = (a: 2, b: 2) - FIXME
+    // This should instead be. (a: Int, b: Int) bind (Int: 2, Int: 3) = (a: 2, b: 3) but can't have a map with two int keys
+    // So bind is not the right operator here. A search over the possibilities map to yield each option when given (Int: [2, 3]) for all possible 
+    // values of a and b.
     bind(args) {
         // Structural match two objects by key and any type-constraints.
         var i = 0;
