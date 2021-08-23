@@ -141,7 +141,7 @@ Indexing is just a special case of filtering. So you can also pass in a list of 
 ```ruby
 arr = [5, 10, 15, 20, 25]
 arr[-1, 2, 0]
-#[25, 15, 0]
+#[25, 15, 5]
 ```
 Combining this indexing with the range operation, you can access array slices using the same syntax
 ```ruby
