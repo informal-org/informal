@@ -7,3 +7,8 @@ dist/
 .env
 .docker_env
 secret.yaml
+
+debug/
+target/
+Cargo.lock
+**/*.rs.bk
