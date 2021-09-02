@@ -49,11 +49,8 @@ class Node {
         let result = [];
                 
         if(pattern.prototype instanceof Node) {
-            console.log(pattern)
             result = pattern.parse(input);
         } else if (pattern instanceof Node) {
-            console.log("an actual instance of node")
-            console.log(pattern)
             result = pattern.parse(input);
         } else if(isString(pattern)) {
             result = parseString(pattern, input)
@@ -126,7 +123,30 @@ class Alpha extends Node {
 }
 
 class List extends Node {
+    constructor(elementType, minLength=0) {
+        super(elementType)
+        this.elementType = elementType
+        this.minLength = minLength
+    }
 
+    parse(input) {
+        let list = []
+        let rest = input
+        while(rest.length > 0) {
+            let result = this.constructor.match(this.elementType, rest)
+            if(result.length == 2) {
+                list.push(result[0])
+                rest = result[1]
+            } else {
+                break
+            }
+        }
+        if(list.length >= this.minLength) {
+            // TODO: Wrapper node type instead of just returning embedded lists?
+            return [list, rest]
+        }
+        return []
+    }
 }
 
 class Choice extends Node {
@@ -147,15 +167,14 @@ class Choice extends Node {
     }
 }
 
-// TODO
 class Optional extends Node {
     constructor(option) {
         super(option)
         this.option = option
     }
 
-    static parse(input) {
-        let result = this.match(this.option, input);
+    parse(input) {
+        let result = this.constructor.match(this.option, input);
         if(result.length == 2) {
             return result
         }
@@ -175,8 +194,17 @@ class ExponentPart extends Node {
     static structure() {
         return [
             new Choice("e", "E"),
-            // SIGN
-            Digit       // List of digits - one or more.
+            new Optional(new Choice("+", "-")),  // Sign
+            new List(Digit, 1)                   // List of digits - one or more.
+        ]
+    }
+}
+
+class FractionalPart extends Node {
+    static structure() {
+        return [
+            ".",
+            new List(Digit, 1)
         ]
     }
 }
@@ -185,7 +213,10 @@ class ExponentPart extends Node {
 class FloatParser extends Node {
     static structure() {
         return [
-
+            new Optional(new Choice("+", "-")),     // Sign
+            new Optional(new List(Digit)),                  // Whole number
+            new Optional(FractionalPart),
+            new Optional(ExponentPart),
         ]
     }
 }
@@ -193,5 +224,5 @@ class FloatParser extends Node {
 // YMD(Digit(2),Digit(0),Digit(2),Digit(1),-,Digit(0),Digit(9),-,Digit(0),Digit(1)),
 console.log(YMD.parse("2021-09-01").toString())
 
-console.log(ExponentPart.parse("e5").toString())
+// console.log(ExponentPart.parse("e5").toString())
 console.log(ExponentPart.parse("E5").toString())
