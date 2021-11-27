@@ -1,6 +1,6 @@
 import { Obj, KeySignature } from "./flex"
 import { Stream } from "./Stream"
-import { __aa_call } from "@appassembly/shared"
+import { __aa_call } from "@informal/shared"
 
 class CyclicRefError extends Error {
     constructor(message) {

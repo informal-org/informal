@@ -1,5 +1,5 @@
 {
-    "name": "@appassembly/runtime",
+    "name": "@informal/runtime",
     "version": "1.0.0",
     "description": "AppAssembly runtime",
     "main": "index.js",

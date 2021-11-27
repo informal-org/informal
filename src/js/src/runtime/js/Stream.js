@@ -1,4 +1,4 @@
-import { __aa_call, delta, deltaDiv, getStep, isCallable } from "@appassembly/shared"
+import { __aa_call, delta, deltaDiv, getStep, isCallable } from "@informal/shared"
 
 const OP_FILTER = 1;
 const OP_MAP = 2;

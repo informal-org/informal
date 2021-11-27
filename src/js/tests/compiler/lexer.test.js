@@ -1,5 +1,5 @@
-import { lex } from "@appassembly/compiler/lexer.js"
-import { TOKEN_LITERAL, TOKEN_OPERATOR, TOKEN_START_BLOCK, TOKEN_CONTINUE_BLOCK, TOKEN_END_BLOCK, TOKEN_IDENTIFIER } from "@appassembly/compiler/parser.js"
+import { lex } from "@informal/compiler/lexer.js"
+import { TOKEN_LITERAL, TOKEN_OPERATOR, TOKEN_START_BLOCK, TOKEN_CONTINUE_BLOCK, TOKEN_END_BLOCK, TOKEN_IDENTIFIER } from "@informal/compiler/parser.js"
 
 export function flatten_tokens(tokenQueue) {
     // Extract token into an array for testing ease
