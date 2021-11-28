@@ -1,12 +1,17 @@
-import { ParsecMatcher } from "@informal/compiler/parsec"
+import { StringType, Any, All } from "@informal/compiler/parsec"
 
 test('Matches to right node', () => {
     // Red, Green, Blue
-    let colors = new ParsecObj()
-    let red = colors.addAttr(new ParsecObj("", "Red"))
-    let green = colors.addAttr(new ParsecObj("", "Green"))
-    let blue = colors.addAttr(new ParsecObj("", "Blue"))
-    expect(add(1, 2).toString()).toEqual("true")
+    console.log("Any is")
+    let colors = new Any()
+    let red = new StringType("Red")
+    let green = new StringType("Green")
+    let blue = new StringType("Blue")
+    colors.add(red);
+    colors.add(green);
+    colors.add(blue);
+    expect(colors.match("Red")).toEqual([red, ""])
+    
 });
 
 test('Chooses between options', () => {
