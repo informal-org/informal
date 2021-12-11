@@ -1,8 +1,7 @@
-import { StringType, Any, All } from "@informal/compiler/parsec"
+import { StringType, Any, All, NoMatchError } from "@informal/compiler/parsec"
 
 test('Matches to right node', () => {
     // Red, Green, Blue
-    console.log("Any is")
     let colors = new Any()
     let red = new StringType("Red")
     let green = new StringType("Green")
@@ -10,13 +9,11 @@ test('Matches to right node', () => {
     colors.add(red);
     colors.add(green);
     colors.add(blue);
-    expect(colors.match("Red")).toEqual([red, ""])
+    expect(colors.match("Red").match.matcher).toEqual(red)
+    expect(colors.match("Green").match.match).toEqual("Green")
+    expect(() => colors.match("yellow")).toThrow(NoMatchError)
     
 });
-
-test('Chooses between options', () => {
-
-})
 
 test('Prioritizes choices by nesting order', () => {
     // All choices within a given level are treated equally.
@@ -24,7 +21,23 @@ test('Prioritizes choices by nesting order', () => {
     // Their precedence is lower than the multiply or divide precedence.
     // Within a choice, all options have the same priority. 
     // If you group two elements its to be treated as if they're one group priority.
+    let add_sub = new Any();
+    let add = new StringType("+")
+    let sub = new StringType("-")
+    add_sub.add(add)
+    add_sub.add(sub)
 
+    let mul_div = new Any()
+    let mul = new StringType("*")
+    let div = new StringType("/")
+    mul_div.add(mul)
+    mul_div.add(div)
+
+    let ops = new Any();
+    ops.add(mul_div)
+    ops.add(add_sub)
+    
+    // expect(ops.match("+*")).toEqual([red, ""])
 })
 
 test('Prefix match', () => {

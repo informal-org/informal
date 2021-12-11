@@ -21,8 +21,8 @@ function pick(currentMatch, newMatch) {
         return currentMatch
     } else {
         // Shorter matches are more specific sub-sets of the longer matches.
-        // Prefer shorter.
-        return newMatch.priority() <= currentMatch.priority() ? newMatch : currentMatch;
+        // Prefer shorter. Prefer left-most current over new. (by < rather than <=)
+        return newMatch.priority() < currentMatch.priority() ? newMatch : currentMatch;
     }
 }
 
@@ -30,7 +30,29 @@ function pick(currentMatch, newMatch) {
 //     return obj instanceof ParsecMatcher
 // }
 
-class NoMatchError extends Error {}
+export class NoMatchError extends Error {}
+
+export class MatchResult {
+    constructor(matcher, match, rest) {
+        this.matcher = matcher
+        this.match = match
+        this.rest = rest
+    }
+    priority() {
+        if(this.match === undefined) {
+            return 1000
+        }
+        return this.matcher.priority()
+    }
+    value() {
+        let m = this.match;
+        // Unwrap any layers of optional/choice, etc.
+        while(m instanceof MatchResult) {
+            m = m.match;
+        }
+        return m
+    }
+}
 
 export class ParsecMatcher {
     constructor(){
@@ -57,27 +79,27 @@ export class ParsecObj extends ParsecMatcher {
     }
 }
 
-export class ParsecAttr extends ParsecMatcher {
-    constructor(name=undefined, type=undefined) {
-        // Raw literals = it's set as the type itself. without name.
-        this.name = name
-        this.type = type
-    }
-    match(value) {
-        // Match on type for now.
-        if(isString(this.type)) {
-            if(value.startsWith(this.type)) {
-                // TODO: What's the right result here? The string? Or an instance of this attr?
-                return [this.type, this.value.slice(this.type.length)]
-            }
-        } else if(isMatcher(this.type)) {
-            return this.type.match(value)
-        } else {
-            // We don't know how to treat this kind of type
-            throw new NoMatchError(`Unknown type match ${this.type} for value ${value}`)
-        }
-    }
-}
+// export class ParsecAttr extends ParsecMatcher {
+//     constructor(name=undefined, type=undefined) {
+//         // Raw literals = it's set as the type itself. without name.
+//         this.name = name
+//         this.type = type
+//     }
+//     match(value) {
+//         // Match on type for now.
+//         if(isString(this.type)) {
+//             if(value.startsWith(this.type)) {
+//                 // TODO: What's the right result here? The string? Or an instance of this attr?
+//                 return [this.type, this.value.slice(this.type.length)]
+//             }
+//         } else if(isMatcher(this.type)) {
+//             return this.type.match(value)
+//         } else {
+//             // We don't know how to treat this kind of type
+//             throw new NoMatchError(`Unknown type match ${this.type} for value ${value}`)
+//         }
+//     }
+// }
 
 export class ListMatcher extends ParsecMatcher {
     constructor() {
@@ -117,7 +139,7 @@ export class Any extends ListMatcher {
         if(selected === undefined) {
             throw new NoMatchError()
         }
-        return selected;
+        return new MatchResult(this, selected, selected.rest)
     }
 }
 
@@ -134,7 +156,8 @@ export class All extends ListMatcher {
         });
         // These values are now the object binding.
         // TODO: Initialize and return
-        return [matches, rest]
+        // return [matches, rest]
+        return new MatchResult(this, matches, rest)
     }
 }
 
@@ -146,13 +169,15 @@ export class Optional extends ParsecMatcher {
     match(value) {
         if(this.pattern instanceof ParsecMatcher) {
             try {
-                return this.pattern.match(value)
+                let result = this.pattern.match(value)
+                return new MatchResult(this, result, result.rest)
             } catch(e) {
                 console.log(`Optional: Skipping error - ${e}`)
             }
         }
         // Return no match and same value without any errors
-        return [undefined, value]
+        // return [undefined, value]
+        return new MatchResult(this, undefined, value)
     }
 }
 
@@ -167,7 +192,8 @@ export class ValueType extends ParsecMatcher {
 export class StringType extends ValueType {
     match(input) {
         if(input.startsWith(this.pattern)) {
-            return [this, input.slice(this.pattern.length)]
+            return new MatchResult(this, this.pattern, input.slice(this.pattern.length))
+            // return [this, input.slice(this.pattern.length)]
         }
         throw new NoMatchError()
     }
