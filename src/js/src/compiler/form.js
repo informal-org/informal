@@ -100,17 +100,38 @@ const Variable {
 }
 
 const Any {
-    // Equivalent to . in Regex (not *). A single any character. 
+    // Universal set 
 }
+
+class None {
+
+}
+
+class Char {
+    // Set of all characters. Matches any Character.
+}
+
+class Text {
+    constructor() {
+        this.structure = new Many(new Char())
+    }
+}
+
+// String operations can be defined declaratively as well
+// Starts with = Many(new Char())
 
 const Choice {
 
 }
 
 // ... operator
-const Many {
-
+class List {
+    // An arbitrary list of elements.
+    // More = 1 or more
+    // Many = 0 or more instances of something?
+    // Some conflicts with the Rust definition of the same word.
 }
+
 
 const Optional {
 
