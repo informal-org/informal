@@ -4,14 +4,11 @@ Form is the shape of all things. It brings together parts and forms something of
 
 export class MatchError extends Error {}
 
-class Exists {
-    constructor(a) {
-        this.a = a
-    }
-    match() {
-        return Exists.match(this.a)
-    }
-    static m(a) {
+// Exists could be defined as
+// Exists(input) => fn () => { ... }
+// Exists() => fn(input) => { ... }
+const Exists = () => {
+    return (input) => {
         // TODO: arrays, objects.
         if(a === undefined || a === ""){
             throw MatchError()
@@ -20,8 +17,48 @@ class Exists {
     }
 }
 
-class Equals {
-    
+const Equals = (value) => {
+    return (input) => {
+        if(input === value) {
+            return input
+        }
+        throw MatchError()
+    }
+}
+
+const Either = () => {
+    return (a, b) => {
+        if(Exists)
+    }
+}
+
+const Variable {
+    // Can be assigned a value
+}
+
+const Any {
+    // Equivalent to . in Regex (not *). A single any character. 
+}
+
+const Choice {
+
+}
+
+// ... operator
+const Many {
+
+}
+
+const Optional {
+
+}
+
+const Form {
+    // Form takes input. Has shape.
+}
+
+const Forms {
+    // Multiple pattern definitions to check
 }
 
 class Either {
