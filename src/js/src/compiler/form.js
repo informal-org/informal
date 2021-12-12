@@ -1,5 +1,5 @@
 /*
-Form is the shape of all things. It brings together parts and forms something of them.s
+Form is the shape of all things. It brings together parts and forms something of them.
 */
 
 export class MatchError extends Error {}
@@ -7,6 +7,69 @@ export class MatchError extends Error {}
 // Exists could be defined as
 // Exists(input) => fn () => { ... }
 // Exists() => fn(input) => { ... }
+
+function check() {
+
+}
+function match() {
+
+}
+function generate() {
+
+}
+
+class Base {
+    constructor() {
+        this.structure = undefined;
+    }
+    check(){}
+    match(){}
+    generate(){}
+}
+
+class Empty extends Base {
+    constructor() {
+        this.structure = Or(Equals(undefined), Equals(""))
+    }
+}
+
+class Exists extends Base {
+    constructor() {
+        this.structure = Not(Empty())
+    }
+}
+
+class Equals {
+    constructor(value) {
+        this.value = value
+        // No structure - this is a primitive.
+    }
+    check(input) {
+        return this.value === this.input
+    }
+    match(input) {
+        if(this.check(input)) {
+
+        }
+    }
+}
+
+// This should really be defined on Types/classes
+// Not of Any = None. Not (None) = Any
+// Not of String
+class Not {
+    constructor(value) {
+        this.value = value
+    }
+}
+
+class Or {
+    constructor(a, b) {
+        this.a = a
+        this.b = b
+    }
+}
+
 const Exists = () => {
     return (input) => {
         // TODO: arrays, objects.
