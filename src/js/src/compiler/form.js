@@ -54,21 +54,55 @@ class Equals {
     }
 }
 
-// This should really be defined on Types/classes
-// Not of Any = None. Not (None) = Any
-// Not of String
-class Not {
-    constructor(value) {
-        this.value = value
-    }
+// We need some fundamental to clearly differentiate types from operations.
+// Not is an operation on boolean types. Like negation is for numbers.
+// Having a "not" at the type level is highly problematic.
+// class Not {
+//     constructor(value) {
+//         this.value = value
+//     }
+// }
+
+// None type. Unit type.
+class None { }
+
+// Never is the bottom type to indicate contradictions that should never happen.
+class Never { }
+
+// Sum types
+class Choice { }
+
+// Product types. Classes/objects.
+class Pattern {
+
 }
 
-class Or {
-    constructor(a, b) {
-        this.a = a
-        this.b = b
-    }
-}
+// Dependent product types - List(length=3). For all.
+
+// Dependent sum types - (a T, b F(a)). There exists.
+
+// Implication / Function
+class Function { }
+
+// Free variable which can be bound.
+class Variable { }
+
+// Function application. P implies Q. P, therefore Q.
+class Invocation { }
+
+// Definition. If a then b.
+class Abstraction { }
+
+
+
+
+// Or is also an operation - not a type.
+// class Or {
+//     constructor(a, b) {
+//         this.a = a
+//         this.b = b
+//     }
+// }
 
 const Exists = () => {
     return (input) => {
