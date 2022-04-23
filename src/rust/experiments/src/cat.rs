@@ -17,9 +17,15 @@ Thus, we get value out of each comparison. This trie-structure is capped at 8, e
 Radix nodes consume a fixed size chunk of bytes per layer. The prefix edges consume variable sized prefix matches and any sub-elements.
 */
 
+use std::mem;
+use std::borrow::BorrowMut;
+
 #[derive(Debug)]
 struct CatRadixNode {
-    edges: Vec<Box<Option<CatPrefixEdge>>>
+    // edges: Vec<Box<Option<CatPrefixEdge>>>
+    // edges: Vec<Box<Option<String>>>
+    // edges: Vec<String>
+    edges: Vec<Option<String>>
 }
 
 #[derive(Debug)]
@@ -33,24 +39,44 @@ struct CatPrefixEdge {
 fn here_kitty_kitty() -> CatRadixNode {
     // Dangle a string in front of the cat and initialize it.
     // Make a tiny little tree for it to climb.
+
+    // TODO: Reduce this initial size to be much smaller.
     const size: usize = 8;
-    let mut edges: Vec<Box<Option<CatPrefixEdge>>> = Vec::with_capacity(size);
+    // let mut edges: Vec<Box<Option<CatPrefixEdge>>> = Vec::with_capacity(size);
+    let mut edges: Vec<Option<String>> = Vec::with_capacity(size);
+    // let mut edges: Vec<Option<String>> = Vec::with_capacity(size);
 
     for i in 0..size {
-        edges.push(Box::new(Option::None));
+        edges.push(Option::None);
+        // edges.push(Option::None);
     }
 
     return CatRadixNode {
         edges: edges
     }
-
 }
 
-fn good_kitten_heres_a_treat(root: &mut &CatRadixNode, elem: u64) {
+fn good_kitten_heres_a_treat(root: &mut CatRadixNode, str: String) {
     // Good kitten!! Here's a treat. 
     // Put a ball in the tree.
+    let strBytes = str.as_bytes();      // as_bytes vs bytes?
+
+    // root.edges[strBytes[0] as usize];
+    // let mut elem = root.edges.get(0);
+
+    root.edges[0].get_or_insert(str);
+    
+
+    // println!("Pre-insert {:?}", elem);
 
     
+
+    // elem.replace(&Option::from(str));
+    // mem::replace(&mut edges[0], str)
+    // let mut elem = &edges[0];
+    
+
+     // = Option::None;
 }
 
 fn wheres_da_ball_kitten(root: &mut &CatRadixNode, elem: u64) {
@@ -92,8 +118,13 @@ mod tests {
     
     #[test]
     fn test_kitten_protocol() {
-        let kitten = here_kitty_kitty();
+        let mut kitten = here_kitty_kitty();
         println!("{:?}", kitten);
+
+        good_kitten_heres_a_treat(&mut kitten, String::from("hello"));
+
+        println!("{:?}", kitten);
+
         // assert_eq!(expected, result);
     }
 
