@@ -1,5 +1,5 @@
-import { CellEnv } from "@appassembly/compiler/CellEnv.js";
-import { defineNamespace, resolve } from "@appassembly/compiler/namespace.js"
+import { CellEnv } from "@informal/compiler/CellEnv.js";
+import { defineNamespace, resolve } from "@informal/compiler/namespace.js"
 
 
 const TREE_NESTED = {

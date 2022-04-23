@@ -6,7 +6,7 @@ import { CellEnv } from "./CellEnv"
 function runGenerated(env) {
     defineNamespace(env.root)
     let code = compileJS(env);
-    console.log(code);
+    // console.log(code);
 
     // 0: {id: 0, output: "Hello 2", error: ""}
     let result = execJs(code);

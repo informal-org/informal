@@ -1,5 +1,5 @@
-import { intersection } from "@appassembly/shared";
-import { Queue } from "@appassembly/shared";
+import { intersection } from "@informal/shared";
+import { Queue } from "@informal/shared";
 
 export function addDependency(env, cell_id, dep_id) {
     let dep_set = env.getDependsOn(cell_id);

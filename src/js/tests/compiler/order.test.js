@@ -1,6 +1,6 @@
-import { CellEnv } from "@appassembly/compiler/CellEnv.js";
+import { CellEnv } from "@informal/compiler/CellEnv.js";
 import { TREE_BASIC } from './Cell.test'
-import { totalOrderByDeps } from "@appassembly/compiler/order.js"
+import { totalOrderByDeps } from "@informal/compiler/order.js"
 
 
 // Tree where no cells depend on each other.

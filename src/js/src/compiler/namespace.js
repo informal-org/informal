@@ -1,4 +1,4 @@
-import { traverseDown, traverseUp } from "@appassembly/shared/iter.js";
+import { traverseDown, traverseUp } from "@informal/shared/iter.js";
 const hamt = require('hamt');
 
 

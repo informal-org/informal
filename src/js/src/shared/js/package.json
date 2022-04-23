@@ -1,5 +1,5 @@
 {
-  "name": "@appassembly/shared",
+  "name": "@informal/shared",
   "version": "1.0.0",
   "description": "Shared utilities modules for AppAssembly",
   "main": "index.js",

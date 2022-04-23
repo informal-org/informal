@@ -1,9 +1,8 @@
 {
-    "name": "@informal/runtime",
+    "name": "@informal/core",
     "version": "1.0.0",
-    "description": "AppAssembly runtime",
+    "description": "Core engine for Informal",
     "main": "index.js",
     "license": "Apache-2.0",
     "private": true
-  }
-  
+}

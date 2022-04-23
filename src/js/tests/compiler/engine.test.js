@@ -1,5 +1,5 @@
-import { evaluate } from "@appassembly/compiler/engine.js"
-import { CellEnv } from "@appassembly/compiler/CellEnv";
+import { evaluate } from "@informal/compiler/engine.js"
+import { CellEnv } from "@informal/compiler/CellEnv";
 
 test('Evaluate basic expressions', () => {
     // When cells don't depend on each other, their order remains the same

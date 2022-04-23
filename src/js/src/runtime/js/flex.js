@@ -1,4 +1,4 @@
-import { genID, isObject, isFunction, RuntimeError } from "@appassembly/shared"
+import { genID, isObject, isFunction, RuntimeError } from "@informal/shared"
 
 
 export class Obj {
