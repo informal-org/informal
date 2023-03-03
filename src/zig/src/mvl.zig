@@ -1,6 +1,8 @@
 const std = @import("std");
 const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
+const print = std.debug.print;
+
 
 
 const TokenKind = enum {
@@ -80,15 +82,22 @@ pub const Lexer = struct {
     }
 
     fn token_string(self: *Lexer) Token {
+        self.index += 1;    // Omit beginning quote.
         var start = self.index;
-        self.index += 1;
         _ = self.seek_till("\"");
+        var end = self.index - 1;
+        // Expect but omit end quote. 
+        if (self.index < self.buffer.len and self.buffer[self.index] == '"') {
+            self.index += 1;
+        } else {
+            // Raise error. Unterminated string. Skip for MVL.
+        }
         // Use the value-field to explicitly store the end, or a ref to the 
         // string in some table. The string contains both quotes.
         return Token {
             .kind = TokenKind.string,
             .start = start,
-            .value = self.index
+            .value = end
         };
     }
 
@@ -138,7 +147,6 @@ pub const Lexer = struct {
 
         // Non digit or symbol start, so interpret as an identifier.
         _ = self.seek_till_delimiter();
-        self.index -= 1;    // Rewind, so the delimeter can be consumed next turn.
         return Token {
             .kind = TokenKind.identifier,
             .value = self.index,     // Store end idx, or a ref to symbol id in symbol table.
@@ -199,44 +207,100 @@ fn testTokenEquals(lexed: Token, expected: Token) !void {
 }
 
 fn testLexToken(buffer: []const u8, expected: []const Token) !void {
+    print("\nTest Lex Token: {s}\n", .{ buffer });
+    defer print("\n--------------------------------------------------------------\n", .{});
     var lexer = Lexer.init(buffer, test_allocator);
     defer lexer.deinit();
     try lexer.lex();
+    if(lexer.tokens.items.len != expected.len) {
+        print("\nLength mismatch {d} vs {d}: {any}", .{ lexer.tokens.items.len, expected.len, lexer.tokens.items });
+    }
+
     try expect(lexer.tokens.items.len == expected.len);
 
     for (lexer.tokens.items) |lexedToken, i| {
+        if(expected[i].kind == TokenKind.delimiter) {
+            print("Delimiter {c} {c}\n", .{ @truncate(u8, lexedToken.value), @truncate(u8, expected[i].value) });
+        }
+        print("Lexerout {any}.\nExpected {any}\n\n", .{ lexedToken, expected[i] });
         try testTokenEquals(lexedToken, expected[i]);
     }
 }
 
-test "Lex identifiers" {
-    // Identifiers
-    try testLexToken("3", &[_]Token{
+test "Lex digits" {
+    // "1 2 3"
+    //  01234
+    try testLexToken("1 2 3", &[_]Token{
         .{
             .start=0,
             .kind=TokenKind.number,
+            .value=1,
+        },
+        .{
+            .start=2,
+            .kind=TokenKind.number,
+            .value=2,
+        },
+        .{
+            .start=4,
+            .kind=TokenKind.number,
             .value=3,
+        }        
+    });
+}
+
+test "Lex delimiters and identifiers" {
+    // Delimiters , . = : and identifiers.
+    // (a, bb):"
+    // 01234567
+    try testLexToken("(a, bb):", &[_]Token{
+        .{
+            .start=0,
+            .kind=TokenKind.delimiter,
+            .value='(',
+        },
+        .{
+            .start=1,
+            .kind=TokenKind.identifier,
+            .value=2,   // ?
+        },
+        .{
+            .start=2,
+            .kind=TokenKind.delimiter,
+            .value=',',
+        },
+        .{
+            .start=4,
+            .kind=TokenKind.identifier,
+            .value=6,
+        },
+        .{
+            .start=6,
+            .kind=TokenKind.delimiter,
+            .value=')',
+        },
+        .{
+            .start=7,
+            .kind=TokenKind.delimiter,
+            .value=':',
+        }        
+    });    
+}
+
+test "Lex string" {
+    // "Hello"
+    // 0123456
+    try testLexToken("\"Hello\"", &[_]Token{
+        .{
+            .start=1,       // Indexes should not contain the quote char.
+            .kind=TokenKind.string,
+            .value=5,
         }
     });
 
 
-
-    // Digits
-
-    // , . = :
-
 }
 
-test "Lex grouping" {
-    // ()
-    // {}
-    // []
-    // " "
-}
-
-test "Lex comments" {
-
-}
 
 test "Lex blocks" {
     // Indentation aware block handling. 
