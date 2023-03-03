@@ -53,7 +53,6 @@ pub const Lexer = struct {
 
     pub fn deinit(self: *Lexer) void {
         self.tokens.deinit();
-        self.allocator.deinit();
     }
 
     fn gobble_digits(self: *Lexer) void {
@@ -182,9 +181,7 @@ pub const Lexer = struct {
             };
 
             if (tok) |t| {
-                std.debug.print("Adding token is {any}\n", .{t});
                 try self.tokens.append(t);
-                std.debug.print("Adding succeeded. Len = \n", .{});
             }
         }
     }
@@ -201,18 +198,28 @@ fn testTokenEquals(lexed: Token, expected: Token) !void {
     try expect(lexed.value == expected.value);
 }
 
+fn testLexToken(buffer: []const u8, expected: []const Token) !void {
+    var lexer = Lexer.init(buffer, test_allocator);
+    defer lexer.deinit();
+    try lexer.lex();
+    try expect(lexer.tokens.items.len == expected.len);
+
+    for (lexer.tokens.items) |lexedToken, i| {
+        try testTokenEquals(lexedToken, expected[i]);
+    }
+}
+
 test "Lex identifiers" {
     // Identifiers
-    // var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    // defer arena.deinit();
-    // const allocator = arena.allocator();
-    var lexer = Lexer.init("3", test_allocator);
-    try lexer.lex();
-    try testTokenEquals(lexer.tokens.items[0], Token {
-        .start=0,
-        .kind=TokenKind.number,
-        .value=3,
+    try testLexToken("3", &[_]Token{
+        .{
+            .start=0,
+            .kind=TokenKind.number,
+            .value=3,
+        }
     });
+
+
 
     // Digits
 
