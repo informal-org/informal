@@ -3,8 +3,6 @@ const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
 const print = std.debug.print;
 
-
-
 const TokenKind = enum {
     number,
     symbol,     // Recognized tokens.
@@ -181,7 +179,6 @@ pub const Lexer = struct {
                     if(self.peek_starts_with("//")) {
                         self.index += 2;    // Skip past '//'
                         _ = self.seek_till("\n");
-                        // TODO: We still need a token for this, to know the end for prev token.
                     } else {
                         tok = self.token_symbol();
                     }
@@ -297,8 +294,6 @@ test "Lex string" {
             .value=5,
         }
     });
-
-
 }
 
 
