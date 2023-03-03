@@ -1,5 +1,7 @@
 const std = @import("std");
 const ArrayList = std.ArrayList;
+const Allocator = std.mem.Allocator;
+
 
 const TokenKind = enum {
     number,
@@ -36,14 +38,22 @@ pub const Lexer = struct {
     const Self = @This();
     buffer: []const u8,
     index: u32,
+    allocator: Allocator,
     tokens: ArrayList(Token),
 
-    pub fn init(buffer: []const u8, tokens: ArrayList(Token)) Self {
+    pub fn init(buffer: []const u8, allocator: Allocator) Self {
+        var tokens = ArrayList(Token).init(allocator);
         return Self {
             .buffer = buffer,
             .index = 0,
+            .allocator = allocator,
             .tokens = tokens
         };
+    }
+
+    pub fn deinit(self: *Lexer) void {
+        self.tokens.deinit();
+        self.allocator.deinit();
     }
 
     fn gobble_digits(self: *Lexer) void {
@@ -74,10 +84,12 @@ pub const Lexer = struct {
         var start = self.index;
         self.index += 1;
         _ = self.seek_till("\"");
+        // Use the value-field to explicitly store the end, or a ref to the 
+        // string in some table. The string contains both quotes.
         return Token {
             .kind = TokenKind.string,
             .start = start,
-            .value = 0
+            .value = self.index
         };
     }
 
@@ -127,9 +139,10 @@ pub const Lexer = struct {
 
         // Non digit or symbol start, so interpret as an identifier.
         _ = self.seek_till_delimiter();
+        self.index -= 1;    // Rewind, so the delimeter can be consumed next turn.
         return Token {
             .kind = TokenKind.identifier,
-            .value = 0,
+            .value = self.index,     // Store end idx, or a ref to symbol id in symbol table.
             .start = start
         };
     }
@@ -146,8 +159,8 @@ pub const Lexer = struct {
             // Ignore whitespace.
             _ = switch(ch) {
                 ' ', '\t' => {
-                    // TODO: By skipping these, end offsets may be missing.
-                    // It'd gulp up extra whitespace.
+                    // By skipping whitespace & comments, we can't rely on start of next tok as reliable
+                    // "length" indexes. So instead store length explicitly for strings and identifiers.
                     _ = self.skip();
                 },
                 '0'...'9', '.' => {
@@ -169,26 +182,37 @@ pub const Lexer = struct {
             };
 
             if (tok) |t| {
+                std.debug.print("Adding token is {any}\n", .{t});
                 try self.tokens.append(t);
+                std.debug.print("Adding succeeded. Len = \n", .{});
             }
         }
     }
 };
 
 
-// const test_allocator = std.testing.allocator;
+const test_allocator = std.testing.allocator;
 const arena_allocator = std.heap.ArenaAllocator;
 const expect = std.testing.expect;
+
+fn testTokenEquals(lexed: Token, expected: Token) !void {
+    try expect(lexed.kind == expected.kind);
+    try expect(lexed.start == expected.start);
+    try expect(lexed.value == expected.value);
+}
+
 test "Lex identifiers" {
     // Identifiers
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena.deinit();
-    const allocator = arena.allocator();
-    var tokens = ArrayList(Token).init(allocator);    // test_allocator
-
-    var lexer = Lexer.init("3.1415", tokens);
+    // var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    // defer arena.deinit();
+    // const allocator = arena.allocator();
+    var lexer = Lexer.init("3", test_allocator);
     try lexer.lex();
-    // try expect()
+    try testTokenEquals(lexer.tokens.items[0], Token {
+        .start=0,
+        .kind=TokenKind.number,
+        .value=3,
+    });
 
     // Digits
 
