@@ -1,5 +1,5 @@
 # A New Language For The Web
-AppAssembly is a general purpose programming language for building full-stack web applications. We take a handful of simple concepts and combine them in flexible ways to give you the full expressive power of a modern programming language, in a friendly visual environment. This guide walks you through all of the concepts you need to get started programming in AppAssembly.
+Informal is a general purpose programming language for building full-stack web applications. We take a handful of simple concepts and combine them in flexible ways to give you the full expressive power of a modern programming language, in a friendly visual environment. This guide walks you through all of the concepts you need to get started programming in Informal.
 
 You'll learn how to:
 * Use array programming and pattern matching to reduce boilerplate code.
@@ -15,7 +15,7 @@ You'll learn how to:
 
 ## An Observable Visual Environment
 Most bugs in software stem from a disconnect between our mental models of the problem and the complexities of reality. So often, we're coding blind with a limited input-output view into what our software is actually doing.
-Observability is one of the fundamental principles of AppAssembly. Code should be transparent and interactive, so it's easy to understand and easy to change.
+Observability is one of the fundamental principles of Informal. Code should be transparent and interactive, so it's easy to understand and easy to change.
 We do this by connecting you directly to your running system, so you can explore the problem domain and incrementally compose code that you can see and interact with. 
 
 To get started, try playing around with the expression in the cells below:
@@ -24,7 +24,7 @@ To get started, try playing around with the expression in the cells below:
 # "Hello World"
 ```
 
-All code in AppAssembly lives in these spreadsheet-like cells. You can write entire programs in these cells, but we recommend building your program out of many smaller cells you can observe. 
+All code in Informal lives in these spreadsheet-like cells. You can write entire programs in these cells, but we recommend building your program out of many smaller cells you can observe. 
 ```ruby
 1 + 1        # 1
 10 * 2.5     # 25.0
@@ -48,7 +48,7 @@ n = n * 2
 Later on, you'll see how you can use *Actions* to manage state changes in a concurrency safe way.
 
 ## Array Programming
-Lists in AppAssembly let you group elements together into a larger unit you can operate on. 
+Lists in Informal let you group elements together into a larger unit you can operate on. 
 ```ruby
 [1, 2, 3]
 # [1, 2, 3]
@@ -96,7 +96,7 @@ combined = [arr; brr]
 ```
 
 ### Declarative Ranges
-Whenever possible, AppAssembly tries to define operations in a declarative style where you specify what the result should look like, rather than use separate functions like `concat`, `append`, `prepend`, `range`, etc.
+Whenever possible, Informal tries to define operations in a declarative style where you specify what the result should look like, rather than use separate functions like `concat`, `append`, `prepend`, `range`, etc.
 
 For example, to create a range of numbers, just specify the beginning and end.
 ```ruby
@@ -247,7 +247,7 @@ else:
     ":("
 ```
 The values `false`, `null`, `0`, `[]` and `{}` are considered logically false. Everything else is considered true. 
-Since AppAssembly is built on immutable values, the `==` operator checks whether two **values** are equal, rather than checking if they share the same memory location. So two lists are equal when they contain the same values. Equality on maps and sets check for the same keys and values, irrespective of order.
+Since Informal is built on immutable values, the `==` operator checks whether two **values** are equal, rather than checking if they share the same memory location. So two lists are equal when they contain the same values. Equality on maps and sets check for the same keys and values, irrespective of order.
 ```ruby
 [0, 1, 2, 3, 4] == [0..5]
 # true
@@ -311,7 +311,7 @@ binet_formula(n):
     reciprocal = -1 / phi
     round((phi^n - reciprocal^n) / sqrt(5))
 ```
-Just like everything else in AppAssembly, functions are expressions, which means they always return a value. When a function contains multiple lines, it'll return the result of the last expression. 
+Just like everything else in Informal, functions are expressions, which means they always return a value. When a function contains multiple lines, it'll return the result of the last expression. 
 
 Now that we have a formula to calculate a fibonnaci number, we can easily generate a list of all of them.
 ```ruby
@@ -329,7 +329,7 @@ TODO: Function guards, combining functions with maps, multi-methods.
 ## The One Loop `for` Everything
 (that you probably won't even need...)
 
-Array operations, pattern matching, filtering and generators removes the need for most loops. When you do find yourself needing to write something out long-form, AppAssembly has a flexible `for` loop.
+Array operations, pattern matching, filtering and generators removes the need for most loops. When you do find yourself needing to write something out long-form, Informal has a flexible `for` loop.
 ```ruby
 arr = [1, 2, 3, 4, 5]
 
@@ -369,7 +369,7 @@ for x in [1..10] if x < 4:
     x + 10
 # [11, 12, 13]
 ```
-If you leave out the iteration clause, you get a while loop that continues as long as a condition is true. Since variables in AppAssembly are immutable and scoped to their block, setting a value inside a loop won't have a side effect outside of the loop.
+If you leave out the iteration clause, you get a while loop that continues as long as a condition is true. Since variables in Informal are immutable and scoped to their block, setting a value inside a loop won't have a side effect outside of the loop.
 ```ruby
 # Hailstone sequence
 n = 12
@@ -384,7 +384,7 @@ n == 12
 # true
 ```
 ## Types are the Essence of Data
-Types are a set, class or category of data. They define the essential properties of the members of that type, allowing you to operate on them with clearly stated assumptions. A good type definition will make your code faster, safer and cleaner. Types are completely optional in AppAssembly. If you find yourself doing a lot of `if` validation checks within your function, that may be a good place to use types.
+Types are a set, class or category of data. They define the essential properties of the members of that type, allowing you to operate on them with clearly stated assumptions. A good type definition will make your code faster, safer and cleaner. Types are completely optional in Informal. If you find yourself doing a lot of `if` validation checks within your function, that may be a good place to use types.
 
 For example, here's a Movie type stating that all movies have a `name` and `release_date`.
 ```ruby
@@ -451,7 +451,7 @@ This uses multiple dispatch to call the outer Counter generic class to create an
 ## Designed to Adapt
 It's not the fastest software that survives, nor the most elegant, but the one most adaptable to change. Change is that one constant in software we must contend with. Unfortunately software changes often mean breaking compatibility, introducing bugs or requiring a lot of cascading changes. As projects grow in size, they often become rigid and harder to change.
 
-AppAssembly supports incremental software development in a number of ways. The **Type System** ensures that the underlying assumptions of the system remain true through changes. **Multi-methods** allow flexible compatibility for APIs. **Extension Functions** keeps libraries small and allow you adapt them to the needs of your project. **Contextual Behaviors** allow you to manage cross-cutting concerns without rippling changes. **Cross-Project Refactoring** extends tooling support for common refactoring tasks to work across project and library boundaries, without requiring manual effort.
+Informal supports incremental software development in a number of ways. The **Type System** ensures that the underlying assumptions of the system remain true through changes. **Multi-methods** allow flexible compatibility for APIs. **Extension Functions** keeps libraries small and allow you adapt them to the needs of your project. **Contextual Behaviors** allow you to manage cross-cutting concerns without rippling changes. **Cross-Project Refactoring** extends tooling support for common refactoring tasks to work across project and library boundaries, without requiring manual effort.
 
 
 ### Extensible Modules with Cross-Project Refactoring
