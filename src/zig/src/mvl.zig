@@ -296,7 +296,3 @@ test "Lex string" {
     });
 }
 
-
-test "Lex blocks" {
-    // Indentation aware block handling. 
-}
