@@ -1,7 +1,8 @@
 <img src="https://raw.githubusercontent.com/Feni/informal-landing/master/static/images/informal_logo.png" width="200" alt="Informal lang logo">
 
 
-# The Informal Programming Language.
+<h1 style="border-bottom: 1px solid rgba(231, 76, 60, 0.35);">The Informal Programming Language.</h1>
+
 Informal is a flexible, general purpose programming language targeting WebAssembly.
 
 This language is in active development and not ready for use yet. Star and watch this repo on GitHub and check back soon!
