@@ -61,4 +61,22 @@ Symbols - Symbols are immutable constants used to represent a value or identifie
 Small Strings - Short strings appear often in code and text-processing. Frequently used words tend to be short. You can represent about 76% of common English words with 6 characters and 84% with 7 ([frequency reference](https://math.wvu.edu/~hdiamond/Math222F17/Sigurd_et_al-2004-Studia_Linguistica.pdf)). 48 bits allow us to store 2-6 Unicode characters (1-3 bytes each) or nearly 7 ASCII characters (without the full range for the last bit).
 This idea's not new - Mike Pall implemented this for [LuaJIT](http://lua-users.org/wiki/FastStringPatch) (he also popularized the use of NaN tagging and other tricks used here). 
 
+### Wrapped Primitive Data
+Many types of objects serve as wrappers around primitive types. 
+A Point class could be represented as an array of 3 integers or an object with x, y, z.
+Dates, colors, complex numbers and many other types are similar wrappers around primitive types. 
+We can reference these objects while preserving the weapper type using this format. 
+
+3 bit type. 29 bit pointer. 16 bit object type. 3 bit attribute index. 
+You can encode wrapped objects with up to 8 attributes in this format.
+The minimum object size does not apply to these primitive objects, allowing for compact
+1 word or 2 word objects with zero object overhead. 
+
+### Wrapped Primitive Arrays
+3 bit type, 26 bit pointer, 16 bit object type, 6 bit length. 
+References small arrays of primitive objects. With a 512 bit alignment (i.e. larger than max primitive wrapped object). 
+Can address up fo 64 elements. 
+
+
+
 
