@@ -1,7 +1,7 @@
-<img src="https://raw.githubusercontent.com/Feni/informal-landing/master/static/images/informal_logo.png" width="200" alt="Informal lang logo">
+<img src="https://raw.githubusercontent.com/Feni/informal-landing/master/static/images/informal_logo.png" width="205" alt="Informal lang logo">
 
 
-<h1 style="border-bottom: 1px solid rgba(231, 76, 60, 0.35);">The Informal Programming Language.</h1>
+# The Informal Programming Language.
 
 Informal is a flexible, general purpose programming language targeting WebAssembly.
 
@@ -78,7 +78,26 @@ DateYMD {
     day string.Digits(2)
 }
 
+// Use destructuring to unwrap the data by patterns, without regex.
 d: DateYMD = "2023-03-05"
+
+// Functional primitives.
+// Use "each" to map over each element of an array. 
+double_array = double(each array)
+
+
+// Anonymous functions
+x: x + 1
+// You can avoid naming x in these cases.
+array.map(_ + 1)
+
+
+// Macros and meta programming
+// Macros can be defined as just regular functions.
+
+fun cache(code: LazyExpression) LazyExpression {
+    code.arguments[1]
+}
 
 ```
 
