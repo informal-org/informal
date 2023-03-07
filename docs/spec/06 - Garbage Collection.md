@@ -24,12 +24,6 @@ Each region is class-specific - this allows us to skip storing per-object header
 Each class region forms a linked list structure to grow, with the class pointing to the latest region, and each region pointing to the previous region for that class.
 Objects are always allocated linearly in the latest slot. They’re never used to “fill in” spaces that have been freed. All objects are thus stored in a sorted order by their Object ID. 
 
-## Process Garbage Collection
-Processes in Informal are meant to be lightweight and ephemeral. 
-Each process’s memory is completely private - all references to it will be completely local.
-When a process terminates, all of its local heap memory can thus be freed. The data portion of the heap is freed immediately without any additional scanning. 
-Pointers are managed separately. Each pointer has a 1 bit reference counter which indicates whether it’s the sole, exclusive reference to an object on the heap. This bit is reset before the pointer is ever shared externally with other processes. If this is the sole reference to that object on the shared heap, we mark the underlying object as garbage (but trace and sweep it on the next minor collection to avoid tiny collections). Since a large share of objects are temporary with single owners, this allows us to free them eagerly without the typical overhead of reference counting.
-
 ## Heap Garbage Collection
 Since all objects are allocated per-class, and since the schema for classes are known at compile time, the search space for each mark and sweep can be reduced to - the classes that reference this object and currently running processes. The linearity property can also be used to reduce the searchspace of potential references.
 We don’t have direct visibility into what a process is doing, and what pointers may exist in its memory. So instead, we rely on the compiler to make this data visible for us by adding bookkeeping code. Complete visibility into all objects referenced by a process will be inefficient and transient - imagine all of the pointers it goes through in a single hot loop iterating over an array. Instead, the only things a process can access are
@@ -40,6 +34,17 @@ And any other objects statically known at compile time.
 
 Given this, the only metadata that a stack needs to emit are its reference parameters and new allocations it makes. This metadata is also used to implement coroutines. 
 
+
+## Process Garbage Collection
+Processes in Informal are meant to be lightweight and ephemeral. 
+Each process’s memory is completely private - nothing external can reference objects in a process's memory.
+During it's lifetime, a process will manage its own memory. This internal heap-space acts as a nursery for newly created objects which may be short-lived, before moving to the long-term heap. These temporary objects do not need an Object ID, reducing bookkeeping overhead for longer lived processes.
+Given that objects in the process heap are exclusive to the process, it's an ideal fit for reference counting without requiring any locking or synchronization. 
+Since processes are transient, it's more efficient to defer freeing until necessary. Since we can't modify the values on the stack, objected are not moved while the process is active and dead space is re-used by the allocator. Instead, when the process yields execution back to the scheduler, it offloads it's stackframe and does a compacts its memory with rewrites so everything starts fresh when it resumes.
+Once a process terminates, all of its local heap memory can be freed. The data portion of the heap is freed immediately without any additional scanning. 
+Pointers are managed separately. Each pointer has a 1 bit reference counter which indicates whether it’s the sole, exclusive reference to an object on the heap. This bit is reset before the pointer is ever shared externally with other processes. If this is the sole reference to that object on the shared heap, we mark the underlying object as garbage (but trace and sweep it on the next minor collection to avoid tiny collections). Since a large share of objects are temporary with single owners, this allows us to free them eagerly without the typical overhead of reference counting.
+
+
 ## Compaction
 Having objects laid out compactly in memory improves how much useful data is loaded into cache. As objects are garbage collected, memory gets fragmented - with live objects intermixed with dead objects. Typically, this garbage space is re-used to allocate new objects, at the cost of losing linearity and locality. Additionally, if we move any objects to compact the space, any direct pointers to that object would need to be rewritten - which requires suspending processes and accessing their stack (two things we cannot do).
 Instead, our compaction scheme relies on the fact that there are no direct pointers in Informal. All pointers reference the region ID and the object ID within that region. This can be used to efficiently find each object, even after it’s been moved. We can thus compact as needed, without requiring major GC pauses or rewriting objects that a process owns. 
@@ -49,7 +54,7 @@ Since processes may continue to access a region while it’s being compacted, co
 ## Pointer Lookup
 Each pointer contains metadata about the region pointer and the object index. The region pointer is simply a 62 KB aligned pointer with the bottom bits chopped off - we can directly expand it and access the region header without any layers of indirection. 
 But how do we know where the object is within the region? Since there are no object headers, the data will appear as just a contiguous blob of bytes without a clear differentiator to search by. 
-We instead rely on the region header to efficiently locate a particular object. The region header maintains a smallest_object_id and a bitset graveyard of collected objects which have now been compacted into. 
+We instead rely on the region header to efficiently locate a particular object. The region header maintains a smallest_object_id and a bitset graveyard of collected objects which are now dead and compacted. The post-compaction location of a given object ID can be computed from this using a subtraction, mask and popcount (indicating how many slots it has shifted over).
 
 
 ## (Almost) Pauseless
