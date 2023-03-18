@@ -74,7 +74,7 @@ fn isObjectReference(val: u64) bool {
     return isPrimitiveType(TYPE_OBJECT, val);
 }
 
-fn isArray(val: u64) bool {
+fn isObjectArray(val: u64) bool {
     return isPrimitiveType(TYPE_OBJECT_ARRAY, val);
 }
 
@@ -95,21 +95,74 @@ fn isString(val: u64) bool {
     return isInlineString(val);
 }
 
+fn createObject(region: u16, idx: u24, attr: u8) u64 {
+    return TYPE_OBJECT | (@as(u64, region) << 32) | (@as(u64, idx) << 8) | attr;
+}
 
+fn createObjectArray(region: u16, idx: u24, attr: u8) u64 {
+    return TYPE_OBJECT_ARRAY | (@as(u64, region) << 32) | (@as(u64, idx) << 8) | attr;
+}
+
+fn createInlineObject(objType: u16, payload: u32) u64 {
+    return TYPE_INLINE_OBJECT | (@as(u64, objType) << 32) | payload;
+}
+
+fn createWrapperObject(objType: u16, pointer: u29, length: u3) u64 {
+    return TYPE_INLINE_OBJECT | (@as(u64, objType) << 32) | (@as(u64, pointer) << 3) | length;
+}
+
+fn createPrimitiveArray(pointer: u29, length: u19) u64 {
+    return TYPE_PRIMITIVE_ARRAY | (@as(u64, pointer) << 19) | length;
+}
+
+fn createInlineString(str: []const u8) u64 {
+    // var payload: u64 = 0;
+    // if(str.len > 6) unreachable;
+    // // 
+    // This ends up reversing the string... 
+    // for(str) |c, i| {
+    //     payload |= @as(u64, c) << (i * 8);
+    // }
+    // var payload = std.mem.bytesAsValue(u64, str);
+    var payload: u64 = TYPE_INLINE_STRING;
+    // 0..2 = NaN header. Copy string to payload bytes.
+    std.mem.copy(u8, std.mem.asBytes(&payload)[1..8], str);
+    return payload;
+}
+
+fn decodeInlineString(val: u64) []const u8 {
+    // TODO: Truncate to 6 bytes.
+    // asBytes - keeps original pointer. toBytes - copies.
+    return std.mem.asBytes(val & MASK_PAYLOAD);
+}
 
 
 const expect = std.testing.expect;
-test "Type expressions" {
+const print = std.debug.print;
+
+test "Num type check" {
     const num: u64 = @bitCast(u64, @as(f64, 3.14159265359));
     try expect(true == isNumber(num));
     try expect(false == isNan(num));
     try expect(false == isObjectReference(num));
-    try expect(false == isArray(num));
+    try expect(false == isObjectArray(num));
     try expect(false == isInlineObject(num));
     try expect(false == isPrimitiveArray(num));
     try expect(false == isInlineString(num));
     try expect(false == isString(num));
+}
 
-    
+test "Object representation" {
+    const obj = createObject(0x1234, 0x0300_03, 0x05);
+    print("\nObject representation {x}\n", .{ obj });
+    try expect(obj == 0x7FF0_1234_0300_03_05);
+}
 
+test "String representation" {
+    const str = createInlineString("Hello");
+    print("\nString representation {x}\n", .{ str });
+    try expect(str == 0x7FF6_4865_6C6C_6F00_0000_0000);
+    // const str2 = decodeInlineString(str);
+    // print("\nString representation {s}\n", .{ str2 });
+    // try expect(std.mem.eql(u8, str2, "Hello"));
 }
