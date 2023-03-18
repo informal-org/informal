@@ -48,7 +48,6 @@ const MASK_LOW19: u64 = 0x0000_0000_0007_FFFF;
 const MASK_MID29: u64 = 0x0000_0000_FFFF_FFF8;
 const MASK_LOW3: u64 = 0x0000_0000_0000_0007;
 
-
 const TYPE_OBJECT: u64 = 0x7FF0_0000_0000_0000;         // 000  
 const TYPE_OBJECT_ARRAY: u64 = 0x7FF1_0000_0000_0000;   // 001
 const TYPE_INLINE_OBJECT: u64 = 0x7FF2_0000_0000_0000;  // 010
@@ -57,28 +56,60 @@ const TYPE_PRIMITIVE_ARRAY: u64 = 0x7FF5_0000_0000_0000; // 101
 const TYPE_INLINE_STRING: u64 = 0x7FF6_0000_0000_0000;  // 110
 const TYPE_INLINE_BITSET: u64 = 0x7FF7_0000_0000_0000;  // 111
 
-
+fn isPrimitiveType(comptime pattern: u64, val: u64) bool {
+    return (val & pattern) == pattern;
+}
 
 fn isNan(val: u64) bool {
     // Any NaN - quiet or signaling - either positive or negative.
-    return (val & UNSIGNED_ANY_NAN) == UNSIGNED_ANY_NAN; 
+    return isPrimitiveType(UNSIGNED_ANY_NAN, val);
 }
 
 fn isNumber(val: u64) bool {
     // val != val. Or check bit pattern.
-    return (val & UNSIGNED_ANY_NAN) != UNSIGNED_ANY_NAN; 
+    return !isNan(val);
 }
+
+fn isObjectReference(val: u64) bool {
+    return isPrimitiveType(TYPE_OBJECT, val);
+}
+
+fn isArray(val: u64) bool {
+    return isPrimitiveType(TYPE_OBJECT_ARRAY, val);
+}
+
+fn isInlineObject(val: u64) bool {
+    return isPrimitiveType(TYPE_INLINE_OBJECT, val);
+}
+
+fn isPrimitiveArray(val: u64) bool {
+    return isPrimitiveType(TYPE_PRIMITIVE_ARRAY, val);
+}
+
+fn isInlineString(val: u64) bool {
+    return isPrimitiveType(TYPE_INLINE_STRING, val);
+}
+
+fn isString(val: u64) bool {
+    // TODO: Handle Object array / Primitive array pointers.
+    return isInlineString(val);
+}
+
+
 
 
 const expect = std.testing.expect;
 test "Type expressions" {
-    // We express these as expressions above to make the bit patterns more visually obvious.
-    try expect(0x7FF0_0000_0000_0000 == TYPE_OBJECT);
-    try expect(0x7FF1_0000_0000_0000 == TYPE_OBJECT_ARRAY);
-    try expect(0x7FF2_0000_0000_0000 == TYPE_INLINE_OBJECT);
-    try expect(0x7FF5_0000_0000_0000 == TYPE_PRIMITIVE_ARRAY);
-    try expect(0x7FF6_0000_0000_0000 == TYPE_INLINE_STRING);
-    try expect(0x7FF7_0000_0000_0000 == TYPE_INLINE_BITSET);
+    const num: u64 = @bitCast(u64, @as(f64, 3.14159265359));
+    try expect(true == isNumber(num));
+    try expect(false == isNan(num));
+    try expect(false == isObjectReference(num));
+    try expect(false == isArray(num));
+    try expect(false == isInlineObject(num));
+    try expect(false == isPrimitiveArray(num));
+    try expect(false == isInlineString(num));
+    try expect(false == isString(num));
 
+    
 
 }
