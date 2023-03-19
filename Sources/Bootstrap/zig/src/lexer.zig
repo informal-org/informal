@@ -1,44 +1,11 @@
 const std = @import("std");
 const val = @import("value.zig");
+const tok = @import("token.zig");
 const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
 const print = std.debug.print;
 
-const TokenKind = enum {
-    number,
-    symbol, // Recognized tokens.
-    string, // A quoted string literal.
-    identifier,
-    delimiter,
-    boolean,
-    comment,
-};
 
-const Symbol = enum { none, comma, equals, colon, semi_colon, open_paren, close_paren, open_sqbr, close_sqbr, open_brace, close_brace };
-
-const SYMBOL_COMMA = val.createStaticSymbol(',');
-const SYMBOL_EQUALS = val.createStaticSymbol('=');
-const SYMBOL_COLON = val.createStaticSymbol(':');
-const SYMBOL_SEMI_COLON = val.createStaticSymbol(';');
-const SYMBOL_OPEN_PAREN = val.createStaticSymbol('(');
-const SYMBOL_CLOSE_PAREN = val.createStaticSymbol(')');
-const SYMBOL_OPEN_SQBR = val.createStaticSymbol('[');
-const SYMBOL_CLOSE_SQBR = val.createStaticSymbol(']');
-const SYMBOL_OPEN_BRACE = val.createStaticSymbol('{');
-const SYMBOL_CLOSE_BRACE = val.createStaticSymbol('}');
-// const SYMBOL_DOT = val.createStaticSymbol('.');
-// const SYMBOL_QUOTE = val.createStaticSymbol('"');
-// const SYMBOL_SINGLE_QUOTE = val.createStaticSymbol('\'');
-// const SYMBOL_BACKSLASH = val.createStaticSymbol('\\');
-
-const T_TOKEN: u16 = 0x0010;
-const T_IDENTIFIER: u16 = 0x0011;
-const T_COMMENT: u16 = 0x0012;
-
-
-fn createIdentifier(start: u24, length: u8) u64 {
-    return val.createObject(T_IDENTIFIER, start, length);
-}
 
 pub const Lexer = struct {
     const Self = @This();
@@ -136,7 +103,7 @@ pub const Lexer = struct {
         _ = self.seek_till_delimiter();
         if(self.index - start > 255) { unreachable; }
 
-        return createIdentifier(@truncate(u24, start), @truncate(u8, (self.index - start)));
+        return tok.createIdentifier(@truncate(u24, start), @truncate(u8, (self.index - start)));
     }
 
     fn skip(self: *Lexer) ?u64 {
@@ -147,7 +114,7 @@ pub const Lexer = struct {
     pub fn lex(self: *Lexer) !void {
         while (self.index < self.buffer.len) {
             var ch = self.buffer[self.index];
-            var tok: ?u64 = null;
+            var token: ?u64 = null;
             // Ignore whitespace.
             _ = switch (ch) {
                 ' ', '\t' => {
@@ -156,10 +123,10 @@ pub const Lexer = struct {
                     _ = self.skip();
                 },
                 '0'...'9', '.' => {
-                    tok = self.token_number();
+                    token = self.token_number();
                 },
                 '"' => {
-                    tok = self.token_string();
+                    token = self.token_string();
                 },
                 else => {
                     // Capture comments.
@@ -167,12 +134,12 @@ pub const Lexer = struct {
                         self.index += 2; // Skip past '//'
                         _ = self.seek_till("\n");
                     } else {
-                        tok = self.token_symbol();
+                        token = self.token_symbol();
                     }
                 },
             };
 
-            if (tok) |t| {
+            if (token) |t| {
                 try self.tokens.append(t);
             }
         }
@@ -185,9 +152,6 @@ const expect = std.testing.expect;
 
 fn testTokenEquals(lexed: u64, expected: u64) !void {
     try expect(lexed == expected);
-    // try expect(lexed.kind == expected.kind);
-    // try expect(lexed.start == expected.start);
-    // try expect(lexed.value == expected.value);
 }
 
 fn testLexToken(buffer: []const u8, expected: []const u64) !void {
@@ -203,11 +167,13 @@ fn testLexToken(buffer: []const u8, expected: []const u64) !void {
     try expect(lexer.tokens.items.len == expected.len);
 
     for (lexer.tokens.items, 0..) |lexedToken, i| {
-        // TODO: IF delimiter
-        // if (expected[i] == TokenKind.delimiter) {
-        //     print("Delimiter {c} {c}\n", .{ @truncate(u8, lexedToken.value), @truncate(u8, expected[i].value) });
-        // }
-        print("Lexerout {x}.\nExpected {x}\n\n", .{ lexedToken, expected[i] });
+        print("Lexerout ", .{});
+        tok.print_token(lexedToken, buffer);
+        print(".\nExpected ", .{});
+        tok.print_token(expected[i], buffer);
+        print(".\n\n", .{});
+
+
         try testTokenEquals(lexedToken, expected[i]);
     }
 }
@@ -223,42 +189,12 @@ test "Lex delimiters and identifiers" {
     // (a, bb):"
     // 01234567
     try testLexToken("(a, bb):", &[_]u64{
-        SYMBOL_OPEN_PAREN, 
-        val.createObject(T_IDENTIFIER, 1, 1),
-        SYMBOL_COMMA,
-        val.createObject(T_IDENTIFIER, 4, 2),
-        SYMBOL_CLOSE_PAREN,
-        SYMBOL_COLON,
-        // .{
-        //     .start = 0,
-        //     .kind = TokenKind.delimiter,
-        //     .value = '(',
-        // },
-        // .{
-        //     .start = 1,
-        //     .kind = TokenKind.identifier,
-        //     .value = 2, // ?
-        // },
-        // .{
-        //     .start = 2,
-        //     .kind = TokenKind.delimiter,
-        //     .value = ',',
-        // },
-        // .{
-        //     .start = 4,
-        //     .kind = TokenKind.identifier,
-        //     .value = 6,
-        // },
-        // .{
-        //     .start = 6,
-        //     .kind = TokenKind.delimiter,
-        //     .value = ')',
-        // },
-        // .{
-        //     .start = 7,
-        //     .kind = TokenKind.delimiter,
-        //     .value = ':',
-        // },
+        tok.SYMBOL_OPEN_PAREN, 
+        val.createObject(tok.T_IDENTIFIER, 1, 1),
+        tok.SYMBOL_COMMA,
+        val.createObject(tok.T_IDENTIFIER, 4, 2),
+        tok.SYMBOL_CLOSE_PAREN,
+        tok.SYMBOL_COLON,
     });
 }
 
@@ -266,9 +202,6 @@ test "Lex string" {
     // "Hello"
     // 0123456
     try testLexToken("\"Hello\"", &[_]u64{
-        // .start = 1, // Indexes should not contain the quote char.
-        // .kind = TokenKind.string,
-        // .value = 5,
-        val.createPrimitiveArray(1, 5)
+        val.createPrimitiveArray(1, 5)  // Doesn't include quotes.
     });
 }
