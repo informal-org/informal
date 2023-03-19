@@ -116,24 +116,19 @@ fn createPrimitiveArray(pointer: u29, length: u19) u64 {
 }
 
 fn createInlineString(str: []const u8) u64 {
-    // var payload: u64 = 0;
-    // if(str.len > 6) unreachable;
-    // // 
-    // This ends up reversing the string... 
-    // for(str) |c, i| {
-    //     payload |= @as(u64, c) << (i * 8);
-    // }
-    // var payload = std.mem.bytesAsValue(u64, str);
+    // Inline small strings of up to 6 bytes.
+    // The representation does reverse the order of bytes.
     var payload: u64 = TYPE_INLINE_STRING;
-    // 0..2 = NaN header. Copy string to payload bytes.
-    std.mem.copy(u8, std.mem.asBytes(&payload)[1..8], str);
+    if(str.len > 6) unreachable;
+    // No need for slicing. MaxLen of 6 ensures the header is preserved.
+    std.mem.copy(u8, std.mem.asBytes(&payload), str);
     return payload;
 }
 
-fn decodeInlineString(val: u64) []const u8 {
+fn decodeInlineString(val: u64, out: *[8]u8) void {
     // TODO: Truncate to 6 bytes.
     // asBytes - keeps original pointer. toBytes - copies.
-    return std.mem.asBytes(val & MASK_PAYLOAD);
+    return std.mem.copy(u8, out, std.mem.asBytes(&(val & MASK_PAYLOAD)));
 }
 
 
@@ -159,10 +154,12 @@ test "Object representation" {
 }
 
 test "String representation" {
+    // Hello = 0x48 ox65 0x6c 0x6c 0x6f 0x00
     const str = createInlineString("Hello");
     print("\nString representation {x}\n", .{ str });
-    try expect(str == 0x7FF6_4865_6C6C_6F00_0000_0000);
-    // const str2 = decodeInlineString(str);
-    // print("\nString representation {s}\n", .{ str2 });
-    // try expect(std.mem.eql(u8, str2, "Hello"));
+    try expect(str == 0x7FF6_006f_6c6c_6548);
+    var str2 = std.mem.zeroes([8]u8);
+    decodeInlineString(str, &str2);
+    print("\nString representation {s}\n", .{ str2 });
+    try expect(std.mem.eql(u8, str2[0..5], "Hello"));
 }
