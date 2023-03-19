@@ -56,6 +56,18 @@ const TYPE_PRIMITIVE_ARRAY: u64 = 0x7FF5_0000_0000_0000; // 101
 const TYPE_INLINE_STRING: u64 = 0x7FF6_0000_0000_0000;  // 110
 const TYPE_INLINE_BITSET: u64 = 0x7FF7_0000_0000_0000;  // 111
 
+
+/// Sub-types of inline objects
+const T_POINTER: u16 = 0x0000;
+// Boolean types are just symbols.
+const T_SYMBOL: u16 = 0x0001;
+const T_STRING: u16 = 0x0003;
+const T_INT: u16 = 0x0002;
+
+// User-defined symbols begin at 0x1000 = 4k reserved symbols.
+var nextSymbol: u16 = 0x1000;
+
+
 fn isPrimitiveType(comptime pattern: u64, val: u64) bool {
     return (val & pattern) == pattern;
 }
@@ -131,6 +143,18 @@ fn decodeInlineString(val: u64, out: *[8]u8) void {
     return std.mem.copy(u8, out, std.mem.asBytes(&(val & MASK_PAYLOAD)));
 }
 
+fn createStaticSymbol(comptime val: u32) u64 {
+    return createInlineObject(T_SYMBOL, val);
+}
+
+fn createSymbol() u64 {
+    nextSymbol += 1;
+    return createInlineObject(T_SYMBOL, nextSymbol);
+}
+
+const SYMBOL_FALSE = createStaticSymbol(0);
+const SYMBOL_TRUE = createStaticSymbol(1);
+const SYMBOL_NONE = createStaticSymbol(2);
 
 const expect = std.testing.expect;
 const print = std.debug.print;
