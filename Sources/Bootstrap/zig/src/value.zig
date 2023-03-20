@@ -48,86 +48,118 @@ const MASK_LOW19: u64 = 0x0000_0000_0007_FFFF;
 const MASK_MID29: u64 = 0x0000_0000_FFFF_FFF8;
 const MASK_LOW3: u64 = 0x0000_0000_0000_0007;
 
-const TYPE_OBJECT: u64 = 0x7FF0_0000_0000_0000;         // 000  
-const TYPE_OBJECT_ARRAY: u64 = 0x7FF1_0000_0000_0000;   // 001
-const TYPE_INLINE_OBJECT: u64 = 0x7FF2_0000_0000_0000;  // 010
+pub const TYPE_OBJECT: u64 = 0x7FF0_0000_0000_0000;         // 000  
+pub const TYPE_OBJECT_ARRAY: u64 = 0x7FF1_0000_0000_0000;   // 001
+pub const TYPE_INLINE_OBJECT: u64 = 0x7FF2_0000_0000_0000;  // 010
 // 011, 100 - Unused
-const TYPE_PRIMITIVE_ARRAY: u64 = 0x7FF5_0000_0000_0000; // 101
-const TYPE_INLINE_STRING: u64 = 0x7FF6_0000_0000_0000;  // 110
-const TYPE_INLINE_BITSET: u64 = 0x7FF7_0000_0000_0000;  // 111
+pub const TYPE_PRIMITIVE_ARRAY: u64 = 0x7FF5_0000_0000_0000; // 101
+pub const TYPE_INLINE_STRING: u64 = 0x7FF6_0000_0000_0000;  // 110
+pub const TYPE_INLINE_BITSET: u64 = 0x7FF7_0000_0000_0000;  // 111
 
 
 /// Sub-types of inline objects
-const T_POINTER: u16 = 0x0000;
+pub const T_POINTER: u16 = 0x0000;
 // Boolean types are just symbols.
-const T_SYMBOL: u16 = 0x0001;
-const T_STRING: u16 = 0x0003;
-const T_INT: u16 = 0x0002;
+pub const T_SYMBOL: u16 = 0x0001;
+pub const T_STRING: u16 = 0x0003;
+pub const T_INT: u16 = 0x0002;
 
 // User-defined symbols begin at 0x1000 = 4k reserved symbols.
-var nextSymbol: u16 = 0x1000;
+var symbolIdx: u16 = 0x1000;
 
 
 fn isPrimitiveType(comptime pattern: u64, val: u64) bool {
     return (val & pattern) == pattern;
 }
 
-fn isNan(val: u64) bool {
+pub fn getPrimitiveType(val: u64) u64 {
+    return val & MASK_TYPE;
+}
+
+pub fn getObjectType(val: u64) u16 {
+    return @truncate(u16, (val & MASK_HIGH16) >> 32);
+}
+
+pub fn getObjectPtr(val: u64) u24 {
+    return @truncate(u24, (val & MASK_MID24) >> 8);
+}
+
+pub fn getObjectLength(val: u64) u8 {
+    return @truncate(u8, val & MASK_LOW8);
+}
+
+pub fn getPrimitiveArrayPtr(val: u64) u64 {
+    return (val & MASK_HIGH29) >> 19;
+}
+
+pub fn getPrimitiveArrayLength(val: u64) u64 {
+    return val & MASK_LOW19;
+}
+
+pub fn getObjectPayload(val: u64) u64 {
+    return val & MASK_LOW32;
+}
+
+pub fn getInlinePayload(val: u64) u64 {
+    return val & MASK_PAYLOAD;
+}
+
+pub fn isNan(val: u64) bool {
     // Any NaN - quiet or signaling - either positive or negative.
     return isPrimitiveType(UNSIGNED_ANY_NAN, val);
 }
 
-fn isNumber(val: u64) bool {
+pub fn isNumber(val: u64) bool {
     // val != val. Or check bit pattern.
     return !isNan(val);
 }
 
-fn isObjectReference(val: u64) bool {
+pub fn isObjectReference(val: u64) bool {
     return isPrimitiveType(TYPE_OBJECT, val);
 }
 
-fn isObjectArray(val: u64) bool {
+pub fn isObjectArray(val: u64) bool {
     return isPrimitiveType(TYPE_OBJECT_ARRAY, val);
 }
 
-fn isInlineObject(val: u64) bool {
+pub fn isInlineObject(val: u64) bool {
     return isPrimitiveType(TYPE_INLINE_OBJECT, val);
 }
 
-fn isPrimitiveArray(val: u64) bool {
+pub fn isPrimitiveArray(val: u64) bool {
     return isPrimitiveType(TYPE_PRIMITIVE_ARRAY, val);
 }
 
-fn isInlineString(val: u64) bool {
+pub fn isInlineString(val: u64) bool {
     return isPrimitiveType(TYPE_INLINE_STRING, val);
 }
 
-fn isString(val: u64) bool {
+pub fn isString(val: u64) bool {
     // TODO: Handle Object array / Primitive array pointers.
     return isInlineString(val);
 }
 
-fn createObject(region: u16, idx: u24, attr: u8) u64 {
+pub fn createObject(region: u16, idx: u24, attr: u8) u64 {
     return TYPE_OBJECT | (@as(u64, region) << 32) | (@as(u64, idx) << 8) | attr;
 }
 
-fn createObjectArray(region: u16, idx: u24, attr: u8) u64 {
+pub fn createObjectArray(region: u16, idx: u24, attr: u8) u64 {
     return TYPE_OBJECT_ARRAY | (@as(u64, region) << 32) | (@as(u64, idx) << 8) | attr;
 }
 
-fn createInlineObject(objType: u16, payload: u32) u64 {
+pub fn createInlineObject(objType: u16, payload: u32) u64 {
     return TYPE_INLINE_OBJECT | (@as(u64, objType) << 32) | payload;
 }
 
-fn createWrapperObject(objType: u16, pointer: u29, length: u3) u64 {
+pub fn createWrapperObject(objType: u16, pointer: u29, length: u3) u64 {
     return TYPE_INLINE_OBJECT | (@as(u64, objType) << 32) | (@as(u64, pointer) << 3) | length;
 }
 
-fn createPrimitiveArray(pointer: u29, length: u19) u64 {
+pub fn createPrimitiveArray(pointer: u29, length: u19) u64 {
     return TYPE_PRIMITIVE_ARRAY | (@as(u64, pointer) << 19) | length;
 }
 
-fn createInlineString(str: []const u8) u64 {
+pub fn createInlineString(str: []const u8) u64 {
     // Inline small strings of up to 6 bytes.
     // The representation does reverse the order of bytes.
     var payload: u64 = TYPE_INLINE_STRING;
@@ -137,24 +169,33 @@ fn createInlineString(str: []const u8) u64 {
     return payload;
 }
 
-fn decodeInlineString(val: u64, out: *[8]u8) void {
+pub fn decodeInlineString(val: u64, out: *[8]u8) void {
     // TODO: Truncate to 6 bytes.
     // asBytes - keeps original pointer. toBytes - copies.
     return std.mem.copy(u8, out, std.mem.asBytes(&(val & MASK_PAYLOAD)));
 }
 
-fn createStaticSymbol(comptime val: u32) u64 {
+pub fn createStaticSymbol(comptime val: u32) u64 {
     return createInlineObject(T_SYMBOL, val);
 }
 
-fn createSymbol() u64 {
-    nextSymbol += 1;
-    return createInlineObject(T_SYMBOL, nextSymbol);
+pub fn createSymbol(val: u32) u64 {
+    return createInlineObject(T_SYMBOL, val);
 }
 
-const SYMBOL_FALSE = createStaticSymbol(0);
-const SYMBOL_TRUE = createStaticSymbol(1);
-const SYMBOL_NONE = createStaticSymbol(2);
+pub fn nextType() u16 {
+    symbolIdx = symbolIdx + 1;
+    return symbolIdx;
+}
+
+pub fn nextSymbol() u64 {
+    symbolIdx += 1;
+    return createInlineObject(T_SYMBOL, symbolIdx);
+}
+
+pub const SYMBOL_FALSE = createStaticSymbol(0);
+pub const SYMBOL_TRUE = createStaticSymbol(1);
+pub const SYMBOL_NONE = createStaticSymbol(2);
 
 const expect = std.testing.expect;
 const print = std.debug.print;
