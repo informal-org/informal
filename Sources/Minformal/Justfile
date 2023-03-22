@@ -1,0 +1,25 @@
+run:
+    wasmtime run minformal.cwasm --allow-precompiled --invoke add 2 3
+
+compile:
+    wabt wat2wasm minformal.wat
+
+view:
+    wat2wasm add.wat -v
+
+dis:
+    wasm-objdump add.wasm -d
+
+inspect:
+    wasmer inspect add.wasm
+
+compile-native:
+    wasmtime compile --target x86_64-unknown-linux --cranelift-enable skylake add.wat
+
+bench:
+    hyperfine --warmup 3 'wasmtime run add1.cwasm --allow-precompiled --invoke add 2 3'
+    # hyperfine --warmup 3 'wasmer run add2.wasm -i add 2 3'
+
+setup:
+    sudo apt install wabt
+    sudo apt install wasmtime
