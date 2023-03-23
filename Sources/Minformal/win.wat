@@ -5,4 +5,5 @@
            (struct.get $Point $x (local.get 0))
            (struct.get $Point $y (local.get 0)))
    )
+   (type $Point2 (struct (field $x2 i32) (field $y2 i32)))
 )
