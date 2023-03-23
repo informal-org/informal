@@ -5,7 +5,7 @@
 
 Informal is a flexible, general purpose programming language targeting WebAssembly.
 
-This language is in active development and not ready for use yet. Star and watch this repo on GitHub and check back soon!
+This language is in active, early stage development. We welcome you to play with it for any hobby projects and provide feedback, but it's not ready for serious production use yet. Star and watch this repo on GitHub and check back soon!
 
 ## A pattern based language
 Everything in Informal is built on a single concept: Pattern Matching. Patterns generalize the functional mapping from input -> output, define the structural mapping for types and the relations between the two. That means that you can manipulate any functionality, just as flexibly as data or declaratively query for results meeting the specified constraints.
