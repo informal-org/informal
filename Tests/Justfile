@@ -1,0 +1,6 @@
+test:
+    npm run test
+
+install:
+    nvm install v19.8.1
+    nvm use v19.8.1

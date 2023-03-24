@@ -24,28 +24,27 @@ CommaSep: (Atom ',' CommaSep) | Atom
 Call: IdentifierExpr '(' CommaSep ')'
 primitive types: u64
 
+---------
+Int a = 0
+Int b = 1
+Int add(Int x, Int y): __primitive_add(x, y)
+add(a, b)
 
-No pattern matching or Macros.
-No floats.
-No math operators or precedence (use functions)
-No array declaration syntax or indexing syntax (use functions)
-No structs - use arrays.
-No type checking.
-No out-of-order definitions.
-No error handling.
-NO modules.
 
 
 ## Minformal
 
 Everything in Min syntax, plus
 
-pattern matching
 macros
+pattern matching
+dynamic types
 arrays
 floats
 operator precedence
 conditions, loops.
 Imports
+type checking
+structs
 
 IdentifierExpr: Identifier '.' (IdentifierExpr | Identifier)
