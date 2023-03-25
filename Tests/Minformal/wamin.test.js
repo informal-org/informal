@@ -39,7 +39,7 @@ function writeStringToMemory(string, memory, offset) {
 
 test('Runs lexer', () => {
     let mem = wamin.memory;
-    writeStringToMemory("1, 2, 3", mem, 0);
+    // writeStringToMemory("1, 2, 3", mem, 0);
     const lex = wamin.init(0);
 
     // expect(wamin.add(1, 2)).toBe(3);

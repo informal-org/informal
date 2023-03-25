@@ -2,6 +2,9 @@
     (memory 1)
     (export "memory" (memory 0))
 
+
+
+
 	(type $Tokens (array (mut i64)))		;; Stack of AST tokens as they're processed.
 	(type $Lexer (struct 
 		(field $buffer (mut i32))		;; Pointer to the input string base.
@@ -9,14 +12,20 @@
 		(field $tokens (ref $Tokens))
 	))
 
+	;; (export "WasmTokens" (type $Tokens))
+
 	;; Initialize a new Lexer instance.
-	(func $init (export "init") (param $bufbase i32) (result (ref $Lexer))
-		(struct.new $Lexer 
+	(func $init (export "init") (param $bufbase i32) (result externref)
+		(local $newLex (ref $Lexer))
+		(local.set $newLex (struct.new $Lexer 
 			(local.get $bufbase)
 			(i32.const 0)
 			;; Element, length
 			(array.new $Tokens (i64.const 0) (i32.const 0))
-		)
+		))
+		(extern.externalize (local.get $newLex))
+		;; (local.get $newLex)
+		;; (i32.const 0)
 	)
 
 	(func $next (param $self (ref $Lexer)) (result i32)
