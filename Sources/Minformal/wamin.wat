@@ -11,40 +11,43 @@
 
 	;; Initialize a new Lexer instance.
 	(func $init (export "init") (param $bufbase i32) (result (ref $Lexer))
-		(struct.new_canon $Lexer 
+		(struct.new $Lexer 
 			(local.get $bufbase)
 			(i32.const 0)
 			;; Element, length
-			(array.new_canon $Tokens (i64.const 0) (i32.const 0))
+			(array.new $Tokens (i64.const 0) (i32.const 0))
 		)
 	)
 
-	(func $next (export "next") (param $self (ref $Lexer)) (result i32)
+	(func $next (param $self (ref $Lexer)) (result i32)
 		;; Increment Lexer indexer.
-		(local $idxPlus1 i32)
-		(struct.get $Lexer $index (local.get $self))
-		i32.const 1
-		i32.add 
-		local.tee $idxPlus1
 		;; index = index + 1
-		(struct.set $Lexer $index (local.get $self) (local.get $idxPlus1))
+		(struct.set $Lexer $index (local.get $self) 
+		
+			(i32.add (i32.const 1) (struct.get $Lexer $index (local.get $self)))
+		)
+		;; (local.get $idxPlus1)
+		(struct.get $Lexer $index (local.get $self))
 	)
 
-	(func $getBufferLength (export "getBufferLength") (param $self (ref $Lexer)) (result i32)
-		;; Buffer = [i32 length, ...u8 contents]
-		(struct.get $Lexer $buffer (local.get $self))
-		i32.load
+	(func $getBufferLength (param $self (ref $Lexer)) (result i32)
+		;; Read length header from string buffer.
+		;; Buffer = [i32 length, ...u8 contents]. 
+		(i32.load (struct.get $Lexer $buffer (local.get $self)))
 	)
 
 	(func $lex (export "lex") (param $self (ref $Lexer)) (result (ref $Lexer))
-		loop $buf_loop
+		(loop $buf_loop
 			;; while self.index < buffer.length, loop
-			(call $next (local.get $self))
-			(call $getBufferLength (local.get $self))
-			i32.lt_s
 			;; (struct.get $Lexer $index (local.get $self))
-			br_if $buf_loop
-		end
+			(br_if $buf_loop 			
+				
+				(i32.lt_s 
+					(call $next (local.get $self))
+					(call $getBufferLength (local.get $self))
+				))
+
+		)
 		(local.get $self)
 	)
 

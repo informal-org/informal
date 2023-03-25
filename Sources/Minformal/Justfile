@@ -1,5 +1,5 @@
 compile:
-    wasm wamin.wat -o wamin.wasm
+    wasm-as wamin.wat -o wamin.wasm --enable-gc --enable-reference-types
 
 view:
     wat2wasm wamin.wat -v

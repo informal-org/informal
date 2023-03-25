@@ -4,7 +4,7 @@
   "description": "Test generated WASM.",
   "main": "index.js",
   "scripts": {
-    "test": "node --experimental-wasm-gc ./node_modules/jest/bin/jest"
+    "test": "node --experimental-wasm-gc --experimental-wasm-typed-funcref --experimental-wasm-stringref ./node_modules/jest/bin/jest"
   },
   "author": "Feni",
   "license": "Apache 2.0",
