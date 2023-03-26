@@ -9,6 +9,11 @@
 	(global $bufLen (mut i32) (i32.const 0))	;; Input length.
 	(global $index (mut i32) (i32.const 0))		;; Current index.
 	(global $ch (mut i32) (i32.const 0))		;; Current character.
+	(global $heaptop (mut i32) (i32.const 0))	;; Next free space in heap.
+
+	(func $alloc (export "alloc") (param $allocsize i32) (result i32)
+		()
+	)
 
 	;; Initialize a new Lexer instance and run lexing.
 	(func $init (export "init") (param $bufbase i32) (result i32)
@@ -20,7 +25,7 @@
 		(call $lex)
 	)
 
-	;; Advance lexer index to the next position in the buffer. Update current ch.
+	;; Advance lexer index to the next position in the buffer. Update current character.
 	(func $next
 		(global.set $ch (call $peek))
 		(global.set $index (i32.add (i32.const 1) (global.get $index))))

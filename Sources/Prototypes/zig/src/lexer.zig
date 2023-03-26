@@ -5,8 +5,6 @@ const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
 const print = std.debug.print;
 
-
-
 pub const Lexer = struct {
     const Self = @This();
     buffer: []const u8,
@@ -57,7 +55,8 @@ pub const Lexer = struct {
         // Use the value-field to explicitly store the end, or a ref to the
         // string in some table. The string contains both quotes.
         // return Token{ .kind = TokenKind.string, .start = start, .value = end };
-        return val.createPrimitiveArray(@truncate(u29, start), @truncate(u19, end));
+        var startPtr = @truncate(u29, start) | 0x80000000; // Set high bit to indicate string.
+        return val.createPrimitiveArray(startPtr, @truncate(u19, end));
     }
 
     fn is_delimiter(ch: u8) bool {
@@ -101,7 +100,9 @@ pub const Lexer = struct {
 
         // Non digit or symbol start, so interpret as an identifier.
         _ = self.seek_till_delimiter();
-        if(self.index - start > 255) { unreachable; }
+        if (self.index - start > 255) {
+            unreachable;
+        }
 
         return tok.createIdentifier(@truncate(u24, start), @truncate(u8, (self.index - start)));
     }
@@ -173,7 +174,6 @@ fn testLexToken(buffer: []const u8, expected: []const u64) !void {
         tok.print_token(expected[i], buffer);
         print(".\n\n", .{});
 
-
         try testTokenEquals(lexedToken, expected[i]);
     }
 }
@@ -189,7 +189,7 @@ test "Lex delimiters and identifiers" {
     // (a, bb):"
     // 01234567
     try testLexToken("(a, bb):", &[_]u64{
-        tok.SYMBOL_OPEN_PAREN, 
+        tok.SYMBOL_OPEN_PAREN,
         val.createObject(tok.T_IDENTIFIER, 1, 1),
         tok.SYMBOL_COMMA,
         val.createObject(tok.T_IDENTIFIER, 4, 2),
@@ -202,6 +202,6 @@ test "Lex string" {
     // "Hello"
     // 0123456
     try testLexToken("\"Hello\"", &[_]u64{
-        val.createPrimitiveArray(1, 5)  // Doesn't include quotes.
+        val.createPrimitiveArray(1, 5), // Doesn't include quotes.
     });
 }
