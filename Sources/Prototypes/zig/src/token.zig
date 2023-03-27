@@ -15,6 +15,7 @@ pub const SYMBOL_CLOSE_BRACE = val.createStaticSymbol('}');
 pub const SYMBOL_NEWLINE = val.createStaticSymbol('\n');
 pub const SYMBOL_INDENT = val.createStaticSymbol('\t');
 pub const SYMBOL_DEDENT = val.createStaticSymbol('D');
+pub const SYMBOL_STREAM_END = val.createStaticSymbol('E');
 
 pub const T_TOKEN: u16 = 0x0010;
 pub const T_IDENTIFIER: u16 = 0x0011;

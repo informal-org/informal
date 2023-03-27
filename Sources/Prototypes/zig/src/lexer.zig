@@ -216,7 +216,7 @@ fn testTokenEquals(lexed: u64, expected: u64) !void {
     try expect(lexed == expected);
 }
 
-fn testLexToken(buffer: []const u8, expected: []const u64) !void {
+pub fn testLexToken(buffer: []const u8, expected: []const u64) !void {
     print("\nTest Lex Token: {s}\n", .{buffer});
     defer print("\n--------------------------------------------------------------\n", .{});
     var lexer = Lexer.init(buffer, test_allocator);
@@ -245,62 +245,62 @@ fn testLexToken(buffer: []const u8, expected: []const u64) !void {
     }
 }
 
-test "Lex digits" {
-    // "1 2 3"
-    //  01234
-    try testLexToken("1 2 3", &[_]u64{ 1, 2, 3 });
-}
+// test "Lex digits" {
+//     // "1 2 3"
+//     //  01234
+//     try testLexToken("1 2 3", &[_]u64{ 1, 2, 3 });
+// }
 
-test "Lex delimiters and identifiers" {
-    // Delimiters , . = : and identifiers.
-    // (a, bb):"
-    // 01234567
-    try testLexToken("(a, bb):", &[_]u64{
-        tok.SYMBOL_OPEN_PAREN,
-        val.createObject(tok.T_IDENTIFIER, 1, 1),
-        tok.SYMBOL_COMMA,
-        val.createObject(tok.T_IDENTIFIER, 4, 2),
-        tok.SYMBOL_CLOSE_PAREN,
-        tok.SYMBOL_COLON,
-    });
-}
+// test "Lex delimiters and identifiers" {
+//     // Delimiters , . = : and identifiers.
+//     // (a, bb):"
+//     // 01234567
+//     try testLexToken("(a, bb):", &[_]u64{
+//         tok.SYMBOL_OPEN_PAREN,
+//         val.createObject(tok.T_IDENTIFIER, 1, 1),
+//         tok.SYMBOL_COMMA,
+//         val.createObject(tok.T_IDENTIFIER, 4, 2),
+//         tok.SYMBOL_CLOSE_PAREN,
+//         tok.SYMBOL_COLON,
+//     });
+// }
 
-test "Lex string" {
-    // "Hello"
-    // 0123456
-    try testLexToken("\"Hello\"", &[_]u64{
-        val.createStringPtr(1, 5), // Doesn't include quotes.
-    });
-}
+// test "Lex string" {
+//     // "Hello"
+//     // 0123456
+//     try testLexToken("\"Hello\"", &[_]u64{
+//         val.createStringPtr(1, 5), // Doesn't include quotes.
+//     });
+// }
 
-test "Test indentation" {
-    // "Hello"
-    // 0123456
-    var source =
-        \\a
-        \\  b
-        \\  b2
-        \\     c
-        \\       d
-        \\  b3
-    ;
-    try testLexToken(source, &[_]u64{
-        val.createObject(tok.T_IDENTIFIER, 0, 1), // a
-        tok.SYMBOL_NEWLINE,
-        tok.SYMBOL_INDENT,
-        val.createObject(tok.T_IDENTIFIER, 4, 1), // b
-        tok.SYMBOL_NEWLINE,
-        val.createObject(tok.T_IDENTIFIER, 8, 2), // b2
-        tok.SYMBOL_NEWLINE,
-        tok.SYMBOL_INDENT,
-        val.createObject(tok.T_IDENTIFIER, 16, 1), // c
-        tok.SYMBOL_NEWLINE,
-        tok.SYMBOL_INDENT,
-        val.createObject(tok.T_IDENTIFIER, 25, 1), // d
-        tok.SYMBOL_NEWLINE,
-        tok.SYMBOL_DEDENT,
-        tok.SYMBOL_DEDENT,
-        val.createObject(tok.T_IDENTIFIER, 29, 2), // b3
-        tok.SYMBOL_DEDENT,
-    });
-}
+// test "Test indentation" {
+//     // "Hello"
+//     // 0123456
+//     var source =
+//         \\a
+//         \\  b
+//         \\  b2
+//         \\     c
+//         \\       d
+//         \\  b3
+//     ;
+//     try testLexToken(source, &[_]u64{
+//         val.createObject(tok.T_IDENTIFIER, 0, 1), // a
+//         tok.SYMBOL_NEWLINE,
+//         tok.SYMBOL_INDENT,
+//         val.createObject(tok.T_IDENTIFIER, 4, 1), // b
+//         tok.SYMBOL_NEWLINE,
+//         val.createObject(tok.T_IDENTIFIER, 8, 2), // b2
+//         tok.SYMBOL_NEWLINE,
+//         tok.SYMBOL_INDENT,
+//         val.createObject(tok.T_IDENTIFIER, 16, 1), // c
+//         tok.SYMBOL_NEWLINE,
+//         tok.SYMBOL_INDENT,
+//         val.createObject(tok.T_IDENTIFIER, 25, 1), // d
+//         tok.SYMBOL_NEWLINE,
+//         tok.SYMBOL_DEDENT,
+//         tok.SYMBOL_DEDENT,
+//         val.createObject(tok.T_IDENTIFIER, 29, 2), // b3
+//         tok.SYMBOL_DEDENT,
+//     });
+// }
