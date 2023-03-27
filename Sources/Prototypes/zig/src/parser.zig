@@ -24,6 +24,11 @@ pub const Parser = struct {
         };
     }
 
+    pub fn formPointer(self: *Self, index: u32, length: u32) u64 {
+        _ = self;
+        return val.createPrimitiveArray(@truncate(u29, index), @truncate(u19, length));
+    }
+
     pub fn parse(self: *Self, end_token: u64) u64 {
         const currentForm = ArrayList(Form);
         var head: ?u64 = null;
@@ -38,11 +43,13 @@ pub const Parser = struct {
                     current = self.parse(tok.SYMBOL_DEDENT);
                 },
                 tok.SYMBOL_OPEN_BRACE => {
+                    // Equivalent to indent, just less ambiguous for nested blocks.
                     current = self.parse(tok.SYMBOL_DEDENT);
                 },
                 end_token => {
+                    // Ending token depending on the beginning token.
                     // tok.SYMBOL_DEDENT, tok.SYMBOL_CLOSE_BRACE
-                    // End current form. Insert and return.
+                    // End entire map. Insert and return.
                     break;
                 },
                 tok.SYMBOL_NEWLINE, tok.SYMBOL_COMMA => {
@@ -61,6 +68,23 @@ pub const Parser = struct {
                     // End key portion. Current buffer will now collect body.
                     head = current;
                     current = null;
+                },
+                tok.SYMBOL_EQUALS => {
+                    // x = y = z
+                    if (current != null) {
+                        // No "= x" without a head.
+                        // In a pure context, that's meaningless and can be dropped.
+
+                        // This is equivalent of calling a sub-parse and appending it.
+                        // TODO: Double-check the scoping rules here.
+                        var subBody = Form{ .head = current, .body = self.parse(tok.SYMBOL_NEWLINE) };
+                        var idx = formPointer(self.forms.len, 1);
+                        self.forms.append(subBody);
+                        currentForm.append(Form{ .head = tok.SYMBOL_EQUALS, .body = idx });
+                        current = idx;
+                    } else {
+                        print("Syntax error. Expected head before =.", .{});
+                    }
                 },
                 else => {
                     current = token;
@@ -82,7 +106,7 @@ pub const Parser = struct {
             self.forms.append(form);
         }
 
-        return val.createPrimitiveArray(@truncate(u29, index), @truncate(u19, self.forms.len()));
+        return self.formPointer(index, currentForm.len);
     }
 };
 
