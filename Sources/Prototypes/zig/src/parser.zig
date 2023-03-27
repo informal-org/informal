@@ -33,10 +33,10 @@ pub const Parser = struct {
         self.forms.deinit();
     }
 
-    pub fn parse(self: *Self, end_token: u64) !u64 {
+    pub fn parse(self: *Self, prev_head: ?u64, end_token: u64) !u64 {
         var currentForm = ArrayList(Form).init(self.allocator);
         defer currentForm.deinit();
-        var head: ?u64 = null;
+        var head: ?u64 = prev_head;
         var current: ?u64 = null;
         while (self.index < self.lexer.tokens.items.len) {
             const token = self.lexer.tokens.items[self.index];
@@ -45,11 +45,13 @@ pub const Parser = struct {
                 // Leading indentation or inline open brace.
                 tok.SYMBOL_INDENT => {
                     // Begin a new sub-map. Recurse.
-                    current = try self.parse(tok.SYMBOL_DEDENT);
+                    current = try self.parse(head, tok.SYMBOL_DEDENT);
+                    head = null;
                 },
                 tok.SYMBOL_OPEN_BRACE => {
                     // Equivalent to indent, just less ambiguous for nested blocks.
-                    current = try self.parse(tok.SYMBOL_DEDENT);
+                    current = try self.parse(head, tok.SYMBOL_DEDENT);
+                    head = null;
                 },
                 tok.SYMBOL_NEWLINE, tok.SYMBOL_COMMA => {
                     // Begin new block.
@@ -76,7 +78,8 @@ pub const Parser = struct {
 
                         // This is equivalent of calling a sub-parse and appending it.
                         // TODO: Double-check the scoping rules here.
-                        var remaining = try self.parse(tok.SYMBOL_NEWLINE);
+                        var remaining = try self.parse(head, tok.SYMBOL_NEWLINE);
+                        head = null;
                         var subBody = Form{ .head = current.?, .body = remaining };
                         var idx = formPointer(self.forms.items.len, 1);
                         try self.forms.append(subBody);
@@ -131,15 +134,22 @@ fn testParse(buffer: []const u8, expected: []const Form) !void {
     _ = try lexer.lex(0, 0);
     var parser = Parser.init(test_allocator, lexer);
     defer parser.deinit();
-    var result = try parser.parse(tok.SYMBOL_STREAM_END);
+    var result = try parser.parse(null, tok.SYMBOL_STREAM_END);
     _ = result;
-    try expect(parser.forms.items.len == expected.len);
 
     for (parser.forms.items, 0..) |form, i| {
         print("\nForm:     ({x} {x})\n", .{ form.head, form.body });
-        print("Expected: ({x} {x})\n", .{ expected[i].head, expected[i].body });
-        try testFormEquals(form, expected[i]);
+        tok.print_token(form.head, buffer);
+        tok.print_token(form.body, buffer);
+        if (i < expected.len) {
+            print("\nExpected: ({x} {x})\n", .{ expected[i].head, expected[i].body });
+            try testFormEquals(form, expected[i]);
+        } else {
+            print("Unexpected.", .{});
+        }
     }
+
+    try expect(parser.forms.items.len == expected.len);
 }
 // a :
 //  b : c
@@ -147,9 +157,18 @@ fn testParse(buffer: []const u8, expected: []const Form) !void {
 // { c : d } : {e : f}
 test "parser.Test parse map" {
     var source = "a: b";
-    const expected = [_]Form{
+    var expected = [_]Form{
         Form{ .head = val.createObject(tok.T_IDENTIFIER, 0, 1), .body = val.createObject(tok.T_IDENTIFIER, 3, 1) },
     };
 
     try testParse(source, &expected);
+
+    var test2 =
+        \\a:
+        \\  b
+    ;
+    var expected2 = [_]Form{
+        Form{ .head = val.createObject(tok.T_IDENTIFIER, 0, 1), .body = val.createObject(tok.T_IDENTIFIER, 5, 1) },
+    };
+    try testParse(test2, &expected2);
 }
