@@ -92,11 +92,12 @@ pub const Lexer = struct {
         // First char is known to not be a number.
         var start = self.index;
         var ch = self.buffer[self.index];
-        // Capture single-character delimiters or symbols.
-        if (Lexer.is_delimiter(ch)) {
-            self.index += 1;
-            return val.createSymbol(ch);
-        }
+        _ = ch;
+        // // Capture single-character delimiters or symbols.
+        // if (Lexer.is_delimiter(ch)) {
+        //     self.index += 1;
+        //     return val.createSymbol(ch);
+        // }
 
         // Non digit or symbol start, so interpret as an identifier.
         _ = self.seek_till_delimiter();
@@ -112,7 +113,7 @@ pub const Lexer = struct {
         return null;
     }
 
-    pub fn lex(self: *Lexer) !void {
+    pub fn lex(self: *Lexer, current_indent: u16, indent_char: u8) u16 {
         while (self.index < self.buffer.len) {
             var ch = self.buffer[self.index];
             var token: ?u64 = null;
@@ -122,6 +123,57 @@ pub const Lexer = struct {
                     // By skipping whitespace & comments, we can't rely on start of next tok as reliable
                     // "length" indexes. So instead store length explicitly for strings and identifiers.
                     _ = self.skip();
+                },
+                '\n' => {
+                    // New-lines are significant.
+                    self.index += 1;
+                    try self.tokens.append(tok.SYMBOL_NEWLINE);
+                    // Indentation at the start of a line is significant.
+                    // Count and determine if it's an indent or dedent.
+                    var indent = 0;
+                    // Count leading indent chars of the given type.
+                    while (self.index < self.buffer.len) : (self.index += 1) {
+                        var iCh = self.buffer[self.index];
+                        if (iCh == ' ' or iCh == '\t') {
+                            // It's an indentation char. Check if it matches.
+                            if (indent_char == 0) {
+                                indent_char = iCh;
+                            } else if (iCh == indent_char) {
+                                // It's a match. Count it.
+                                indent += 1;
+                            } else {
+                                // Disallow mixed indentation.
+                                print("Mixed indentation error", .{});
+                                return 0;
+                            }
+                        } else {
+                            break;
+                        }
+                    }
+                    // Could enforce a min indentation of 2 spaces.
+                    if (indent > current_indent) {
+                        // Indentation.
+                        try self.tokens.append(tok.SYMBOL_INDENT);
+                        // Recursively parse the next indentation block, till it terminates
+                        // It'll return back the next indentation level after that block finishes.
+                        var nextIndent = self.lex(indent, indent_char);
+                        if (nextIndent < current_indent) {
+                            // Our block is over now. Dedent.
+                            try self.tokens.append(tok.SYMBOL_DEDENT);
+                            return nextIndent;
+                        } else if (nextIndent > current_indent) {
+                            // Disallow unaligned indentation levels.
+                            // It has to return back to a valid state.
+                            print("Unaligned indentation error", .{});
+                            return 0;
+                        }
+                        // If nextIndent == current_indent, we're back at our level. Continue processing.
+                    } else if (indent < current_indent) {
+                        // This block is done. And maybe other blocks as well. End. Return next level.
+                        try self.tokens.append(tok.SYMBOL_DEDENT);
+                        return indent;
+                    }
+                    // Else - same level of indentation. Continue processing.
                 },
                 '0'...'9', '.' => {
                     token = self.token_number();
@@ -134,6 +186,9 @@ pub const Lexer = struct {
                     if (self.peek_starts_with("//")) {
                         self.index += 2; // Skip past '//'
                         _ = self.seek_till("\n");
+                    } else if (Lexer.is_delimiter(ch)) {
+                        self.index += 1;
+                        token = val.createSymbol(ch);
                     } else {
                         token = self.token_symbol();
                     }
@@ -144,6 +199,7 @@ pub const Lexer = struct {
                 try self.tokens.append(t);
             }
         }
+        return 0; // No further indentation at base.
     }
 };
 
