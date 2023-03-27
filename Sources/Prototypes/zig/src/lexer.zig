@@ -54,9 +54,7 @@ pub const Lexer = struct {
         }
         // Use the value-field to explicitly store the end, or a ref to the
         // string in some table. The string contains both quotes.
-        // return Token{ .kind = TokenKind.string, .start = start, .value = end };
-        var startPtr = @truncate(u29, start) | 0x80000000; // Set high bit to indicate string.
-        return val.createPrimitiveArray(startPtr, @truncate(u19, end));
+        return val.createStringPtr(start, end);
     }
 
     fn is_delimiter(ch: u8) bool {
@@ -113,7 +111,7 @@ pub const Lexer = struct {
         return null;
     }
 
-    pub fn lex(self: *Lexer, current_indent: u16, indent_char: u8) u16 {
+    pub fn lex(self: *Lexer, current_indent: u16, indentation_char: u8) !u16 {
         while (self.index < self.buffer.len) {
             var ch = self.buffer[self.index];
             var token: ?u64 = null;
@@ -130,7 +128,8 @@ pub const Lexer = struct {
                     try self.tokens.append(tok.SYMBOL_NEWLINE);
                     // Indentation at the start of a line is significant.
                     // Count and determine if it's an indent or dedent.
-                    var indent = 0;
+                    var indent: u16 = 0;
+                    var indent_char: u8 = indentation_char;
                     // Count leading indent chars of the given type.
                     while (self.index < self.buffer.len) : (self.index += 1) {
                         var iCh = self.buffer[self.index];
@@ -138,7 +137,9 @@ pub const Lexer = struct {
                             // It's an indentation char. Check if it matches.
                             if (indent_char == 0) {
                                 indent_char = iCh;
-                            } else if (iCh == indent_char) {
+                            }
+
+                            if (iCh == indent_char) {
                                 // It's a match. Count it.
                                 indent += 1;
                             } else {
@@ -156,7 +157,7 @@ pub const Lexer = struct {
                         try self.tokens.append(tok.SYMBOL_INDENT);
                         // Recursively parse the next indentation block, till it terminates
                         // It'll return back the next indentation level after that block finishes.
-                        var nextIndent = self.lex(indent, indent_char);
+                        var nextIndent = try self.lex(indent, indent_char);
                         if (nextIndent < current_indent) {
                             // Our block is over now. Dedent.
                             try self.tokens.append(tok.SYMBOL_DEDENT);
@@ -199,6 +200,10 @@ pub const Lexer = struct {
                 try self.tokens.append(t);
             }
         }
+        if (current_indent > 0) {
+            // We're at the end of the file. Dedent.
+            try self.tokens.append(tok.SYMBOL_DEDENT);
+        }
         return 0; // No further indentation at base.
     }
 };
@@ -216,19 +221,25 @@ fn testLexToken(buffer: []const u8, expected: []const u64) !void {
     defer print("\n--------------------------------------------------------------\n", .{});
     var lexer = Lexer.init(buffer, test_allocator);
     defer lexer.deinit();
-    try lexer.lex();
+    _ = try lexer.lex(0, 0);
     if (lexer.tokens.items.len != expected.len) {
-        print("\nLength mismatch {d} vs {d}: {any}", .{ lexer.tokens.items.len, expected.len, lexer.tokens.items });
+        print("\nLength mismatch {d} vs {d}", .{ lexer.tokens.items.len, expected.len });
+
+        for (lexer.tokens.items) |lexedToken| {
+            tok.print_token(lexedToken, buffer);
+        }
     }
 
     try expect(lexer.tokens.items.len == expected.len);
 
     for (lexer.tokens.items, 0..) |lexedToken, i| {
-        print("Lexerout ", .{});
+        if (lexedToken != expected[i]) {
+            print(".\nExpected ", .{});
+            tok.print_token(expected[i], buffer);
+            print("\nLexerout ", .{});
+        }
         tok.print_token(lexedToken, buffer);
-        print(".\nExpected ", .{});
-        tok.print_token(expected[i], buffer);
-        print(".\n\n", .{});
+        print("\n", .{});
 
         try testTokenEquals(lexedToken, expected[i]);
     }
@@ -258,6 +269,38 @@ test "Lex string" {
     // "Hello"
     // 0123456
     try testLexToken("\"Hello\"", &[_]u64{
-        val.createPrimitiveArray(1, 5), // Doesn't include quotes.
+        val.createStringPtr(1, 5), // Doesn't include quotes.
+    });
+}
+
+test "Test indentation" {
+    // "Hello"
+    // 0123456
+    var source =
+        \\a
+        \\  b
+        \\  b2
+        \\     c
+        \\       d
+        \\  b3
+    ;
+    try testLexToken(source, &[_]u64{
+        val.createObject(tok.T_IDENTIFIER, 0, 1), // a
+        tok.SYMBOL_NEWLINE,
+        tok.SYMBOL_INDENT,
+        val.createObject(tok.T_IDENTIFIER, 4, 1), // b
+        tok.SYMBOL_NEWLINE,
+        val.createObject(tok.T_IDENTIFIER, 8, 2), // b2
+        tok.SYMBOL_NEWLINE,
+        tok.SYMBOL_INDENT,
+        val.createObject(tok.T_IDENTIFIER, 16, 1), // c
+        tok.SYMBOL_NEWLINE,
+        tok.SYMBOL_INDENT,
+        val.createObject(tok.T_IDENTIFIER, 25, 1), // d
+        tok.SYMBOL_NEWLINE,
+        tok.SYMBOL_DEDENT,
+        tok.SYMBOL_DEDENT,
+        val.createObject(tok.T_IDENTIFIER, 29, 2), // b3
+        tok.SYMBOL_DEDENT,
     });
 }

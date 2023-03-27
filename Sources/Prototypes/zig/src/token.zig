@@ -13,7 +13,7 @@ pub const SYMBOL_CLOSE_SQBR = val.createStaticSymbol(']');
 pub const SYMBOL_OPEN_BRACE = val.createStaticSymbol('{');
 pub const SYMBOL_CLOSE_BRACE = val.createStaticSymbol('}');
 pub const SYMBOL_NEWLINE = val.createStaticSymbol('\n');
-pub const SYMBOL_INDENT = val.createStaticSymbol("\t");
+pub const SYMBOL_INDENT = val.createStaticSymbol('\t');
 pub const SYMBOL_DEDENT = val.createStaticSymbol('D');
 
 pub const T_TOKEN: u16 = 0x0010;
@@ -106,9 +106,9 @@ pub fn print_token(token: u64, buffer: []const u8) void {
             const start = val.getPrimitiveArrayPtr(token);
             const length = val.getPrimitiveArrayLength(token);
 
-            if (start & 0x80000000) {
+            if (start & 0x1000_0000 == 0x1000_0000) {
                 // Top bit is set indicates a string.
-                var bufferStart = start & 0x7FFFFFFF;
+                var bufferStart = start & 0x0FFF_FFFF;
                 print("String(\"{s}\")", .{buffer[bufferStart..(bufferStart + length)]});
             } else {
                 // Indicates a form. TODO;
