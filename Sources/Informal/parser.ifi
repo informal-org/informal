@@ -1,0 +1,83 @@
+Unary Prefix:
+    Left binding power
+    null denotation = null
+
+Infix:
+    left binding power
+    left denotation = null
+
+InfixRight
+    left binding power
+    left denotation = null
+
+    Same get_left_deno with lbp - 1
+
+
+get_left_denotation:
+    left, node, stream
+    create a new node, with left = left, assign self. 
+    right = recurse with this node's left binding power. 
+
+mixfix
+    null and left are specified.
+
+HigherPrecedence(level):
+    return (node): node.precedence > level 
+
+Add(binding_power) {
+    left : Expr(binding_power) Precedence(10, binding_power)
+    "+"
+    right : Expr(binding_power)
+}
+
+
+AddNode(binding_power):
+    left: Expr PrecedenceGTE(Add.precedence)
+    "+"
+    right: Expr PrecedenceGT(Add.precedence)
+
+Add:
+    node: AddNode
+    precedence: 10
+    evaluate: add(ast.left, ast.right)
+    compile:
+        #wasm: (i64.add ${ node.left.compile } ${ node.right.compile })
+    
+
+1 + 2 * 3
+
+1 + (2 * 3)
+
+  +     *
+  10    20
+
+1 + 2
+    : 10
+        * 20
+
+End result is
+
+       +
+    1     *
+         2 3
+
+1 * 2 + 3
+
+    +
+ *      3
+1 2
+
+1 + 2 + 3
+    +
++       3
+1 2
+
+expression stream, right_binding_power
+    current = next
+    left = current.null (current, stream)  # Basically a parser combinator.
+
+    while right_binding_power < current.operator.left_binding_power:
+        current = next
+        left = current.left_deno(left, current, stream)
+
+    return left

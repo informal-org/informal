@@ -13,6 +13,21 @@ Everything in Informal is built on a single concept: Pattern Matching. Patterns 
 
 ## Syntax
 
+Comments and Documentation
+```
+// Single line comments
+
+/// Documentation blocks
+    Can span multiple, indended lines.
+    
+    Indent further to embed blocks of code.
+    Use >>> to test for expected results.
+ 
+        1 + 2
+    >>> 3
+    
+```
+
 Variables and Types
 ```
 String hello = "Hello, World!"
