@@ -30,11 +30,15 @@ Add(binding_power) {
     right : Expr(binding_power)
 }
 
+ADD_PRECEDENCE = 10
 
 AddNode(binding_power):
-    left: Expr PrecedenceGTE(Add.precedence)
+    left: Expr(ADD_PRECEDENCE) PrecedenceGTE(ADD_PRECEDENCE, binding_power)
     "+"
-    right: Expr PrecedenceGT(Add.precedence)
+    right: Expr(ADD_PRECEDENCE) PrecedenceGT(ADD_PRECEDENCE, binding_power)
+
+Expr(binding_power) = Choice(AddNode(binding_power), Multiply(binding_power))
+
 
 Add:
     node: AddNode
