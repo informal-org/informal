@@ -1,9 +1,14 @@
 const PRECEDENCE_ADD = 10;
 const PRECEDENCE_MULTIPLY = 20;
 
+// var treeify = require('treeify');
+
 class Type {
     match() {
-        return true;
+        return this;
+    }
+    repr() {
+        return this.constructor.type;
     }
 }
 
@@ -13,6 +18,10 @@ class CompoundType extends Type {
         this.options = options;
         this.value = [];
         this.rest = "";
+    }
+
+    repr() {
+        return this.constructor.type + "()";
     }
 }
 
@@ -28,23 +37,37 @@ class LiteralType extends Type {
         if(this.value === input[0]) {
             console.log("Literal ", this.value);
             this.rest = input.slice(1);
-            return input.slice(1);
+            return this;
         } else {
             return null;
         }
+    }
+
+    repr() {
+        return "Literal("+  this.value + ")";
     }
 }
 
 class Intersection extends CompoundType {
     match(input) {
+        const values = [];
         // console.log("Intersection check ", input, " against ", this.options)
         for (const option of this.options) {
-            if (!match(input, option)) {
+            const result = match(input, option);
+            if (!result) {
                 return null;
             }
+            values.push(result);
         }
-        console.log("Intersection ", this.options);
-        return input.slice(1);
+        this.values = values;
+        // console.log("Intersection ", this.options);
+        this.rest = input.slice(1);
+        return this
+    }
+    repr() {
+        // return "Intersection("+  this.values.map((v) => v instanceof Type ? v.repr() : v) + ")";
+        const lastVal = this.values[this.values.length - 1];
+        return "Intersection(" + (lastVal instanceof Type ? lastVal.repr() : lastVal) + ")";
     }
 }
 
@@ -54,7 +77,7 @@ class Choice extends CompoundType {
         for (const option of this.options) {
             const result = match(input, option);
             if (result) {
-                console.log("Choice ", option);
+            //    console.log("Choice ", option);
                 return result;
             }
         }
@@ -64,16 +87,23 @@ class Choice extends CompoundType {
 
 class Structure extends CompoundType {
     match(input) {
+        this.rest = input;
+        const values = [];
         // console.log("Structure check ", input, " against ", this.options)
         for (const option of this.options) {
-            const result = match(input, option);
+            const result = match(this.rest, option);
             if (!result) {
                 return null;
             }
-            input = result;
+            values.push(result);
+            this.rest = result.rest;
         }
-        console.log("Structure ", this.options);
-        return input;
+        this.values = values;
+        console.log("Structure ", values);
+        return this;
+    }
+    repr() {
+        return "Structure{" + this.values.map((v) => v instanceof Type ? v.repr() : v).join("; ") + "}";
     }
 }
 
@@ -91,69 +121,6 @@ function match(input, type) {
     }
 }
 
-
-/////////////////////////////////////////////////////////////
-
-// function Intersection(...options) {
-//     // The input matches against all of the options.
-//     return function(input) {
-//         console.log("Intersection check ", input, " against ", options);
-
-//         for (const option of options) {
-//             let result;
-//             if(typeof option === "function") {
-//                 result = option(input[0]);
-//             } else {
-//                 result = option;
-//             }
-//             if (!result) {
-//                 return;
-//             }
-//         }
-//         return input;
-//     }
-// }
-
-// function Choice(...options) {
-//     // The input matches against one of the options.
-//     return function(input) {
-//         console.log("Chocie check ", input, " against ", options);
-
-//         for (const option of options) {
-//             let result;
-//             if(typeof option === "function") {
-//                 result = option(input[0]);
-//             } else {
-//                 result = option;
-//             }
-//             if (result) {
-//                 return result;
-//             }
-//         }
-//     }
-// }
-
-// function Structure(...options) {
-//     // The input matches against the option at each index.
-//     return function(input) {
-//         console.log("Struct check ", input, " against ", options);
-//         for(let i = 0; i < options.length; i++) {
-//             const option = options[i];
-//             let result;
-//             // check if option is a string
-//             if (typeof option === "string") {
-//                 result = input[i] === option;
-//                 console.log(input[i], " vs ", option);
-//             } else {
-//                 result = option(input[i]);
-//             }
-//             if (!result) {
-//                 return;
-//             }
-//         }
-//     }
-// }
-
 function PrecedenceGTE(node_bp, context_bp) {
     return node_bp >= context_bp;
 }
@@ -162,42 +129,92 @@ function PrecedenceGT(node_bp, context_bp) {
     return node_bp > context_bp;
 }
 
-function AddNode(binding_power) {
-    return new Structure(
-        new Intersection(PrecedenceGT(PRECEDENCE_ADD, binding_power), Expr(PRECEDENCE_ADD)),
-        new LiteralType("+"),
-        new Intersection(PrecedenceGTE(PRECEDENCE_ADD, binding_power), Expr(PRECEDENCE_ADD)),      
-    )
+class DependentNode extends Type {
+    constructor(binding_power) {
+        super();
+        this.binding_power = binding_power;
+        this.rest = "";
+        this.result = null;
+    }
+
+    match(input) {
+        this.result = this.option.match(input);
+        if(this.result) {
+            this.rest = this.result.rest;
+            return this;
+        } else {
+            return null;
+        }
+    }
+
+    repr() {
+        return this.constructor.name + " " + this.result.repr();
+    }
+
 }
 
-function MultiplyNode(binding_power) {
-    return new Structure(
-        new Intersection(PrecedenceGT(PRECEDENCE_MULTIPLY, binding_power), Expr(PRECEDENCE_MULTIPLY)),
-        new LiteralType("*"),
-        new Intersection(PrecedenceGTE(PRECEDENCE_MULTIPLY, binding_power), Expr(PRECEDENCE_MULTIPLY)),
-    )
+class AddNode extends DependentNode {
+    constructor(binding_power) {
+        super(binding_power);
+        this.option = new Structure(
+            new Intersection(PrecedenceGT(PRECEDENCE_ADD, binding_power), new Expr(PRECEDENCE_ADD)),
+            new LiteralType("+"),
+            new Intersection(PrecedenceGTE(PRECEDENCE_ADD, binding_power), new Expr(PRECEDENCE_ADD) ),      
+        )
+    }
+}
+
+class MultiplyNode extends DependentNode {
+    constructor(binding_power) {
+        super(binding_power);
+        this.option = new Structure(
+            new Intersection(PrecedenceGT(PRECEDENCE_MULTIPLY, binding_power), new Expr(PRECEDENCE_MULTIPLY)),
+            new LiteralType("*"),
+            new Intersection(PrecedenceGTE(PRECEDENCE_MULTIPLY, binding_power), new Expr(PRECEDENCE_MULTIPLY)),
+        )
+    }
+}
+
+class Expr extends DependentNode {
+    constructor(binding_power) {
+        super(binding_power);
+        this.result = null;
+        this.option = () => new Choice(new AddNode(binding_power), new MultiplyNode(binding_power), new NumericLiteral());
+    }
+
+    match(input) {
+        const result = match(input, this.option);
+        if(result) {
+            this.rest = result.rest;
+            this.result = result;
+            return this;
+        } else {
+            return null;
+        }
+    }
+
 }
 
 class NumericLiteral extends Type {
     match(input) {
         if (input[0].match(/[0-9]/)) {
-            console.log("NumericLiteral ", input[0]);
-            return input.slice(1);
+            this.value = input[0];
+            this.rest = input.slice(1);
+            return this
         } else {
             return null;
         }
     }
-}
-
-function Expr(binding_power) {
-    return () => new Choice(AddNode(binding_power), MultiplyNode(binding_power), new NumericLiteral());
+    repr() {
+        return "" + this.value;
+    }
 }
 
 function parse(input) {
     const tokens = input.split(" ");
-    const base = Expr(0);
-    // console.log(base().match(tokens));
-    console.log(    match(tokens, base)    );
+    const base = new Expr(0);
+    const result = match(tokens, base);
+    console.log(result.repr());
 }
 
 parse("1 + 2 * 3");
