@@ -1,0 +1,35 @@
+Digit
+Alpha
+NewLine
+Indentation - Space or Tab
+Delimiters -
+Quote
+Comment
+
+
+List - Abstracts recursion.
+Choice
+Structure
+Join
+
+
+List
+    - While loop
+    - List ID, Start, End
+
+Join
+    - accumulate. push per iter.
+    - List ID, Start, End. 
+    - Inc Pointer
+
+Choice
+    - Filter
+
+Structure
+    - Map
+
+Return 
+    Index, Return. 
+    If index = index sent to it, then no match. 
+    If no match, pop and clear any garbage.
+

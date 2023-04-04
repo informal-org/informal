@@ -78,6 +78,7 @@ class Choice extends CompoundType {
             const result = match(input, option);
             if (result) {
             //    console.log("Choice ", option);
+                this.rest = input.slice(1);
                 return result;
             }
         }
@@ -213,6 +214,9 @@ class NumericLiteral extends Type {
 function parse(input) {
     const tokens = input.split(" ");
     const base = new Expr(0);
+    // Recursive match. 
+    // You can also define a greedy match function, which wraps it in a loop.
+    // Which can be more efficient if you put the literal nodes first in the choice.
     const result = match(tokens, base);
     console.log(result.repr());
 }
