@@ -23,10 +23,10 @@ Join
     - Inc Pointer
 
 Choice
-    - Filter
+    - Filter till first.
 
 Structure
-    - Map
+    - Map 1:1
 
 Return 
     Index, Return. 
