@@ -4,7 +4,10 @@
   "description": "Test generated WASM.",
   "main": "index.js",
   "scripts": {
-    "test": "node --experimental-wasm-gc --experimental-wasm-typed-funcref --experimental-wasm-stringref ./node_modules/jest/bin/jest"
+    "test": "jest",
+    "experimental": "node --experimental-wasm-gc --experimental-wasm-typed-funcref --experimental-wasm-stringref ./node_modules/jest/bin/jest",
+    "build": "wat2wasm ../Sources/Minformal/wasmin.wat -o ../Sources/Minformal/wasmin.wasm",
+    "watch": "ls ../Sources/Minformal/*.wat | entr -s 'npm run build && npm run test'"
   },
   "author": "Feni",
   "license": "Apache 2.0",

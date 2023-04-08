@@ -11,7 +11,7 @@ const init = async (file) => {
 }
 
 beforeEach(async () => {
-    wamin = await init('../Sources/Minformal/wamin.wasm');
+    wamin = await init('../Sources/Minformal/wasmin.wasm');
 });
 
 function writeI32(memory, offset, contents) {

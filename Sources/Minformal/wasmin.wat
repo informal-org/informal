@@ -2,18 +2,18 @@
     (memory 1)
     (export "memory" (memory 0))
 
-	(type $Tokens (array (mut i64)))	;; Stack of AST tokens as they're processed.
+	;; (type $Tokens (array (mut i64)))	;; Stack of AST tokens as they're processed.
 
-	(global $tokens (mut (ref $Tokens)) (array.new_default $Tokens (i32.const 0)))
+	;; (global $tokens (mut (ref $Tokens)) (array.new_default $Tokens (i32.const 0)))
 	(global $buffer (mut i32) (i32.const 0))	;; Pointer to input string base.
 	(global $bufLen (mut i32) (i32.const 0))	;; Input length.
 	(global $index (mut i32) (i32.const 0))		;; Current index.
 	(global $ch (mut i32) (i32.const 0))		;; Current character.
 	(global $heaptop (mut i32) (i32.const 0))	;; Next free space in heap.
 
-	(func $alloc (export "alloc") (param $allocsize i32) (result i32)
-		()
-	)
+	;; (func $alloc (export "alloc") (param $allocsize i32) (result i32)
+	;; 	()
+	;; )
 
 	;; Initialize a new Lexer instance and run lexing.
 	(func $init (export "init") (param $bufbase i32) (result i32)
@@ -21,7 +21,7 @@
 		(global.set $bufLen (i32.load (local.get $bufbase))) ;; 32 bit length header.
 		(global.set $index (i32.const 4))		;; Skip past 4 byte length header.
 		(global.set $ch (i32.load8_u (global.get $index)))
-		(global.set $tokens (array.new $Tokens (i64.const 0) (i32.const 0)))
+		;; (global.set $tokens (array.new $Tokens (i64.const 0) (i32.const 0)))
 		(call $lex)
 	)
 

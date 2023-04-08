@@ -8,7 +8,7 @@ Much of the standard WASM tooling (like wat2wasm) doesn't support this extension
 
 The compiler is split up into several stages:
 
-wamin.wat: A handwritten, WebAssembly compiler for Min -> WAT.
+wasmin.wat: A handwritten, WebAssembly compiler for Min -> WAT.
 minform.if: A Min compiler of Min -> WAT.
 minformal.if: A Min compiler of Minformal, a larger subset of Informal.
 informal.if: Full informal, with optimizations and continual evolution.

@@ -1,20 +1,20 @@
 compile:
-    wasm-as wamin.wat -o wamin.wasm --enable-gc --enable-reference-types
+    wat2wasm wasmin.wat -o wasmin.wasm
 
 view:
-    wat2wasm wamin.wat -v
+    wat2wasm wasmin.wat -v
 
 dis:
-    wasm-objdump wamin.wasm -d
+    wasm-objdump wasmin.wasm -d
 
 inspect:
-    wasmer inspect wamin.wasm
+    wasmer inspect wasmin.wasm
 
 compile-native:
-    wasmtime compile --target x86_64-unknown-linux --cranelift-enable skylake wamin.wat
+    wasmtime compile --target x86_64-unknown-linux --cranelift-enable skylake wasmin.wat
 
 bench:
-    hyperfine --warmup 3 'wasmtime run wamin.cwasm --allow-precompiled --invoke add 2 3'
+    hyperfine --warmup 3 'wasmtime run wasmin.cwasm --allow-precompiled --invoke add 2 3'
 
 setup:
     sudo apt install wabt
