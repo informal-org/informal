@@ -11,7 +11,132 @@ This language is in active, early stage development. We welcome you to play with
 Everything in Informal is built on a single concept: Pattern Matching. Patterns generalize the functional mapping from input -> output, define the structural mapping for types and the relations between the two. That means that you can manipulate any functionality, just as flexibly as data or declaratively query for results meeting the specified constraints.
 
 
-## Examples
+## Syntax
+
+Comments and Documentation
+```
+// Single line comments
+
+/// Documentation blocks
+    Can span multiple, indended lines.
+    
+    Indent further to embed blocks of code.
+    Use >>> to test for expected results.
+ 
+        1 + 2
+    >>> 3
+    
+```
+
+Variables and Types
+```
+String hello = "Hello, World!"
+
+// Types can be inferred.
+is_spring = true
+
+// Types can depend on other types (Generic Types) or on values (Dependent Types).
+Int(32) power_level = 9000
+
+fun slice(Array arr, Int index < arr.length) Array(size=index):
+// Or more explicitly as slice(Array arr, Int index if index < arr.length)    
+
+```
+
+Printing to console
+```
+// Print with a new line
+print("Hello, World!")
+
+// Or specify a different line-ending.
+print("a", "b", "c", separator=" ", ending="")
+```
+
+Conditions
+```
+// Informal has just a single conditional operator - the pattern-matching "if".
+if sunny:
+    go_outside()
+else if rainy:
+    go_outside_with_umbrella()
+else:
+
+
+// You can use it as a switch case. 
+// Conditions are expressions, so you can capture their result and store it as a variable.
+char_type = if ch:
+    ' ': "ch is a Space"
+    'a'..'z' | 'A'..'Z': "ch is a Letter"
+    '0'..'9': "ch is a Digit"
+    else: "ch is something else"
+
+// You can match against other kinds of operators
+if grade >:
+    90: "A"
+    80: "B"
+    70: "C"
+    60: "D"
+    else: "F"
+
+// Or match by structure
+if (n % 5, n % 3):
+    (0, 0): "FizzBuzz"
+    (0, _): "Fizz"
+    (_, 0): "Buzz"
+    (_, _): n
+
+// Or specify each branch separately
+if:
+    user.email:
+        send_confirmation_email(user.email)
+    user.phone or user.messenger_id:
+        send_confirmation_text(user)
+```
+
+Array operators and functional constructs replace the need for most loops, but Informal still comes with a flexible for loop to process any kind of data.
+```
+// The built-in for loop can be used as a for-each.
+for x in [1..5]:
+    x + 10
+
+// You can specify a second parameter to get the index
+arr = [1, 2, 3, 4, 5]
+for index, value in arr:
+    value + 10
+
+// You can similarly loop over maps.
+// Loops are also expressions, which return values
+
+months: {"January": 1, "February": 2, "March": 3, "April": 4, 
+        "May": 5, "June": 6, "July": 7, "August": 8, 
+        "September": 9, "October": 10, "November": 11, "December": 12}
+
+invert_months = for month_str, month_num in months:
+    { month_num : month_str }
+
+// You can iterate over multiple data streams at once. 
+// This often comes in useful for "zipping" values together.
+brr = [10, 20, 30, 40, 50]
+for x in arr, y in brr:
+    x + y
+
+// [11, 22, 33, 44, 55]
+
+// You can specify guard clauses to break out of loops early.
+for x in [1..10] if x < 4:
+    x + 10
+
+// Or leave out the conditional clause, to loop "while" the guard-clause is true.
+
+n = 12
+for if n != 1:
+    if n % 2:
+        n = n / 2
+    else:
+        n = 3*n + 1
+
+```
+
 
 ```kotlin
 // Array operations
@@ -41,13 +166,10 @@ array = [5, 10, 15, 20, 25]
 arr[arr % 2 == 0]
 // [10, 20]
 
-match (n % 5, n % 3):
-    (0, 0): "FizzBuzz"
-    (0, _): "Fizz"
-    (_, 0): "Buzz"
-    (_, _): n
+```
 
-
+Functions, Types and the patterns beneath it all
+```
 // Everything in Informal is built on a single concept. Pattern Matching.
 // Functions are a mapping that transform an input to an output.
 
@@ -70,16 +192,20 @@ A[], B[] :: concat(A, B) = [1, 2, 3]
 
 // You can define structure and match with it.
 
-DateYMD {
+DateString:
     year string.Digits(4)
     "-"
     month string.Digits(2)
     "-"
     day string.Digits(2)
-}
+
 
 // Use destructuring to unwrap the data by patterns, without regex.
-d: DateYMD = "2023-03-05"
+DateString d = "2023-03-05"
+d.year == "2023"
+// Or forward, to use it as a pattern to encode the data.
+d2 = DateString(year="2023", month="03", day="05")
+d == d2
 
 // Functional primitives.
 // Use "each" to map over each element of an array. 
@@ -93,11 +219,11 @@ array.map(_ + 1)
 
 
 // Macros and meta programming
-// Macros can be defined as just regular functions.
+// Macros can be defined as just regular functions, which take in code and return new code.
 
-fun cache(code: LazyExpression) LazyExpression {
+fun cache(Expression code): Expression
     code.arguments[1]
-}
+
 
 ```
 

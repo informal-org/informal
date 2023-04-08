@@ -1,0 +1,63 @@
+// Single line comments
+   can span multiple lines as well.
+
+/// Documentation blocks
+    can span multiple lines.
+def foo(hello):
+    //
+        Multi-line comments usually appear like this.
+        It can span blocks until you tab back to base.
+    // 
+    if x > 0
+        0
+
+        /* Hello 
+        
+
+// Multi-line comments can start on the same line
+   and continue indented over. And the spacing for indent isn't
+   enfored either, so it's a stylistic choice. 
+   You don't need closing //, but it adds a visual symmetry. 
+
+
+// 
+    So the recommended multi-line comment syntax is this
+    With the optional closing block included.
+// 
+
+
+-----------
+An earlier revision used
+
+# Heading
+    Comment body
+    Rest of the comment
+
+    Some description of the function below.
+def fun(hello)
+
+## Docs
+
+#- Inline definition.
+#!/html
+
+#wasm:
+    (i32.add (i32.const 1) (i32.const 2))
+
+
+#deprecated: Use next version instead.
+def legacy_code(x)
+
+#doc: 
+    # Heading
+    This can have sub-sections as-well.
+
+    # Sub-section
+    
+    1. Documentation
+    2. Commenting
+    3. Testing
+
+        1 + 1
+    >>> 2
+
