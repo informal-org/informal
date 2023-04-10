@@ -1,3 +1,8 @@
+# MLIR Python Bindings.
+from mlir.ir import Context, Module, InsertionPoint, Location, Operation
+from mlir import ir # passes, execution_engine
+from mlir.dialects import builtin, func
+
 PRECEDENCE_ADD = 10
 PRECEDENCE_MULTIPLY = 20
 
@@ -189,6 +194,36 @@ def parse(input_):
     print(result.repr())
     print("Rest:", result.rest)
     # TODO: Need to wrap this in a Many() to ensure the full expression is parsed.
+    return result
+
+def gen_mlir(expr):
+    with ir.Context() as ctx:
+        module = ir.Module.create(loc=ir.Location.unknown())
+
+        # ir.Location.file("test.mlir", line=1, col=1)
+        with ir.InsertionPoint(module.body), ir.Location.unknown():
+            # main_fn = Operation.create(
+            #     "func.func", results=[], operands=[],
+            #     attributes={"function_type": ir.TypeAttr.get(ir.FunctionType.get([], []))},
+            #     successors=None, regions=1)
+            # print(dir(func.FuncOp.__init__))
+            # help(func.FuncOp)
+            main_fn =  func.FuncOp("_start", ir.FunctionType.get([], []))
+            # main_fn.sym_visibility = ir.StringAttr.get("private")
+            f32 = ir.F32Type.get()
+            pi = ir.FloatAttr.get(f32, 3.14)
+            print("Generated code")
+            # print(module)
+            # print(dir(module))
+            print(module.dump())
+
 
 # parse("1 + 2 * 3")
-parse("1 * 2 + 3")
+result = parse("1 * 2 + 3")
+gen_mlir(result)
+
+
+#  func = Operation.create(
+# "func.func", results=[], operands=[],
+# attributes={"function_type":TypeAttr.get(FunctionType.get([], []))},
+# successors=None, regions=1)
