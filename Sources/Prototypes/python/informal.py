@@ -191,8 +191,6 @@ def parse(input_):
     tokens = input_.split(" ")
     base = Expr(0)
     result = match(tokens, base)
-    print(result.repr())
-    print("Rest:", result.rest)
     # TODO: Need to wrap this in a Many() to ensure the full expression is parsed.
     return result
 
@@ -202,28 +200,26 @@ def gen_mlir(expr):
 
         # ir.Location.file("test.mlir", line=1, col=1)
         with ir.InsertionPoint(module.body), ir.Location.unknown():
-            # main_fn = Operation.create(
-            #     "func.func", results=[], operands=[],
-            #     attributes={"function_type": ir.TypeAttr.get(ir.FunctionType.get([], []))},
-            #     successors=None, regions=1)
+            Operation.create(
+                "llvm.mlir.global", results=[], operands=[],
+                attributes={
+                "visibility_": ir.StringAttr.get("internal")
+                }
+
+            )
+            main_fn = Operation.create(
+                "llvm.func", results=[], operands=[],
+                attributes={"function_type": ir.TypeAttr.get(ir.FunctionType.get([], []))},
+                successors=None, regions=1)
             # print(dir(func.FuncOp.__init__))
             # help(func.FuncOp)
-            main_fn =  func.FuncOp("_start", ir.FunctionType.get([], []))
+            # main_fn =  func.FuncOp("main", ir.FunctionType.get([], []))
             # main_fn.sym_visibility = ir.StringAttr.get("private")
             f32 = ir.F32Type.get()
             pi = ir.FloatAttr.get(f32, 3.14)
-            print("Generated code")
-            # print(module)
-            # print(dir(module))
             print(module.dump())
 
 
 # parse("1 + 2 * 3")
 result = parse("1 * 2 + 3")
 gen_mlir(result)
-
-
-#  func = Operation.create(
-# "func.func", results=[], operands=[],
-# attributes={"function_type":TypeAttr.get(FunctionType.get([], []))},
-# successors=None, regions=1)
