@@ -1,0 +1,12 @@
+setup-build:
+    mkdir build
+    cd build && cmake ../src
+
+build:
+    cd build && make
+
+watch:
+    cd build && ls ../src/*.cpp | entr -s 'make'
+
+run:
+    ./build/app
