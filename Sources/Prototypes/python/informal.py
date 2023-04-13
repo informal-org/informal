@@ -194,30 +194,56 @@ def parse(input_):
     # TODO: Need to wrap this in a Many() to ensure the full expression is parsed.
     return result
 
+# def gen_mlir(expr):
+#     with ir.Context() as ctx:
+#         module = ir.Module.create(loc=ir.Location.unknown())
+
+#         # ir.Location.file("test.mlir", line=1, col=1)
+#         with ir.InsertionPoint(module.body), ir.Location.unknown():
+#             Operation.create(
+#                 "llvm.mlir.global", results=[], operands=[],
+#                 attributes={
+#                 "visibility_": ir.StringAttr.get("internal")
+#                 }
+
+#             )
+#             main_fn = Operation.create(
+#                 "llvm.func", results=[], operands=[],
+#                 attributes={"function_type": ir.TypeAttr.get(ir.FunctionType.get([], []))},
+#                 successors=None, regions=1)
+#             # print(dir(func.FuncOp.__init__))
+#             # help(func.FuncOp)
+#             # main_fn =  func.FuncOp("main", ir.FunctionType.get([], []))
+#             # main_fn.sym_visibility = ir.StringAttr.get("private")
+#             f32 = ir.F32Type.get()
+#             pi = ir.FloatAttr.get(f32, 3.14)
+#             print(module.dump())
+
+
+from mlirgen import *
+
 def gen_mlir(expr):
-    with ir.Context() as ctx:
-        module = ir.Module.create(loc=ir.Location.unknown())
+    # To get visibility into running results
+    # This first version will rely on C-libraries to do things like
+    # digit to char. Or printf.
+    # The code automatically runs in main and will print the result.
+    ctx = CodeBuffer()
+    with Module(ctx) as module:
+        terminator = '\\0A\\00'
+        message = "Hello World, Feni!"
+        # Message length + 2 byte terminator length.
+        input_type = f'!llvm.ptr<array<{len(message) + 2} x i8>>'
+        module.line(f'llvm.mlir.global internal constant @str("{message + terminator}")')
+        module.builtin_printf.code(module)
+        with Main(ctx) as main:
+            l0 = Pointer(main,"str", input_type).code()
+            l1 = Constant(main, 0, "index", i32).code()
+            l2 = ElementIndex(main, l0, l1, l1, input_type).code()
+            l3 = module.builtin_printf.call_code(main, [l2])
+            l4 = Constant(main, 0, i32).code()
+            main.line(f"llvm.return {l4} : i32")
 
-        # ir.Location.file("test.mlir", line=1, col=1)
-        with ir.InsertionPoint(module.body), ir.Location.unknown():
-            Operation.create(
-                "llvm.mlir.global", results=[], operands=[],
-                attributes={
-                "visibility_": ir.StringAttr.get("internal")
-                }
-
-            )
-            main_fn = Operation.create(
-                "llvm.func", results=[], operands=[],
-                attributes={"function_type": ir.TypeAttr.get(ir.FunctionType.get([], []))},
-                successors=None, regions=1)
-            # print(dir(func.FuncOp.__init__))
-            # help(func.FuncOp)
-            # main_fn =  func.FuncOp("main", ir.FunctionType.get([], []))
-            # main_fn.sym_visibility = ir.StringAttr.get("private")
-            f32 = ir.F32Type.get()
-            pi = ir.FloatAttr.get(f32, 3.14)
-            print(module.dump())
+    print(ctx.code)
 
 
 # parse("1 + 2 * 3")
