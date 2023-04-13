@@ -1,0 +1,21 @@
+// a and b here represent primitive values.
+// () is generalized abstraction (like parameters in a function).
+a           // Value
+a, b        // 1:1 - Pair (a, b). Relation (1:1 mapping). Structure.
+(a), b      // N:1 - Function / Mapping.
+a, (b)      // 1:N - Choice. Branching.
+(a), (b)    // N:N - Abstraction of abstractions. Intersection. Types. Effects (Generalized control flow). State. Async. Errors. Non-determinism. 
+
+// We give these some names. 
+// Pair, List, Structure. [a, b]
+Pair(a, b):
+    left = a
+    right = b
+
+// Function, Map, Declaration. (a): b
+Map(a, b): Pair(:mapping, Pair(a, b))
+
+// 
+a <- (b)    // Effect
+a | b       // Choice
+
