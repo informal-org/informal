@@ -194,39 +194,8 @@ def parse(input_):
     # TODO: Need to wrap this in a Many() to ensure the full expression is parsed.
     return result
 
-# def gen_mlir(expr):
-#     with ir.Context() as ctx:
-#         module = ir.Module.create(loc=ir.Location.unknown())
 
-#         # ir.Location.file("test.mlir", line=1, col=1)
-#         with ir.InsertionPoint(module.body), ir.Location.unknown():
-#             Operation.create(
-#                 "llvm.mlir.global", results=[], operands=[],
-#                 attributes={
-#                 "visibility_": ir.StringAttr.get("internal")
-#                 }
-
-#             )
-#             main_fn = Operation.create(
-#                 "llvm.func", results=[], operands=[],
-#                 attributes={"function_type": ir.TypeAttr.get(ir.FunctionType.get([], []))},
-#                 successors=None, regions=1)
-#             # print(dir(func.FuncOp.__init__))
-#             # help(func.FuncOp)
-#             # main_fn =  func.FuncOp("main", ir.FunctionType.get([], []))
-#             # main_fn.sym_visibility = ir.StringAttr.get("private")
-#             f32 = ir.F32Type.get()
-#             pi = ir.FloatAttr.get(f32, 3.14)
-#             print(module.dump())
-
-
-from mlirgen import *
-
-def gen_mlir(expr):
-    # To get visibility into running results
-    # This first version will rely on C-libraries to do things like
-    # digit to char. Or printf.
-    # The code automatically runs in main and will print the result.
+def gen_hello_world_mlir():
     ctx = CodeBuffer()
     with Module(ctx) as module:
         terminator = '\\0A\\00'
@@ -246,6 +215,17 @@ def gen_mlir(expr):
     print(ctx.code)
 
 
+
+from mlirgen import *
+
+def gen_mlir(expr):
+    # To get visibility into running results
+    # This first version will rely on C-libraries to do things like
+    # digit to char. Or printf.
+    # The code automatically runs in main and will print the result.
+    pass
+
 # parse("1 + 2 * 3")
 result = parse("1 * 2 + 3")
-gen_mlir(result)
+# gen_mlir(result)
+gen_hello_world_mlir()
