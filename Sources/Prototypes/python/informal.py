@@ -1,10 +1,4 @@
-# MLIR Python Bindings.
-from mlir.ir import Context, Module, InsertionPoint, Location, Operation
-from mlir import ir # passes, execution_engine
-from mlir.dialects import builtin, func
-
-PRECEDENCE_ADD = 10
-PRECEDENCE_MULTIPLY = 20
+from mlirgen import *
 
 class Type:
     def match(self):
@@ -62,6 +56,11 @@ class Intersection(CompoundType):
         last_val = self.values[-1]
         prefix = '\n' + ('\t' * indent)
         return f"{prefix}Intersection({prefix}{ last_val.repr(indent+1) if isinstance(last_val, Type) else last_val})"
+    
+    def emit(self, ctx):
+        result = self.values[-1].emit(ctx)
+        return result
+
 
 
 class Choice(CompoundType):
@@ -92,6 +91,12 @@ class Structure(CompoundType):
         # Print this indented as a tree
         prefix = '\n' + ('\t' * indent)
         return f"{prefix}Structure{{{ prefix.join([v.repr(indent + 1) if isinstance(v, Type) else (prefix + v) for v in self.values])}}}"
+    
+    def emit(self, ctx):
+        result = None
+        for val in self.values:
+            result = val.emit(ctx)
+        return result
 
 def match(input_, type_):
     if isinstance(type_, Type):
@@ -130,6 +135,9 @@ class DependentNode(Type):
     def repr(self, indent=0):
         prefix = '\n' + ('\t' * indent)
         return prefix + self.__class__.__name__ + " " + self.result.repr(indent+1)
+    
+    def emit(self, ctx):
+        return self.result.emit(ctx)
 
 
 class BinaryOp(DependentNode):
@@ -149,6 +157,13 @@ class AddNode(BinaryOp):
     op = "+"
     op_binding_power = 10
 
+    def emit(self, ctx):
+        lhs = self.result.values[0].emit(ctx)
+        rhs = self.result.values[2].emit(ctx)
+        op = Op(ctx)
+        return op.create(
+            ctx, "llvm.add", result=i32, operands=[lhs, rhs])
+
 
 class MultiplyNode(BinaryOp):
     op = "*"
@@ -167,6 +182,9 @@ class NumericLiteral(Type):
     def repr(self, indent=0):
         prefix = '\n' + ('\t' * indent)
         return f"{prefix}NumericLiteral({self.value})"
+    
+    def emit(self, ctx):
+        return Constant(ctx, int(self.value), i32).code()
 
 class Expr(DependentNode):
     def __init__(self, binding_power):
@@ -188,6 +206,9 @@ class Expr(DependentNode):
             return self
         else:
             return None
+        
+    def emit(self, ctx):
+        return self.result.emit(ctx)
                 
 
 def parse(input_):
@@ -199,6 +220,8 @@ def parse(input_):
 
 
 def gen_hello_world_mlir():
+    print("Input")
+
     ctx = CodeBuffer()
     with Module(ctx) as module:
         terminator = '\\0A\\00'
@@ -220,18 +243,33 @@ def gen_hello_world_mlir():
 
 
 
-from mlirgen import *
-
 def gen_mlir(expr):
     # To get visibility into running results
     # This first version will rely on C-libraries to do things like
     # digit to char. Or printf.
     # The code automatically runs in main and will print the result.
-    pass
+    ctx = CodeBuffer()
+    with Module(ctx) as module:
+        terminator = '\\0A\\00'
+        message = """%d"""
+        # Message length + 2 byte terminator length.
+        input_type = f'!llvm.ptr<array<{len(message) + 2} x i8>>'
+        module.line(f'llvm.mlir.global internal constant @str("{message + terminator}")')
+        module.builtin_printf.code(module)
+        with Main(ctx) as main:
+            l0 = Pointer(main,"str", input_type).code()
+            l1 = Constant(main, 0, "index", i32).code()
+            l2 = ElementIndex(main, l0, l1, l1, input_type).code()
+            expr_result = expr.emit(main)
+            l3 = module.builtin_printf.overload_call(main, ["!llvm.ptr<i8>", i32], [l2, expr_result])
+            l4 = Constant(main, 0, i32).code()
+            main.line(f"llvm.return {l4} : i32")
+    print(ctx.code)
+
 
 from pprint import pprint
 # parse("1 + 2 * 3")
-result = parse("1 * 2 + 3")
+result = parse("1 + 1")
 # print(result.repr())
-# gen_mlir(result)
-gen_hello_world_mlir()
+gen_mlir(result)
+# gen_hello_world_mlir()

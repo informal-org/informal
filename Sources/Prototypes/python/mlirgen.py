@@ -100,6 +100,17 @@ class Op(Context):
         super().__init__(*args, **kwargs)
         self.args = args
         self.kwargs = kwargs
+        self.prelude = ""
+        self.conclude = ""
+
+    def create(self, ctx, operation, result, operands):
+        ctx = (ctx or self.ctx)
+        local_id = ctx.nextLocal()
+        # self.line(f"{local_id} = {value} : {type}")
+        ctx.line(f'{local_id} = {operation} {operands[0]}, {operands[1]} :  {result}')
+        return local_id
+
+
 
 class Global(Op):
     name = "llvm.mlir.global"
