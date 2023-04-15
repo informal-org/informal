@@ -1,0 +1,18 @@
+
+@gen filename:
+    mkdir -p build
+    python bootstrap/informal.py {{ filename }}.infr > build/{{filename}}.mlir
+
+
+# Usage - just build hello
+@build filename:
+    mlir-opt build/{{filename}}.mlir --convert-func-to-llvm | \
+    mlir-translate --mlir-to-llvmir > build/{{filename}}.ll
+    # Compile the LLVM IR to an object file:
+    clang build/{{filename}}.ll -fsanitize=undefined --output build/{{filename}}.out 
+    chmod +x build/{{filename}}.out
+
+@run filename:
+    just gen {{filename}}
+    just build {{filename}}
+    ./build/{{filename}}.out

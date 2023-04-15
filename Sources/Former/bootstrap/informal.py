@@ -2,6 +2,7 @@ from mlirgen import *
 from primitives import *
 from ast import *
 import sys
+import os
         
 
 def gen_mlir(expr):
@@ -29,7 +30,8 @@ def gen_mlir(expr):
 
 
 def compile_file(filename):
-    with open(filename, 'r') as f:
+    filepath = os.path.join(os.getcwd(), filename)
+    with open(filepath, 'r') as f:
         code = f.read()
     result = parse(code)
     gen_mlir(result)
