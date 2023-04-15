@@ -82,9 +82,13 @@ class ExternalFunc(Context):
         return (ctx or self.ctx).line(self.declaration)
 
     def call_code(self, ctx, params):
-        params_type = [p for p in self.params_type if p != '...']
+        return self.overload_call(ctx, self.params_type, params)
+    
+    def overload_call(self, ctx, fn_signature, params):
+        params_type = [p for p in fn_signature if p != '...']
         return ctx.assignLocal(f"llvm.call @{self.name}({ ', '.join(params) })",
                               f'({", ".join(params_type)}) -> {self.ret_type}')
+
 
 class Main(Func):
     def __init__(self, ctx, *args, **kwargs):

@@ -6,7 +6,6 @@ from mlir.dialects import builtin, func
 PRECEDENCE_ADD = 10
 PRECEDENCE_MULTIPLY = 20
 
-
 class Type:
     def match(self):
         return self
@@ -133,24 +132,28 @@ class DependentNode(Type):
         return prefix + self.__class__.__name__ + " " + self.result.repr(indent+1)
 
 
-class AddNode(DependentNode):
+class BinaryOp(DependentNode):
+    op = None
+    op_binding_power = None
+
     def __init__(self, binding_power):
         super().__init__(binding_power)
         self.option = Structure(
-            Intersection(lambda x: precedence_gt(PRECEDENCE_ADD, binding_power), Expr(PRECEDENCE_ADD)),
-            LiteralType("+"),
-            Intersection(lambda x: precedence_gte(PRECEDENCE_ADD, binding_power), Expr(PRECEDENCE_ADD)),
+            Intersection(lambda x: precedence_gt(self.op_binding_power, binding_power), Expr(self.op_binding_power)),
+            LiteralType(self.op),
+            Intersection(lambda x: precedence_gte(self.op_binding_power, binding_power), Expr(self.op_binding_power)),
         )
 
 
-class MultiplyNode(DependentNode):
-    def __init__(self, binding_power):
-        super().__init__(binding_power)
-        self.option = Structure(
-            Intersection(lambda x: precedence_gt(PRECEDENCE_MULTIPLY, binding_power), Expr(PRECEDENCE_MULTIPLY)),
-            LiteralType("*"),
-            Intersection(lambda x: precedence_gte(PRECEDENCE_MULTIPLY, binding_power), Expr(PRECEDENCE_MULTIPLY)),
-        )
+class AddNode(BinaryOp):
+    op = "+"
+    op_binding_power = 10
+
+
+class MultiplyNode(BinaryOp):
+    op = "*"
+    op_binding_power = 20
+
 
 class NumericLiteral(Type):
     def match(self, input_):
@@ -199,7 +202,7 @@ def gen_hello_world_mlir():
     ctx = CodeBuffer()
     with Module(ctx) as module:
         terminator = '\\0A\\00'
-        message = "Hello World, Feni!"
+        message = """Hello World! Today is April %d"""
         # Message length + 2 byte terminator length.
         input_type = f'!llvm.ptr<array<{len(message) + 2} x i8>>'
         module.line(f'llvm.mlir.global internal constant @str("{message + terminator}")')
@@ -208,7 +211,8 @@ def gen_hello_world_mlir():
             l0 = Pointer(main,"str", input_type).code()
             l1 = Constant(main, 0, "index", i32).code()
             l2 = ElementIndex(main, l0, l1, l1, input_type).code()
-            l3 = module.builtin_printf.call_code(main, [l2])
+            const_out = Constant(main, 14, i32).code()
+            l3 = module.builtin_printf.overload_call(main, ["!llvm.ptr<i8>", i32], [l2, const_out])
             l4 = Constant(main, 0, i32).code()
             main.line(f"llvm.return {l4} : i32")
 
@@ -225,7 +229,9 @@ def gen_mlir(expr):
     # The code automatically runs in main and will print the result.
     pass
 
+from pprint import pprint
 # parse("1 + 2 * 3")
 result = parse("1 * 2 + 3")
+# print(result.repr())
 # gen_mlir(result)
 gen_hello_world_mlir()
