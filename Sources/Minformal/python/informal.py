@@ -37,6 +37,14 @@ class LiteralType(Type):
     def repr(self, indent=0):
         prefix = '\n' + ('\t' * indent)
         return f"{prefix}Literal({self.value})"
+    
+    def emit(self, ctx):
+        return Constant(ctx, int(self.value), i32).code()
+        
+class ParseLiteral(LiteralType):
+    def emit(self, ctx):
+        # These are temporary nodes just used during parsing
+        pass
 
 
 class Intersection(CompoundType):
@@ -60,8 +68,6 @@ class Intersection(CompoundType):
     def emit(self, ctx):
         result = self.values[-1].emit(ctx)
         return result
-
-
 
 class Choice(CompoundType):
     def match(self, input_):
@@ -148,26 +154,29 @@ class BinaryOp(DependentNode):
         super().__init__(binding_power)
         self.option = Structure(
             Intersection(lambda x: precedence_gt(self.op_binding_power, binding_power), Expr(self.op_binding_power)),
-            LiteralType(self.op),
+            ParseLiteral(self.op),
             Intersection(lambda x: precedence_gte(self.op_binding_power, binding_power), Expr(self.op_binding_power)),
         )
-
-
-class AddNode(BinaryOp):
-    op = "+"
-    op_binding_power = 10
 
     def emit(self, ctx):
         lhs = self.result.values[0].emit(ctx)
         rhs = self.result.values[2].emit(ctx)
         op = Op(ctx)
         return op.create(
-            ctx, "llvm.add", result=i32, operands=[lhs, rhs])
+            ctx, self.operation, result=i32, operands=[lhs, rhs])
+
+
+
+class AddNode(BinaryOp):
+    op = "+"
+    op_binding_power = 10
+    operation = "llvm.add"
 
 
 class MultiplyNode(BinaryOp):
     op = "*"
     op_binding_power = 20
+    operation = "llvm.mul"
 
 
 class NumericLiteral(Type):
@@ -269,7 +278,8 @@ def gen_mlir(expr):
 
 from pprint import pprint
 # parse("1 + 2 * 3")
-result = parse("1 + 1")
+result = parse("1 + 2 * 4")
 # print(result.repr())
+# print(result.ast().repr())
 gen_mlir(result)
 # gen_hello_world_mlir()

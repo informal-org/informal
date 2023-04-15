@@ -1,4 +1,8 @@
 
+@gen filename:
+    python informal.py > {{filename}}.mlir
+
+
 # Usage - just build hello
 @build filename:
     mlir-opt {{filename}}.mlir --convert-func-to-llvm | \
@@ -6,3 +10,8 @@
     # Compile the LLVM IR to an object file:
     clang {{filename}}.ll --output {{filename}}.out
     chmod +x {{filename}}.out
+
+@run filename:
+    just gen {{filename}}
+    just build {{filename}}
+    ./{{filename}}.out
