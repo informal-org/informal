@@ -8,7 +8,7 @@
     mlir-opt {{filename}}.mlir --convert-func-to-llvm | \
     mlir-translate --mlir-to-llvmir > {{filename}}.ll
     # Compile the LLVM IR to an object file:
-    clang {{filename}}.ll --output {{filename}}.out
+    clang {{filename}}.ll -fsanitize=undefined --output {{filename}}.out 
     chmod +x {{filename}}.out
 
 @run filename:

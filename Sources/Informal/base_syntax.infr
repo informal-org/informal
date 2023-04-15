@@ -1,3 +1,46 @@
+// Comments
+/// Docs
+
+
++ - * / %
+= == != > < >= <=
+_ | ... .., 
+. , ;
+[] () {}
+: ::
+1.2345
+""
+
+name : Type = value
+
+
+-------
+In-language constructs
+
+class def
+
+for
+self 
+
+if else 
+with
+
+
+and or not
+is, in, as
+true, false, nil
+
+
+
+
+
+
+
+
+
+
+-----------
+Previous
 0
 3.14159
 true
