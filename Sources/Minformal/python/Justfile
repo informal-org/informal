@@ -1,6 +1,6 @@
 
 @gen filename:
-    python informal.py > {{filename}}.mlir
+    python informal.py {{ filename }}.infr > {{filename}}.mlir
 
 
 # Usage - just build hello

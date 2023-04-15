@@ -1,6 +1,7 @@
 from mlirgen import *
 from primitives import *
 from ast import *
+import sys
         
 
 def gen_mlir(expr):
@@ -27,5 +28,19 @@ def gen_mlir(expr):
     print(ctx.code)
 
 
-result = parse("1 + 2 * 4")
-gen_mlir(result)
+def compile_file(filename):
+    with open(filename, 'r') as f:
+        code = f.read()
+    result = parse(code)
+    gen_mlir(result)
+
+
+def get_file_args():
+    if len(sys.argv) == 1:
+        print("Please provide a filename")
+        exit(1)
+    return sys.argv[1]
+
+if __name__ == "__main__":
+    filename = get_file_args()
+    compile_file(filename)
