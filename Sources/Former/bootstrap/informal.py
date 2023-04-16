@@ -2,6 +2,7 @@ from mlirgen import *
 from primitives import *
 from ast import *
 import sys
+import argparse
 import os
         
 
@@ -29,12 +30,15 @@ def gen_mlir(expr):
     print(ctx.code)
 
 
-def compile_file(filename):
+def compile_file(filename, emit_ast=False):
     filepath = os.path.join(os.getcwd(), filename)
     with open(filepath, 'r') as f:
         code = f.read()
     result = parse(code)
-    gen_mlir(result)
+    if emit_ast:
+        print(result.repr())
+    else:
+        gen_mlir(result)
 
 
 def get_file_args():
@@ -44,5 +48,9 @@ def get_file_args():
     return sys.argv[1]
 
 if __name__ == "__main__":
-    filename = get_file_args()
-    compile_file(filename)
+    arg_parser = argparse.ArgumentParser()
+    arg_parser.add_argument("filename", help="The file to compile")
+    arg_parser.add_argument("--emit-ast", action="store_true", help="Print the AST")
+    args = arg_parser.parse_args()
+    print(args)
+    compile_file(args.filename, args.emit_ast)
