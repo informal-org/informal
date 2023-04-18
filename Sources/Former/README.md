@@ -1,3 +1,13 @@
+# Former
+
+Building
+```
+mkdir build
+cd build
+cmake ../src/
+```
+
+
 # Minformal
 Minformal is a minimal subset of Informal used to bootstrap the compiler.
 
