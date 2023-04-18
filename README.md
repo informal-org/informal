@@ -1,11 +1,10 @@
-<img src="https://raw.githubusercontent.com/Feni/informal-landing/master/static/images/informal_logo.png" width="205" alt="Informal lang logo">
+<img src="https://raw.githubusercontent.com/Feni/informal/main/Documentation/Resources/Images/oto.jpg" width="205" alt="Oto, the octopus">
 
 
 # The Informal Programming Language.
+Informal is a flexible, general purpose programming language.
 
-Informal is a flexible, general purpose programming language targeting WebAssembly.
-
-This language is in active, early stage development. We welcome you to play with it for any hobby projects and provide feedback, but it's not ready for serious production use yet. Star and watch this repo on GitHub and check back soon!
+This language is in active, early stage development. You can play with it for hobby projects and provide feedback, but it's not ready for serious production use yet. Watch this repo on GitHub and check back soon!
 
 ## A pattern based language
 Everything in Informal is built on a single concept: Pattern Matching. Patterns generalize the functional mapping from input -> output, define the structural mapping for types and the relations between the two. That means that you can manipulate any functionality, just as flexibly as data or declaratively query for results meeting the specified constraints.
