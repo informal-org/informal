@@ -26,11 +26,37 @@
 // const mlir = @import("mlir");
 const mlir = @cImport({
     @cInclude("mlir-c/IR.h");
+    @cInclude("mlir-c/BuiltinTypes.h");
 });
+
+// BuiltinTypes.h
+// BuiltinAttributes.h
 
 const std = @import("std");
 
 pub fn main() !void {
     // Prints to stderr (it's a shortcut based on `std.io.getStdErr()`)
-    std.debug.print("Hello {} emit\n", .{mlir.mlirSymbolTableGetVisibilityAttributeName()});
+    // Context
+    // Module
+    // Insertion Point
+    //     Operation - Global
+    //     Operation - func main
+    var ctx = mlir.mlirContextCreate();
+    var locUnknonw = mlir.mlirLocationUnknownGet(ctx);
+
+    var module = mlir.mlirModuleCreateEmpty(locUnknonw);
+    var bodyBlock = mlir.mlirModuleGetBody(module);
+    _ = bodyBlock;
+
+    var int64 = mlir.mlirIntegerTypeGet(ctx, 64);
+    _ = int64;
+
+    // var printFlags = mlir.mlirOpPrintingFlagsCreate();
+    // mlir.mlirOpPrintingFlags
+    var modOp = mlir.mlirModuleGetOperation(module);
+    mlir.mlirOperationDump(modOp);
+
+    // var region = mlir.mlirRegionCreate();
+
+    std.debug.print("Hello updated {} emit\n", .{mlir.mlirSymbolTableGetVisibilityAttributeName()});
 }

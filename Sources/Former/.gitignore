@@ -87,6 +87,6 @@ CTestTestfile.cmake
 _deps
 
 
-/zig-out/
-/zig-cache/
-/lib/
+zig-out/
+zig-cache/
+lib/

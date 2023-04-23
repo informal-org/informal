@@ -15,7 +15,7 @@ pub fn build(b: *std.Build) void {
     // set a preferred release mode, allowing the user to decide how to optimize.
     const optimize = b.standardOptimizeOption(.{});
 
-    const mlir = b.addStaticLibrary(.{ .name = "mlir", .target = target, .optimize = optimize });
+    const mlir = b.addStaticLibrary(.{ .name = "mlir-c", .target = target, .optimize = optimize });
     // const mlir = b.addSharedLibrary(.{ .name = "mlir", .target = target, .optimize = optimize });
     // mlir.setTarget(target);
     // mlir.setBuildMode(optimize);
@@ -71,9 +71,35 @@ pub fn build(b: *std.Build) void {
     });
     // exe.createModule()
     exe.addLibraryPath("../../../llvm-project/build/lib");
-    exe.addLibraryPath("../../../llvm-project/build/tools/mlir/lib");
+    // exe.addLibraryPath("../../../llvm-project/build/tools/mlir/lib");
+    // exe.addLibraryPath("../../../llvm-project/build/tools/mlir/lib/CAPI/IR/CMakeFiles/obj.MLIRCAPIIR.dir");
+    // exe.addLibraryPath("../../../llvm-project/build/tools/mlir/lib/IR/CMakeFiles/obj.MLIRCAPIIR.dir");
     // exe.linkSystemLibrary("mlir");
-    exe.linkSystemLibraryName("MLIRCAPIIR");
+    // exe.linkSystemLibraryName("MLIRCAPIIR");
+    // exe.linkSystemLibraryName("MLIRCAPIAsync");
+    // exe.linkSystemLibraryName("MLIRCAPIControlFlow");
+    // exe.linkSystemLibraryName("MLIRCAPIConversion");
+    // exe.linkSystemLibraryName("MLIRCAPIDebug");
+    // exe.linkSystemLibraryName("MLIRCAPIExecutionEngine");
+    // exe.linkSystemLibraryName("MLIRCAPIFunc");
+    // exe.linkSystemLibraryName("MLIRCAPIGPU");
+    // exe.linkSystemLibraryName("MLIRCAPIInterfaces");
+    // exe.linkSystemLibraryName("MLIRCAPIIR");
+    // exe.linkSystemLibraryName("MLIRCAPILinalg");
+    // exe.linkSystemLibraryName("MLIRCAPILLVM");
+    // exe.linkSystemLibraryName("MLIRCAPIMLProgram");
+    // exe.linkSystemLibraryName("MLIRCAPIPDL");
+    // exe.linkSystemLibraryName("MLIRCAPIPythonTestDialect");
+    // exe.linkSystemLibraryName("MLIRCAPIQuant");
+    // exe.linkSystemLibraryName("MLIRCAPIRegisterEverything");
+    // exe.linkSystemLibraryName("MLIRCAPISCF");
+    // exe.linkSystemLibraryName("MLIRCAPIShape");
+    // exe.linkSystemLibraryName("MLIRCAPISparseTensor");
+    // exe.linkSystemLibraryName("MLIRCAPITensor");
+    // exe.linkSystemLibraryName("MLIRCAPITransformDialect");
+    // exe.linkSystemLibraryName("MLIRCAPITransforms");
+    exe.linkSystemLibraryName("MLIR-C");
+
     exe.addIncludePath("../../../llvm-project/mlir/include");
 
     exe.linkLibC();
