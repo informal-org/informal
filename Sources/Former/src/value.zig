@@ -1,104 +1,108 @@
 /// Value representation.
+/// We encode AST nodes and dynamic values in-language in a NaN tagged 64 bit value.
 /// 0 00000001010 0000000000000000000000000000000000000000000000000000 = Number 64
 /// 1 11111111111 1000000000000000000000000000000000000000000000000000 = NaN
 ///
-/// 51 bits of NaN is used to represent the following types of values
+/// The 51 unused bits of NaN is used to represent type-tagged values.
 const std = @import("std");
 
 // x86 - 1 if quiet. 0 if signaling.
 const QUIET_NAN: u64 = 0x7FF8_0000_0000_0000; // Actual NaN from operations.
 const SIGNALING_NAN: u64 = 0x7FF0_0000_0000_0000;
 const UNSIGNED_ANY_NAN: u64 = 0x7FF0_0000_0000_0000;
-
 const CANONICAL_NAN: u64 = 0x7FF8_0000_0000_0000; // WASM Canonical NaN.
-// One extra bit for Intel QNaN - https://craftinginterpreters.com/optimization.html#nan-boxing
-// We could use either Quiet NaN (avoiding the canonical + 1 intel QNan bit.). 0x7FFC_00..
-// Or use Signaling NaN.
-// We leave the sign bit un-used to allow for flexibility to switch between QNaN and SNaN
-// if needed in the future. For QNaN, sign bit behavior varies between Intel & ARM.
 
-// 000 - Object
-// 001 - Object Array
-// 010 - Inline Object. 16 bit type. 32 bit payload (wrapper types = 29 bit payload + 3 bit len)
-// 011 -
-// 100 -
-// 101 - Primitive Array
-// 110 - String
-// 111 - Bitset
-
-// 0x0007 if we just want the type bits. This mask ensure it's NaN and it's the given type.
+// 0x0007 if we want the type bits. This mask ensure it's NaN and it's the given type.
 const MASK_TYPE: u64 = 0x7FF7_0000_0000_0000;
 const MASK_PAYLOAD: u64 = 0x0000_FFFF_FFFF_FFFF; // High 48.
+const BASE_TYPE: u16 = 0x7FF0;
 
-// Object, slice.
+const MASK_HIGH8: u64 = 0x0000_FF00_0000_0000;
 const MASK_HIGH16: u64 = 0x0000_FFFF_0000_0000;
-const MASK_MID24: u64 = 0x0000_0000_FFFF_FF00;
+const MASK_HIGH24: u64 = 0x0000_FFFF_FF00_0000;
+const MASK_HIGH32: u64 = 0x0000_FFFF_FFFF_0000;
+const MASK_HIGH40: u64 = 0x0000_FFFF_FFFF_FF00;
+
 const MASK_LOW8: u64 = 0x0000_0000_0000_00FF;
-
-// Inline object. 8+40. Or 16+32 config.
+const MASK_LOW16: u64 = 0x0000_0000_0000_FFFF;
+const MASK_LOW24: u64 = 0x0000_0000_00FF_FFFF;
 const MASK_LOW32: u64 = 0x0000_0000_FFFF_FFFF;
+const MASK_LOW40: u64 = 0x0000_00FF_FFFF_FFFF;
 
-// Primitive array with 64 bit pointer alignment.
-const MASK_HIGH29: u64 = 0x0000_FFFF_FFF8_0000;
-const MASK_LOW19: u64 = 0x0000_0000_0007_FFFF;
+// The 51 bit NaN space is divided into a 3 bit tag + 48 bits of payload.
+// The tag represents how that payload is divided into headers + data, or inline types.
+const TAG_HEADER0: u16 = BASE_TYPE | 0x0000; // [000] 6 byte data. Typically pointers.
+const TAG_HEADER1: u16 = BASE_TYPE | 0x0001; // [001] 1 byte header. 5 byte data.
+const TAG_HEADER2: u16 = BASE_TYPE | 0x0002; // [110] 2 byte header. 4 byte data.
+const TAG_HEADER3: u16 = BASE_TYPE | 0x0003; // [011] 3 byte header. 3 byte data.
+const TAG_HEADER4: u16 = BASE_TYPE | 0x0004; // [100] 4 byte header. 2 byte data.
+const TAG_HEADER5: u16 = BASE_TYPE | 0x0005; // [101] 5 byte header. 1 byte data.
+const TAG_INLINE_STRING: u16 = BASE_TYPE | 0x006; // [110] Inline string up to 5 ascii chars inline.
+const TAG_INLINE_BITSET: u16 = BASE_TYPE | 0x007; // [111] Inline bitset.
 
-// Primitive wrapper object
-// Objects like Point, or Complex, which are composed of primitive values, with an inline type.
-const MASK_MID29: u64 = 0x0000_0000_FFFF_FFF8;
-const MASK_LOW3: u64 = 0x0000_0000_0000_0007;
+const TYPE_HEADER0: u64 = @as(u64, TAG_HEADER0) << 48;
+const TYPE_HEADER1: u64 = @as(u64, TAG_HEADER1) << 48;
+const TYPE_HEADER2: u64 = @as(u64, TAG_HEADER2) << 48;
+const TYPE_HEADER3: u64 = @as(u64, TAG_HEADER3) << 48;
+const TYPE_HEADER4: u64 = @as(u64, TAG_HEADER4) << 48;
+const TYPE_HEADER5: u64 = @as(u64, TAG_HEADER5) << 48;
+const TYPE_INLINE_STRING: u64 = @as(u64, TAG_INLINE_STRING) << 48;
+const TYPE_INLINE_BITSET: u64 = @as(u64, TAG_INLINE_BITSET) << 48;
 
-pub const TYPE_OBJECT: u64 = 0x7FF0_0000_0000_0000; // 000
-pub const TYPE_OBJECT_ARRAY: u64 = 0x7FF1_0000_0000_0000; // 001
-pub const TYPE_INLINE_OBJECT: u64 = 0x7FF2_0000_0000_0000; // 010
-// 011, 100 - Unused
-pub const TYPE_PRIMITIVE_ARRAY: u64 = 0x7FF5_0000_0000_0000; // 101
-pub const TYPE_INLINE_STRING: u64 = 0x7FF6_0000_0000_0000; // 110
-pub const TYPE_INLINE_BITSET: u64 = 0x7FF7_0000_0000_0000; // 111
+// The header portion has a further-tag indicating what the header and data represent.
+// Pointers are 64 bit aligned, thus the bottom 3 bits are used for pointer tagging.
+const H_PTR64: u3 = 0b000; // Pointer + length.
+const H_PTR32: u3 = 0b001; // Shift >> 1
+const H_PTR16: u3 = 0b010; // Shift >> 2
+const H_PTR8: u3 = 0b011; // Shift >> 3
+const H_OBJ_LEN: u3 = 0b100;
+const H_OBJ_OFFSET: u3 = 0b101;
+const H_PTR_MASK: u3 = 0b110;
+const H_IMMEDIATE: u3 = 0b111; // Inline object.
 
-/// Sub-types of inline objects
-pub const T_POINTER: u16 = 0x0000;
-// Boolean types are just symbols.
-pub const T_SYMBOL: u16 = 0x0001;
-pub const T_STRING: u16 = 0x0003;
-pub const T_INT: u16 = 0x0002;
+// The full range of dynamic type options are unnecessary for the parser.
+// So we use these bits in more constrained way for compactness, avoiding unnecessary tags.
+// AST Nodes will have 5 byte header + 1 byte data.
+// The header represents the ascii representation of builtin keywords.
+// true, false, null, if, for, etc. Up to the first 5 chars.
+// The 1 byte data is context dependent and may represent precedence or indentation level.
+// Semantic types like Symbol, Identifier, String, Comment etc.
+// use the 1 byte header + 5 byte data reference to their respective symbol table.
+const AST_SYMBOL: u8 = 0x3A; // 0x3A = ':'
+const AST_STRING: u8 = 0x21; // 0x22 = '"'
+const AST_IDENTIFIER: u8 = 0x41; // 0x41 = 'A'
+const AST_COMMENT: u8 = 0x27; // 0x27 = '/'
 
-// User-defined symbols begin at 0x1000 = 4k reserved symbols.
-var symbolIdx: u16 = 0x1000;
+pub fn getTypeTag(val: u64) u64 {
+    return val & MASK_TYPE;
+}
 
 fn isPrimitiveType(comptime pattern: u64, val: u64) bool {
     return (val & pattern) == pattern;
 }
 
-pub fn getPrimitiveType(val: u64) u64 {
-    return val & MASK_TYPE;
+pub fn getHeader(val: u64) u64 {
+    const header = switch (val & MASK_TYPE) {
+        TAG_HEADER1 => (val & MASK_HIGH8) >> 40,
+        TAG_HEADER2 => (val & MASK_HIGH16) >> 32,
+        TAG_HEADER3 => (val & MASK_HIGH24) >> 24,
+        TAG_HEADER4 => (val & MASK_HIGH32) >> 16,
+        TAG_HEADER5 => (val & MASK_HIGH40) >> 8,
+        else => 0,
+    };
+    return header;
 }
 
-pub fn getObjectType(val: u64) u16 {
-    return @truncate(u16, (val & MASK_HIGH16) >> 32);
-}
-
-pub fn getObjectPtr(val: u64) u24 {
-    return @truncate(u24, (val & MASK_MID24) >> 8);
-}
-
-pub fn getObjectLength(val: u64) u8 {
-    return @truncate(u8, val & MASK_LOW8);
-}
-
-pub fn getPrimitiveArrayPtr(val: u64) u64 {
-    return (val & MASK_HIGH29) >> 19;
-}
-
-pub fn getPrimitiveArrayLength(val: u64) u64 {
-    return val & MASK_LOW19;
-}
-
-pub fn getObjectPayload(val: u64) u64 {
-    return val & MASK_LOW32;
-}
-
-pub fn getInlinePayload(val: u64) u64 {
-    return val & MASK_PAYLOAD;
+pub fn getPayload(val: u64) u64 {
+    const payload = switch (val & MASK_TYPE) {
+        TAG_HEADER1 => (val & MASK_LOW40),
+        TAG_HEADER2 => (val & MASK_LOW32),
+        TAG_HEADER3 => (val & MASK_LOW24),
+        TAG_HEADER4 => (val & MASK_LOW16),
+        TAG_HEADER5 => (val & MASK_LOW8),
+        else => val & MASK_PAYLOAD, // Header 0
+    };
+    return payload;
 }
 
 pub fn isNan(val: u64) bool {
@@ -111,49 +115,8 @@ pub fn isNumber(val: u64) bool {
     return !isNan(val);
 }
 
-pub fn isObjectReference(val: u64) bool {
-    return isPrimitiveType(TYPE_OBJECT, val);
-}
-
-pub fn isObjectArray(val: u64) bool {
-    return isPrimitiveType(TYPE_OBJECT_ARRAY, val);
-}
-
-pub fn isInlineObject(val: u64) bool {
-    return isPrimitiveType(TYPE_INLINE_OBJECT, val);
-}
-
-pub fn isPrimitiveArray(val: u64) bool {
-    return isPrimitiveType(TYPE_PRIMITIVE_ARRAY, val);
-}
-
 pub fn isInlineString(val: u64) bool {
     return isPrimitiveType(TYPE_INLINE_STRING, val);
-}
-
-pub fn isString(val: u64) bool {
-    // TODO: Handle Object array / Primitive array pointers.
-    return isInlineString(val);
-}
-
-pub fn createObject(region: u16, idx: u24, attr: u8) u64 {
-    return TYPE_OBJECT | (@as(u64, region) << 32) | (@as(u64, idx) << 8) | attr;
-}
-
-pub fn createObjectArray(region: u16, idx: u24, attr: u8) u64 {
-    return TYPE_OBJECT_ARRAY | (@as(u64, region) << 32) | (@as(u64, idx) << 8) | attr;
-}
-
-pub fn createInlineObject(objType: u16, payload: u32) u64 {
-    return TYPE_INLINE_OBJECT | (@as(u64, objType) << 32) | payload;
-}
-
-pub fn createWrapperObject(objType: u16, pointer: u29, length: u3) u64 {
-    return TYPE_INLINE_OBJECT | (@as(u64, objType) << 32) | (@as(u64, pointer) << 3) | length;
-}
-
-pub fn createPrimitiveArray(pointer: u29, length: u19) u64 {
-    return TYPE_PRIMITIVE_ARRAY | (@as(u64, pointer) << 19) | length;
 }
 
 pub fn createInlineString(str: []const u8) u64 {
@@ -166,68 +129,35 @@ pub fn createInlineString(str: []const u8) u64 {
     return payload;
 }
 
-pub fn createStringPtr(start: u32, end: u32) u64 {
-    // return Token{ .kind = TokenKind.string, .start = start, .value = end };
-    var startPtr = @truncate(u29, start) | 0x1000_0000; // Set high bit to indicate string.
-    return createPrimitiveArray(startPtr, @truncate(u19, end));
-}
-
 pub fn decodeInlineString(val: u64, out: *[8]u8) void {
     // TODO: Truncate to 6 bytes.
     // asBytes - keeps original pointer. toBytes - copies.
     return std.mem.copy(u8, out, std.mem.asBytes(&(val & MASK_PAYLOAD)));
 }
 
-pub fn createStaticSymbol(comptime val: u32) u64 {
-    return createInlineObject(T_SYMBOL, val);
+pub fn createKeyword(str: []const u8, precedence: u8) u64 {
+    // TODO: Confirm left-to-right MSB - LSB for string encoding.
+    if (str.len > 5) unreachable;
+    return createInlineString(str) | (@as(u64, precedence) << 40);
 }
 
-pub fn createSymbol(val: u32) u64 {
-    return createInlineObject(T_SYMBOL, val);
+pub fn createHeader1(header: u8, payload: u40) u64 {
+    return TYPE_HEADER1 | (@as(u64, header) << 40) | @as(u64, payload);
 }
-
-pub fn nextType() u16 {
-    symbolIdx = symbolIdx + 1;
-    return symbolIdx;
-}
-
-pub fn nextSymbol() u64 {
-    symbolIdx += 1;
-    return createInlineObject(T_SYMBOL, symbolIdx);
-}
-
-pub const SYMBOL_FALSE = createStaticSymbol(0);
-pub const SYMBOL_TRUE = createStaticSymbol(1);
-pub const SYMBOL_NONE = createStaticSymbol(2);
 
 const expect = std.testing.expect;
 const print = std.debug.print;
 
-test "Num type check" {
-    const num: u64 = @bitCast(u64, @as(f64, 3.14159265359));
-    try expect(true == isNumber(num));
-    try expect(false == isNan(num));
-    try expect(false == isObjectReference(num));
-    try expect(false == isObjectArray(num));
-    try expect(false == isInlineObject(num));
-    try expect(false == isPrimitiveArray(num));
-    try expect(false == isInlineString(num));
-    try expect(false == isString(num));
+test "Test inline strings" {
+    const val = createInlineString("+");
+    print("testing inline strings", .{});
+    print("{x}\n", .{val});
+    try expect(val == 0x7FF6_0000_0000_002B);
 }
 
-test "Object representation" {
-    const obj = createObject(0x1234, 0x0300_03, 0x05);
-    print("\nObject representation {x}\n", .{obj});
-    try expect(obj == 0x7FF0_1234_0300_03_05);
-}
-
-test "String representation" {
-    // Hello = 0x48 ox65 0x6c 0x6c 0x6f 0x00
-    const str = createInlineString("Hello");
-    print("\nString representation {x}\n", .{str});
-    try expect(str == 0x7FF6_006f_6c6c_6548);
-    var str2 = std.mem.zeroes([8]u8);
-    decodeInlineString(str, &str2);
-    print("\nString representation {s}\n", .{str2});
-    try expect(std.mem.eql(u8, str2[0..5], "Hello"));
+test "Test keywords" {
+    const val = createKeyword("+", 8);
+    print("testing keywords", .{});
+    print("{x}\n", .{val});
+    try expect(val == 0x7FF6_0800_0000_002B);
 }
