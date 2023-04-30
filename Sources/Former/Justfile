@@ -16,3 +16,16 @@
     just gen {{filename}}
     just build {{filename}}
     ./build/{{filename}}.out
+
+asm:
+    nasm -f elf64 hello.asm
+    ld --nostdlib -m elf_x86_64 -s -o hello.out hello.o
+    ./hello.out
+
+debug:
+    nasm -f elf64 -F dwarf -g hello.asm
+    ld -o hello.out hello.o
+    gdb hello.out
+
+dump:
+    objdump -x hello.out
