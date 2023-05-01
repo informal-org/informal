@@ -136,7 +136,6 @@ pub fn decodeInlineString(val: u64, out: *[8]u8) void {
 }
 
 pub fn createKeyword(str: []const u8, precedence: u8) u64 {
-    // TODO: Confirm left-to-right MSB - LSB for string encoding.
     if (str.len > 5) unreachable;
     return createInlineString(str) | (@as(u64, precedence) << 40);
 }
@@ -145,19 +144,23 @@ pub fn createHeader1(header: u8, payload: u40) u64 {
     return TYPE_HEADER1 | (@as(u64, header) << 40) | @as(u64, payload);
 }
 
+pub fn createReference(header: u8, payload: u40) u64 {
+    return createHeader1(header, payload);
+}
+
+const KW_PLUS = createKeyword("+", 80);
+const KW_MINUS = createKeyword("-", 80);
+const KW_MUL = createKeyword("*", 85);
+const KW_DIV = createKeyword("/", 85);
+
 const expect = std.testing.expect;
 const print = std.debug.print;
-
 test "Test inline strings" {
     const val = createInlineString("+");
-    print("testing inline strings", .{});
-    print("{x}\n", .{val});
     try expect(val == 0x7FF6_0000_0000_002B);
 }
 
 test "Test keywords" {
     const val = createKeyword("+", 8);
-    print("testing keywords", .{});
-    print("{x}\n", .{val});
     try expect(val == 0x7FF6_0800_0000_002B);
 }
