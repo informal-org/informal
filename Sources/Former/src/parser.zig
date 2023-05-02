@@ -8,6 +8,9 @@ pub const Parser = struct {
     buffer: []const u8,
     index: u32,
     allocator: Allocator,
+    // The AST is stored is a postfix order - where all operands come before the operator.
+    // This stack structure avoids the need for any explicit pointers for operators
+    // and matches the dependency order we want to emit bytecode in and matches the order of evaluation.
     ast: std.MultiArrayList(ast.AstNode),
     strings: std.StringHashMap(usize),
     symbols: std.StringHashMap(u64),

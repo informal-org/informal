@@ -62,10 +62,14 @@ const H_IMMEDIATE: u3 = 0b111; // Inline object.
 
 // The full range of dynamic type options are unnecessary for the parser.
 // So we use these bits in more constrained way for compactness, avoiding unnecessary tags.
-// AST Nodes will have 5 byte header + 1 byte data.
+// AST Nodes will have 4 byte header + 2 byte data.
 // The header represents the ascii representation of builtin keywords.
-// true, false, null, if, for, etc. Up to the first 5 chars.
-// The 1 byte data is context dependent and may represent precedence or indentation level.
+// true, false, null, if, for, etc. Up to the first 4 chars.
+// The 2 byte data is context dependent.
+// It initially represents precedenec for operators. Indentation level for blocks.
+// Since those are irrelevant once the AST is constructed, it's used to store relative backrefs
+// to the previously seen instance of this operand (based on a similar structure in LuaJIT).
+// These backrefs make certain pattern-matching ops like common-subexpression-elimination faster.
 // Semantic types like Symbol, Identifier, String, Comment etc.
 // use the 1 byte header + 5 byte data reference to their respective symbol table.
 const AST_SYMBOL: u8 = 0x3A; // 0x3A = ':'
