@@ -14,6 +14,8 @@ pub const Parser = struct {
     ast: std.MultiArrayList(ast.AstNode),
     strings: std.StringHashMap(usize),
     symbols: std.StringHashMap(u64),
+    nesting: std.ArrayList(u16),
+    indentation_char: u8,
 
     pub fn init(buffer: []const u8, allocator: Allocator) Self {
         var tokens = std.MultiArrayList(u64).init(allocator);
@@ -21,10 +23,8 @@ pub const Parser = struct {
         var symbols = std.StringHashMap(u64).init(allocator);
         // symbols.put("and", val.KW_AND);
 
-
         return Self{ .buffer = buffer, .index = 0, .allocator = allocator, .tokens = tokens, .strings = strings, .symbols = symbols };
     }
-
 
     pub fn deinit(self: *Parser) void {
         self.tokens.deinit();
@@ -42,13 +42,27 @@ pub const Parser = struct {
         }
     }
 
-    fn is_delimiter(ch: u8) bool {
-        // No mathematical operators in MVL.
-        return switch (ch) {
-            '(', ')', '[', ']', '{', '}', '"', '\'', '.', ',', ':', ';', ' ', '\t', '\n' => true,
-            else => false,
-        };
+    fn is_alpha(ch: u8) bool {
+        var lch = ch | 0x20; // ascii-lowercase
+        // TODO: Unicode-support if > UNICODE_START = 0x80;
+        return 'a' <= lch and lch <= 'z' or ch == '_';
     }
+
+    fn is_digit(ch: u8) bool {
+        return '0' <= ch and ch <= '9';
+    }
+
+    fn is_alphanumeric(ch: u8) bool {
+        return is_alpha(ch) || is_digit(ch);
+    }
+
+    // fn is_delimiter(ch: u8) bool {
+    //     // No mathematical operators in MVL.
+    //     return switch (ch) {
+    //         '(', ')', '[', ']', '{', '}', '"', '\'', '.', ',', ':', ';', ' ', '\t', '\n' => true,
+    //         else => false,
+    //     };
+    // }
 
     fn peek_starts_with(self: *Self, matchStr: []const u8) bool {
         // Peek if the next tokens start with the given match string.
@@ -66,10 +80,15 @@ pub const Parser = struct {
         return null;
     }
 
-    fn seek_till_delimiter(self: *Self) ?u64 {
-        while (self.index < self.buffer.len and !is_delimiter(self.buffer[self.index])) : (self.index += 1) {}
+    fn skip(self: *Self) ?u64 {
+        self.index += 1;
         return null;
     }
+
+    // fn seek_till_delimiter(self: *Self) ?u64 {
+    //     while (self.index < self.buffer.len and !is_delimiter(self.buffer[self.index])) : (self.index += 1) {}
+    //     return null;
+    // }
 
     fn lex_number(self: *Self) u64 {
         // MVL just needs int support for bootstrapping. Stage1+ should parse float.
@@ -106,7 +125,8 @@ pub const Parser = struct {
         // First char is known to not be a number or delimiter.
         var start = self.index;
         // Non digit or symbol start, so interpret as an identifier.
-        _ = self.seek_till_delimiter();
+        while (self.index < self.buffer.len and is_alphanumeric(self.buffer[self.index])) : (self.index += 1) {}
+
         if (self.index - start > 255) {
             unreachable;
         }
@@ -115,11 +135,23 @@ pub const Parser = struct {
         // Test off by one for symbol value (shouldn't contain delimiter)
         const symbolRef = val.createReference(val.AST_IDENTIFIER, self.symbols.len);
         const symbolId = self.symbols.getOrPut(self.buffer[start..self.index], symbolRef);
-        
+
         return ast.AstNode{ .value = symbolId, .loc = ast.AstLoc{ .start = start, .end = self.index } };
     }
 
-    
+    fn lex_block(self: *Self, current_indent: u16, indentation_char: u8) !u16 {
 
+    }
 
+    fn lex(self: *Self) ast.AstNode {
+        while(self.index < self.buffer.len) {
+            var ch = self.buffer[self.index];
+            _ = switch(ch) {
+                is_alpha(ch) => self.lex_identifier(),
+                is_digit(ch) => self.lex_number(),
+                ' ', '\t' => self.skip(),
+                '\n' => self.lex_block(),
+            }
+        }
+    }
 };
