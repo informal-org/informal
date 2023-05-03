@@ -139,17 +139,17 @@ pub fn decodeInlineString(val: u64, out: *[8]u8) void {
     return std.mem.copy(u8, out, std.mem.asBytes(&(val & MASK_PAYLOAD)));
 }
 
-pub fn createKeyword(str: []const u8, precedence: u8) u64 {
-    if (str.len > 5) unreachable;
-    return createInlineString(str) | (@as(u64, precedence) << 40);
+pub fn createKeyword(str: []const u8, precedence: u16) u64 {
+    if (str.len > 4) unreachable;
+    return createInlineString(str) | (@as(u64, precedence) << 32);
 }
 
-pub fn createHeader1(header: u8, payload: u40) u64 {
-    return TYPE_HEADER1 | (@as(u64, header) << 40) | @as(u64, payload);
+pub fn createHeader2(header: u16, payload: u32) u64 {
+    return TYPE_HEADER2 | (@as(u64, header) << 32) | @as(u64, payload);
 }
 
-pub fn createReference(header: u8, payload: u40) u64 {
-    return createHeader1(header, payload);
+pub fn createReference(header: u16, payload: u32) u64 {
+    return createHeader2(header, payload);
 }
 
 const KW_PLUS = createKeyword("+", 80);

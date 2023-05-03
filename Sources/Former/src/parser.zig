@@ -19,8 +19,12 @@ pub const Parser = struct {
         var tokens = std.MultiArrayList(u64).init(allocator);
         var strings = std.StringHashMap(usize).init(allocator);
         var symbols = std.StringHashMap(u64).init(allocator);
+        // symbols.put("and", val.KW_AND);
+
+
         return Self{ .buffer = buffer, .index = 0, .allocator = allocator, .tokens = tokens, .strings = strings, .symbols = symbols };
     }
+
 
     pub fn deinit(self: *Parser) void {
         self.tokens.deinit();
@@ -95,23 +99,27 @@ pub const Parser = struct {
         const stringId = self.strings.getOrPut(self.buffer[start..end], self.strings.len);
         const stringRef = val.createReference(val.AST_STRING, stringId);
         _ = stringRef;
-        return ast.AstNode{ .value = stringId, .loc = ast.AstLoc{ .start = start, .end = end }, .right_index = 0 };
+        return ast.AstNode{ .value = stringId, .loc = ast.AstLoc{ .start = start, .end = end } };
     }
 
     fn lex_identifier(self: *Self) ast.AstNode {
-        // First char is known to not be a number.
+        // First char is known to not be a number or delimiter.
         var start = self.index;
         // Non digit or symbol start, so interpret as an identifier.
         _ = self.seek_till_delimiter();
         if (self.index - start > 255) {
             unreachable;
         }
-        // TODO
-        // const current = self.
+        // This can be further optimized with a perfect-hash lookup for builtins.
 
-        // const symbolId = self.symbols.getOrPut(self.buffer[start..self.index], self.symbols.len);
-        // const symbolRef = val.createReference(val.AST_IDENTIFIER, payload: u40)
-
-        // return tok.createIdentifier(@truncate(u24, start), @truncate(u8, (self.index - start)));
+        // Test off by one for symbol value (shouldn't contain delimiter)
+        const symbolRef = val.createReference(val.AST_IDENTIFIER, self.symbols.len);
+        const symbolId = self.symbols.getOrPut(self.buffer[start..self.index], symbolRef);
+        
+        return ast.AstNode{ .value = symbolId, .loc = ast.AstLoc{ .start = start, .end = self.index } };
     }
+
+    
+
+
 };
