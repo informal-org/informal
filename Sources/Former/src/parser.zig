@@ -14,6 +14,7 @@ pub const Parser = struct {
     ast: std.MultiArrayList(ast.AstNode),
     strings: std.StringHashMap(usize),
     symbols: std.StringHashMap(u64),
+    operators: std.ArrayList(u64), // Shunting yard operator stack
     nesting: std.ArrayList(u16),
     indentation_char: u8,
 
@@ -73,6 +74,13 @@ pub const Parser = struct {
             }
         }
         return true;
+    }
+
+    fn peek(self: *Self) u8 {
+        if (self.index + 1 >= self.buffer.len) {
+            return 0;
+        }
+        return self.buffer[self.index + 1];
     }
 
     fn seek_till(self: *Self, ch: []const u8) ?u64 {
@@ -139,19 +147,59 @@ pub const Parser = struct {
         return ast.AstNode{ .value = symbolId, .loc = ast.AstLoc{ .start = start, .end = self.index } };
     }
 
-    fn lex_block(self: *Self, current_indent: u16, indentation_char: u8) !u16 {
+    // fn lex_block(self: *Self) {
 
+    // }
+
+    fn lex_comment_line(self: *Self) ast.AstNode {
+        // Comment - including the starting //.
+        var start = self.index;
+        self.index += 2;
+        self.seek_till("\n");
+        var end = self.index;
+        var commentRef = val.createReference(val.AST_COMMENT, 0);
+        return ast.AstNode{ .value = commentRef, .loc = ast.AstLoc{ .start = start, .end = end } };
     }
 
+    fn kw(self: *Self, keyword: u64, length: u8) ast.AstNode {
+        var start = self.index;
+        self.index += length;
+        return ast.AstNode{ .value = keyword, .loc = ast.AstLoc{ .start = start, .end = self.index } };
+    }
+
+    // The core lexer. We use a shunting-yard + state machine based approach since the desired AST form is Postfix.
+    // Bottom-up parsing fits that perfectly vs top-down pratt style parsers.
     fn lex(self: *Self) ast.AstNode {
-        while(self.index < self.buffer.len) {
+        while (self.index < self.buffer.len) {
             var ch = self.buffer[self.index];
-            _ = switch(ch) {
+
+            _ = switch (ch) {
                 is_alpha(ch) => self.lex_identifier(),
                 is_digit(ch) => self.lex_number(),
                 ' ', '\t' => self.skip(),
-                '\n' => self.lex_block(),
-            }
+                // '\n' => self.lex_block(),
+                '"' => self.lex_string(),
+                '/' => {
+                    if (self.peek() == '/') {
+                        // TODO: Triple slash for doc comments.
+                        self.lex_comment();
+                    } else {
+                        // Division
+                        self.kw(val.KW_DIV, 1);
+                    }
+                },
+                '+' => {
+                    self.kw(val.KW_ADD, 1);
+                },
+                '-' => {
+                    self.kw(val.KW_SUB, 1);
+                },
+                '*' => {
+                    self.kw(val.KW_MUL, 1);
+                },
+            };
         }
     }
 };
+
+test "Lex digits" {}
