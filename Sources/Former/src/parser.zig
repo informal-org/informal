@@ -166,10 +166,45 @@ pub const Parser = struct {
         return ast.AstNode{ .value = commentRef, .loc = ast.Location{ .start = start, .end = end } };
     }
 
+    fn op_pop(self: *Self) !void {
+        // Pop an operator from the operator stack and add to the output AST queue.
+        var op = self.operators.pop();
+        try self.ast.append(self.allocator, op);
+    }
+
+    fn should_pop_op(self: *Self, precedence: u16, isLeftAssociative: bool) bool {
+        if (self.operators.items.len == 0) {
+            return false;
+        }
+        var top = self.operators.items[self.operators.items.len - 1];
+        var topPrecedence = val.getPrecedence(top.value);
+        return topPrecedence > precedence or (topPrecedence == precedence and isLeftAssociative);
+    }
+
     fn kw(self: *Self, keyword: u64, length: u8) ast.AstNode {
         var start = self.index;
         self.index += length;
         return ast.AstNode{ .value = keyword, .loc = ast.Location{ .start = start, .end = self.index } };
+    }
+
+    fn insert_op(self: *Self, op: ast.AstNode) !void {
+        var precedence = val.getPrecedence(op.value);
+        var isLeftAssociative = val.isLeftAssociative(op.value);
+        while (self.should_pop_op(precedence, isLeftAssociative)) {
+            try self.op_pop();
+        }
+        try self.operators.append(op);
+    }
+
+    fn flush_ops(self: *Self, until: ?u64) !void {
+        while (self.operators.items.len > 0) {
+            var op = self.operators.items[self.operators.items.len - 1];
+            if (until != null and op.value == until) {
+                return;
+            }
+            _ = self.operators.pop();
+            try self.ast.append(self.allocator, op);
+        }
     }
 
     // The core lexer. We use a shunting-yard + state machine based approach since the desired AST form is Postfix.
@@ -183,7 +218,7 @@ pub const Parser = struct {
             } else if (is_digit(ch)) {
                 try self.ast.append(self.allocator, self.lex_number());
             } else {
-                var token: ?ast.AstNode = null;
+                // var token: ?ast.AstNode = null;
                 _ = switch (ch) {
                     ' ', '\t' => self.skip(),
                     // '\n' => self.lex_block(),
@@ -198,21 +233,29 @@ pub const Parser = struct {
                     //     }
                     // },
                     '+' => {
-                        token = self.kw(val.KW_ADD, 1);
-                        // Precedence add
+                        var token = self.kw(val.KW_ADD, 1);
+                        try self.insert_op(token);
                     },
                     '-' => {
-                        token = self.kw(val.KW_SUB, 1);
+                        var token = self.kw(val.KW_SUB, 1);
+                        try self.insert_op(token);
                     },
                     '*' => {
-                        token = self.kw(val.KW_MUL, 1);
+                        var token = self.kw(val.KW_MUL, 1);
+                        try self.insert_op(token);
                     },
                     else => {
                         return error.InvalidToken;
                     },
                 };
+
+                // if (token != null) {
+                //     try self.ast.append(self.allocator, token.?);
+                // }
             }
         }
+
+        try self.flush_ops(null);
     }
 };
 
@@ -237,6 +280,9 @@ pub fn testParser(buffer: []const u8, expected: []const u64) !void {
 
     try expect(parser.ast.len == expected.len);
     for (parser.ast.items(.value), 0..) |token, i| {
+        if (token != expected[i]) {
+            print("Expected {x}, got {x}\n", .{ expected[i], token });
+        }
         try expect(token == expected[i]);
     }
 }
@@ -244,5 +290,11 @@ pub fn testParser(buffer: []const u8, expected: []const u64) !void {
 test "Lex digits" {
     try testParser("123", &[_]u64{
         123,
+    });
+}
+
+test "Lex expression precedence" {
+    try testParser("5 + 4", &[_]u64{
+        5, 4, val.KW_ADD,
     });
 }

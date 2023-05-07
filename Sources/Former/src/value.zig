@@ -140,8 +140,22 @@ pub fn decodeInlineString(val: u64, out: *[8]u8) void {
 }
 
 pub fn createKeyword(str: []const u8, precedence: u16) u64 {
+    // Create a left-associative keyword
     if (str.len > 4) unreachable;
     return createInlineString(str) | (@as(u64, precedence) << 32);
+}
+
+pub fn createKeywordRight(str: []const u8, precedence: u16) u64 {
+    // Create a right-associative keyword. Top bit of precedence header is 1.
+    return createInlineString(str) | (@as(u64, precedence | 0x1000_0000) << 32);
+}
+
+pub fn getPrecedence(tok: u64) u16 {
+    return @truncate(u16, (tok >> 32)) & 0x7FFF;
+}
+
+pub fn isLeftAssociative(tok: u64) bool {
+    return ((tok >> 32) & 0x1000_0000) == 0;
 }
 
 pub fn createHeader2(header: u16, payload: u32) u64 {
@@ -169,4 +183,5 @@ test "Test keywords" {
     const val = createKeyword("+", 8);
     print("val: {x}\n", .{val});
     try expect(val == 0x7FF6_0008_0000_002B);
+    try expect(getPrecedence(val) == 8);
 }
