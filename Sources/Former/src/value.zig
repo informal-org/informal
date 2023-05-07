@@ -72,10 +72,10 @@ const H_IMMEDIATE: u3 = 0b111; // Inline object.
 // These backrefs make certain pattern-matching ops like common-subexpression-elimination faster.
 // Semantic types like Symbol, Identifier, String, Comment etc.
 // use the 1 byte header + 5 byte data reference to their respective symbol table.
-const AST_SYMBOL: u8 = 0x3A; // 0x3A = ':'
-const AST_STRING: u8 = 0x21; // 0x22 = '"'
-const AST_IDENTIFIER: u8 = 0x41; // 0x41 = 'A'
-const AST_COMMENT: u8 = 0x27; // 0x27 = '/'
+pub const AST_SYMBOL: u8 = 0x3A; // 0x3A = ':'
+pub const AST_STRING: u8 = 0x21; // 0x22 = '"'
+pub const AST_IDENTIFIER: u8 = 0x41; // 0x41 = 'A'
+pub const AST_COMMENT: u8 = 0x27; // 0x27 = '/'
 
 pub fn getTypeTag(val: u64) u64 {
     return val & MASK_TYPE;
@@ -152,19 +152,21 @@ pub fn createReference(header: u16, payload: u32) u64 {
     return createHeader2(header, payload);
 }
 
-const KW_PLUS = createKeyword("+", 80);
-const KW_MINUS = createKeyword("-", 80);
-const KW_MUL = createKeyword("*", 85);
-const KW_DIV = createKeyword("/", 85);
+pub const KW_ADD = createKeyword("+", 80);
+pub const KW_SUB = createKeyword("-", 80);
+pub const KW_MUL = createKeyword("*", 85);
+pub const KW_DIV = createKeyword("/", 85);
 
 const expect = std.testing.expect;
 const print = std.debug.print;
 test "Test inline strings" {
     const val = createInlineString("+");
+    print("val: {x}\n", .{val});
     try expect(val == 0x7FF6_0000_0000_002B);
 }
 
 test "Test keywords" {
     const val = createKeyword("+", 8);
-    try expect(val == 0x7FF6_0800_0000_002B);
+    print("val: {x}\n", .{val});
+    try expect(val == 0x7FF6_0008_0000_002B);
 }

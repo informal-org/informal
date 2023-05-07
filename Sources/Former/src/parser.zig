@@ -14,23 +14,25 @@ pub const Parser = struct {
     ast: std.MultiArrayList(ast.AstNode),
     strings: std.StringHashMap(usize),
     symbols: std.StringHashMap(u64),
-    operators: std.ArrayList(u64), // Shunting yard operator stack
-    nesting: std.ArrayList(u16),
-    indentation_char: u8,
+    operators: std.ArrayList(ast.AstNode), // Shunting yard temporary operator stack
+    // nesting: std.ArrayList(u16),
+    // indentation_char: u8,
 
     pub fn init(buffer: []const u8, allocator: Allocator) Self {
-        var tokens = std.MultiArrayList(u64).init(allocator);
+        var tokens = std.MultiArrayList(ast.AstNode){}; // .init(allocator);
         var strings = std.StringHashMap(usize).init(allocator);
         var symbols = std.StringHashMap(u64).init(allocator);
+        var operators = std.ArrayList(ast.AstNode).init(allocator);
         // symbols.put("and", val.KW_AND);
 
-        return Self{ .buffer = buffer, .index = 0, .allocator = allocator, .tokens = tokens, .strings = strings, .symbols = symbols };
+        return Self{ .buffer = buffer, .index = 0, .allocator = allocator, .ast = tokens, .strings = strings, .symbols = symbols, .operators = operators };
     }
 
     pub fn deinit(self: *Parser) void {
-        self.tokens.deinit();
+        self.ast.deinit(self.allocator);
         self.strings.deinit();
         self.symbols.deinit();
+        self.operators.deinit();
     }
 
     fn gobble_digits(self: *Self) void {
@@ -54,7 +56,7 @@ pub const Parser = struct {
     }
 
     fn is_alphanumeric(ch: u8) bool {
-        return is_alpha(ch) || is_digit(ch);
+        return is_alpha(ch) or is_digit(ch);
     }
 
     // fn is_delimiter(ch: u8) bool {
@@ -98,14 +100,14 @@ pub const Parser = struct {
     //     return null;
     // }
 
-    fn lex_number(self: *Self) u64 {
+    fn lex_number(self: *Self) ast.AstNode {
         // MVL just needs int support for bootstrapping. Stage1+ should parse float.
         var start = self.index;
         self.index += 1; // First char is already recognized as a digit.
         self.gobble_digits();
         var value: u64 = std.fmt.parseInt(u32, self.buffer[start..self.index], 10) catch 0;
 
-        return value;
+        return ast.AstNode{ .value = value, .loc = ast.Location{ .start = start, .end = self.index } };
     }
 
     fn lex_string(self: *Self) ast.AstNode {
@@ -123,10 +125,9 @@ pub const Parser = struct {
         // string in some table. The string contains both quotes.
         // return val.createStringPtr(start, end);
 
-        const stringId = self.strings.getOrPut(self.buffer[start..end], self.strings.len);
+        const stringId = self.strings.getOrPutValue(self.buffer[start..end], self.strings.count());
         const stringRef = val.createReference(val.AST_STRING, stringId);
-        _ = stringRef;
-        return ast.AstNode{ .value = stringId, .loc = ast.AstLoc{ .start = start, .end = end } };
+        return ast.AstNode{ .value = stringRef, .loc = ast.Location{ .start = start, .end = end } };
     }
 
     fn lex_identifier(self: *Self) ast.AstNode {
@@ -141,65 +142,107 @@ pub const Parser = struct {
         // This can be further optimized with a perfect-hash lookup for builtins.
 
         // Test off by one for symbol value (shouldn't contain delimiter)
-        const symbolRef = val.createReference(val.AST_IDENTIFIER, self.symbols.len);
-        const symbolId = self.symbols.getOrPut(self.buffer[start..self.index], symbolRef);
+        var identifier = self.buffer[start..self.index];
+        var symbolId: ?u64 = self.symbols.get(identifier);
+        if (symbolId == null) {
+            symbolId = val.createReference(val.AST_IDENTIFIER, self.symbols.count());
+            _ = self.symbols.getOrPutValue(identifier, symbolId.?) catch {};
+        }
 
-        return ast.AstNode{ .value = symbolId, .loc = ast.AstLoc{ .start = start, .end = self.index } };
+        return ast.AstNode{ .value = symbolId.?, .loc = ast.Location{ .start = start, .end = self.index } };
     }
 
     // fn lex_block(self: *Self) {
 
     // }
 
-    fn lex_comment_line(self: *Self) ast.AstNode {
+    fn lex_comment(self: *Self) ast.AstNode {
         // Comment - including the starting //.
         var start = self.index;
         self.index += 2;
         self.seek_till("\n");
         var end = self.index;
         var commentRef = val.createReference(val.AST_COMMENT, 0);
-        return ast.AstNode{ .value = commentRef, .loc = ast.AstLoc{ .start = start, .end = end } };
+        return ast.AstNode{ .value = commentRef, .loc = ast.Location{ .start = start, .end = end } };
     }
 
     fn kw(self: *Self, keyword: u64, length: u8) ast.AstNode {
         var start = self.index;
         self.index += length;
-        return ast.AstNode{ .value = keyword, .loc = ast.AstLoc{ .start = start, .end = self.index } };
+        return ast.AstNode{ .value = keyword, .loc = ast.Location{ .start = start, .end = self.index } };
     }
 
     // The core lexer. We use a shunting-yard + state machine based approach since the desired AST form is Postfix.
     // Bottom-up parsing fits that perfectly vs top-down pratt style parsers.
-    fn lex(self: *Self) ast.AstNode {
+    fn lex(self: *Self) !void {
         while (self.index < self.buffer.len) {
             var ch = self.buffer[self.index];
 
-            _ = switch (ch) {
-                is_alpha(ch) => self.lex_identifier(),
-                is_digit(ch) => self.lex_number(),
-                ' ', '\t' => self.skip(),
-                // '\n' => self.lex_block(),
-                '"' => self.lex_string(),
-                '/' => {
-                    if (self.peek() == '/') {
-                        // TODO: Triple slash for doc comments.
-                        self.lex_comment();
-                    } else {
-                        // Division
-                        self.kw(val.KW_DIV, 1);
-                    }
-                },
-                '+' => {
-                    self.kw(val.KW_ADD, 1);
-                },
-                '-' => {
-                    self.kw(val.KW_SUB, 1);
-                },
-                '*' => {
-                    self.kw(val.KW_MUL, 1);
-                },
-            };
+            if (is_alpha(ch)) {
+                try self.ast.append(self.allocator, self.lex_identifier());
+            } else if (is_digit(ch)) {
+                try self.ast.append(self.allocator, self.lex_number());
+            } else {
+                var token: ?ast.AstNode = null;
+                _ = switch (ch) {
+                    ' ', '\t' => self.skip(),
+                    // '\n' => self.lex_block(),
+                    // '"' => self.lex_string(),
+                    // '/' => {
+                    //     if (self.peek() == '/') {
+                    //         // TODO: Triple slash for doc comments.
+                    //         self.lex_comment();
+                    //     } else {
+                    //         // Division
+                    //         self.kw(val.KW_DIV, 1);
+                    //     }
+                    // },
+                    '+' => {
+                        token = self.kw(val.KW_ADD, 1);
+                        // Precedence add
+                    },
+                    '-' => {
+                        token = self.kw(val.KW_SUB, 1);
+                    },
+                    '*' => {
+                        token = self.kw(val.KW_MUL, 1);
+                    },
+                    else => {
+                        return error.InvalidToken;
+                    },
+                };
+            }
         }
     }
 };
 
-test "Lex digits" {}
+const test_allocator = std.testing.allocator;
+const expect = std.testing.expect;
+const print = std.debug.print;
+
+pub fn testParser(buffer: []const u8, expected: []const u64) !void {
+    print("\nTest Parser: {s}\n", .{buffer});
+    defer print("\n--------------------------------\n", .{});
+
+    var parser = Parser.init(buffer, test_allocator);
+    defer parser.deinit();
+
+    _ = try parser.lex();
+    if (parser.ast.len != expected.len) {
+        print("Expected {d} tokens, got {d}\n", .{ expected.len, parser.ast.len });
+        for (parser.ast.items(.value)) |token| {
+            print("{x}", .{token});
+        }
+    }
+
+    try expect(parser.ast.len == expected.len);
+    for (parser.ast.items(.value), 0..) |token, i| {
+        try expect(token == expected[i]);
+    }
+}
+
+test "Lex digits" {
+    try testParser("123", &[_]u64{
+        123,
+    });
+}
