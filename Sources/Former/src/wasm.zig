@@ -11,8 +11,16 @@ const operations = [_][]const u8{
     "f64.div",
 };
 
+const header = \\(module
+\\  (func (export "_start") (result f64)
+;
+
+const footer = \\))
+;
+
 pub fn emit(parser: *Parser) !void {
     var index: usize = 0;
+    try stdout.print("{s}\n", .{header});
     while (index < parser.ast.len) {
         var tok = parser.ast.get(index);
 
@@ -25,4 +33,5 @@ pub fn emit(parser: *Parser) !void {
 
         index += 1;
     }
+    try stdout.print("{s}\n", .{footer});
 }

@@ -15,52 +15,6 @@ pub fn build(b: *std.Build) void {
     // set a preferred release mode, allowing the user to decide how to optimize.
     const optimize = b.standardOptimizeOption(.{});
 
-    const mlir = b.addStaticLibrary(.{ .name = "mlir-c", .target = target, .optimize = optimize });
-    // const mlir = b.addSharedLibrary(.{ .name = "mlir", .target = target, .optimize = optimize });
-    // mlir.setTarget(target);
-    // mlir.setBuildMode(optimize);
-    mlir.linkLibC(); // ?
-    // mlir.linkLibCpp();
-    mlir.force_pic = true;
-    mlir.addIncludePath("../../../llvm-project/mlir/include");
-    mlir.addLibraryPath("../../../llvm-project/build/lib");
-    mlir.addLibraryPath("../../../llvm-project/build/tools/mlir/lib");
-
-    // mlir.linkLibC();
-    // TODO - Make libpath configurable.
-    mlir.addCSourceFiles(&.{
-        "../../../llvm-project/mlir/include/mlir-c/AffineExpr.h",
-        "../../../llvm-project/mlir/include/mlir-c/AffineMap.h",
-        "../../../llvm-project/mlir/include/mlir-c/BuiltinAttributes.h",
-        "../../../llvm-project/mlir/include/mlir-c/BuiltinTypes.h",
-        // "../../../llvm-project/mlir/include/mlir-c/Conversion.h",
-        "../../../llvm-project/mlir/include/mlir-c/Debug.h",
-        "../../../llvm-project/mlir/include/mlir-c/Diagnostics.h",
-        "../../../llvm-project/mlir/include/mlir-c/ExecutionEngine.h",
-        "../../../llvm-project/mlir/include/mlir-c/IntegerSet.h",
-        // "../../../llvm-project/mlir/include/mlir-c/Interfaces.h",
-        "../../../llvm-project/mlir/include/mlir-c/IR.h",
-        "../../../llvm-project/mlir/include/mlir-c/Pass.h",
-        // "../../../llvm-project/mlir/include/mlir-c/RegisterEverything.h",
-        // "../../../llvm-project/mlir/include/mlir-c/Support.h",
-        // "../../../llvm-project/mlir/include/mlir-c/Transforms.h",
-        // "../../../llvm-project/mlir/include/mlir-c/Dialect/Async.h",
-        "../../../llvm-project/mlir/include/mlir-c/Dialect/ControlFlow.h",
-        "../../../llvm-project/mlir/include/mlir-c/Dialect/Func.h",
-        // "../../../llvm-project/mlir/include/mlir-c/Dialect/GPU.h",
-        // "../../../llvm-project/mlir/include/mlir-c/Dialect/Linalg.h",
-        "../../../llvm-project/mlir/include/mlir-c/Dialect/LLVM.h",
-        "../../../llvm-project/mlir/include/mlir-c/Dialect/MLProgram.h",
-        "../../../llvm-project/mlir/include/mlir-c/Dialect/PDL.h",
-        "../../../llvm-project/mlir/include/mlir-c/Dialect/Quant.h",
-        "../../../llvm-project/mlir/include/mlir-c/Dialect/SCF.h",
-        "../../../llvm-project/mlir/include/mlir-c/Dialect/Shape.h",
-        // "../../../llvm-project/mlir/include/mlir-c/Dialect/SparseTensor.h",
-        "../../../llvm-project/mlir/include/mlir-c/Dialect/Tensor.h",
-        // "../../../llvm-project/mlir/include/mlir-c/Dialect/Transform.h",
-    }, &.{}); // "-std=c99", "-Wall"
-    b.installArtifact(mlir);
-
     const exe = b.addExecutable(.{
         .name = "Former",
         // In this case the main source file is merely a path, however, in more
@@ -69,39 +23,6 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    // exe.createModule()
-    exe.addLibraryPath("../../../llvm-project/build/lib");
-    // exe.addLibraryPath("../../../llvm-project/build/tools/mlir/lib");
-    // exe.addLibraryPath("../../../llvm-project/build/tools/mlir/lib/CAPI/IR/CMakeFiles/obj.MLIRCAPIIR.dir");
-    // exe.addLibraryPath("../../../llvm-project/build/tools/mlir/lib/IR/CMakeFiles/obj.MLIRCAPIIR.dir");
-    // exe.linkSystemLibrary("mlir");
-    // exe.linkSystemLibraryName("MLIRCAPIIR");
-    // exe.linkSystemLibraryName("MLIRCAPIAsync");
-    // exe.linkSystemLibraryName("MLIRCAPIControlFlow");
-    // exe.linkSystemLibraryName("MLIRCAPIConversion");
-    // exe.linkSystemLibraryName("MLIRCAPIDebug");
-    // exe.linkSystemLibraryName("MLIRCAPIExecutionEngine");
-    // exe.linkSystemLibraryName("MLIRCAPIFunc");
-    // exe.linkSystemLibraryName("MLIRCAPIGPU");
-    // exe.linkSystemLibraryName("MLIRCAPIInterfaces");
-    // exe.linkSystemLibraryName("MLIRCAPIIR");
-    // exe.linkSystemLibraryName("MLIRCAPILinalg");
-    // exe.linkSystemLibraryName("MLIRCAPILLVM");
-    // exe.linkSystemLibraryName("MLIRCAPIMLProgram");
-    // exe.linkSystemLibraryName("MLIRCAPIPDL");
-    // exe.linkSystemLibraryName("MLIRCAPIPythonTestDialect");
-    // exe.linkSystemLibraryName("MLIRCAPIQuant");
-    // exe.linkSystemLibraryName("MLIRCAPIRegisterEverything");
-    // exe.linkSystemLibraryName("MLIRCAPISCF");
-    // exe.linkSystemLibraryName("MLIRCAPIShape");
-    // exe.linkSystemLibraryName("MLIRCAPISparseTensor");
-    // exe.linkSystemLibraryName("MLIRCAPITensor");
-    // exe.linkSystemLibraryName("MLIRCAPITransformDialect");
-    // exe.linkSystemLibraryName("MLIRCAPITransforms");
-    exe.linkSystemLibraryName("MLIR-C");
-
-    exe.addIncludePath("../../../llvm-project/mlir/include");
-
     exe.linkLibC();
     // exe.linkLibrary(mlir);
 

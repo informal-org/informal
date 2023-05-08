@@ -12,10 +12,10 @@
     clang build/{{filename}}.ll -fsanitize=undefined --output build/{{filename}}.out 
     chmod +x build/{{filename}}.out
 
-@run filename:
-    just gen {{filename}}
-    just build {{filename}}
-    ./build/{{filename}}.out
+# @run filename:
+#     just gen {{filename}}
+#     just build {{filename}}
+#     ./build/{{filename}}.out
 
 asm:
     nasm -f elf64 hello.asm
@@ -29,3 +29,8 @@ debug:
 
 dump:
     objdump -x hello.out
+
+@run input:
+    zig build
+    echo {{input}} | ./zig-out/bin/Former > out.wat && wat2wasm out.wat
+    wasmer run out.wasm -i "_start"

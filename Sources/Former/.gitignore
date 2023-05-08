@@ -90,3 +90,6 @@ _deps
 zig-out/
 zig-cache/
 lib/
+
+*.wat
+*.wasm
