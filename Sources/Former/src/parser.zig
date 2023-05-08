@@ -209,7 +209,7 @@ pub const Parser = struct {
 
     // The core lexer. We use a shunting-yard + state machine based approach since the desired AST form is Postfix.
     // Bottom-up parsing fits that perfectly vs top-down pratt style parsers.
-    fn lex(self: *Self) !void {
+    pub fn lex(self: *Self) !void {
         while (self.index < self.buffer.len) {
             var ch = self.buffer[self.index];
 
@@ -296,5 +296,13 @@ test "Lex digits" {
 test "Lex expression precedence" {
     try testParser("5 + 4", &[_]u64{
         5, 4, val.KW_ADD,
+    });
+
+    try testParser("1 + 2 * 4", &[_]u64{
+        1, 2, 4, val.KW_MUL, val.KW_ADD,
+    });
+
+    try testParser("1 * 2 + 3", &[_]u64{
+        1, 2, val.KW_MUL, 3, val.KW_ADD,
     });
 }

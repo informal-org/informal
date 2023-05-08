@@ -139,23 +139,26 @@ pub fn decodeInlineString(val: u64, out: *[8]u8) void {
     return std.mem.copy(u8, out, std.mem.asBytes(&(val & MASK_PAYLOAD)));
 }
 
-pub fn createKeyword(str: []const u8, precedence: u16) u64 {
+pub fn createKeyword(opcode: u8, precedence: u16) u64 {
     // Create a left-associative keyword
-    if (str.len > 4) unreachable;
-    return createInlineString(str) | (@as(u64, precedence) << 32);
+    return TYPE_HEADER1 | @as(u64, opcode) << 40 | (@as(u64, precedence));
 }
 
-pub fn createKeywordRight(str: []const u8, precedence: u16) u64 {
+pub fn createKeywordRight(opcode: u8, precedence: u16) u64 {
     // Create a right-associative keyword. Top bit of precedence header is 1.
-    return createInlineString(str) | (@as(u64, precedence | 0x1000_0000) << 32);
+    return TYPE_HEADER1 | @as(u64, opcode) << 40 | (@as(u64, precedence | 0x1000));
 }
 
 pub fn getPrecedence(tok: u64) u16 {
-    return @truncate(u16, (tok >> 32)) & 0x7FFF;
+    return @truncate(u16, tok) & 0x7FFF;
+}
+
+pub fn getOpcode(tok: u64) u8 {
+    return @truncate(u8, tok >> 40);
 }
 
 pub fn isLeftAssociative(tok: u64) bool {
-    return ((tok >> 32) & 0x1000_0000) == 0;
+    return ((tok) & 0x1000) == 0;
 }
 
 pub fn createHeader2(header: u16, payload: u32) u64 {
@@ -166,10 +169,15 @@ pub fn createReference(header: u16, payload: u32) u64 {
     return createHeader2(header, payload);
 }
 
-pub const KW_ADD = createKeyword("+", 80);
-pub const KW_SUB = createKeyword("-", 80);
-pub const KW_MUL = createKeyword("*", 85);
-pub const KW_DIV = createKeyword("/", 85);
+pub const OP_ADD: u8 = 0;
+pub const OP_SUB: u8 = 1;
+pub const OP_MUL: u8 = 2;
+pub const OP_DIV: u8 = 3;
+
+pub const KW_ADD = createKeyword(OP_ADD, 80);
+pub const KW_SUB = createKeyword(OP_SUB, 80);
+pub const KW_MUL = createKeyword(OP_MUL, 85);
+pub const KW_DIV = createKeyword(OP_DIV, 85);
 
 const expect = std.testing.expect;
 const print = std.debug.print;
@@ -180,8 +188,8 @@ test "Test inline strings" {
 }
 
 test "Test keywords" {
-    const val = createKeyword("+", 8);
+    const val = createKeyword(3, 8);
     print("val: {x}\n", .{val});
-    try expect(val == 0x7FF6_0008_0000_002B);
+    try expect(val == 0x7FF1_0300_0000_0008);
     try expect(getPrecedence(val) == 8);
 }
