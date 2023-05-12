@@ -212,7 +212,6 @@ pub const Parser = struct {
     pub fn lex(self: *Self) !void {
         while (self.index < self.buffer.len) {
             var ch = self.buffer[self.index];
-
             if (is_alpha(ch)) {
                 try self.ast.append(self.allocator, self.lex_identifier());
             } else if (is_digit(ch)) {

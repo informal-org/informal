@@ -34,3 +34,6 @@ dump:
     zig build
     echo {{input}} | ./zig-out/bin/Former > out.wat && wat2wasm out.wat
     wasmer run out.wasm -i "_start"
+
+@compile input outfile:
+    echo {{input}} | ./zig-out/bin/Former > {{outfile}}.wat && wat2wasm {{outfile}}.wat -o {{outfile}}.wasm
