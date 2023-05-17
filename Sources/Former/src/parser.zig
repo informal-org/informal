@@ -160,7 +160,7 @@ pub const Parser = struct {
         // Comment - including the starting //.
         var start = self.index;
         self.index += 2;
-        self.seek_till("\n");
+        _ = self.seek_till("\n");
         var end = self.index;
         var commentRef = val.createReference(val.AST_COMMENT, 0);
         return ast.AstNode{ .value = commentRef, .loc = ast.Location{ .start = start, .end = end } };
@@ -222,15 +222,17 @@ pub const Parser = struct {
                     ' ', '\t' => self.skip(),
                     // '\n' => self.lex_block(),
                     // '"' => self.lex_string(),
-                    // '/' => {
-                    //     if (self.peek() == '/') {
-                    //         // TODO: Triple slash for doc comments.
-                    //         self.lex_comment();
-                    //     } else {
-                    //         // Division
-                    //         self.kw(val.KW_DIV, 1);
-                    //     }
-                    // },
+                    '/' => {
+                        if (self.peek() == '/') {
+                            // TODO: Triple slash for doc comments.
+                            var token = self.lex_comment();
+                            try self.insert_op(token);
+                        } else {
+                            // Division
+                            var token = self.kw(val.KW_DIV, 1);
+                            try self.insert_op(token);
+                        }
+                    },
                     '+' => {
                         var token = self.kw(val.KW_ADD, 1);
                         try self.insert_op(token);

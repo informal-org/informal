@@ -43,13 +43,27 @@ const compile = async (code) => {
 // }
 
 
-async function evaluate(code) {
-    compile(code)
+async function evaluate(expression) {
+    compile(expression)
     const wasm_exports = await load('Former/build/test.wasm');
     return wasm_exports._start();
 }
 
 
 test('Basic numeric expressions', async () => {
+    // Ensure mathematical operator precedence.
     expect(await evaluate("1 + 1")).toBe(2);
+    expect(await evaluate("1 + 2 * 4")).toBe(9);
+    expect(await evaluate("1 * 2 + 3")).toBe(5);
+});
+
+test('Parentheses', async () => {
+    // Parentheses take precedence.
+    expect(await evaluate("(1 + 2) * 4")).toBe(12);
+    expect(await evaluate("4 * (2 + 3) + 7")).toBe(27);
+});
+
+test('Comments', async () => {
+    expect(await evaluate("// Hello")).toBe(12);
+    expect(await evaluate("4 * (2 + 3) + 7")).toBe(27);
 });

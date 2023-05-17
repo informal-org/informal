@@ -37,8 +37,8 @@ const TAG_HEADER2: u16 = BASE_TYPE | 0x0002; // [110] 2 byte header. 4 byte data
 const TAG_HEADER3: u16 = BASE_TYPE | 0x0003; // [011] 3 byte header. 3 byte data.
 const TAG_HEADER4: u16 = BASE_TYPE | 0x0004; // [100] 4 byte header. 2 byte data.
 const TAG_HEADER5: u16 = BASE_TYPE | 0x0005; // [101] 5 byte header. 1 byte data.
-const TAG_INLINE_STRING: u16 = BASE_TYPE | 0x006; // [110] Inline string up to 5 ascii chars inline.
-const TAG_INLINE_BITSET: u16 = BASE_TYPE | 0x007; // [111] Inline bitset.
+const TAG_INLINE_STRING: u16 = BASE_TYPE | 0x0006; // [110] Inline string up to 5 ascii chars inline.
+const TAG_INLINE_BITSET: u16 = BASE_TYPE | 0x0007; // [111] Inline bitset.
 
 const TYPE_HEADER0: u64 = @as(u64, TAG_HEADER0) << 48;
 const TYPE_HEADER1: u64 = @as(u64, TAG_HEADER1) << 48;
@@ -77,13 +77,6 @@ pub const AST_STRING: u8 = 0x21; // 0x22 = '"'
 pub const AST_IDENTIFIER: u8 = 0x41; // 0x41 = 'A'
 pub const AST_COMMENT: u8 = 0x27; // 0x27 = '/'
 
-pub fn getTypeTag(val: u64) u64 {
-    return val & MASK_TYPE;
-}
-
-fn isPrimitiveType(comptime pattern: u64, val: u64) bool {
-    return (val & pattern) == pattern;
-}
 
 pub fn getHeader(val: u64) u64 {
     const header = switch (val & MASK_TYPE) {
@@ -109,6 +102,18 @@ pub fn getPayload(val: u64) u64 {
     return payload;
 }
 
+pub fn getHeader2(val: u64) u16 {
+    return @truncate(u16, (val & MASK_HIGH16) >> 32);
+}
+
+pub fn getTypeTag(val: u64) u64 {
+    return val & MASK_TYPE;
+}
+
+fn isPrimitiveType(comptime pattern: u64, val: u64) bool {
+    return (val & pattern) == pattern;
+}
+
 pub fn isNan(val: u64) bool {
     // Any NaN - quiet or signaling - either positive or negative.
     return isPrimitiveType(UNSIGNED_ANY_NAN, val);
@@ -121,6 +126,14 @@ pub fn isNumber(val: u64) bool {
 
 pub fn isInlineString(val: u64) bool {
     return isPrimitiveType(TYPE_INLINE_STRING, val);
+}
+
+pub fn createHeader2(header: u16, payload: u32) u64 {
+    return TYPE_HEADER2 | (@as(u64, header) << 32) | @as(u64, payload);
+}
+
+pub fn createHeader1(header: u8, payload: u40) u64 {
+    return TYPE_HEADER1 | (@as(u64, header) << 40) | @as(u64, payload);
 }
 
 pub fn createInlineString(str: []const u8) u64 {
@@ -141,12 +154,16 @@ pub fn decodeInlineString(val: u64, out: *[8]u8) void {
 
 pub fn createKeyword(opcode: u8, precedence: u16) u64 {
     // Create a left-associative keyword
-    return TYPE_HEADER1 | @as(u64, opcode) << 40 | (@as(u64, precedence));
+    return createHeader1(opcode, precedence);
 }
 
 pub fn createKeywordRight(opcode: u8, precedence: u16) u64 {
     // Create a right-associative keyword. Top bit of precedence header is 1.
-    return TYPE_HEADER1 | @as(u64, opcode) << 40 | (@as(u64, precedence | 0x1000));
+    return createHeader1(opcode, precedence | 0x1000);
+}
+
+pub fn isKeyword(value: u64) bool {
+    return isPrimitiveType(TYPE_HEADER1, value);
 }
 
 pub fn getPrecedence(tok: u64) u16 {
@@ -161,12 +178,8 @@ pub fn isLeftAssociative(tok: u64) bool {
     return ((tok) & 0x1000) == 0;
 }
 
-pub fn createHeader2(header: u16, payload: u32) u64 {
-    return TYPE_HEADER2 | (@as(u64, header) << 32) | @as(u64, payload);
-}
-
-pub fn createReference(header: u16, payload: u32) u64 {
-    return createHeader2(header, payload);
+pub fn createReference(header: u8, payload: u40) u64 {
+    return createHeader1(header, payload);
 }
 
 pub const OP_ADD: u8 = 0;

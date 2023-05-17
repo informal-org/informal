@@ -37,3 +37,6 @@ dump:
 
 @compile input outfile:
     echo {{input}} | ./zig-out/bin/Former > {{outfile}}.wat && wat2wasm {{outfile}}.wat -o {{outfile}}.wasm
+
+@emit input:
+    echo {{input}} | ./zig-out/bin/Former
