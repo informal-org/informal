@@ -103,7 +103,7 @@ pub fn getPayload(val: u64) u64 {
 }
 
 pub fn getHeader2(val: u64) u16 {
-    return @truncate(u16, (val & MASK_HIGH16) >> 32);
+    return @truncate((val & MASK_HIGH16) >> 32);
 }
 
 pub fn getTypeTag(val: u64) u64 {
@@ -167,11 +167,12 @@ pub fn isKeyword(value: u64) bool {
 }
 
 pub fn getPrecedence(tok: u64) u16 {
-    return @truncate(u16, tok) & 0x7FFF;
+    const a: u16 = @truncate(tok);
+    return a & 0x7FFF;
 }
 
 pub fn getOpcode(tok: u64) u8 {
-    return @truncate(u8, tok >> 40);
+    return @truncate( tok >> 40);
 }
 
 pub fn isLeftAssociative(tok: u64) bool {

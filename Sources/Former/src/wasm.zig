@@ -27,7 +27,7 @@ pub fn emit(parser: *Parser) !void {
     var index: usize = 0;
     try stdout.print("{s}\n", .{header});
     while (index < parser.ast.len) {
-        var tok = parser.ast.get(index);
+        const tok = parser.ast.get(index);
 
         if (val.isNan(tok.value)) {
             const opcode = val.getOpcode(tok.value);

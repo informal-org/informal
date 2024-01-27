@@ -112,25 +112,6 @@ class TblCall(TblOperation):
 
 
 
-def test_choice():
-    example = Choice(["cat", "car"])
-    table = [{
-            # 0
-            "c": TblMatch(1)
-        },
-        {
-            # 1
-            "a": TblMatch(2),
-        },
-        {
-            "t": TblEmitRight(-1),
-            "r": TblEmitRight(-1),
-        }
-    ]
-    assert match(table, "cat")
-    assert match(table, "car")
-    with pytest.raises(ValueError):
-        match(table, "bat")
 
 def match(tbl: List[dict], input: str):
     state = 0
@@ -157,3 +138,23 @@ def match(tbl: List[dict], input: str):
         if state == -1:
             if idx < len(input) - 1:
                 raise ValueError(f"Input not fully consumed: {idx}: {input[:idx]}, {input[idx]}, {input[idx+1:]}")
+
+def test_choice():
+    example = Choice(["cat", "car"])
+    table = [{
+            # 0
+            "c": TblMatch(1)
+        },
+        {
+            # 1
+            "a": TblMatch(2),
+        },
+        {
+            "t": TblEmitRight(-1),
+            "r": TblEmitRight(-1),
+        }
+    ]
+    assert match(table, "cat")
+    assert match(table, "car")
+    with pytest.raises(ValueError):
+        match(table, "bat")

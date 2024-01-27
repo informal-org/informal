@@ -13,7 +13,7 @@ pub const Lexer = struct {
     tokens: ArrayList(u64),
 
     pub fn init(buffer: []const u8, allocator: Allocator) Self {
-        var tokens = ArrayList(u64).init(allocator);
+        const tokens = ArrayList(u64).init(allocator);
         return Self{ .buffer = buffer, .index = 0, .allocator = allocator, .tokens = tokens };
     }
 
@@ -33,19 +33,19 @@ pub const Lexer = struct {
 
     fn token_number(self: *Lexer) u64 {
         // MVL just needs int support for bootstrapping. Stage1+ should parse float.
-        var start = self.index;
+        const start = self.index;
         self.index += 1; // First char is already recognized as a digit.
         self.gobble_digits();
-        var value: u64 = std.fmt.parseInt(u32, self.buffer[start..self.index], 10) catch 0;
+        const value: u64 = std.fmt.parseInt(u32, self.buffer[start..self.index], 10) catch 0;
 
         return value;
     }
 
     fn token_string(self: *Lexer) u64 {
         self.index += 1; // Omit beginning quote.
-        var start = self.index;
+        const start = self.index;
         _ = self.seek_till("\"");
-        var end = self.index - 1;
+        const end = self.index - 1;
         // Expect but omit end quote.
         if (self.index < self.buffer.len and self.buffer[self.index] == '"') {
             self.index += 1;
@@ -68,7 +68,7 @@ pub const Lexer = struct {
     fn peek_starts_with(self: *Lexer, matchStr: []const u8) bool {
         // Peek if the next tokens start with the given match string.
         for (matchStr, 0..) |character, matchIndex| {
-            var bufferI = self.index + matchIndex;
+            const bufferI = self.index + matchIndex;
             if ((bufferI >= self.buffer.len) or (self.buffer[bufferI] != character)) {
                 return false;
             }
@@ -132,7 +132,7 @@ pub const Lexer = struct {
                     var indent_char: u8 = indentation_char;
                     // Count leading indent chars of the given type.
                     while (self.index < self.buffer.len) : (self.index += 1) {
-                        var iCh = self.buffer[self.index];
+                        const iCh = self.buffer[self.index];
                         if (iCh == ' ' or iCh == '\t') {
                             // It's an indentation char. Check if it matches.
                             if (indent_char == 0) {

@@ -109,7 +109,7 @@ pub fn print_token(token: u64, buffer: []const u8) void {
 
             if (start & 0x1000_0000 == 0x1000_0000) {
                 // Top bit is set indicates a string.
-                var bufferStart = start & 0x0FFF_FFFF;
+                const bufferStart = start & 0x0FFF_FFFF;
                 print("String(\"{s}\")", .{buffer[bufferStart..(bufferStart + length)]});
             } else {
                 // Indicates a form. TODO;
