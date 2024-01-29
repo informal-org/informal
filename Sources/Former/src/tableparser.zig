@@ -1,11 +1,12 @@
 
 
 const ParseOp = enum {
-    push,
-    pop,
-    output,
-    fail,
-    skip,
+    push,  // Push current char to context stack.
+    pop,   // Emit the top of the current context stack.
+    output, // Emit current character to output.
+    fail,   // Terminate with an error.
+    skip,   // Advance the input without emitting anything.
+    peek    // Don't output or advance. Transition to next state and peek at current context rather than input.
 };
 
 // For other constants, repeating the same char twice is an error.
