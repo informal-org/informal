@@ -42,6 +42,7 @@ const CompiledParseState = struct {
 };
 
 const Token = struct {
+    // todo: unaligned.
     type: u8,
     start: u32,
     end: u32,
@@ -59,8 +60,16 @@ pub const TableParser = struct {
         return Self { .states = states, .allocator = allocator };
     }
 
+    // Unhandled edge-cases
+    // - No state has more than 64 matching states (bitset overflow).
+    // - No more than 128 context 'type' values that can go on the stack.
+    // - Max text length is 2^32 chars.
+    // - The state table doesn't skip any state IDs and is in order.
+    // - No patterns that depend on null character.
+    // - Text can support unicode, as long as reserved keywords are still ascii.
+
     // pub fn compile(self: *Self) !void {
-    //
+    // // Convert the state table to a compiled parse state table which is more efficient for lookup.
     // }
 
 };
