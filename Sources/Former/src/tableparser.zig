@@ -15,22 +15,22 @@ const ParseOp = enum(u8) {
 };
 
 // For other constants, repeating the same char twice is an error.
-const SENTINEL_END = "__END__";
-const SENTINEL_DEFAULT = "__DEFAULT__";
+const SENTINEL_END = []u8{0};
+// const SENTINEL_DEFAULT = "__DEFAULT__";
 
 // id, match, operation, next
 const ParseSubState = struct {
     id: u32, // State ID. There will be multiple rows describing a single state.
     match: []const u8, // List of characters that match this sub-state
     operation: ParseOp, // Operation to perform on match.
-    type: u8, // Match type to push/pop on the context stack.
+    type: u7, // Match type to push/pop on the context stack.
     next: u32, // Next state to transition to after performing the operation.
 };
 
 const StateTransition = struct {
     operation: ParseOp = ParseOp.uninitialized,
     next: u32,
-    type: u8 = 0,
+    type: u7 = 0,
 };
 
 pub const CompiledParseState = struct {
@@ -44,7 +44,7 @@ pub const CompiledParseState = struct {
 
 const Token = struct {
     // todo: unaligned.
-    type: u8,
+    type: u7,
     start: u32,
     end: u32,
 };
@@ -130,13 +130,13 @@ pub const TableParser = struct {
         var i: u7 = 0;
 
         for (currentState) |transition| {
-            print("Transition: {d} - {d}\n", .{ i, transition.next });
+            // print("Transition: {d} - {d}\n", .{ i, transition.next });
             // TODO: Should fail be handled here or separate?
             if (transition.operation != ParseOp.uninitialized) {
                 const mask: u128 = @as(u128, 1) << i;
-                print("Index {d} Mask:  {b}\n", .{ i, mask });
+                // print("Index {d} Mask:  {b}\n", .{ i, mask });
                 bitsetMatch |= mask;
-                print("Bitset match: {b}\n", .{bitsetMatch});
+                // print("Bitset match: {b}\n", .{bitsetMatch});
 
                 if (transition.next != defaultNext.next or transition.operation != defaultNext.operation or transition.type != defaultNext.type) {
                     // Defaults are set to 0. Everything else is a 1.
@@ -159,89 +159,105 @@ pub const TableParser = struct {
     }
 
     pub fn compile(self: *Self) !void {
-        var currentState = mem.defaultsOrUndefined([127]StateTransition);
+        var currentState = mem.zeroes([127]StateTransition);
 
-        var currentId = 0;
+        var currentId: usize = 0;
         // Convert the state table to a compiled parse state table which is more efficient for lookup.
-        for (self.states.items()) |state| {
-            if (state.id == currentId) {
-                for (state.match.items()) |char| {
-                    if (currentState[char].next == undefined) {
-                        currentState[char] = StateTransition{ .operation = state.operation, .next = state.next, .type = state.type };
-                    } else {
-                        // Can't have two rules defining conflicting matches for the same character.
-                        print("Duplicate character match definition: {s} for state {d}.", .{ char, state.id });
-                    }
-                }
-            } else {
-                self.compiled[currentId] = compileState(currentState);
-                currentState = mem.defaultsOrUndefined([127]StateTransition);
+        for (self.states) |state| {
+            if (state.id != currentId) {
+                const compiledState = try self.compileState(currentState);
+                try self.compiled.append(compiledState);
+                currentState = mem.zeroes([127]StateTransition);
                 currentId = state.id;
             }
+
+            for (state.match) |char| {
+                if (currentState[char].operation == ParseOp.uninitialized) {
+                    print("Setting {d} for char {c}\n", .{ currentId, char });
+                    currentState[char] = StateTransition{ .operation = state.operation, .next = state.next, .type = state.type };
+                } else {
+                    // Can't have two rules defining conflicting matches for the same character.
+                    print("Duplicate character match definition: {c} for state {d}.", .{ char, state.id });
+                }
+            }
         }
+
+        // Flush the final state.
+        const compiledState = try self.compileState(currentState);
+        try self.compiled.append(compiledState);
     }
 
     pub fn match(self: *Self, input: []const u8) void {
-        var currentState = self.compiled[0];
+        var currentState = self.compiled.items[0];
 
         // TODO: These are vars
-        const matchContext = true;
-        const context = std.ArrayList(u8).init(self.allocator);
+        const matchContext = false;
+        const context = std.ArrayList(u7).init(self.allocator);
         // TODO: Context stack
         // TODO: Variable to track whether we're matching input string or context stack.
 
-        var i = 0;
+        var i: usize = 0;
         while (i < input.len) {
-            const char = input[i];
+            print("Matching character: {c}\n", .{input[i]});
+            if (input[i] > 128) {
+                print("Non-ascii character: {c}\n", .{input[i]});
+                break;
+            }
+            const char: u7 = @truncate(input[i]);
 
             // Could avoid this branch by setting the right value based on the operation in the previous step at end of loop.
             var matchChar = char;
             if (matchContext) {
-                if (context.len > 0) {
-                    matchChar = context[context.len - 1];
+                if (context.items.len > 0) {
+                    matchChar = context.items[context.items.len - 1];
                 } else {
-                    print("No context to match against.", .{});
+                    print("No context to match against.\n", .{});
                 }
             }
 
-            const state = self.compiled[currentState.next];
+            // const state = self.compiled[currentState.next];
             // TODO: Non-ascii
-            const charMask: u128 = 1 << char;
+
+            const charMask: u127 = @as(u127, 1) << char;
+            print("Expecting {b}\n", .{currentState.match});
             // Check if the bit is set at the character's index, indicating a match.
-            if ((state.match & charMask) != 0) {
+            if ((currentState.match & charMask) != 0) {
                 // Specify a mask with the first N bits set to 1, so we can compute how many characters < C matches.
                 const charMatchIndexMask = charMask - 1; // N bits set to 1.
                 // Count how many chars can match < current char.
-                const matchIndex = @popCount(charMatchIndexMask & state.match);
+                const matchIndex: u6 = @truncate(@popCount(charMatchIndexMask & currentState.match));
+                // Assert - matchIndexCount < 64
+
                 // Use that index to lookup in a bitset of whether it's the most common default match
-                const defaultNextMask: u64 = 1 << matchIndex;
-                const isDefaultNextState = (state.matchIndexNext & defaultNextMask) == 0;
-                if (isDefaultNextState) {
-                    // Re-use a single variable for the most common match.
-                    currentState = state.defaultNext;
-                } else {
+                const defaultNextMask: u64 = @as(u64, 1) << matchIndex;
+                const isDefaultNextState = (currentState.matchIndexNext & defaultNextMask) == 0;
+                // The most common transition is stored in a separate field to reduce duplication in the nextState array.
+                var nextTransition: StateTransition = currentState.defaultNext;
+                if (!isDefaultNextState) {
                     // Otherwise, lookup by the non-zero'th index to find the distinct next state.
                     const nextIndexMask = defaultNextMask - 1;
-                    const nextIndex = @popCount(state.matchIndexNext & nextIndexMask);
+                    const nextIndex = @popCount(currentState.matchIndexNext & nextIndexMask);
 
-                    const nextTransition = state.next[nextIndex];
-                    currentState = nextTransition;
+                    nextTransition = self.transitions.items[currentState.nextOffset + nextIndex];
                 }
-                print("Match. Next state: {d}. Op {x}", .{ currentState.next, currentState.operation });
+                print("Match. Next state: {d}. Op {?}\n", .{ nextTransition.next, nextTransition.operation });
+
+                currentState = self.compiled.items[nextTransition.next];
 
                 // TODO: Do the operation.
 
             } else {
-                print("No match for character: {c}", .{char});
+                print("No match for character: {c}\n", .{char});
                 // No match.
-                currentState = state.fail;
+                // currentState = currentState.fail;
+                return;
             }
 
             // TODO: Do this only if we're advancing the input
             i += 1;
         }
         // return currentToken;
-        print("Matches", .{});
+        print("All Matches", .{});
     }
 };
 
@@ -249,22 +265,25 @@ const test_allocator = std.testing.allocator;
 const expect = std.testing.expect;
 const print = std.debug.print;
 
+const TBL_FLOAT = [_]ParseSubState{
+    ParseSubState{ .id = 0, .match = "0123456789", .operation = ParseOp.advance, .next = 1, .type = 0 },
+    ParseSubState{ .id = 0, .match = ".", .operation = ParseOp.advance, .next = 2, .type = 0 },
+    // ParseSubState{ .id = 0, .match = SENTINEL_END, .operation = ParseOp.fail, .next = 0 },  // Empty string.
+    ParseSubState{ .id = 1, .match = "0123456789", .operation = ParseOp.advance, .next = 1, .type = 0 },
+    ParseSubState{ .id = 1, .match = ".", .operation = ParseOp.advance, .next = 2, .type = 0 },
+    // TODO ParseSubState{ .id = 1, .match = SENTINEL_END, .operation = ParseOp.emit, .next = 0, .type = 0 },
+    ParseSubState{ .id = 2, .match = "0123456789", .operation = ParseOp.advance, .next = 3, .type = 0 },
+    // ParseSubState{ .id = 2, .match = SENTINEL_END, .operation = ParseOp.fail, .next = 0 },  // . without fractions.
+    ParseSubState{ .id = 3, .match = "0123456789", .operation = ParseOp.advance, .next = 3, .type = 0 }, // Parse fractions.
+    // TODO ParseSubState{ .id = 3, .match = SENTINEL_END, .operation = ParseOp.emit, .next = 0, .type = 0 },
+};
+
 test "Float parser" {
     // Simplified float parser. No support for e.
-    const tbl = [_]ParseSubState{
-        ParseSubState{ .id = 0, .match = "0123456789", .operation = ParseOp.advance, .next = 1, .type = 0 },
-        ParseSubState{ .id = 0, .match = ".", .operation = ParseOp.advance, .next = 2, .type = 0 },
-        // ParseSubState{ .id = 0, .match = SENTINEL_END, .operation = ParseOp.fail, .next = 0 },  // Empty string.
-        ParseSubState{ .id = 1, .match = "0123456789", .operation = ParseOp.advance, .next = 1, .type = 0 },
-        ParseSubState{ .id = 1, .match = ".", .operation = ParseOp.advance, .next = 2, .type = 0 },
-        ParseSubState{ .id = 1, .match = SENTINEL_END, .operation = ParseOp.emit, .next = 0, .type = 0 },
-        ParseSubState{ .id = 2, .match = "0123456789", .operation = ParseOp.advance, .next = 3, .type = 0 },
-        // ParseSubState{ .id = 2, .match = SENTINEL_END, .operation = ParseOp.fail, .next = 0 },  // . without fractions.
-        ParseSubState{ .id = 3, .match = "0123456789", .operation = ParseOp.advance, .next = 3, .type = 0 }, // Parse fractions.
-        ParseSubState{ .id = 3, .match = SENTINEL_END, .operation = ParseOp.emit, .next = 0, .type = 0 },
-    };
+    const tbl = TBL_FLOAT;
     const parser = TableParser.init(&tbl, test_allocator);
-    try expect(parser.states.len == 8);
+    // try expect(parser.states.len == 8);
+    try expect(parser.states.len == 6);
 }
 
 test "Most frequent state transition" {
@@ -311,5 +330,10 @@ test "Compile state" {
     try expect(parser.transitions.items.len == 5);
 }
 
-// id, match, operation, next
-// const CSV_PARSER = [];
+test "Match float" {
+    const tbl = TBL_FLOAT;
+    var parser = TableParser.init(&tbl, test_allocator);
+    defer parser.deinit();
+    try parser.compile();
+    parser.match("123.45k6");
+}
