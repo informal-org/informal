@@ -1,17 +1,113 @@
 const std = @import("std");
 const mem = std.mem;
+const asttypes = @import("ast.zig");
 
 const Allocator = std.mem.Allocator;
 
 const ParseOp = enum(u8) {
     uninitialized = 0, // Uninitialized state.
-    push = 1, // Push current char to context stack.
-    pop = 2, // Emit the top of the current context stack.
-    fail = 3, // Terminate with an error.
-    emit = 4, // At an unambiguous terminal. Emit the current type.
+    fail = 1, // Terminate with an error.
+    push = 2, // Push current char to context stack.
+    pop = 3, // Emit the top of the current context stack.
+    peek = 4, // Don't output or advance. Transition to next state and peek at current context rather than input.
     advance = 5, // Advance the input, building up the current token.
     skip = 6, // Advance the input without emitting anything.
-    peek = 7, // Don't output or advance. Transition to next state and peek at current context rather than input.
+    emit = 7, // At an unambiguous terminal. Emit the current type onto the ast.
+
+    // emit_op = 7, // At an unambiguous terminal. Emit the current type.
+    // emit_num = 8, // Convert number to f64 value.
+    // emit_str = 9, // Emit a reference to the string.
+    // emit_ident = 10, // Get or create symbol entry for identifier.
+    // emit_symbol = 11, // Get or create symbol, but tagged as a quoted symbol.
+};
+
+const TokenType = enum(u7) {
+    uninitialized,
+    number,
+    string,
+    ident,
+    symbol,
+    comment,
+
+    // Other operations with special precedence.
+    // Ordered by precedence for convenience (ones at top have higher precedence).
+    open_brace,
+    close_brace,
+    open_paren,
+    close_paren,
+    open_bracket,
+    close_bracket,
+
+    member, // .
+
+    // Prefix operations
+    unary_inc,
+    unary_dec,
+
+    // Prefix - Mult-word. Can this be done in-language?
+    is_not,
+    not_in,
+    op_not,
+
+    op_pow,
+
+    // Multiplication and division
+    mul,
+    div,
+    mod,
+
+    // Add/sub/unary plus/minus
+    unary_plus,
+    unary_minus,
+    add,
+    sub,
+
+    // Comparisons
+    lt,
+    gt,
+    lte,
+    gte,
+
+    op_is,
+    op_in,
+    op_as,
+    is_eq,
+    is_ne,
+
+    // Logical
+    op_and,
+    op_or,
+
+    kw_range, // ..
+
+    op_union,
+
+    assign,
+    add_assign,
+    sub_assign,
+    mul_assign,
+    div_assign,
+    mod_assign,
+
+    kw_colon,
+    kw_comma,
+
+    // Other keywords. Don't require any precedence.
+    kw_if,
+    kw_else,
+    kw_elif,
+    literal_true,
+    literal_false,
+    kw_def,
+    tok_start_block,
+    tok_continue_block,
+    tok_end_block,
+    kw_where,
+    kw_then,
+
+    call,
+    index, // []
+    array,
 };
 
 // For other constants, repeating the same char twice is an error.
@@ -87,14 +183,25 @@ pub const TableParser = struct {
     compiled: std.ArrayList(CompiledParseState),
     transitions: std.ArrayList(StateTransition),
     allocator: Allocator,
+    strings: std.StringHashMap(usize),
+    symbols: std.StringHashMap(u64),
+    ast: std.MultiArrayList(asttypes.AstNode),
 
     pub fn init(states: []const ParseSubState, allocator: Allocator) Self {
-        return Self{ .states = states, .allocator = allocator, .compiled = std.ArrayList(CompiledParseState).init(allocator), .transitions = std.ArrayList(StateTransition).init(allocator) };
+        const compiled = std.ArrayList(CompiledParseState).init(allocator);
+        const transitions = std.ArrayList(StateTransition).init(allocator);
+        const strings = std.StringHashMap(usize).init(allocator);
+        const symbols = std.StringHashMap(u64).init(allocator);
+        const ast = std.MultiArrayList(asttypes.AstNode).init(allocator);
+        return Self{ .states = states, .allocator = allocator, .compiled = compiled, .transitions = transitions, .strings = strings, .symbols = symbols, .ast = ast };
     }
 
     pub fn deinit(self: *Self) void {
         self.compiled.deinit();
         self.transitions.deinit();
+        self.strings.deinit();
+        self.symbols.deinit();
+        self.ast.deinit(self.allocator);
     }
 
     // Unhandled edge-cases
@@ -173,7 +280,7 @@ pub const TableParser = struct {
 
             for (state.match) |char| {
                 if (currentState[char].operation == ParseOp.uninitialized) {
-                    print("Setting {d} for char {c}\n", .{ currentId, char });
+                    // print("Setting {d} for char {c}\n", .{ currentId, char });
                     currentState[char] = StateTransition{ .operation = state.operation, .next = state.next, .type = state.type };
                 } else {
                     // Can't have two rules defining conflicting matches for the same character.
@@ -193,6 +300,7 @@ pub const TableParser = struct {
         // TODO: These are vars
         const matchContext = false;
         const context = std.ArrayList(u7).init(self.allocator);
+
         // TODO: Context stack
         // TODO: Variable to track whether we're matching input string or context stack.
 
@@ -227,6 +335,8 @@ pub const TableParser = struct {
                 // Count how many chars can match < current char.
                 const matchIndex: u6 = @truncate(@popCount(charMatchIndexMask & currentState.match));
                 // Assert - matchIndexCount < 64
+
+                print("Non-default match: {b}\n", .{currentState.matchIndexNext});
 
                 // Use that index to lookup in a bitset of whether it's the most common default match
                 const defaultNextMask: u64 = @as(u64, 1) << matchIndex;
