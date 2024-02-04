@@ -2,24 +2,44 @@
 // : function definitions.
 // () applications.
 
+import { TOKEN_IDENTIFIER, TOKEN_LITERAL, TOKEN_APPLY } from "./parser";
+
 const { Map } = require('immutable');
-
-function resolve() {
-
+const env = {
+    "__builtin_add": (a, b) => a + b,
 }
 
-function parse(tokens) {
-    // = Match
-    // : define
-    // f(a, b, c) call
-
-
+function assert(condition, message) {
+    if(!condition) {
+        throw new Error(message);
+    }
 }
 
+export function interpret(root) {
+    // : function definition.
+    // node_type = apply = function call.
+    // const tok = tokens[0];
+    const tok = root;
+    if(tok.node_type == TOKEN_APPLY) {
+        const func_name = tok.left;
+        assert(func_name.node_type == TOKEN_IDENTIFIER, "Expected function name to be an identifier");
+        const argsNodes = tok.value;
+        let args = [];
+        // TODO: Resolve identifiers.
+        argsNodes.forEach((argNode) => {
+            if(argNode.node_type === TOKEN_LITERAL) {
+                args.push(argNode.value);
+            } else {
+                console.log("Unexpected arg type: ", argNode.node_type);
+            }
+        });
 
-function interpret(tokens) {
-    // ID, ( - it's a function name, arguments. It could be a definition or a call.
-    // I need to disambiguate it better at the parser stage.
+        console.log("func name = ", func_name.value);
+        console.log("args = ", args);
 
+        const fn = env[func_name.value];
+        assert(fn, `Function ${func_name.value} not found in environment`);
+        return fn(...args);
+    }
 }
 
