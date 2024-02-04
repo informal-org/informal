@@ -1,3 +1,5 @@
 run:
-    npm run build
-    node dist/index.js
+    # npm run build
+    # node dist/index.js
+    # node src/index.js
+    bun run src/index.js

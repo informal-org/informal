@@ -1,17 +1,11 @@
 {
   "name": "former",
-  "version": "0.0.1",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "jest --forceExit --coverage --verbose",
-    "build": "tsc"
-  },
-  "keywords": [],
-  "author": "Feni",
-  "license": "Apache-2.0",
+  "module": "src/index.ts",
+  "type": "module",
   "devDependencies": {
-    "ts-node": "^10.9.2",
-    "typescript": "^5.3.3"
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
   }
 }
