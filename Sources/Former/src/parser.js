@@ -426,7 +426,8 @@ export function parseTokens(tokenQueue) {
 
     if(tokenStream.hasNext()) {
         // TODO
-        syntaxError("Could not complete parsing. Unexpected token at: " + tokenStream.current().char_end)
+        syntaxError("Could not complete parsing. Unexpected token at: " + tokenStream.current().char_end + " : " + tokenStream.current())
+        
     }
 
     return parsed

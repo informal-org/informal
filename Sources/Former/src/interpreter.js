@@ -2,7 +2,7 @@
 // : function definitions.
 // () applications.
 
-import { TOKEN_IDENTIFIER, TOKEN_LITERAL, TOKEN_APPLY } from "./parser";
+import { TOKEN_IDENTIFIER, TOKEN_LITERAL, TOKEN_APPLY, TOKEN_HEADER } from "./parser";
 
 const { Map } = require('immutable');
 const env = {
@@ -40,6 +40,36 @@ export function interpret(root) {
         const fn = env[func_name.value];
         assert(fn, `Function ${func_name.value} not found in environment`);
         return fn(...args);
+    } else if(tok.node_type == TOKEN_HEADER) {
+        // ... : ...
+        const head = tok.value[0];
+        console.log("head")
+        console.log(head);
+        if(head.node_type == TOKEN_APPLY) {
+            console.log("Function definition: ")
+            const fn_name = head.left.value;
+            // It's a function definition.
+            const argsNodes = head.value;
+            let args = [];
+            // TODO: Resolve identifiers.
+            argsNodes.forEach((argNode) => {
+                if(argNode.node_type === TOKEN_IDENTIFIER) {
+                    args.push(argNode.value);
+                }
+            });
+
+            const body = tok.value[1];
+            console.log("function " + fn_name + " args: (" + args + "): body {" + body + " }");
+
+
+            
+            
+            
+    
+
+        }
+
+
     }
 }
 

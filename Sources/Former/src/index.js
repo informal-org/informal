@@ -15,7 +15,8 @@ import {interpret} from "./interpreter.js";
 
 // const parsed = parseExpr("1 + 2 * 5 - 4 / 5");
 // const parsed = parseExpr("foo(a, b): __builtin_add(a, b)");
-const parsed = parseExpr("__builtin_add(1, 4)");
+// Parser doesn't support types yet. Int foo, Int a, etc.
+const parsed = parseExpr("foo(a,b): a + b");
 console.log(parsed);
 
 console.log(interpret(parsed));
