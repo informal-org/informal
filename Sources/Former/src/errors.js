@@ -1,6 +1,6 @@
-export class SyntaxError extends Error {
+export class ParseError extends Error {
     constructor(message) {
-        super(message)
+        super(message);
         this.name = "SyntaxError"
     }
 }
@@ -13,7 +13,7 @@ export class RuntimeError extends Error {
 }
 
 export function syntaxError(message, index) {
-    let err = new SyntaxError(message);
+    let err = new ParseError(message);
     err.index = index;
     throw err
 }

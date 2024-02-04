@@ -1,14 +1,10 @@
 import { 
-    LiteralNode, IdentifierNode, OperatorNode,
-} from "./ast"
+    LiteralNode, IdentifierNode, OperatorNode, 
+    KEYWORD_TABLE,
+    CONTINUE_BLOCK, START_BLOCK, END_BLOCK, TOKEN_OPERATOR, ASTNode
+} from "./parser.js"
 
 import { Queue } from "./Queue.js"
-
-const CONTINUE_BLOCK = "(continue-block)";
-const START_BLOCK = "(start-block)";
-const END_BLOCK = "(end-block)";
-const KEYWORD_TABLE = {};
-
 import { syntaxError } from "./errors";
 
 
@@ -17,13 +13,14 @@ const DELIMITERS = new Set([
     ':', '=',
     ',', 
     '"', "'",
-    ' ', '\t', '\n'
+    ' ', '\t', '\n',
+
+    '.', ',', ':', 
+    ';', 
+    '+', '-', '*', '/', '%',
+    '<', '>', '=', '!',
 ]);
 
-    // '.', ',', ':', 
-    // ';', 
-    // '+', '-', '*', '/', '%',
-    // '<', '>', '=', '!',
 
 const ERR_INVALID_FLOAT = "Invalid floating point number format.";
 const ERR_UNTERM_STR = "Could not find the ending quotes for this String.";
@@ -307,46 +304,44 @@ export function lex(expr) {
         } else if (ch == '"' || ch == "'") {
             token = parseString(it)
         } else if (isDelimiter(ch)) {
-            // Won't be whitespace of quotes, since that's handled above. Just meaningful delimiters.
-            token = OperatorNode(ch, it.index, it.index + 1);
+            // // Won't be whitespace of quotes, since that's handled above. Just meaningful delimiters.
+            // token = OperatorNode(ch, it.index, it.index + 1);
+            // it.next();
             // // Treat ch like a prefix and greedily consume the best operator match
             // // assert: All delimiters are prefix of some keyword. Else, iter won't move
-            // token = parseKeyword(it, 3);
-            // token = token ? token : parseKeyword(it, 2)
-            // token = token ? token : parseKeyword(it, 1)
-            // if(!token) {
-            //     it.next();
-            // }
+            token = parseKeyword(it, 3);
+            token = token ? token : parseKeyword(it, 2)
+            token = token ? token : parseKeyword(it, 1)
+            if(!token) {
+                it.next();
+            }
         } else {
             token = parseSymbol(it);    // identifiers
         }
 
         // Note: Token may be a parsed empty string or zero, but never ""
-        // if(token !== undefined) {
-        //     // Queue up multi-part tokens like else if, not in, is not.
-        //     switch(multipart_token ? multipart_token.operator.keyword : "") {
-        //         case "else":    // Merge if else-if. Add separately otherwise.
-        //             addMultipart(it, multipart_token, token, "if")
-        //             multipart_token = null;
-        //             break;
-        //         case "not":     // Check if not in
-        //             addMultipart(it, multipart_token, token, "in")
-        //             multipart_token = null;
-        //             break;
-        //         case "is":      // Check if is not
-        //             addMultipart(it, multipart_token, token, "not")
-        //             multipart_token = null;
-        //             break;
-        //         default:
-        //             if(isMultipartStart(token)) {
-        //                 multipart_token = token;
-        //             } else {
-        //                 it.tokens.push(token)
-        //             }
-        //     }
-        // }
-        if(token) {
-            it.tokens.push(token);
+        if(token !== undefined) {
+            // Queue up multi-part tokens like else if, not in, is not.
+            switch(multipart_token ? multipart_token.operator.keyword : "") {
+                case "else":    // Merge if else-if. Add separately otherwise.
+                    addMultipart(it, multipart_token, token, "if")
+                    multipart_token = null;
+                    break;
+                case "not":     // Check if not in
+                    addMultipart(it, multipart_token, token, "in")
+                    multipart_token = null;
+                    break;
+                case "is":      // Check if is not
+                    addMultipart(it, multipart_token, token, "not")
+                    multipart_token = null;
+                    break;
+                default:
+                    if(isMultipartStart(token)) {
+                        multipart_token = token;
+                    } else {
+                        it.tokens.push(token)
+                    }
+            }
         }
     }
     if(multipart_token) {

@@ -1,10 +1,5 @@
+import {ID_OP, LITERAL_OP, TOKEN_OPERATOR, TOKEN_IDENTIFIER, TOKEN_LITERAL} from './parser.js';
 
-const ID_OP = "(ID)";
-const LITERAL_OP = "(LITERAL)";
-
-const TOKEN_OPERATOR = "operator";
-const TOKEN_IDENTIFIER = "identifier";
-const TOKEN_LITERAL = "literal";
 
 export class ASTNode {
     constructor(operator, value, node_type, char_start, char_end) {
@@ -19,7 +14,7 @@ export class ASTNode {
         
     }
     static OperatorNode(operator, char_start, char_end) {
-        return new ASTNode(operator, operator.value, TOKEN_OPERATOR, char_start, char_end)
+        return new ASTNode(operator, operator.value ? operator.value : operator, TOKEN_OPERATOR, char_start, char_end)
     }
     static IdentifierNode(value, char_start, char_end) {
         return new ASTNode(ID_OP, value, TOKEN_IDENTIFIER, char_start, char_end)
