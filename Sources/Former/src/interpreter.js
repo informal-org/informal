@@ -5,9 +5,13 @@
 import { TOKEN_IDENTIFIER, TOKEN_LITERAL, TOKEN_APPLY, TOKEN_HEADER } from "./parser";
 
 const { Map } = require('immutable');
-const env = {
-    "__builtin_add": (a, b) => a + b,
-}
+
+
+export const builtins = Map({
+    "__builtin_add": {
+        value: (a, b) => a + b
+    },
+});
 
 function assert(condition, message) {
     if(!condition) {
@@ -15,10 +19,11 @@ function assert(condition, message) {
     }
 }
 
-export function interpret(root) {
+export function interpret(root, env) {
     // : function definition.
     // node_type = apply = function call.
     // const tok = tokens[0];
+    console.log("evaluating: " + root.node_type);
     const tok = root;
     if(tok.node_type == TOKEN_APPLY) {
         const func_name = tok.left;
@@ -30,16 +35,31 @@ export function interpret(root) {
             if(argNode.node_type === TOKEN_LITERAL) {
                 args.push(argNode.value);
             } else {
-                console.log("Unexpected arg type: ", argNode.node_type);
+                let resolved = env.get(argNode.value)
+                console.log("resolving " + argNode.value + " to " + resolved);
+                args.push(resolved);
             }
         });
 
         console.log("func name = ", func_name.value);
         console.log("args = ", args);
 
-        const fn = env[func_name.value];
-        assert(fn, `Function ${func_name.value} not found in environment`);
-        return fn(...args);
+        const fn = env.get(func_name.value);
+        if(fn.value) {
+            assert(fn, `Builtin Function ${func_name.value} not found in environment`);
+            return fn.value(...args);
+        } else {
+            // Bind parameters
+            let fn_env = fn.env;
+            for(var i = 0; i < fn.args.length; i++) {
+                console.log("setting " + fn.args[i] + " to " + args[i])
+                fn_env = fn_env.set(fn.args[i], args[i]);
+            }
+            console.log("evaluating")
+            console.log(fn.body);
+            return interpret(fn.body, fn_env);
+        }
+        
     } else if(tok.node_type == TOKEN_HEADER) {
         // ... : ...
         const head = tok.value[0];
@@ -60,12 +80,23 @@ export function interpret(root) {
 
             const body = tok.value[1];
             console.log("function " + fn_name + " args: (" + args + "): body {" + body + " }");
-
-
-            
-            
-            
     
+            // TODO: support recursion.
+            let fn_def = {
+                args: args,
+                body: body,
+                env: env
+            }
+            env = env.set(fn_name, fn_def);
+            fn_def.env = env;
+            // value: (...args) => {
+            //     console.log(`Evaluating ${fn_name} args = ${args}`);
+            //     let result = interpret(body, env);
+            //     console.log("result = ", result);
+            //     return result;
+            // }
+
+            return fn_def;
 
         }
 
