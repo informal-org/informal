@@ -1,11 +1,17 @@
 import { evaluate } from "../../src"
+var dedent = require('dedent-js');
+
 
 // test('Evaluate arithmetic scripts', () => {
 //     expect(evalScript("1 + 2 * 3 + 4 / 2 - 4")).toEqual(5);
 // })
 
 test('Evaluate multi-line expression', () => {
-    expect(evalScript("a = 1\nb = 2\na + b")).toEqual(3);
+    expect(evalScript(dedent`
+    a = 1
+    b = 2
+    a + b
+`)).toEqual(3);
 
     // expect(evalScript("():\na = 1\nb = 2\na + b")).toEqual(3);
 })

@@ -323,9 +323,7 @@ class BlockExpr extends Expr {
             } else {
                 // Wrap it in a self-evaluating function.
                 const bodyFn = target.lambdaDeclaration([], js);
-                
                 return target.functionCall(target.wrapParens(bodyFn), []);
-
             }
     
         }
@@ -346,13 +344,7 @@ class BlockExpr extends Expr {
         // i.e. if-else chains, maps, etc. Iterate over it and break it up into groups.
 
         let subBlock = null;
-        console.log("Block expression")
-        console.log(node);
         node.value.map((n) => console.log(treeify.asTree(n, true) + "\n\n"))
-        console.log("expression")
-        // console.log(this.expressions)
-        // console.log(treeify.asTree(node.expressions.debug(), true))
-        // let isHeaderBlock = true;
 
         node.value.forEach((expr) => {
             // Terminating conditions for sub-blocks.
@@ -362,10 +354,6 @@ class BlockExpr extends Expr {
                 if(subBlock) { expressions.push(subBlock); }
 
                 // Start new block based on the first key type.
-                console.log("going to parse it as a cell")
-                console.log(treeify.asTree(expr, true))
-
-
                 // Expected - Header Expr.
                 // if(expr.node_type == TOKEN_HEADER) {
                 //     subBlock = HeaderExpr.parse(cell, expr);
