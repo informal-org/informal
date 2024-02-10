@@ -126,3 +126,9 @@ test('test range', () => {
     result  = parseExpr(expr);
     expect(result.toString()).toEqual("([ (.. 5))")    
 });
+
+test('test assignment', () => {
+    let expr = "a = b + c"
+    let result = parseExpr(expr)
+    expect(result.toString()).toEqual("(= a (+ b c))")
+})

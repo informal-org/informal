@@ -39,6 +39,8 @@ export const TOKEN_ELIF = "(else if)";
 export const TOKEN_NOT_IN = "(not in)";
 export const TOKEN_IS_NOT = "(is not)";
 
+export const TOKEN_ASSIGN = "(assign)"
+
 class ParseIterator extends QIter {
     constructor(queue) {
         super(queue)
@@ -302,6 +304,13 @@ DEF_OP.left_denotation = (left, node, tokenStream) => {
     return node
 }
 
+const ASSIGN_OP = new Infix("=", DEF_OP_LBP - 1);
+ASSIGN_OP.left_denotation = (left, node, tokenStream) => {
+    node.node_type = TOKEN_ASSIGN
+    node.value = [left, expression(tokenStream, 10)]
+    return node
+}
+
 
 function get_header_null_denotation(node_type) {
     return (node, token_stream) => {
@@ -428,6 +437,8 @@ export function parseTokens(tokenQueue) {
     let tokenStream = new ParseIterator(tokenQueue);
     let parsed = expression(tokenStream, 0)
 
+    console.log("Token stream:")
+    console.log(tokenQueue.asArray())
     if(tokenStream.hasNext()) {
         // TODO
         syntaxError("Could not complete parsing. Unexpected token at: " + tokenStream.current().char_end)

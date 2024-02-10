@@ -4,7 +4,7 @@ and either evaluates or generates bytecode
 */
 
 import { JS_PRE_CODE, JS_POST_CODE } from "@informal/shared/constants"
-import { syntaxError, TOKEN_HEADER, TOKEN_COND, CONTINUE_BLOCK } from "./parser";
+import { syntaxError, TOKEN_HEADER, TOKEN_COND, CONTINUE_BLOCK, TOKEN_ASSIGN } from "./parser";
 import { getNodeText } from "@informal/shared/ast"
 
 var treeify = require('treeify');
@@ -227,6 +227,33 @@ class HeaderExpr extends Expr {
     }
 }
 
+// a = ...
+class AssignExpr extends BinaryExpr {
+
+    static parse(cell, node) {
+        if(Array.isArray(node.value)) {
+            // This is what it usually parses as.
+            let [k, v] = node.value;
+            let left = astToExpr(cell, k)
+            let right = astToExpr(cell, v)
+            return new AssignExpr(cell, node, left, right);
+        } else {
+            // The parsed tree usually follows the above structure, but should use this.
+            let left = astToExpr(cell, node.left)
+            let right = astToExpr(cell, node.right)
+            return new AssignExpr(cell, node, left, right);
+        }
+    }
+
+    emitJS(target) {
+        let left = this.left.emitJS(target)
+        let right = this.right.emitJS(target)
+        // return target.method(left, "__aa_assign", right)
+        return target.declaration(left, right);
+    }
+
+}
+
 class MapEntryExpr extends Expr {
     constructor(cell, node, key, value) {
         super(cell, node);
@@ -284,9 +311,24 @@ class BlockExpr extends Expr {
 
     emitJS(target) {
         let js = []
-        this.expressions.forEach((expr) => {
-            js.push(expr.emitJS(target))
-        })
+        if(this.expressions.length > 0) {
+            this.expressions.forEach((expr) => {
+                js.push(expr.emitJS(target))
+            })
+
+            let firstExpr = this.expressions[0];
+            // Sub-expressions of blocktype expressions.
+            if(firstExpr instanceof ConditionalExpr || firstExpr instanceof MapExpr) {
+                return js
+            } else {
+                // Wrap it in a self-evaluating function.
+                const bodyFn = target.lambdaDeclaration([], js);
+                
+                return target.functionCall(target.wrapParens(bodyFn), []);
+
+            }
+    
+        }
         return js;
     }
 
@@ -304,6 +346,13 @@ class BlockExpr extends Expr {
         // i.e. if-else chains, maps, etc. Iterate over it and break it up into groups.
 
         let subBlock = null;
+        console.log("Block expression")
+        console.log(node);
+        node.value.map((n) => console.log(treeify.asTree(n, true) + "\n\n"))
+        console.log("expression")
+        // console.log(this.expressions)
+        // console.log(treeify.asTree(node.expressions.debug(), true))
+        // let isHeaderBlock = true;
 
         node.value.forEach((expr) => {
             // Terminating conditions for sub-blocks.
@@ -313,15 +362,41 @@ class BlockExpr extends Expr {
                 if(subBlock) { expressions.push(subBlock); }
 
                 // Start new block based on the first key type.
-                subBlock = HeaderExpr.parse(cell, expr);
+                console.log("going to parse it as a cell")
+                console.log(treeify.asTree(expr, true))
 
+
+                // Expected - Header Expr.
+                // if(expr.node_type == TOKEN_HEADER) {
+                //     subBlock = HeaderExpr.parse(cell, expr);
+                // } else {
+                //     isHeaderBlock = false;
+                //     subBlock = astToExpr(cell, expr);
+                // }
+                subBlock = astToExpr(cell, expr);
+
+                // // TODO: Check
+                // if(expr.node_type == TOKEN_HEADER) {
+                //     subBlock = HeaderExpr.parse(cell, expr);
+                // } else if (expr.node_type == TOKEN_ASSIGN) {
+                //     subBlock = expr;
+                // } else {
+                //     throw Error("Unknown node type in block expression: \n" + treeify.asTree(expr, true))
+                // }
+
+            } else {
+                console.log("sub-block terminated!")
             }
         })
         if(subBlock) {
             expressions.push(subBlock);
         }
         
+        // if(isHeaderBlock) {
         return new BlockExpr(cell, node, expressions);
+        // } else {
+        //     return new 
+        // }
     }
 }
 
@@ -712,9 +787,9 @@ class LoopExpr extends Expr {
 
 }
 
-class AssignmentExpr extends Expr {
+// class AssignmentExpr extends Expr {
 
-}
+// }
 
 
 class MemberExpr extends Expr {
@@ -775,6 +850,10 @@ class JSCodeGen extends CodeGen {
             }
             `
         }
+    }
+
+    wrapParens(code) {
+        return "(" + code + ")"
     }
 
     method(obj, fn, ...args) {
@@ -883,6 +962,8 @@ export function astToExpr(cell, node) {
             return MemberExpr.parse(cell, node)
         case TOKEN_HEADER:
             return HeaderExpr.parse(cell, node)
+        case TOKEN_ASSIGN:
+            return AssignExpr.parse(cell, node)
         case "maplist":     // todo, NAME
             // return MapExpr.parse(cell, node)
             return BlockExpr.parse(cell, node)
