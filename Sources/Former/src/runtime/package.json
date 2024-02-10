@@ -1,0 +1,12 @@
+{
+    "name": "@informal/runtime",
+    "version": "1.0.0",
+    "description": "Informal runtime",
+    "main": "index.js",
+    "license": "Apache-2.0",
+    "private": true,
+    "dependencies": {
+      "@informal/shared": "workspace:*"
+    }
+  }
+  

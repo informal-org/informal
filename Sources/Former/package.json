@@ -2,6 +2,7 @@
   "name": "informal",
   "module": "src/index.ts",
   "type": "module",
+  "workspaces": ["src/*"],
   "devDependencies": {
     "@types/bun": "latest",
     "@babel/core": "^7.9.0",
@@ -21,11 +22,8 @@
   },
   "dependencies": {
     "immutable": "^5.0.0-beta.5",
-    "@informal/compiler": "file:src/compiler",
-    "@informal/core": "file:src/core",
-    "@informal/runtime": "file:src/runtime/js",
-    "@informal/shared": "file:src/shared/js",
-    "immer": "^8.0.2"    
+    "immer": "^8.0.2",
+    "@informal/shared": "workspace:*"
   },
   "scripts": {
     "deploy": "webpack --mode production",

@@ -1,6 +1,6 @@
 import { Cell } from "./Cell";
 import { addDependency } from "./order.js"
-import { traverseDown, traverseDownCell, traverseUp } from "@appassembly/shared/iter"
+import { traverseDown, traverseDownCell, traverseUp } from "@informal/shared/iter"
 import { parseExpr } from "./parser"
 import { astToExpr } from "./compiler"
 

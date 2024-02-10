@@ -1,3 +1,3 @@
-export * from "@appassembly/shared"
-export * from "@appassembly/runtime"
-export * from "@appassembly/compiler"
+export * from "./shared"
+export * from "./runtime"
+export * from "./compiler"
