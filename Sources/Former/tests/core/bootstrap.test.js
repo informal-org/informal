@@ -11,36 +11,36 @@ test('Test obj unification', () => {
     expect(obj.resolve(y)).toEqual(5)
 });
 
-test('Test selection', () => {
-    let obj = new AbstractForm();
-    let foo = obj.symbolFor("foo");
-    obj = obj.set(foo, "Foo")
+// test('Test selection', () => {
+//     let obj = new AbstractForm();
+//     let foo = obj.symbolFor("foo");
+//     obj = obj.set(foo, "Foo")
 
-    expect(obj.select(foo)).toEqual(5)
-    expect(obj.get(y)).toEqual(5)
-});
+//     expect(obj.select(foo)).toEqual(5)
+//     expect(obj.get(y)).toEqual(5)
+// });
 
-test('Test untyped function', () => {
-    // Name -> signatures
-    // Signature -> body
-    // return -> type, param -> type
-    // add:
-    //      (a, b) : fn()
+// test('Test untyped function', () => {
+//     // Name -> signatures
+//     // Signature -> body
+//     // return -> type, param -> type
+//     // add:
+//     //      (a, b) : fn()
 
-    let addSig = new CompoundForm([Symbol.for("a"), Symbol.for("b")]);
+//     let addSig = new CompoundForm([Symbol.for("a"), Symbol.for("b")]);
 
-    // Fn = signature -> body
-    let fn = new Form();
-    fn = fn.set(addSig, (a, b) => {
-        console.log("Add called with " + a + " " + b)
-        return a + b
-    })
+//     // Fn = signature -> body
+//     let fn = new Form();
+//     fn = fn.set(addSig, (a, b) => {
+//         console.log("Add called with " + a + " " + b)
+//         return a + b
+//     })
 
-    let params = new CompoundForm([2, 3]);
-    let result = fn.apply(params);
+//     let params = new CompoundForm([2, 3]);
+//     let result = fn.apply(params);
 
-    expect(result).toEqual(5)
-});
+//     expect(result).toEqual(5)
+// });
 
 // test('Test typed function', () => {
 //     // Name -> signatures

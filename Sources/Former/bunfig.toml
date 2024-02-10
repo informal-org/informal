@@ -1,0 +1,2 @@
+[test]
+preload = "./config/happydom.js"

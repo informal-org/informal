@@ -4,10 +4,11 @@
   "type": "module",
   "workspaces": ["src/*"],
   "devDependencies": {
-    "@types/bun": "latest",
     "@babel/core": "^7.9.0",
     "@babel/plugin-proposal-class-properties": "^7.8.3",
     "@babel/preset-env": "^7.9.0",
+    "@happy-dom/global-registrator": "^13.3.8",
+    "@types/bun": "latest",
     "babel-jest": "^26.3.0",
     "babel-loader": "^8.1.0",
     "babel-plugin-import": "^1.13.0",
@@ -15,15 +16,17 @@
     "jest-silent-reporter": "^0.2.1",
     "webpack": "^4.42.0",
     "webpack-bundle-analyzer": "^3.6.1",
-    "webpack-cli": "^3.3.11"    
+    "webpack-cli": "^3.3.11"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
   },
   "dependencies": {
-    "immutable": "^5.0.0-beta.5",
+    "@informal/shared": "workspace:*",
+    "hamt": "^2.2.2",
     "immer": "^8.0.2",
-    "@informal/shared": "workspace:*"
+    "immutable": "^5.0.0-beta.5",
+    "treeify": "^1.1.0"
   },
   "scripts": {
     "deploy": "webpack --mode production",

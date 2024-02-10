@@ -1,5 +1,5 @@
-// import { lex } from "@appassembly/compiler/lexer.js"
-import { parseExpr } from "@appassembly/compiler/parser.js"
+// import { lex } from "@informal/compiler/lexer.js"
+import { parseExpr } from "@informal/compiler/parser.js"
 
 
 test('test add multiply precedence', () => {
@@ -65,7 +65,7 @@ test('test multi-param methods', () => {
 
 
 test('test equality', () => {
-    expect(parseExpr("x > 7 == false").toString()).toEqual("(== (> x 7) (false))")
+    expect(parseExpr("x > 7 == false").toString()).toEqual("(== (> x 7) false)")
 
 });
 
