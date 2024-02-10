@@ -1,4 +1,4 @@
-import {} from "@appassembly/runtime/builtins"
+import {} from "@informal/runtime/builtins"
 
 
 export function execJs(code) {

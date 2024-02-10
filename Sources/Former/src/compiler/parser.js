@@ -1,4 +1,4 @@
-import { QIter, SyntaxError } from "@appassembly/shared"
+import { QIter, SyntaxError } from "@informal/shared"
 import { lex } from "./lexer"
 
 

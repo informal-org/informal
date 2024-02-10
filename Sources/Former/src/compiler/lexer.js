@@ -1,4 +1,4 @@
-import { Queue, isFunction } from "@appassembly/shared"
+import { Queue, isFunction } from "@informal/shared"
 import { 
     LiteralNode, IdentifierNode, OperatorNode, 
     KEYWORD_TABLE, syntaxError,
