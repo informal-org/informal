@@ -78,10 +78,10 @@ pub const FormParser = struct {
 
                         // This is equivalent of calling a sub-parse and appending it.
                         // TODO: Double-check the scoping rules here.
-                        var remaining = try self.parse(head, tok.SYMBOL_NEWLINE);
+                        const remaining = try self.parse(head, tok.SYMBOL_NEWLINE);
                         head = null;
-                        var subBody = Form{ .head = current.?, .body = remaining };
-                        var idx = formPointer(self.forms.items.len, 1);
+                        const subBody = Form{ .head = current.?, .body = remaining };
+                        const idx = formPointer(self.forms.items.len, 1);
                         try self.forms.append(subBody);
                         try currentForm.append(Form{ .head = tok.SYMBOL_EQUALS, .body = idx });
                         current = idx;
@@ -110,7 +110,7 @@ pub const FormParser = struct {
         }
 
         // End of current map with the end of the current {block} or end of stream.
-        var index = self.forms.items.len;
+        const index = self.forms.items.len;
         for (currentForm.items) |form| {
             try self.forms.append(form);
         }
