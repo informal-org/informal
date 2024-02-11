@@ -253,6 +253,7 @@ const END_OP = new Keyword("(end)")
 
 new Keyword(")")
 new Keyword("]")
+new Keyword("}")
 new Keyword(",")
 
 new Literal("true", true)
@@ -410,7 +411,8 @@ const PARENS = new Grouping("(", 150, TOKEN_GROUPING, TOKEN_APPLY, ")");
 
 // TODO: Is there a LED for this? f{ a }
 const CURLY_BK = new Prefix("{", 150,
-Grouping.get_null_denotation(TOKEN_HEADER, "}"))
+Grouping.get_null_denotation(TOKEN_START_BLOCK, "}"))
+// Grouping.get_null_denotation(TOKEN_HEADER, "}"))
 
 export function syntaxError(message, index) {
     let err = new SyntaxError(message);

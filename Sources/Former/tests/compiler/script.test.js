@@ -26,6 +26,19 @@ test('Eval array expressions', () => {
 })
 
 
+test('Eval objects with attribute access', () => {
+    const result = evalScript(dedent`
+    a = { x: 1, y: 2 }
+    a.x + a.y
+`);
+    expect(result).toEqual(3);
+})
+
+// Functions.
+// Guard clauses
+// Conditionals
+// print function
+
 
 function evalScript(expr) {
     // Should it be expr or body?

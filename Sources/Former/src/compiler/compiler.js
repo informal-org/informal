@@ -4,7 +4,7 @@ and either evaluates or generates bytecode
 */
 
 import { JS_PRE_CODE, JS_POST_CODE } from "@informal/shared/constants"
-import { syntaxError, TOKEN_HEADER, TOKEN_COND, CONTINUE_BLOCK, TOKEN_ASSIGN } from "./parser";
+import { syntaxError, TOKEN_HEADER, TOKEN_COND, CONTINUE_BLOCK, TOKEN_ASSIGN, TOKEN_START_BLOCK } from "./parser";
 import { getNodeText } from "@informal/shared/ast"
 
 var treeify = require('treeify');
@@ -952,6 +952,8 @@ export function astToExpr(cell, node) {
             return HeaderExpr.parse(cell, node)
         case TOKEN_ASSIGN:
             return AssignExpr.parse(cell, node)
+        case TOKEN_START_BLOCK:
+            return BlockExpr.parse(cell, node)
         case "maplist":     // todo, NAME
             // return MapExpr.parse(cell, node)
             return BlockExpr.parse(cell, node)

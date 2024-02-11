@@ -7,7 +7,7 @@ import {
 import { astToExpr } from "./compiler";
 
 const DELIMITERS = new Set(['(', ')', '[', ']', 
-// '{', '}', 
+'{', '}', 
 '"', "'", 
 '.', ',', ':', 
 // ';', 

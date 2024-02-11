@@ -69,7 +69,7 @@ test('test equality', () => {
 
 });
 
-
+// Old way of doing function guards...
 test('test function signature', () => {
     expect(parseExpr("(a, b) [a > 0]: a + b").toString()).toEqual("(: ([ ((grouping) a b) (> a 0)) (+ a b))")
 });
