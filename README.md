@@ -1,11 +1,11 @@
 <img src="https://raw.githubusercontent.com/Feni/informal/main/Documentation/Resources/Images/oto.jpg" width="205" alt="Oto, the octopus">
 
 
-# The Informal Programming Language.
+# Informal Programming Language
 Informal is a flexible, general purpose programming language.
 
 This language is in active, early stage development. You can play with it for hobby projects and provide feedback, but it's not ready for serious production use yet. Watch this repo on GitHub and check back soon!
-
+ 
 ## A pattern based language
 Everything in Informal is built on a single concept: Pattern Matching. Patterns generalize the functional mapping from input -> output, define the structural mapping for types and the relations between the two. That means that you can manipulate any functionality, just as flexibly as data or declaratively query for results meeting the specified constraints.
 

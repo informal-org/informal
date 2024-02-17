@@ -4,8 +4,9 @@ and either evaluates or generates bytecode
 */
 
 import { JS_PRE_CODE, JS_POST_CODE } from "@informal/shared/constants"
-import { syntaxError, TOKEN_HEADER, TOKEN_COND, CONTINUE_BLOCK, TOKEN_ASSIGN, TOKEN_START_BLOCK } from "./parser";
+import { syntaxError, TOKEN_HEADER, TOKEN_COND, CONTINUE_BLOCK, TOKEN_ASSIGN, TOKEN_START_BLOCK, TOKEN_APPLY } from "./parser";
 import { getNodeText } from "@informal/shared/ast"
+import {aSummaryTree} from "./debug"
 
 var treeify = require('treeify');
 
@@ -202,7 +203,16 @@ class KeySignatureExpr extends Expr {
             case "(guard)":
                 var guard = GuardExpr.parse(cell, node);
                 return new KeySignatureExpr(cell, node,  "", "null", guard.params, guard)
+            case TOKEN_APPLY:
+                var fn_name = node.left;
+                if(fn_name.node_type != "(identifier)") {
+                    syntaxError("Expected function name. Found " + fn_name.node_type)
+                }
+                var params = ParamsExpr.parse(cell, node) // Parses 'value'.
+                // TODO: Guard
+                return new KeySignatureExpr(cell, node, fn_name.value, "null", params)
             default:
+                throw new Error("Why here?")
                 // Note: Flat keys are not wrapped in a key signature.
                 return astToExpr(cell, node)
         }
@@ -217,7 +227,13 @@ class HeaderExpr extends Expr {
             let [k, v] = node.value;
             if(k.node_type == TOKEN_COND) {
                 return ConditionalExpr.parse(cell, node);
-            } else {
+            }
+            // else if(k.node_type == TOKEN_APPLY) {
+            //     console.log("parsing function def")
+            //     // f(x) : ...
+            //     return FunctionDefinition.parse(cell, node);
+            // }
+            else {
                 // key = astToExpr(cell, k);
                 return MapExpr.parse(cell, node);
             }
@@ -290,7 +306,7 @@ class MapEntryExpr extends Expr {
         return {
             "MapEntryExpr": {
                 key: this.key.debug(),
-                value: this.value.debug()
+                value: this.value ? this.value.debug() : "?"
             }
         }        
     }    
@@ -304,9 +320,10 @@ class MapEntryExpr extends Expr {
 }
 
 class BlockExpr extends Expr {
-    constructor(cell, node, expressions) {
+    constructor(cell, node, expressions, continuous=false) {
         super(cell, node);
         this.expressions = expressions
+        this.continuous = continuous;   // Whether this is one large block, or just many lines.
     }
 
     emitJS(target) {
@@ -327,7 +344,13 @@ class BlockExpr extends Expr {
             }
     
         }
-        return js;
+        if(this.continuous) {
+            console.log('continuous is true')
+            return js
+        } else {
+            console.log('continuous is false')
+            return js[js.length - 1];
+        }
     }
 
     debug() {
@@ -344,7 +367,7 @@ class BlockExpr extends Expr {
         // i.e. if-else chains, maps, etc. Iterate over it and break it up into groups.
 
         let subBlock = null;
-        node.value.map((n) => console.log(treeify.asTree(n, true) + "\n\n"))
+        node.value.map((n) => console.log(treeify.asTree(aSummaryTree(n), true) + "\n\n"))
 
         node.value.forEach((expr) => {
             // Terminating conditions for sub-blocks.
@@ -407,11 +430,11 @@ class MapExpr extends Expr {
 
     append(cell, node) {
         // TODO: Additional validation.
-        // if(node.node_type == TOKEN_HEADER) {
+        if(node.node_type == TOKEN_HEADER) {
             this.kv_list.push(MapEntryExpr.parse(cell, node))
             return true
-        // }
-        // return false
+        }
+        return false
     }
 
     debug() {
@@ -574,6 +597,49 @@ class InvokeExpr extends Expr {
         return new InvokeExpr(cell, node, fn, params)
     }
 }
+
+// class FunctionDefinition extends Expr {
+//     constructor(cell, node, kv_list) {
+//         super(cell, node);
+//         this.kv_list = kv_list;
+//     }
+
+//     emitJS(target) {
+//         let mapName = target.newVariable();
+//         let obj = target.create("Obj");
+//         target.emit(target.declaration(mapName, obj) + ";\n")
+
+//         this.kv_list.forEach((kv) => {
+//             target.emit(target.method(mapName, "insert", kv.getKeyJS(target), kv.getValJS(target)) + ";\n")
+//         })
+        
+//         // return mapName;
+//     }
+
+//     append(cell, node) {
+//         // Only append if the next node is another fn declaration
+//         // TODO: Additional validation to ensure it should also be attached to this definition.
+//         if(node.node_type == TOKEN_HEADER) {
+//             this.kv_list.push(FunctionDefinition.parse(cell, node))
+//             return true
+//         }
+//         return false
+//     }
+
+//     debug() {
+//         return {
+//             FunctionDefinition: {
+//                 kv_list: this.kv_list.map((e) => e.debug())
+//             }
+//         }
+//     }
+
+//     static parse(cell, node) {
+//         let kv_list = [MapEntryExpr.parse(cell, node)]
+//         return new FunctionDefinition(cell, node, kv_list)
+//     }    
+
+// }
 
 class ConditionalClauseExpr extends Expr {
     constructor(cell, node, condition, body) {
@@ -766,7 +832,11 @@ class ParamsExpr extends Expr {
     
 
     static parse(cell, node) {
+        console.log("parse params")
+        console.log(node)
         let params = node.value ? node.value.map((p) => astToExpr(cell, p)) : [];
+        console.log("is")
+        console.log(params)
         return new ParamsExpr(cell, node, params);
     }
 }
@@ -952,7 +1022,7 @@ export function astToExpr(cell, node) {
             return HeaderExpr.parse(cell, node)
         case TOKEN_ASSIGN:
             return AssignExpr.parse(cell, node)
-        case TOKEN_START_BLOCK:
+        case TOKEN_START_BLOCK: // {
             return BlockExpr.parse(cell, node)
         case "maplist":     // todo, NAME
             // return MapExpr.parse(cell, node)

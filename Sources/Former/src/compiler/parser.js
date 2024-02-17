@@ -289,7 +289,9 @@ COMMA.left_denotation = (left, node, tokenStream) => {
 };
 
 // Treat new lines as comma equivalents. Later on, differentiate comma and ;
-let continue_to_end = Grouping.get_left_denotation("maplist", TOKEN_END_BLOCK, "(continueblock)")
+// TODO: Original was maplist.
+// let continue_to_end = Grouping.get_left_denotation("maplist", TOKEN_END_BLOCK, "(continueblock)")
+let continue_to_end = Grouping.get_left_denotation(CONTINUE_BLOCK, TOKEN_END_BLOCK, "(continueblock)")
 CONTINUE_BLOCK.left_denotation = (left, node, tokenStream) => {
     return merge_nodes(continue_to_end(left, node, tokenStream))
 };
@@ -439,8 +441,6 @@ export function parseTokens(tokenQueue) {
     let tokenStream = new ParseIterator(tokenQueue);
     let parsed = expression(tokenStream, 0)
 
-    console.log("Token stream:")
-    console.log(tokenQueue.asArray())
     if(tokenStream.hasNext()) {
         // TODO
         syntaxError("Could not complete parsing. Unexpected token at: " + tokenStream.current().char_end)
