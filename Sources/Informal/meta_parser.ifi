@@ -1,0 +1,96 @@
+// This file can parse and evaluate itself with a minimal subset of Informal.
+
+
+// The most basic construct in Informal is the map, relating a key to a value.
+// We use the map to give meaning to other basic syntactic elements, like parentheses, blocks, functions and operators.
+
+
+
+// Comma is an infix operator which takes its left and right element and returns a pair with it.
+// Operators are defined in the language as macros which give meaning to the values on their left and right.
+// Macros are functions that transform code. Maps are the most primitive forms of function, mapping a domain of arguments to a range of values.
+// This is a macro which takes the value on its left, and returns another function that takes the right-hand value and returns a tuple-map containing both.
+__sequence__: {
+    left: { 
+        right : {
+            left: left,
+            right: right
+        }
+    }
+}
+// The definition of sequence references itself when it uses the comma internally.
+
+
+// Parentheses are a type of grouping that can be used in two forms. To group elements together (1, 2, 3). 
+// Or to apply a function. apply(arg0, arg1, arg2).
+// This expression recognizes those two types of parentheses and associates it with a map representation.
+// When the parser sees a parenthesized expression, it'll lookup how to match it in the function below.
+__parens__:
+    contents: {type: "group", value: contents}
+    (left, contents): {type: "apply", name: left, args: contents, env: __env}
+
+
+
+
+// Informal's built out of three primitive map operations
+// New() - Creates a new empty map.
+// Get(map, key) - Retrieves a key from a map
+// Set(map, key, value) - Returns a new map, with key set to the value.
+
+bind(env, args):
+    set(env, get(args, "left"), get(args, "right"))
+    // TODO: recurse
+
+
+// Apply takes a function map, and an argument map and evaluates the function for those arguments.
+apply(function, args):
+    // Bind arguments
+    env = get(function, "env")
+    env = bind(env, args)
+
+
+// Prefix macros like "not x" take a single argument, its right hand side.
+is_prefix_macro(definition): get(definition, "right")
+
+
+// expr = {add: { a: 1, b: 2} }
+// env = { 
+    add: {
+        { 0: a, 1: b} : {
+            __builtin_add: {
+                a: a
+                b: b
+            }
+        }
+    }
+}
+eval(expr, env):
+    // 
+
+
+
+
+
+/// Lexer
+
+next_indentation_level(block):
+    /// Returns back patterns for all valid indentation levels. Current level = emits a __continue_block. 
+        Next level emits a __block (start block). And decreasing indentation emits as many levels of __endblock.
+        The longest match is always preferred when lexing.
+    
+        
+
+/// The lexer identifies character sequences
+lexer(input, block): 
+    combine_maps({
+        ":": {type: "__to__"}
+        "=": {type: "__eq__"}
+        "(": {type: "__group__"}
+        "[": {type: "__index__"}
+        "{": {type: "__struct__"}
+        ",": {type: "__sequence__"}
+        "+": {type: "__add__"}
+        "-": {type: "__sub__"}
+        "/": {type: "__div__"}
+        "|": {type: "__choice__"}
+    }, next_indentation_level(block))

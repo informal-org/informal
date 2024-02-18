@@ -61,6 +61,6 @@ compute_baz() result Int | err Error:
 ```
 If any of those result in an error, the error variant is returned. The expression on the left is pattern matched by type. This allows you to chain these errors together and easily propagate that up to some higher-level, which handles this process erroring overall. There are more details to be figure out on how exactly this can be expressed in-language using macros, but it's conceptually clean and easy to maintain. The code in both situations clearly indicate that an error can happen, without the use of additional keywords like "try". You're left with just your code, with minimal syntactic overhead.
 
-
-
-
+--------
+Trying to find a unique file extension that hasn't already been used in other contexts is tough. There's no universal repository of extensions. Some options were .inf, .if, ix, .infr, .ifn, .form, .inform. All of those were taken to various degrees. I used .infr for a while, but its abbreviated style doesn't suite the style. If "informal" was slightly shorter, I'd use the full name. 
+The final alternative is .ifi, pronounced like "iffy". It's fun to say and type, and its character aligns with the informal character of the language. It's named in the same spirit as "git". It also looks unused from github searches, which would allow us to define syntax highlighting for it at some point if there's ever enough code using it (unlikely).
