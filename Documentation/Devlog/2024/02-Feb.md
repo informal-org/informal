@@ -62,5 +62,31 @@ compute_baz() result Int | err Error:
 If any of those result in an error, the error variant is returned. The expression on the left is pattern matched by type. This allows you to chain these errors together and easily propagate that up to some higher-level, which handles this process erroring overall. There are more details to be figure out on how exactly this can be expressed in-language using macros, but it's conceptually clean and easy to maintain. The code in both situations clearly indicate that an error can happen, without the use of additional keywords like "try". You're left with just your code, with minimal syntactic overhead.
 
 
+Feb 18
+Defined a cleaner syntax for map, fold and scan. 
+There were several previous working idea. The best option would be to just define it as normal function operations on lists. That describes the operation with its name to those familiar with those functions (more common now, but will be unfamiliar to new programmers). The second option is to build it out of language constructs or have easier forms of it. 
+You can define it as keywords, i.e. an "each" keyword which lets you map over attributes like foo(each arr). This behaves like a different kind of "spread" which maps over the variable. This has the advantage that you can use it along with normal arguments and it's in-place, giving a very readable style. It's like normalize-transpose semantics in array languages. For fold, you'd use an "over" keyword, but this fit in less well. You sometimes need to specify initial value for a fold, and there isn't a clean place to do that. It also doesn't follow the same logic as each. And these operators doesn't scale as well - if you have multiple "each", the semantics of that gets weird - do you do a zip, or do they behave like nested loops? 
+The other option that works for operators is to use a broadcast keyword like "." to apply the function to everything. sum.(array). It's a bit invisible, but it's a succict way of expressing this concept. That'd look at the function signature and expand out arrays where the function expects the scalar variants. That works, but we again leave out fold - which is an incredibly useful construct. You can take the python approach and define foldable versions of core functions, like sum, min, max, etc. which covers about 80% of the use-case, but the other 20% do come up often enough to justify handling it better in the language. 
+I've considered giving semantics to things like "calling an array = evaluating it", which also works. arr((x): x + 1) - it'd map. But then what to we do with fold? There can be variants, like [arr](fun) = map, and arr(fun) = fold. Another option was to treat it like 'distribute' - like 5(x + 2) = 5x + 10. So, (foo)(arr) = distribute it over the array elements. (fun)(arr) = fold. [fun](arr) = map. 
+None of them felt quite right, until the variant today. Each is a construct we already support via the "for each" loop, which with the improvement yesterday can give you a lightweight map using for. [for x in arr: x + 1]. map does an operation for each element in an array, which is exactly what that reads like. So without knowing the language, you can look at it and figure out what it's doing.
+fold is an operation interspaced over an array. Each required us to have a reference to the variable, since we needed to use it in the index. But over works without it. So you can do `sum = for arr: +` to get an expression like `arr[0] + arr[1] + ... arr[n]`. 
+And this expands beautifully to scan as well, which is just a variant of this which keeps the intermediate results. Just like for loops vs maps, you do that by wrapping it in square brackets - `[for arr: +]` That's succict, clearly expresses that what you're getting back is an array, and you can understand the concept using primitives you already know!
+
+String operations
+I'm generally against adding extraneous keywords or operators, but the operators we do have should be flexible and work across different context in a meaningful way. 
+Which raises the question - what do +, -, /, * mean in the context of a string? We can give it some meaningful semantics, which makes common string operations much nicer to compose.
+
+
+`+` concat - appends onto the end of a string.
+`/` divides, or splits a term. "hello world" / " " - splits the string by spaces, giving you ["hello", "world"]
+`*` Distributes / multiplies a string across a series of string. A join. ["hello", "world"] * " " == "hello world"
+`%` gives you the remainder, when you're splitting by multiple possible values. "a,b;d,f" % ("," | ";") == [",", ",", ";", ","]. It gives you just the delimiters, and allows you to reconstruct the string from the division and remainders.
+str["hello"] - Gives you all byte-indexes of "hello" in the string. Indexing is lazy, so if you just want the first index, or the last, you just access the array - rather than having separate indexOf, lastIndexOf, with multiple argument variants.
+str{ map } - transforms character sequences to others. Returns the string as a list with those replaced.
+
+You can combine / and * to do find and replace, split and variations of it in flexible ways. You don't need separate versions of it which will work from the end of the string, or the beginning - they're composable functions you can use to create strings in flexible ways. 
+`-` There are several potential meanings we can give minus. It could mean "replace", but you can easily achieve replace with / and *. It can be a mask operator, which would allow you to do padding like `"          " - "hello" = "hello     "`. But I think the most useful operation would be to define it as trim. You can use - as a unary prefix, `-str` to specify a trimmed version of a string with whitespace removed, or remove leading/trailing characters using `str - ' /'`, which removes sequences of any of those characters from both ends. I'm still split on whether to define it as padding for the operator case - `5 * "0" - "123" = "00000" - "123" = "00123".  // left-pad!`  It's useful, but mostly in the context of printing. And if formatted string literals are easy, it removes the need for it. So TBD.
+
+Like other array operations, the compiler has the opportunity to fuse these together into higher-level operations which only scans the list once.
 
 
