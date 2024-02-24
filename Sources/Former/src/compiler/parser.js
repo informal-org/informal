@@ -41,6 +41,11 @@ export const TOKEN_IS_NOT = "(is not)";
 
 export const TOKEN_ASSIGN = "(assign)"
 
+export const TOKEN_COMMENT = "(comment)";
+export const TOKEN_COMMENT_BLOCK = "(commentblock)";
+export const TOKEN_END_COMMENT = "(endcomment)";
+
+
 class ParseIterator extends QIter {
     constructor(queue) {
         super(queue)

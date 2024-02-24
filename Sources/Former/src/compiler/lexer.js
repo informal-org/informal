@@ -15,6 +15,7 @@ const DELIMITERS = new Set(['(', ')', '[', ']',
 '<', '>', '=', '!',
 ' ', '\t', '\n']);
 
+
 // TODO: Better error messages
 const ERR_INVALID_FLOAT = "Invalid floating point number format.";
 const ERR_UNTERM_STR = "Could not find the ending quotes for this String.";
@@ -76,8 +77,6 @@ class LexIterator {
 
         return this.currentBlock();
     }
-
-
 }
 
 
