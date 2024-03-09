@@ -6,7 +6,84 @@ import {
 } from "./parser"
 
 
-const symbolTable = {};
+
+// Types of expressions:
+// 1. Prefix. i.e. "not X". Depends on nothing to left. Consumes the next token and returns the result.
+//      (): (right): result.
+// 2. Infix. i.e "X and Y". Depends on left. 
+// Infix function depends on their left argument, and returns a process
+// which consumes the right argument and evaluates the whole expression, respecting precedence.
+//     (left): (right): result.
+//     (left, middle): (right): result.   // (left +) (middle) + (right). Determines which it binds more strongly to.
+// 2.5 Postfix functions are infix functions which depend on their left and return a value 
+// without depending on what's to the right.
+// 3. Grouping. i.e. "(1 + 1)", "a[1]", indentation blocks, comments, strings, tuples, etc.
+// Things in between a begin and end token. Comes in two variants.
+// (contents): results - wraps some contents and returns a result.
+// (head, contents): Expressions like foo[bar] or foo(bar). Operates on the head.
+// 4. Block. i.e. "if(x): body" or "for(x in y): ...". Contains a grouping operator in head, and a closure or a map in the body.
+// It determines if/when/how to evaluate the body. Closure forms a scope. 
+// (head: (unbound, vars): head_expr, body: (vars): body_expr): result.
+
+
+const syntax = {
+    '[': [
+        (contents) => {
+            // array definition.
+            return {
+                "kind": "list",
+                "contents": contents
+            }
+        },
+        (head, contents) => {
+            // array access. head = variable being accessed.
+            return {
+                "kind": "index",
+                "head": head,
+                "contents": contents,
+            }
+        }
+    ],
+    '\t': [
+        (contents) => {
+            // Indented blocks form a closure.
+            return {
+                "kind": "block",
+                "contents": contents
+            }
+        }
+    ],
+    '(': [
+        (contents) => {
+            // Tuple
+            return {
+                "kind": "tuple",
+                "contents": contents
+            }
+        },
+        (head, contents) => {
+            // Function application. foo(a, b)
+            return {
+                "kind": "apply",
+                "head": head,
+                "contents": contents
+            }
+        }
+    ],
+    ':': [
+        (left) => {
+            return (right) => {
+
+            }
+        },
+        (left, middle) => {
+            return (right) => {
+
+            }
+        }
+    ]
+};
+
 
 
 function expectShift(tokenQueue) {
@@ -16,35 +93,12 @@ function expectShift(tokenQueue) {
     return tokenQueue.shift();
 }
 
-function evaluate(env, op, output) {
-    // kind == "do" block. Evaluate "this", then evaluate "then" with this's resulting environment.
-    // kind = "apply" block. Unify parameters into an env. Merge it with the function's env. Evaluate the expression with that environment.
 
-    if(left.kind === "parse") {
-        // Call back into the parser if it was written in-language.
+function isPrefix(token) {
 
-    } else if(left.kind === "apply") {
-        // if built in function, call it. Else, call the defined function.
-        // It doesn't actually evaluate it at this layer. It gives back what this should evaluate to.
-        // Which can be interpreted or compiled.
-        Object.entries(left.args).reverse().forEach((_index, arg) => {
-            // Resolve the arg to it's value / whatever symbol it references.
-            output.push(env.get(arg));
-        })
-        // Push count if we need variable arity.
-        let fn = env.get(left.name);
-        output.push(fn);
-
-        return env;
-    }
 }
 
-function getArity(obj) {
-    if(typeof obj === "object") {
-        return Object.keys(obj).length;
-    }
-    return -1
-}
+
 
 function match(env, left, right) {
     // Left returns a process which takes the right argument.
