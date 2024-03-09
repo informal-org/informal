@@ -3,3 +3,7 @@ run:
     # node dist/index.js
     # node src/index.js
     bun run src/index.js
+
+
+test:
+    bun test

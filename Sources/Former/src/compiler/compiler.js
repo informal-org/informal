@@ -24,13 +24,21 @@ const BINARY_OPS = {
     "<=": "__aa_lte",
     ">=": "__aa_gte",
     "==": "__aa_eq",
-    "!=": "__aa_neq"
+    "!=": "__aa_neq",
+    "=": "__aa_def" // Not a real fn. But defined so it's emitted in tree.
 }
 
 const UNARY_OPS = {
     "-": "__aa_uminus",
     "not": "__aa_not"
 }
+
+function assert(expr, message) {
+    if(!expr) {
+        throw new Error(message);
+    }
+}
+
 
 class Expr {
     constructor(cell, node) {
@@ -228,11 +236,11 @@ class HeaderExpr extends Expr {
             if(k.node_type == TOKEN_COND) {
                 return ConditionalExpr.parse(cell, node);
             }
-            // else if(k.node_type == TOKEN_APPLY) {
-            //     console.log("parsing function def")
-            //     // f(x) : ...
-            //     return FunctionDefinition.parse(cell, node);
-            // }
+            else if(k.node_type == TOKEN_APPLY) {
+                console.log("parsing function def")
+                // f(x) : ...
+                return FunctionDefinition.parse(cell, node);
+            }
             else {
                 // key = astToExpr(cell, k);
                 return MapExpr.parse(cell, node);
@@ -598,6 +606,53 @@ class InvokeExpr extends Expr {
     }
 }
 
+class FunctionDefinition extends Expr {
+    constructor(cell, node, fn, kv_list) {
+        super(cell, node);
+        console.log("this fn is ", fn)
+        this.fn = fn;
+        this.kv_list = kv_list;
+    }
+
+    emitJS(target) {
+        let left = this.fn.emitJS(target)
+        
+        let mapName = target.newVariable();
+        let obj = target.create("Obj");
+        target.emit(target.declaration(mapName, obj) + ";\n")
+
+        this.kv_list.forEach((kv) => {
+            target.emit(target.method(mapName, "insert", kv.getKeyJS(target), kv.getValJS(target)) + ";\n")
+        })
+        
+        return target.declaration(left, mapName);
+    }
+
+    debug() {
+        return {
+            FunctionDefinition: {
+                fn: this.fn,
+                kv_list: this.kv_list.map((e) => e.debug())
+            }
+        }
+    }
+
+
+
+    static parse(cell, node) {
+        assert(node.node_type == TOKEN_HEADER, "Expected header node for function definition")
+        assert(node.value.length == 2, "Expected a head and body for function definition")
+        const head = node.value[0];
+        assert(head.node_type == TOKEN_APPLY, "Expected function name in header")
+        
+        let fn = astToExpr(cell, head.left);
+        // Pass the entire node to it. It associates key of params to val of fn body.
+        let kv_list = [MapEntryExpr.parse(cell, node)]  // Pass the entire node to it.
+        return new FunctionDefinition(cell, node, fn, kv_list)
+    }
+
+}
+
 // class FunctionDefinition extends Expr {
 //     constructor(cell, node, kv_list) {
 //         super(cell, node);
@@ -626,18 +681,11 @@ class InvokeExpr extends Expr {
 //         return false
 //     }
 
-//     debug() {
-//         return {
-//             FunctionDefinition: {
-//                 kv_list: this.kv_list.map((e) => e.debug())
-//             }
-//         }
-//     }
 
 //     static parse(cell, node) {
 //         let kv_list = [MapEntryExpr.parse(cell, node)]
 //         return new FunctionDefinition(cell, node, kv_list)
-//     }    
+//     }
 
 // }
 

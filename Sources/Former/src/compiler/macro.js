@@ -122,11 +122,6 @@ function match(env, left, right) {
 // }
 
 
-function assert(expr, message) {
-    if(!expr) {
-        throw new Error(message);
-    }
-}
 
 
 export function matchExpand(tokenQueue) {
