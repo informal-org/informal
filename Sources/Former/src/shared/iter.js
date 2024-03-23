@@ -45,7 +45,7 @@ export class QIter {
     }
 
     current() {
-        return this.it.value
+        return this.it ? this.it.value : undefined
     }
 
     peek() {

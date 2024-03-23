@@ -277,6 +277,12 @@ function addMultipart(it, multipart_start, current_token, expected) {
     }
 }
 
+export function debugTokens(tokenQueue) {
+    return tokenQueue.asArray().map((token) => {
+        return token.toString()
+    })
+}
+
 export function lex(expr) {
     // Index - shared mutable closure var
     let it = new LexIterator(expr);

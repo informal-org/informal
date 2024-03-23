@@ -43,28 +43,40 @@ var dedent = require('dedent-js');
 //     expect(result).toEqual(3);
 // })
 
-test('Function declarations', () => {
-    // Variable based function declaration.
-    const result = evalScript(dedent`
-    f(x): x + 1
-    f(2)
-`);
-    expect(result).toEqual(3);
-})
-
-// Guard clauses doesn't work with this style of naming.
-
-// test('Guard clauses', () => {
+// test('Function declarations', () => {
 //     // Variable based function declaration.
 //     const result = evalScript(dedent`
-//     f(x) if(x < 5): x + 1
-//     f(7)
+//     f(x): x + 1
+//     f(2)
 // `);
+//     expect(result).toEqual(3);
+// })
+
+
+// test('Multi-arg function', () => {
+//     const result = evalScript(dedent`
+//     f = (x, y): x + y
+//     f(2, 3)
+//     `);
 //     expect(result).toEqual(5);
 // })
 
-// Functions.
-// Guard clauses
+test('Function indentation', () => {
+    const result = evalScript(dedent`
+    f = (x, y):
+        x + y
+    f(2, 3)
+    `);
+    expect(result).toEqual(5);
+})
+
+/*
+
+if x < y or x > 23: x
+if x > y: y
+if x == y: "Equal"
+*/
+
 // Conditionals
 // print function
 

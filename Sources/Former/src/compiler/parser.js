@@ -1,5 +1,5 @@
 import { QIter, SyntaxError } from "@informal/shared"
-import { lex } from "./lexer"
+import { lex, debugTokens } from "./lexer"
 
 
 /*
@@ -181,17 +181,34 @@ class Grouping extends Mixfix {
             node.value = [];
     
             while(tokenStream.hasNext()){
-                if(tokenStream.currentKeyword() == end_group) { break }
+                let kw = tokenStream.currentKeyword()
+                console.log("checking ", node_type, kw, tokenStream.current().value, " vs ", end_group)
+                if(tokenStream.currentKeyword() == end_group) {
+                    console.log('found end group')
+                     break }
                 node.value.push(expression(tokenStream, 10));
+                console.log('post expression', tokenStream.currentKeyword(), tokenStream.current().value)
+                // TODO: This seems to work, but then you have multiple nodes as a result.
+                // if(tokenStream.currentKeyword() == end_group) { break }
+
                 if(continuation == "" || tokenStream.currentKeyword() == continuation) {
+                    console.log('next')
                     tokenStream.next();
                 } else {
+                    console.log('break')
                     break;
                 }
             }
-
-            if(tokenStream.current() && tokenStream.current().operator.keyword == "(end)") { }
-            else { tokenStream.advance(end_group) }
+            console.log('at end of loop')
+            console.log(tokenStream)
+            console.log(tokenStream.current())
+            if(tokenStream.current() && tokenStream.current().operator.keyword == "(end)") { 
+                console.log('end of stream')
+            }
+            else { 
+                console.log('advance to ', end_group)
+                tokenStream.advance(end_group) 
+            }
             
             return node;
         }
@@ -295,8 +312,8 @@ COMMA.left_denotation = (left, node, tokenStream) => {
 
 // Treat new lines as comma equivalents. Later on, differentiate comma and ;
 // TODO: Original was maplist.
-// let continue_to_end = Grouping.get_left_denotation("maplist", TOKEN_END_BLOCK, "(continueblock)")
-let continue_to_end = Grouping.get_left_denotation(CONTINUE_BLOCK, TOKEN_END_BLOCK, "(continueblock)")
+let continue_to_end = Grouping.get_left_denotation("maplist", TOKEN_END_BLOCK, "(continueblock)")
+// let continue_to_end = Grouping.get_left_denotation(CONTINUE_BLOCK, TOKEN_END_BLOCK, "(continueblock)")
 CONTINUE_BLOCK.left_denotation = (left, node, tokenStream) => {
     return merge_nodes(continue_to_end(left, node, tokenStream))
 };
@@ -431,7 +448,7 @@ export function expression(tokenStream, right_binding_power) {
     let currentNode = tokenStream.next();
     let left = currentNode.operator.null_denotation(currentNode, tokenStream);
 
-    while(right_binding_power < tokenStream.currentBindingPower()) {
+    while(tokenStream.current() !== undefined && right_binding_power < tokenStream.currentBindingPower()) {
         currentNode = tokenStream.next();
         left = currentNode.operator.left_denotation(left, currentNode, tokenStream);
     }
@@ -440,6 +457,10 @@ export function expression(tokenStream, right_binding_power) {
 }
 
 export function parseTokens(tokenQueue) {
+    console.log("token queue")
+    // console.log(tokenQueue.asArray());
+    console.log(debugTokens(tokenQueue));
+
     // Add an end element - prevents having to do an tokenStream.hasNext() check 
     // in the expr while loop condition
     tokenQueue.push(new ASTNode(END_OP, null, TOKEN_OPERATOR, -1, -1))
@@ -448,7 +469,7 @@ export function parseTokens(tokenQueue) {
 
     if(tokenStream.hasNext()) {
         // TODO
-        syntaxError("Could not complete parsing. Unexpected token at: " + tokenStream.current().char_end)
+        syntaxError("Could not complete parsing. Unparsed tokens remaining at: " + tokenStream.current().char_end + " \n " + tokenStream.current().toString())
     }
 
     return parsed
