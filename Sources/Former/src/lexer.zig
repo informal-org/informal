@@ -88,8 +88,8 @@ pub const Lexer = struct {
 
     fn token_symbol(self: *Lexer) u64 {
         // First char is known to not be a number.
-        var start = self.index;
-        var ch = self.buffer[self.index];
+        const start = self.index;
+        const ch = self.buffer[self.index];
         _ = ch;
         // // Capture single-character delimiters or symbols.
         // if (Lexer.is_delimiter(ch)) {
@@ -103,7 +103,7 @@ pub const Lexer = struct {
             unreachable;
         }
 
-        return tok.createIdentifier(@truncate(u24, start), @truncate(u8, (self.index - start)));
+        return tok.createIdentifier(@truncate(start), @truncate(self.index - start));
     }
 
     fn skip(self: *Lexer) ?u64 {
@@ -113,7 +113,7 @@ pub const Lexer = struct {
 
     pub fn lex(self: *Lexer, current_indent: u16, indentation_char: u8) !u16 {
         while (self.index < self.buffer.len) {
-            var ch = self.buffer[self.index];
+            const ch = self.buffer[self.index];
             var token: ?u64 = null;
             // Ignore whitespace.
             _ = switch (ch) {
@@ -157,7 +157,7 @@ pub const Lexer = struct {
                         try self.tokens.append(tok.SYMBOL_INDENT);
                         // Recursively parse the next indentation block, till it terminates
                         // It'll return back the next indentation level after that block finishes.
-                        var nextIndent = try self.lex(indent, indent_char);
+                        const nextIndent = try self.lex(indent, indent_char);
                         if (nextIndent < current_indent) {
                             // Our block is over now. Dedent.
                             try self.tokens.append(tok.SYMBOL_DEDENT);

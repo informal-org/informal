@@ -67,7 +67,7 @@ pub fn print_symbol(token: u64) void {
         val.SYMBOL_NONE => print("None", .{}),
         0...127 => {
             // Note: This is stack allocated and won't return properly.
-            print("Symbol('{c}')", .{@truncate(u8, payload)});
+            print("Symbol('{c}')", .{@truncate(payload)});
         },
         else => print("Symbol({d})", .{payload}),
     };
