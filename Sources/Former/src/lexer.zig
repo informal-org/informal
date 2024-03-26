@@ -1,24 +1,22 @@
 const std = @import("std");
 const val = @import("value.zig");
 const tok = @import("token.zig");
-const ArrayList = std.ArrayList;
-const Allocator = std.mem.Allocator;
+// const ArrayList = std.ArrayList;
+// const Allocator = std.mem.Allocator;
 const print = std.debug.print;
 
 pub const Lexer = struct {
     const Self = @This();
     buffer: []const u8,
     index: u32,
-    allocator: Allocator,
-    tokens: ArrayList(u64),
+    ctxLineStart: u32, // Beginning of this line
+    ctxDepth: u16, // Indentation level
+    indentStack: u64, // A tiny little stack to contain up to 21 levels of indentation.
+    // allocator: Allocator,
+    // tokens: ArrayList(u64),
 
-    pub fn init(buffer: []const u8, allocator: Allocator) Self {
-        const tokens = ArrayList(u64).init(allocator);
-        return Self{ .buffer = buffer, .index = 0, .allocator = allocator, .tokens = tokens };
-    }
-
-    pub fn deinit(self: *Lexer) void {
-        self.tokens.deinit();
+    pub fn init(buffer: []const u8) Self {
+        return Self{ .buffer = buffer, .index = 0, .ctxLineStart = 0 };
     }
 
     fn gobble_digits(self: *Lexer) void {
@@ -76,6 +74,13 @@ pub const Lexer = struct {
         return true;
     }
 
+    fn peek_ch(self: *Lexer) u8 {
+        if (self.index < self.buffer.len) {
+            return self.buffer[self.index];
+        }
+        return 0;
+    }
+
     fn seek_till(self: *Lexer, ch: []const u8) ?u64 {
         while (self.index < self.buffer.len and self.buffer[self.index] != ch[0]) : (self.index += 1) {}
         return null;
@@ -111,100 +116,143 @@ pub const Lexer = struct {
         return null;
     }
 
-    pub fn lex(self: *Lexer, current_indent: u16, indentation_char: u8) !u16 {
+    fn countIndentation(self: *Lexer) u16 {
+        // Only indent with spaces. Mixed indentation is not allowed. Furthermore,
+        var indent: u16 = 0;
+        while (self.index < self.buffer.len and self.buffer[self.index] == ' ') : (self.index += 1) {
+            // It's an indentation char. Check if it matches.
+            indent += 1;
+        }
+        return indent;
+    }
+
+    fn tiny_stack_push(self: *Lexer, indentLvl: u3) void {
+        self.indentStack = (self.indentStack << 3) | indentLvl;
+    }
+
+    fn tiny_stack_pop(self: *Lexer) u3 {
+        const indentLvl = self.indentStack & 0b111;
+        self.indentStack >>= 3;
+        return indentLvl;
+    }
+
+    fn token_indentation(self: *Lexer) u64 {
+        const indent: u16 = self.countIndentation();
+        const ch = self.peek_ch();
+        if (ch == '\n') {
+            // Skip emitting anything when the entire line is empty.
+            return tok.SKIP_TOKEN; // TODO: Return a special token to skip
+        } else if (ch == '\t') {
+            // Error on tabs - because it'll look like indentation visually, but don't have semantic meaning.
+            // So either we have to raise an error error or accept tabs.
+            print("Error: Mixed indentation. Use 4 spaces to align.", .{});
+            return tok.LEX_ERROR; // TODO
+        } else {
+            // Count and determine if it's an indent or dedent.
+            if (indent > self.ctxDepth) {
+                const diff = indent - self.ctxDepth;
+                if (diff > 8) {
+                    // You can indent pretty far, but just can't do more than 8 spaces at a time.
+                    print("Indentation level too deep. Use 4 spaces to align.", .{});
+                    return tok.LEX_ERROR;
+                }
+                self.tiny_stack_push(@truncate(diff));
+                self.ctxDepth = indent;
+                return tok.SYMBOL_INDENT;
+            } else if (indent < self.ctxDepth) {
+                return self.token_dedent(indent);
+            }
+            // No special token if you're on the same indentation level.
+        }
+
+        return tok.SKIP_TOKEN;
+    }
+
+    fn token_dedent(self: *Lexer, indent: u16) u64 {
+        var diff = self.ctxDepth - indent;
+        var expectedDiff = self.tiny_stack_pop();
+        if (expectedDiff == 0) {
+            // If the tiny stack overflows, we'd get here.
+            print("Indentation level too deep.", .{});
+            return tok.LEX_ERROR;
+        }
+        var dedentCount: u8 = 0;
+        // Loop to pop multiple indentation levels.
+        while (diff > expectedDiff) {
+            diff -= expectedDiff;
+            dedentCount += 1;
+            if (diff != 0) {
+                expectedDiff = self.tiny_stack_pop();
+            }
+        }
+        if (diff != 0) {
+            print("Unaligned indentation. Use 4 spaces to align.", .{});
+            return tok.LEX_ERROR;
+        }
+
+        self.ctxDepth = indent;
+        // TODO: Return dedent count in the token context somehow since we can't emit multiple tokens at once.
+        return tok.SYMBOL_DEDENT;
+    }
+
+    pub fn lex(self: *Lexer) u64 {
+        if (self.index >= self.buffer.len) {
+            if (self.ctxDepth > 0) {
+                // Flush any remaining open blocks.
+                return self.token_dedent(0);
+            }
+
+            return tok.SYMBOL_STREAM_END;
+        }
+
         while (self.index < self.buffer.len) {
             const ch = self.buffer[self.index];
-            var token: ?u64 = null;
             // Ignore whitespace.
-            _ = switch (ch) {
-                ' ', '\t' => {
-                    // By skipping whitespace & comments, we can't rely on start of next tok as reliable
-                    // "length" indexes. So instead store length explicitly for strings and identifiers.
-                    _ = self.skip();
+            switch (ch) {
+                ' ' => {
+                    if (self.ctxLineStart == self.index) {
+                        // Indentation at the start of a line is significant.
+                        const indent = self.token_indentation();
+                        if (indent != tok.SKIP_TOKEN) {
+                            return indent;
+                        }
+                    } else {
+                        // By skipping whitespace & comments, we can't rely on start of next tok as reliable
+                        // "length" indexes. So instead store length explicitly for strings and identifiers.
+                        self.skip();
+                    }
+                },
+                '\t' => {
+                    // Tabs have no power here! We use spaces exclusively.
+                    self.skip();
                 },
                 '\n' => {
                     // New-lines are significant.
                     self.index += 1;
-                    try self.tokens.append(tok.SYMBOL_NEWLINE);
-                    // Indentation at the start of a line is significant.
-                    // Count and determine if it's an indent or dedent.
-                    var indent: u16 = 0;
-                    var indent_char: u8 = indentation_char;
-                    // Count leading indent chars of the given type.
-                    while (self.index < self.buffer.len) : (self.index += 1) {
-                        const iCh = self.buffer[self.index];
-                        if (iCh == ' ' or iCh == '\t') {
-                            // It's an indentation char. Check if it matches.
-                            if (indent_char == 0) {
-                                indent_char = iCh;
-                            }
-
-                            if (iCh == indent_char) {
-                                // It's a match. Count it.
-                                indent += 1;
-                            } else {
-                                // Disallow mixed indentation.
-                                print("Mixed indentation error", .{});
-                                return 0;
-                            }
-                        } else {
-                            break;
-                        }
-                    }
-                    // Could enforce a min indentation of 2 spaces.
-                    if (indent > current_indent) {
-                        // Indentation.
-                        try self.tokens.append(tok.SYMBOL_INDENT);
-                        // Recursively parse the next indentation block, till it terminates
-                        // It'll return back the next indentation level after that block finishes.
-                        const nextIndent = try self.lex(indent, indent_char);
-                        if (nextIndent < current_indent) {
-                            // Our block is over now. Dedent.
-                            try self.tokens.append(tok.SYMBOL_DEDENT);
-                            return nextIndent;
-                        } else if (nextIndent > current_indent) {
-                            // Disallow unaligned indentation levels.
-                            // It has to return back to a valid state.
-                            print("Unaligned indentation error", .{});
-                            return 0;
-                        }
-                        // If nextIndent == current_indent, we're back at our level. Continue processing.
-                    } else if (indent < current_indent) {
-                        // This block is done. And maybe other blocks as well. End. Return next level.
-                        try self.tokens.append(tok.SYMBOL_DEDENT);
-                        return indent;
-                    }
-                    // Else - same level of indentation. Continue processing.
+                    // Points to the beginning of line rather than newline char.
+                    self.ctxLineStart = self.index;
+                    return tok.SYMBOL_NEWLINE;
                 },
                 '0'...'9', '.' => {
-                    token = self.token_number();
+                    return self.token_number();
                 },
                 '"' => {
-                    token = self.token_string();
+                    return self.token_string();
                 },
                 else => {
                     // Capture comments.
                     if (self.peek_starts_with("//")) {
                         self.index += 2; // Skip past '//'
-                        _ = self.seek_till("\n");
+                        self.seek_till("\n");
                     } else if (Lexer.is_delimiter(ch)) {
                         self.index += 1;
-                        token = val.createSymbol(ch);
+                        return val.createSymbol(ch);
                     } else {
-                        token = self.token_symbol();
+                        return self.token_symbol();
                     }
                 },
-            };
-
-            if (token) |t| {
-                try self.tokens.append(t);
             }
         }
-        if (current_indent > 0) {
-            // We're at the end of the file. Dedent.
-            try self.tokens.append(tok.SYMBOL_DEDENT);
-        }
-        return 0; // No further indentation at base.
     }
 };
 
