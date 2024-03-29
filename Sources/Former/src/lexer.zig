@@ -1,22 +1,38 @@
 const std = @import("std");
 const val = @import("value.zig");
 const tok = @import("token.zig");
+const constants = @import("constants.zig");
 // const ArrayList = std.ArrayList;
 // const Allocator = std.mem.Allocator;
 const print = std.debug.print;
 
+pub const Span = struct {
+    start: u32,
+    end: u32,
+};
+
+pub const Location = struct {
+    index: u32,
+    line_start: u32,
+};
+
 pub const Lexer = struct {
     const Self = @This();
     buffer: []const u8,
-    index: u32,
-    ctxLineStart: u32, // Beginning of this line
-    ctxDepth: u16, // Indentation level
+    index: u32, // Scan index.
+    lineStart: u32, // Beginning of this line
+    tokenStart: u32,
+    tokenEnd: u32,
     indentStack: u64, // A tiny little stack to contain up to 21 levels of indentation.
+    depth: u16, // Indentation level
+    kind: TokenKind,
     // allocator: Allocator,
     // tokens: ArrayList(u64),
 
+    pub const TokenKind = enum { number, string, symbol, keyword, identifier, indent, dedent, newline, eof };
+
     pub fn init(buffer: []const u8) Self {
-        return Self{ .buffer = buffer, .index = 0, .ctxLineStart = 0 };
+        return Self{ .buffer = buffer, .index = 0, .ctxLineStart = 0, .ctxDepth = 0, .indentStack = 0 };
     }
 
     fn gobble_digits(self: *Lexer) void {
@@ -29,30 +45,32 @@ pub const Lexer = struct {
         }
     }
 
-    fn token_number(self: *Lexer) u64 {
+    fn token_number(self: *Lexer) void {
         // MVL just needs int support for bootstrapping. Stage1+ should parse float.
-        const start = self.index;
+        self.tokenStart = self.index;
         self.index += 1; // First char is already recognized as a digit.
         self.gobble_digits();
-        const value: u64 = std.fmt.parseInt(u32, self.buffer[start..self.index], 10) catch 0;
-
-        return value;
+        self.tokenEnd = self.index;
+        self.tokenKind = TokenKind.TNumber;
+        // const value: u64 = std.fmt.parseInt(u32, self.buffer[self.ctxTokenStart..self.ctxTokenEnd], 10) catch 0;
+        // return value;
     }
 
-    fn token_string(self: *Lexer) u64 {
+    fn token_string(self: *Lexer) void {
         self.index += 1; // Omit beginning quote.
-        const start = self.index;
+        self.tokenStart = self.index;
         _ = self.seek_till("\"");
-        const end = self.index - 1;
+        self.tokenEnd = self.index - 1;
         // Expect but omit end quote.
         if (self.index < self.buffer.len and self.buffer[self.index] == '"') {
             self.index += 1;
         } else {
             // Raise error. Unterminated string. Skip for MVL.
+            unreachable;
         }
         // Use the value-field to explicitly store the end, or a ref to the
         // string in some table. The string contains both quotes.
-        return val.createStringPtr(start, end);
+        // return val.createStringPtr(start, end);
     }
 
     fn is_delimiter(ch: u8) bool {
@@ -149,17 +167,17 @@ pub const Lexer = struct {
             return tok.LEX_ERROR; // TODO
         } else {
             // Count and determine if it's an indent or dedent.
-            if (indent > self.ctxDepth) {
-                const diff = indent - self.ctxDepth;
+            if (indent > self.depth) {
+                const diff = indent - self.depth;
                 if (diff > 8) {
                     // You can indent pretty far, but just can't do more than 8 spaces at a time.
                     print("Indentation level too deep. Use 4 spaces to align.", .{});
                     return tok.LEX_ERROR;
                 }
                 self.tiny_stack_push(@truncate(diff));
-                self.ctxDepth = indent;
+                self.depth = indent;
                 return tok.SYMBOL_INDENT;
-            } else if (indent < self.ctxDepth) {
+            } else if (indent < self.depth) {
                 return self.token_dedent(indent);
             }
             // No special token if you're on the same indentation level.
@@ -169,7 +187,7 @@ pub const Lexer = struct {
     }
 
     fn token_dedent(self: *Lexer, indent: u16) u64 {
-        var diff = self.ctxDepth - indent;
+        var diff = self.depth - indent;
         var expectedDiff = self.tiny_stack_pop();
         if (expectedDiff == 0) {
             // If the tiny stack overflows, we'd get here.
@@ -190,14 +208,14 @@ pub const Lexer = struct {
             return tok.LEX_ERROR;
         }
 
-        self.ctxDepth = indent;
+        self.depth = indent;
         // TODO: Return dedent count in the token context somehow since we can't emit multiple tokens at once.
         return tok.SYMBOL_DEDENT;
     }
 
     pub fn lex(self: *Lexer) u64 {
         if (self.index >= self.buffer.len) {
-            if (self.ctxDepth > 0) {
+            if (self.depth > 0) {
                 // Flush any remaining open blocks.
                 return self.token_dedent(0);
             }
@@ -210,7 +228,7 @@ pub const Lexer = struct {
             // Ignore whitespace.
             switch (ch) {
                 ' ' => {
-                    if (self.ctxLineStart == self.index) {
+                    if (self.lineStart == self.index) {
                         // Indentation at the start of a line is significant.
                         const indent = self.token_indentation();
                         if (indent != tok.SKIP_TOKEN) {
@@ -230,7 +248,7 @@ pub const Lexer = struct {
                     // New-lines are significant.
                     self.index += 1;
                     // Points to the beginning of line rather than newline char.
-                    self.ctxLineStart = self.index;
+                    self.lineStart = self.index;
                     return tok.SYMBOL_NEWLINE;
                 },
                 '0'...'9', '.' => {
@@ -267,9 +285,9 @@ fn testTokenEquals(lexed: u64, expected: u64) !void {
 pub fn testLexToken(buffer: []const u8, expected: []const u64) !void {
     print("\nTest Lex Token: {s}\n", .{buffer});
     defer print("\n--------------------------------------------------------------\n", .{});
-    var lexer = Lexer.init(buffer, test_allocator);
+    var lexer = Lexer.init(buffer);
     defer lexer.deinit();
-    _ = try lexer.lex(0, 0);
+    lexer.lex();
     if (lexer.tokens.items.len != expected.len) {
         print("\nLength mismatch {d} vs {d}", .{ lexer.tokens.items.len, expected.len });
 
@@ -293,11 +311,14 @@ pub fn testLexToken(buffer: []const u8, expected: []const u64) !void {
     }
 }
 
-// test "Lex digits" {
-//     // "1 2 3"
-//     //  01234
-//     try testLexToken("1 2 3", &[_]u64{ 1, 2, 3 });
-// }
+test "Lex digits" {
+
+    // "1 2 3"
+    var lexer = Lexer.init("1 2 3");
+    try expect(lexer.lex() == 1);
+    //  01234
+    // try testLexToken("1 2 3", &[_]u64{ 1, 2, 3 });
+}
 
 // test "Lex delimiters and identifiers" {
 //     // Delimiters , . = : and identifiers.

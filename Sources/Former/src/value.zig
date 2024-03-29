@@ -31,60 +31,34 @@ const MASK_LOW40: u64 = 0x0000_00FF_FFFF_FFFF;
 
 // The 51 bit NaN space is divided into a 3 bit tag + 48 bits of payload.
 // The tag represents how that payload is divided into headers + data, or inline types.
-const TAG_HEADER0: u16 = BASE_TYPE | 0x0000; // [000] 6 byte data. Typically pointers.
-const TAG_HEADER1: u16 = BASE_TYPE | 0x0001; // [001] 1 byte header. 5 byte data.
-const TAG_HEADER2: u16 = BASE_TYPE | 0x0002; // [110] 2 byte header. 4 byte data.
+const TAG_PTR: u16 = BASE_TYPE | 0x0000; // H0 [000] 6 byte data. Typically pointers.
+const TAG_DATA: u16 = BASE_TYPE | 0x0001; // H1 [001] 1 byte header. 5 byte inline data. Bool, symbol, null, etc.
+const TAG_TBLREF: u16 = BASE_TYPE | 0x0002; // H2 [110] 2 byte header. 4 byte data. Index into a table (i.e. string, class).
 const TAG_HEADER3: u16 = BASE_TYPE | 0x0003; // [011] 3 byte header. 3 byte data.
-const TAG_HEADER4: u16 = BASE_TYPE | 0x0004; // [100] 4 byte header. 2 byte data.
-const TAG_HEADER5: u16 = BASE_TYPE | 0x0005; // [101] 5 byte header. 1 byte data.
+const TAG_OBJ: u16 = BASE_TYPE | 0x0004; // [100] 1 byte header. 2 byte data. 3 byte data.
+const TAG_INSTRUCTION: u16 = BASE_TYPE | 0x0005; // [101] 1 byte header. 1 byte data. 4 byte data.
 const TAG_INLINE_STRING: u16 = BASE_TYPE | 0x0006; // [110] Inline string up to 5 ascii chars inline.
 const TAG_INLINE_BITSET: u16 = BASE_TYPE | 0x0007; // [111] Inline bitset.
 
-const TYPE_HEADER0: u64 = @as(u64, TAG_HEADER0) << 48;
-const TYPE_HEADER1: u64 = @as(u64, TAG_HEADER1) << 48;
-const TYPE_HEADER2: u64 = @as(u64, TAG_HEADER2) << 48;
+const TYPE_PTR: u64 = @as(u64, TAG_PTR) << 48;
+const TYPE_DATA: u64 = @as(u64, TAG_DATA) << 48;
+const TYPE_TBLREF: u64 = @as(u64, TAG_TBLREF) << 48;
 const TYPE_HEADER3: u64 = @as(u64, TAG_HEADER3) << 48;
-const TYPE_HEADER4: u64 = @as(u64, TAG_HEADER4) << 48;
-const TYPE_HEADER5: u64 = @as(u64, TAG_HEADER5) << 48;
+const TYPE_OBJ: u64 = @as(u64, TAG_OBJ) << 48;
+const TYPE_INSTRUCTION: u64 = @as(u64, TAG_INSTRUCTION) << 48;
 const TYPE_INLINE_STRING: u64 = @as(u64, TAG_INLINE_STRING) << 48;
 const TYPE_INLINE_BITSET: u64 = @as(u64, TAG_INLINE_BITSET) << 48;
 
-// The header portion has a further-tag indicating what the header and data represent.
-// Pointers are 64 bit aligned, thus the bottom 3 bits are used for pointer tagging.
-const H_PTR64: u3 = 0b000; // Pointer + length.
-const H_PTR32: u3 = 0b001; // Shift >> 1
-const H_PTR16: u3 = 0b010; // Shift >> 2
-const H_PTR8: u3 = 0b011; // Shift >> 3
-const H_OBJ_LEN: u3 = 0b100;
-const H_OBJ_OFFSET: u3 = 0b101;
-const H_PTR_MASK: u3 = 0b110;
-const H_IMMEDIATE: u3 = 0b111; // Inline object.
-
-// The full range of dynamic type options are unnecessary for the parser.
-// So we use these bits in more constrained way for compactness, avoiding unnecessary tags.
-// AST Nodes will have 4 byte header + 2 byte data.
-// The header represents the ascii representation of builtin keywords.
-// true, false, null, if, for, etc. Up to the first 4 chars.
-// The 2 byte data is context dependent.
-// It initially represents precedenec for operators. Indentation level for blocks.
-// Since those are irrelevant once the AST is constructed, it's used to store relative backrefs
-// to the previously seen instance of this operand (based on a similar structure in LuaJIT).
-// These backrefs make certain pattern-matching ops like common-subexpression-elimination faster.
-// Semantic types like Symbol, Identifier, String, Comment etc.
-// use the 1 byte header + 5 byte data reference to their respective symbol table.
-pub const AST_SYMBOL: u8 = 0x3A; // 0x3A = ':'
-pub const AST_STRING: u8 = 0x21; // 0x22 = '"'
-pub const AST_IDENTIFIER: u8 = 0x41; // 0x41 = 'A'
-pub const AST_COMMENT: u8 = 0x27; // 0x27 = '/'
-
+const DATA_BOOL: u8 = 2;
+const DATA_SYMBOL: u8 = 3;
 
 pub fn getHeader(val: u64) u64 {
     const header = switch (val & MASK_TYPE) {
-        TAG_HEADER1 => (val & MASK_HIGH8) >> 40,
-        TAG_HEADER2 => (val & MASK_HIGH16) >> 32,
+        TAG_DATA => (val & MASK_HIGH8) >> 40,
+        TAG_TBLREF => (val & MASK_HIGH16) >> 32,
         TAG_HEADER3 => (val & MASK_HIGH24) >> 24,
-        TAG_HEADER4 => (val & MASK_HIGH32) >> 16,
-        TAG_HEADER5 => (val & MASK_HIGH40) >> 8,
+        TAG_OBJ => (val & MASK_HIGH32) >> 16,
+        TAG_INSTRUCTION => (val & MASK_HIGH40) >> 8,
         else => 0,
     };
     return header;
@@ -92,17 +66,36 @@ pub fn getHeader(val: u64) u64 {
 
 pub fn getPayload(val: u64) u64 {
     const payload = switch (val & MASK_TYPE) {
-        TAG_HEADER1 => (val & MASK_LOW40),
-        TAG_HEADER2 => (val & MASK_LOW32),
+        TAG_DATA => (val & MASK_LOW40),
+        TAG_TBLREF => (val & MASK_LOW32),
         TAG_HEADER3 => (val & MASK_LOW24),
-        TAG_HEADER4 => (val & MASK_LOW16),
-        TAG_HEADER5 => (val & MASK_LOW8),
+        TAG_OBJ => unreachable, // (val & MASK_LOW40) is a valid interpretation, but you should use arg0 and arg1 instead.
+        TAG_INSTRUCTION => unreachable,
         else => val & MASK_PAYLOAD, // Header 0
     };
     return payload;
 }
 
-pub fn getHeader2(val: u64) u16 {
+pub fn getArg0(val: u64) u64 {
+    const arg0 = switch (val & MASK_TYPE) {
+        TAG_OBJ => (val & 0x0000_00FF_FF00_0000),
+        TAG_INSTRUCTION => (val & 0x0000_00FF_0000_0000),
+        else => unreachable,
+    };
+    return arg0;
+}
+
+pub fn getArg1(val: u64) u64 {
+    const arg1 = switch (val & MASK_TYPE) {
+        TAG_OBJ => (val & MASK_LOW24),
+        TAG_INSTRUCTION => (val & MASK_LOW32),
+        else => unreachable,
+    };
+    return arg1;
+}
+
+// Header 2
+pub fn getTblHeader(val: u64) u16 {
     return @truncate((val & MASK_HIGH16) >> 32);
 }
 
@@ -128,12 +121,14 @@ pub fn isInlineString(val: u64) bool {
     return isPrimitiveType(TYPE_INLINE_STRING, val);
 }
 
-pub fn createHeader2(header: u16, payload: u32) u64 {
-    return TYPE_HEADER2 | (@as(u64, header) << 32) | @as(u64, payload);
+// Header 2
+pub fn createTblRef(header: u16, payload: u32) u64 {
+    return TYPE_TBLREF | (@as(u64, header) << 32) | @as(u64, payload);
 }
 
-pub fn createHeader1(header: u8, payload: u40) u64 {
-    return TYPE_HEADER1 | (@as(u64, header) << 40) | @as(u64, payload);
+// Header 1
+pub fn createData(header: u8, payload: u40) u64 {
+    return TYPE_DATA | (@as(u64, header) << 40) | @as(u64, payload);
 }
 
 pub fn createInlineString(str: []const u8) u64 {
@@ -154,44 +149,12 @@ pub fn decodeInlineString(val: u64, out: *[8]u8) void {
 
 pub fn createKeyword(opcode: u8, precedence: u16) u64 {
     // Create a left-associative keyword
-    return createHeader1(opcode, precedence);
-}
-
-pub fn createKeywordRight(opcode: u8, precedence: u16) u64 {
-    // Create a right-associative keyword. Top bit of precedence header is 1.
-    return createHeader1(opcode, precedence | 0x1000);
+    return createData(opcode, precedence);
 }
 
 pub fn isKeyword(value: u64) bool {
-    return isPrimitiveType(TYPE_HEADER1, value);
+    return isPrimitiveType(TYPE_DATA, value);
 }
-
-pub fn getPrecedence(tok: u64) u16 {
-    const a: u16 = @truncate(tok);
-    return a & 0x7FFF;
-}
-
-pub fn getOpcode(tok: u64) u8 {
-    return @truncate( tok >> 40);
-}
-
-pub fn isLeftAssociative(tok: u64) bool {
-    return ((tok) & 0x1000) == 0;
-}
-
-pub fn createReference(header: u8, payload: u40) u64 {
-    return createHeader1(header, payload);
-}
-
-pub const OP_ADD: u8 = 0;
-pub const OP_SUB: u8 = 1;
-pub const OP_MUL: u8 = 2;
-pub const OP_DIV: u8 = 3;
-
-pub const KW_ADD = createKeyword(OP_ADD, 80);
-pub const KW_SUB = createKeyword(OP_SUB, 80);
-pub const KW_MUL = createKeyword(OP_MUL, 85);
-pub const KW_DIV = createKeyword(OP_DIV, 85);
 
 const expect = std.testing.expect;
 const print = std.debug.print;
@@ -205,5 +168,33 @@ test "Test keywords" {
     const val = createKeyword(3, 8);
     print("val: {x}\n", .{val});
     try expect(val == 0x7FF1_0300_0000_0008);
-    try expect(getPrecedence(val) == 8);
 }
+
+// The header portion has a further-tag indicating what the header and data represent.
+// Pointers are 64 bit aligned, thus the bottom 3 bits are used for pointer tagging.
+// const H_PTR64: u3 = 0b000; // Pointer + length.
+// const H_PTR32: u3 = 0b001; // Shift >> 1
+// const H_PTR16: u3 = 0b010; // Shift >> 2
+// const H_PTR8: u3 = 0b011;  // Shift >> 3
+// const H_OBJ_LEN: u3 = 0b100;
+// const H_OBJ_OFFSET: u3 = 0b101;
+// const H_PTR_MASK: u3 = 0b110;
+// const H_IMMEDIATE: u3 = 0b111; // Inline object.
+
+// The full range of dynamic type options are unnecessary for the parser.
+// So we use these bits in more constrained way for compactness, avoiding unnecessary tags.
+// AST Nodes will have 4 byte header + 2 byte data.
+// The header represents the ascii representation of builtin keywords.
+// true, false, null, if, for, etc. Up to the first 4 chars.
+// The 2 byte data is context dependent.
+// It initially represents precedenec for operators. Indentation level for blocks.
+// Since those are irrelevant once the AST is constructed, it's used to store relative backrefs
+// to the previously seen instance of this operand (based on a similar structure in LuaJIT).
+// These backrefs make certain pattern-matching ops like common-subexpression-elimination faster.
+// Semantic types like Symbol, Identifier, String, Comment etc.
+// use the 1 byte header + 5 byte data reference to their respective symbol table.
+// pub const AST_SYMBOL: u8 = 0x3A; // 0x3A = ':'
+// pub const AST_STRING: u8 = 0x21; // 0x22 = '"'
+// pub const AST_IDENTIFIER: u8 = 0x41; // 0x41 = 'A'
+// pub const AST_COMMENT: u8 = 0x27; // 0x27 = '/'
+// Top most sign bit is currently unused.
