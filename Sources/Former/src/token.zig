@@ -17,10 +17,28 @@ pub const SYMBOL_INDENT = val.createStaticSymbol('\t');
 pub const SYMBOL_DEDENT = val.createStaticSymbol('D');
 pub const SYMBOL_STREAM_END = val.createStaticSymbol('E');
 
-pub const T_TOKEN: u16 = 0x0010;
-pub const T_IDENTIFIER: u16 = 0x0011;
-pub const T_COMMENT: u16 = 0x0012;
-pub const T_FORM: u16 = 0x0013;
+// pub const T_TOKEN: u16 = 0x0010;
+// pub const T_IDENTIFIER: u16 = 0x0011;
+// pub const T_COMMENT: u16 = 0x0012;
+// pub const T_FORM: u16 = 0x0013;
+
+// TODO: These patterns can be selected more carefully.
+// We need a way to later easily identify tokens which should be forwarded to
+// the symbolic layer (declarations, references, control flow).
+pub const T_NEWLINE: u8 = 0b0000_0000;
+pub const T_NUMBER: u8 = 0b0000_0001;
+pub const T_STRING: u8 = 0b0000_0010;
+// pub const T_SYMBOL: u8 = 0b0000_0011;
+pub const T_KEYWORD: u8 = 0b0000_0101;
+
+// Tokens related to scope and symbol resolution.
+pub const T_IDENTIFIER: u8 = 0b0100_0001;
+pub const T_INDENT: u8 = 0b0100_0010;
+pub const T_DEDENT: u8 = 0b0100_0011;
+
+// Control flow tokens. Call / Return / Conditions / Loops.
+
+pub const T_EOF = 0b0111_1111;
 
 // pub const SYMBOL_DOT = val.createStaticSymbol('.');
 // pub const SYMBOL_QUOTE = val.createStaticSymbol('"');
@@ -36,6 +54,13 @@ pub fn createIdentifier(start: u24, length: u8) u64 {
 
 pub fn createFormPtr(start: u24, length: u8) u64 {
     return val.createObject(T_FORM, start, length);
+}
+
+pub fn createAuxToken(tag: u8, offset: u16, len: u24) u64 {
+    // Top bit of tag is reserved to indicate queue switch.
+    // TODO: Unit test.
+    return 0x8000_0000_0000_0000 | val.TYPE_HEADER3 | (@as(u64, tag) << 32) | (@as(u64, offset) << 24) | @as(u64, len);
+    // return val.createObject(tag, offset, len);
 }
 
 pub fn repr_type(token: u64) []const u8 {

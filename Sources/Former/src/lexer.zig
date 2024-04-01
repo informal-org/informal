@@ -2,37 +2,35 @@ const std = @import("std");
 const val = @import("value.zig");
 const tok = @import("token.zig");
 const constants = @import("constants.zig");
-// const ArrayList = std.ArrayList;
-// const Allocator = std.mem.Allocator;
 const print = std.debug.print;
 
-pub const Span = struct {
-    start: u32,
-    end: u32,
-};
-
-pub const Location = struct {
-    index: u32,
-    line_start: u32,
-};
-
+/// The lexer splits up an input buffer into tokens.
+/// The input buffer are smaller chunks of a source file.
+/// Lines are never split across chunks. The lexer yields after each line.
+/// The higher level controller chooses when to split chunks or continue, passing in the appropriate context.
+/// In general, we split by line-level when running in language server mode and by file when running in batch mode.
+/// All output is chunk-relative - if it specifies a line number, it's line number within this chunk.
+/// The lexer outputs to two queues:
+/// The syntax queue, containing semantically meaningful tokens.
+/// The aux queue, with tokens for comments, whitespace, etc. (used for formatting, error offsets, etc.)
+/// A bit per token indicates whether the next token appears in the other queue (one token lookahead buffer).
 pub const Lexer = struct {
     const Self = @This();
-    buffer: []const u8,
-    index: u32, // Scan index.
-    lineStart: u32, // Beginning of this line
-    tokenStart: u32,
-    tokenEnd: u32,
-    indentStack: u64, // A tiny little stack to contain up to 21 levels of indentation.
-    depth: u16, // Indentation level
-    kind: TokenKind,
-    // allocator: Allocator,
-    // tokens: ArrayList(u64),
+    buffer: []const u8, // Slice/chunk of the source file.
+    index: u32, // Char scan index into this chunk.
+    auxQIndex: u32, // How many aux tokens we've emitted for this chunk.
+    syntaxQIndex: u32, // How many syntax tokens we've emitted for this chunk.
+    lineQIndex: u32, // syntaxIndex of the previous newline. Newlines have an offset index to the previous.
+    lineChStart: u32, // Character index where this line started. For ch offset calculations.
 
-    pub const TokenKind = enum { number, string, symbol, keyword, identifier, indent, dedent, newline, eof };
+    prevToken: u64,
+
+    // indentStack: u64, // A tiny little stack to contain up to 21 levels of indentation. (3 bits per indent offset).
+    // kind: TokenKind,
+    // pub const TokenKind = enum { number, string, symbol, keyword, identifier, indent, dedent, newline, eof };
 
     pub fn init(buffer: []const u8) Self {
-        return Self{ .buffer = buffer, .index = 0, .ctxLineStart = 0, .ctxDepth = 0, .indentStack = 0 };
+        return Self{ .buffer = buffer, .index = 0, .auxQIndex = 0, .syntaxQIndex = 0, .lineQIndex = 0, .lineChStart = 0 };
     }
 
     fn gobble_digits(self: *Lexer) void {
@@ -45,15 +43,57 @@ pub const Lexer = struct {
         }
     }
 
+    fn flushPrev(self: *Lexer, value: u64) void {
+        if (value | (1 << 64)) {
+            // TODO: Emit annotated prev aux token.
+        } else {
+            // TODO: Emit annotated prev syntax token.
+        }
+    }
+
+    // Newlines and numbers have some special behavior.
+    fn emitAux(self: *Lexer, v: u64) void {
+        // Emit the previous token and then queue up this one.
+        if (self.prevToken != 0) {
+            // Clear the sign-bit if prev was already an aux token (they all start with 1).
+            const _annotatedPrev = self.prevToken ^ (1 << 64);
+            self.flushPrev(_annotatedPrev);
+        }
+
+        self.prevToken = v;
+    }
+    fn emitToken(self: *Lexer, v: u64) void {
+        if (self.prevToken != 0) {
+            // No xor needed in this case.
+            // If the previous was a token, it already indicates 0.
+            // If previous was aux, it already indicates 1 to switch here.
+            self.flushPrev(self.prevToken);
+        }
+        self.prevToken = v;
+    }
+
+    fn emitNumber(self: *Lexer, value: u64, auxValue: u64) void {
+        // Emit numbers directly without setting prevToken since they're not NaN tagged.
+        if (self.prevToken != 0) {
+            self.flushPrev(self.prevToken); // Tagged to indicate next is a syntax token.
+            // Numeric tokens don't have any free bits for us to set the switch-bit.
+            // Assume it always indicates a 1 to "switch" to aux.
+        }
+        self.emitAux(auxValue); // The aux token can then indicate the switch-bit.
+    }
+
     fn token_number(self: *Lexer) void {
         // MVL just needs int support for bootstrapping. Stage1+ should parse float.
-        self.tokenStart = self.index;
+        const offset = self.lineChStart - self.index;
+        const start = self.index;
         self.index += 1; // First char is already recognized as a digit.
         self.gobble_digits();
-        self.tokenEnd = self.index;
-        self.tokenKind = TokenKind.TNumber;
-        // const value: u64 = std.fmt.parseInt(u32, self.buffer[self.ctxTokenStart..self.ctxTokenEnd], 10) catch 0;
-        // return value;
+        const len = self.index - offset;
+
+        const value: u64 = std.fmt.parseInt(u32, self.buffer[start..self.index], 10) catch 0;
+
+        const auxTok = tok.createAuxToken(tok.T_NUMBER, @truncate(offset), @truncate(len));
+        self.emitNumber(value, auxTok);
     }
 
     fn token_string(self: *Lexer) void {
