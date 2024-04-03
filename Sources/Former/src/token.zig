@@ -144,7 +144,7 @@ pub fn print_token(token: u64, buffer: []const u8) void {
         },
         val.TYPE_INLINE_STRING => {
             var str2 = std.mem.zeroes([8]u8);
-            val.decodeInlineString(token, &str2);
+            val.decodeInlineByteString(token, &str2);
             print("String(\"{s}\")", .{str2});
         },
         val.TYPE_INLINE_BITSET => {

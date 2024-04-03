@@ -52,6 +52,46 @@ const TYPE_INLINE_BITSET: u64 = @as(u64, TAG_INLINE_BITSET) << 48;
 const DATA_BOOL: u8 = 2;
 const DATA_SYMBOL: u8 = 3;
 
+const QUIET_NAN_HEADER: u13 = 0b0111_1111_1111_1;
+
+pub const Tag = enum(u3) {
+    ptr,
+    data,
+    tblref,
+    split,
+    obj,
+    instruction,
+    inline_string,
+    inline_bitset,
+};
+
+// NaN tagged 64 bit value types.
+const TaggedValue = packed struct {
+    _reserved_nan: u13 = QUIET_NAN_HEADER,
+    tag: u3,
+    payload: u48,
+};
+
+const Ptr = packed struct { _reserved_nan: u13 = QUIET_NAN_HEADER, _tag: Tag = Tag.ptr, pointer: u48 };
+
+// 5 bytes of inline data. Bool, symbol, null, etc.
+const Data = packed struct { _reserved_nan: u13 = QUIET_NAN_HEADER, _tag: Tag = Tag.data, header: u8, data: u40 };
+
+// 2 byte type header. 4 byte data reference into constant table (string, class, etc.)
+const TblRef = packed struct { _reserved_nan: u13 = QUIET_NAN_HEADER, _tag: Tag = Tag.tblref, header: u16, data: u32 };
+
+// Header and data are evenly split with 3 bytes each.
+const Split = packed struct { _reserved_nan: u13 = QUIET_NAN_HEADER, _tag: Tag = Tag.split, header: u24, data: u24 };
+
+const Obj = packed struct { _reserved_nan: u13 = QUIET_NAN_HEADER, _tag: Tag = Tag.obj, header: u8, ref: u16, data: u24 };
+
+const Instruction = packed struct { _reserved_nan: u13 = QUIET_NAN_HEADER, _tag: Tag = Tag.instruction, op: u8, register: u8, data: u32 };
+
+// Inline string. Can store up to 8 6-bit characters encoding uppercase, lowercase, digits and _.
+const InlineString = packed struct { _reserved_nan: u13 = QUIET_NAN_HEADER, _tag: Tag = Tag.inline_string, data: u48 };
+
+const InlineBitset = packed struct { _reserved_nan: u13 = QUIET_NAN_HEADER, _tag: Tag = Tag.inline_bitset, data: u48 };
+
 pub fn getHeader(val: u64) u64 {
     const header = switch (val & MASK_TYPE) {
         TAG_DATA => (val & MASK_HIGH8) >> 40,
@@ -131,20 +171,66 @@ pub fn createData(header: u8, payload: u40) u64 {
     return TYPE_DATA | (@as(u64, header) << 40) | @as(u64, payload);
 }
 
-pub fn createInlineString(str: []const u8) u64 {
-    // Inline small strings of up to 6 bytes.
-    // The representation does reverse the order of bytes.
-    var payload: u64 = TYPE_INLINE_STRING;
-    if (str.len > 6) unreachable;
-    // No need for slicing. MaxLen of 6 ensures the header is preserved.
-    std.mem.copy(u8, std.mem.asBytes(&payload), str);
-    return payload;
+// pub fn createInlineByteString(str: []const u8) u64 {
+//     // Inline small strings of up to 6 bytes.
+//     // The representation does reverse the order of bytes.
+//     var payload: u64 = TYPE_INLINE_STRING;
+//     if (str.len > 6) unreachable;
+//     // No need for slicing. MaxLen of 6 ensures the header is preserved.
+//     std.mem.copy(u8, std.mem.asBytes(&payload), str);
+//     return payload;
+// }
+
+// pub fn decodeInlineByteString(val: u64, out: *[8]u8) void {
+//     // TODO: Truncate to 6 bytes.
+//     // asBytes - keeps original pointer. toBytes - copies.
+//     return std.mem.copy(u8, out, std.mem.asBytes(&(val & MASK_PAYLOAD)));
+// }
+
+pub fn encodeInlineString(str: []const u8) InlineString {
+    var chars: u48 = 0;
+    if (str.len > 8) unreachable;
+    for (str) |c| {
+        const minCh: u6 = @truncate(switch (c) {
+            '0'...'9' => c - '0',
+            'A'...'Z' => c - 'A' + 10, // Arranged this way, so hex encode is easy.
+            'a'...'z' => c - 'a' + 10 + 26,
+            '_' => 62,
+            // 63 = null terminator
+            else => unreachable,
+        });
+        chars = (chars << 6) | minCh;
+    }
+    // Padding with 63 to indicate null termination where the string ends.
+    if (str.len < 8) {
+        // loop
+        for (str.len..8) |_| {
+            chars = (chars << 6) | 63;
+        }
+    }
+    return InlineString{ .data = chars };
 }
 
-pub fn decodeInlineString(val: u64, out: *[8]u8) void {
-    // TODO: Truncate to 6 bytes.
-    // asBytes - keeps original pointer. toBytes - copies.
-    return std.mem.copy(u8, out, std.mem.asBytes(&(val & MASK_PAYLOAD)));
+pub fn decodeInlineString(val: InlineString, out: *[8]u8) void {
+    var chars: u48 = val.data;
+    for (out, 0..) |_, i| {
+        // Extract 6 bits at a time. Select the topmost bits first.
+        const minCh: u8 = @truncate(chars >> 42);
+
+        // This selects the bottom 6 bits, but we need the top.
+        // const minCh: u8 = @truncate(chars & 0x3F);
+        // chars >>= 6;
+        chars <<= 6;
+        if (minCh == 63) break;
+        out[i] = switch (minCh) {
+            0...9 => '0' + minCh,
+            10...35 => 'A' + minCh - 10,
+            36...61 => 'a' + minCh - 36,
+            62 => @as(u8, '_'),
+            63 => break,
+            else => unreachable,
+        };
+    }
 }
 
 pub fn createKeyword(opcode: u8, precedence: u16) u64 {
@@ -158,10 +244,20 @@ pub fn isKeyword(value: u64) bool {
 
 const expect = std.testing.expect;
 const print = std.debug.print;
+// test "Test byte strings" {
+//     const val = createInlineByteString("+");
+//     print("val: {x}\n", .{val});
+//     try expect(val == 0x7FF6_0000_0000_002B);
+// }
+
 test "Test inline strings" {
-    const val = createInlineString("+");
-    print("val: {x}\n", .{val});
-    try expect(val == 0x7FF6_0000_0000_002B);
+    const encoded = encodeInlineString("Hello");
+    print("val: {any}\n", .{encoded});
+    // try expect(val == 0x7FF6_0000_0000_002B);
+
+    var str2 = std.mem.zeroes([8]u8);
+    decodeInlineString(encoded, &str2);
+    print("String(\"{s}\")\n", .{str2});
 }
 
 test "Test keywords" {
