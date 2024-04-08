@@ -2,7 +2,10 @@ const std = @import("std");
 const val = @import("value.zig");
 const tok = @import("token.zig");
 const constants = @import("constants.zig");
+const q = @import("queue.zig");
+
 const print = std.debug.print;
+const Queue = q.Queue;
 
 /// The lexer splits up an input buffer into tokens.
 /// The input buffer are smaller chunks of a source file.
@@ -17,6 +20,9 @@ const print = std.debug.print;
 pub const Lexer = struct {
     const Self = @This();
     buffer: []const u8, // Slice/chunk of the source file.
+    syntaxQ: Queue,
+    auxQ: Queue,
+
     index: u32, // Char scan index into this chunk.
     auxQIndex: u32, // How many aux tokens we've emitted for this chunk.
     syntaxQIndex: u32, // How many syntax tokens we've emitted for this chunk.
@@ -29,8 +35,8 @@ pub const Lexer = struct {
     // kind: TokenKind,
     // pub const TokenKind = enum { number, string, symbol, keyword, identifier, indent, dedent, newline, eof };
 
-    pub fn init(buffer: []const u8) Self {
-        return Self{ .buffer = buffer, .index = 0, .auxQIndex = 0, .syntaxQIndex = 0, .lineQIndex = 0, .lineChStart = 0 };
+    pub fn init(buffer: []const u8, syntaxQ: Queue, auxQ: Queue) Self {
+        return Self{ .buffer = buffer, .syntaxQ = syntaxQ, .auxQ = auxQ, .index = 0, .auxQIndex = 0, .syntaxQIndex = 0, .lineQIndex = 0, .lineChStart = 0, .prevToken = 0 };
     }
 
     fn gobble_digits(self: *Lexer) void {
@@ -313,6 +319,8 @@ pub const Lexer = struct {
         }
     }
 };
+
+// pub fn init_lexer()
 
 const test_allocator = std.testing.allocator;
 const arena_allocator = std.heap.ArenaAllocator;

@@ -2,160 +2,122 @@ const val = @import("value.zig");
 const std = @import("std");
 const print = std.debug.print;
 
-pub const SYMBOL_COMMA = val.createStaticSymbol(',');
-pub const SYMBOL_EQUALS = val.createStaticSymbol('=');
-pub const SYMBOL_COLON = val.createStaticSymbol(':');
-pub const SYMBOL_SEMI_COLON = val.createStaticSymbol(';');
-pub const SYMBOL_OPEN_PAREN = val.createStaticSymbol('(');
-pub const SYMBOL_CLOSE_PAREN = val.createStaticSymbol(')');
-pub const SYMBOL_OPEN_SQBR = val.createStaticSymbol('[');
-pub const SYMBOL_CLOSE_SQBR = val.createStaticSymbol(']');
-pub const SYMBOL_OPEN_BRACE = val.createStaticSymbol('{');
-pub const SYMBOL_CLOSE_BRACE = val.createStaticSymbol('}');
-pub const SYMBOL_NEWLINE = val.createStaticSymbol('\n');
-pub const SYMBOL_INDENT = val.createStaticSymbol('\t');
-pub const SYMBOL_DEDENT = val.createStaticSymbol('D');
-pub const SYMBOL_STREAM_END = val.createStaticSymbol('E');
+// Tags which are only relevant in the context of the lexer.
+pub const TokenTag = enum(u3) {
+    token, // Keywords, operator symbols, delimiters, etc.
+    value, // Literal values, like true, false, null, etc.
+    identifier, // Variable names
+    string_literal,
+    // Third bit unused - reserved for future.
+};
 
-// pub const T_TOKEN: u16 = 0x0010;
-// pub const T_IDENTIFIER: u16 = 0x0011;
-// pub const T_COMMENT: u16 = 0x0012;
-// pub const T_FORM: u16 = 0x0013;
+// Differentiate tokens that may appear in the auxillary queue without semantic meaning.
+pub const AuxTag = enum(u3) {
+    comment,
+    linebreak,
+    whitespace,
+    indentation, // non-significant indentation.
+    number, // References the string version of the number for loc calculations.
+};
 
-// TODO: These patterns can be selected more carefully.
-// We need a way to later easily identify tokens which should be forwarded to
-// the symbolic layer (declarations, references, control flow).
-pub const T_NEWLINE: u8 = 0b0000_0000;
-pub const T_NUMBER: u8 = 0b0000_0001;
-pub const T_STRING: u8 = 0b0000_0010;
-// pub const T_SYMBOL: u8 = 0b0000_0011;
-pub const T_KEYWORD: u8 = 0b0000_0101;
+const DataOffsetLen = packed struct { length: u16, offset: u32 };
+const DataKindValue = packed struct { kind: u16, value: u32 };
 
-// Tokens related to scope and symbol resolution.
-pub const T_IDENTIFIER: u8 = 0b0100_0001;
-pub const T_INDENT: u8 = 0b0100_0010;
-pub const T_DEDENT: u8 = 0b0100_0011;
+const TokenData = DataKindValue;
+const IdentifierData = DataOffsetLen; // Byte offset, identifier length.
+const StringLiteralData = DataOffsetLen;
 
-// Control flow tokens. Call / Return / Conditions / Loops.
+const Token = packed struct { switch_q: u1 = 0, _reserved_nan: u13 = val.QUIET_NAN_HEADER, tag: TokenTag, data: u48 };
+const AuxToken = packed struct { switch_q: u1 = 0, _reserved_nan: u13 = val.QUIET_NAN_HEADER, tag: AuxTag, data: u48 };
 
-pub const T_EOF = 0b0111_1111;
+pub const TokenKind = enum {
+    op_add,
+    op_sub,
+    op_mul,
+    op_div,
+    op_mod,
+    op_pow, // **
+    op_and,
+    op_or,
+    op_not,
+    op_dbl_eq, // ==
+    op_ne, // !=
+    op_lt,
+    op_gt,
+    op_lte,
+    op_gte,
+    op_assign_eq,
+    op_in,
+    op_is,
+    op_is_not,
+    op_not_in,
+    op_colon_assoc, // :
+    op_dot_attr, // .
 
-// pub const SYMBOL_DOT = val.createStaticSymbol('.');
-// pub const SYMBOL_QUOTE = val.createStaticSymbol('"');
-// pub const SYMBOL_SINGLE_QUOTE = val.createStaticSymbol('\'');
-// pub const SYMBOL_BACKSLASH = val.createStaticSymbol('\\');
+    grp_open_paren,
+    grp_close_paren,
+    grp_open_sqbr,
+    grp_close_sqbr,
+    grp_open_brace,
+    grp_close_brace,
+    grp_indent,
+    grp_dedent,
 
-// TODO: Emit New Line tokens.
-// "locate" method to locate the line and column of a token.
+    kw_if,
+    kw_else,
+    kw_else_if,
+    kw_for,
 
-pub fn createIdentifier(start: u24, length: u8) u64 {
-    return val.createObject(T_IDENTIFIER, start, length);
+    sep_comma,
+    sep_newline,
+    sep_stream_end,
+};
+
+pub fn createToken(kind: TokenKind) Token {
+    return Token{ .tag = TokenTag.token, .data = TokenData{ .kind = @as(u16, kind), .value = 0 } };
 }
 
-pub fn createFormPtr(start: u24, length: u8) u64 {
-    return val.createObject(T_FORM, start, length);
+pub fn auxToken(tag: AuxTag, offset: u32, len: u16) AuxToken {
+    return AuxToken{ .tag = tag, .data = DataOffsetLen{ .length = len, .offset = offset } };
 }
 
-pub fn createAuxToken(tag: u8, offset: u16, len: u24) u64 {
-    // Top bit of tag is reserved to indicate queue switch.
-    // TODO: Unit test.
-    return 0x8000_0000_0000_0000 | val.TYPE_HEADER3 | (@as(u64, tag) << 32) | (@as(u64, offset) << 24) | @as(u64, len);
-    // return val.createObject(tag, offset, len);
-}
+pub const OP_ADD = createToken(TokenKind.op_add);
+pub const OP_SUB = createToken(TokenKind.op_sub);
+pub const OP_MUL = createToken(TokenKind.op_mul);
+pub const OP_DIV = createToken(TokenKind.op_div);
+pub const OP_MOD = createToken(TokenKind.op_mod);
+pub const OP_POW = createToken(TokenKind.op_pow);
+pub const OP_AND = createToken(TokenKind.op_and);
+pub const OP_OR = createToken(TokenKind.op_or);
+pub const OP_NOT = createToken(TokenKind.op_not);
+pub const OP_DBL_EQ = createToken(TokenKind.op_dbl_eq);
+pub const OP_NE = createToken(TokenKind.op_ne);
+pub const OP_LT = createToken(TokenKind.op_lt);
+pub const OP_GT = createToken(TokenKind.op_gt);
+pub const OP_LTE = createToken(TokenKind.op_lte);
+pub const OP_GTE = createToken(TokenKind.op_gte);
+pub const OP_ASSIGN_EQ = createToken(TokenKind.op_assign_eq);
+pub const OP_IN = createToken(TokenKind.op_in);
+pub const OP_IS = createToken(TokenKind.op_is);
+pub const OP_IS_NOT = createToken(TokenKind.op_is_not);
+pub const OP_NOT_IN = createToken(TokenKind.op_not_in);
+pub const OP_COLON_ASSOC = createToken(TokenKind.op_colon_assoc);
+pub const OP_DOT_ATTR = createToken(TokenKind.op_dot_attr);
 
-pub fn repr_type(token: u64) []const u8 {
-    const t = val.getPrimitiveType(token);
+pub const GRP_OPEN_PAREN = createToken(TokenKind.grp_open_paren);
+pub const GRP_CLOSE_PAREN = createToken(TokenKind.grp_close_paren);
+pub const GRP_OPEN_SQBR = createToken(TokenKind.grp_open_sqbr);
+pub const GRP_CLOSE_SQBR = createToken(TokenKind.grp_close_sqbr);
+pub const GRP_OPEN_BRACE = createToken(TokenKind.grp_open_brace);
+pub const GRP_CLOSE_BRACE = createToken(TokenKind.grp_close_brace);
+pub const GRP_INDENT = createToken(TokenKind.grp_indent);
+pub const GRP_DEDENT = createToken(TokenKind.grp_dedent);
 
-    const tStr = switch (t) {
-        val.TYPE_OBJECT => "Object",
-        val.TYPE_OBJECT_ARRAY => "Array",
-        val.TYPE_INLINE_OBJECT => "Inline Object",
-        val.TYPE_PRIMITIVE_ARRAY => "Primitive Array",
-        val.TYPE_INLINE_STRING => "Inline String",
-        val.TYPE_INLINE_BITSET => "Inline Bitset",
-        else => {
-            if (val.isNan(token)) {
-                return "NaN";
-            } else {
-                return "Number";
-            }
-        },
-    };
-    return tStr;
-}
+pub const KW_IF = createToken(TokenKind.kw_if);
+pub const KW_ELSE = createToken(TokenKind.kw_else);
+pub const KW_ELSE_IF = createToken(TokenKind.kw_else_if);
+pub const KW_FOR = createToken(TokenKind.kw_for);
 
-pub fn print_symbol(token: u64) void {
-    const payload = val.getObjectPayload(token);
-    _ = switch (payload) {
-        val.SYMBOL_FALSE => print("False", .{}),
-        val.SYMBOL_TRUE => print("True", .{}),
-        val.SYMBOL_NONE => print("None", .{}),
-        0...127 => {
-            // Note: This is stack allocated and won't return properly.
-            print("Symbol('{c}')", .{@truncate(payload)});
-        },
-        else => print("Symbol({d})", .{payload}),
-    };
-
-    //  return repr;
-}
-
-// TODO: Buffer pointer?
-pub fn print_object(token: u64, buffer: []const u8) void {
-    const objType = val.getObjectType(token);
-    _ = switch (objType) {
-        T_IDENTIFIER => {
-            const start = val.getObjectPtr(token);
-            const length = val.getObjectLength(token);
-            print("Identifier('{s}')", .{buffer[start..(start + length)]});
-        },
-        val.T_SYMBOL => {
-            print_symbol(token);
-        },
-        else => {
-            const payload = val.getObjectPayload(token);
-            print("Object({x}_{x}) ", .{ objType, payload });
-        },
-    };
-}
-
-pub fn print_token(token: u64, buffer: []const u8) void {
-    const t = val.getPrimitiveType(token);
-    _ = switch (t) {
-        val.TYPE_OBJECT, val.TYPE_INLINE_OBJECT => {
-            print_object(token, buffer);
-        },
-        val.TYPE_OBJECT_ARRAY => {
-            print("Array", .{});
-        },
-        val.TYPE_PRIMITIVE_ARRAY => {
-            const start = val.getPrimitiveArrayPtr(token);
-            const length = val.getPrimitiveArrayLength(token);
-
-            if (start & 0x1000_0000 == 0x1000_0000) {
-                // Top bit is set indicates a string.
-                const bufferStart = start & 0x0FFF_FFFF;
-                print("String(\"{s}\")", .{buffer[bufferStart..(bufferStart + length)]});
-            } else {
-                // Indicates a form. TODO;
-                // print("String({x} => {d} - {d})", .{ token, start, length });
-                print("Other Primitive Array {x} => {d} - {d}", .{ token, start, length });
-            }
-        },
-        val.TYPE_INLINE_STRING => {
-            var str2 = std.mem.zeroes([8]u8);
-            val.decodeInlineByteString(token, &str2);
-            print("String(\"{s}\")", .{str2});
-        },
-        val.TYPE_INLINE_BITSET => {
-            print("Bitset({b})", .{val.getInlinePayload(token)});
-        },
-        else => {
-            if (val.isNan(token)) {
-                print("NaN({x})", .{token});
-            } else {
-                print("Number({d})", .{token});
-            }
-        },
-    };
-}
+pub const SEP_COMMA = createToken(TokenKind.sep_comma);
+pub const SEP_NEWLINE = createToken(TokenKind.sep_newline);
+pub const SEP_STREAM_END = createToken(TokenKind.sep_stream_end);

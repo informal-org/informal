@@ -1,2 +1,5 @@
 build:
-    zig build main
+    zig build
+
+add:
+    zig build && ./zig-out/bin/Former test/data/add.ifi

@@ -17,7 +17,7 @@ const UNSIGNED_ANY_NAN: u64 = 0x7FF0_0000_0000_0000;
 // const MASK_PAYLOAD: u64 = 0x0000_FFFF_FFFF_FFFF; // High 48.
 // const BASE_TYPE: u16 = 0x7FF0;
 
-const QUIET_NAN_HEADER: u13 = 0b0111_1111_1111_1;
+pub const QUIET_NAN_HEADER: u13 = 0b111_1111_1111_1;
 
 pub const Tag = enum(u3) {
     ptr,
@@ -32,36 +32,37 @@ pub const Tag = enum(u3) {
 
 // NaN tagged 64 bit value types.
 const TaggedValue = packed struct {
+    sign: u1 = 0,
     _reserved_nan: u13 = QUIET_NAN_HEADER,
     tag: u3,
     payload: u48,
 };
 
 // Pointers: 6 bytes of data (48 bits).
-const Ptr = packed struct { _reserved_nan: u13 = QUIET_NAN_HEADER, _tag: Tag = Tag.ptr, pointer: u48 };
+const Ptr = packed struct { sign: u1 = 0, _reserved_nan: u13 = QUIET_NAN_HEADER, _tag: Tag = Tag.ptr, pointer: u48 };
 
 // 1 byte type header and 5 bytes of inline data. Bool, symbol, null, etc.
-const Data = packed struct { _reserved_nan: u13 = QUIET_NAN_HEADER, _tag: Tag = Tag.data, header: u8, data: u40 };
+const Data = packed struct { sign: u1 = 0, _reserved_nan: u13 = QUIET_NAN_HEADER, _tag: Tag = Tag.data, header: u8, data: u40 };
 
 // 2 byte table type header. 4 byte data reference into constant table (string, class, etc.)
-const TblRef = packed struct { _reserved_nan: u13 = QUIET_NAN_HEADER, _tag: Tag = Tag.tblref, header: u16, data: u32 };
+const TblRef = packed struct { sign: u1 = 0, _reserved_nan: u13 = QUIET_NAN_HEADER, _tag: Tag = Tag.tblref, header: u16, data: u32 };
 
 // Unused. Data split into two equal parts.
-const Split = packed struct { _reserved_nan: u13 = QUIET_NAN_HEADER, _tag: Tag = Tag.split, header: u24, data: u24 };
+const Split = packed struct { sign: u1 = 0, _reserved_nan: u13 = QUIET_NAN_HEADER, _tag: Tag = Tag.split, header: u24, data: u24 };
 
 // Object/array interior reference.
 // 2 bytes - region/class ID.
 // 3 bytes - Object ID.
 // 1 byte - interior offset reference.
-const Obj = packed struct { _reserved_nan: u13 = QUIET_NAN_HEADER, _tag: Tag = Tag.obj, header: u8, ref: u16, data: u24 };
+const Obj = packed struct { sign: u1 = 0, _reserved_nan: u13 = QUIET_NAN_HEADER, _tag: Tag = Tag.obj, header: u8, ref: u16, data: u24 };
 
-const Instruction = packed struct { _reserved_nan: u13 = QUIET_NAN_HEADER, _tag: Tag = Tag.instruction, op: u8, register: u8, data: u32 };
+const Instruction = packed struct { sign: u1 = 0, _reserved_nan: u13 = QUIET_NAN_HEADER, _tag: Tag = Tag.instruction, op: u8, register: u8, data: u32 };
 // const ThreeAddr = packed struct { _reserved_nan: u13 = QUIET_NAN_HEADER, _tag: Tag = Tag.instruction, op: u8, reg0: u8, mem1: u16, mem2: u16 };
 
 // Inline string. Can store up to 8 6-bit characters encoding uppercase, lowercase, digits and _.
-const InlineString = packed struct { _reserved_nan: u13 = QUIET_NAN_HEADER, _tag: Tag = Tag.inline_string, data: u48 };
+const InlineString = packed struct { sign: u1 = 0, _reserved_nan: u13 = QUIET_NAN_HEADER, _tag: Tag = Tag.inline_string, data: u48 };
 
-const InlineBitset = packed struct { _reserved_nan: u13 = QUIET_NAN_HEADER, _tag: Tag = Tag.inline_bitset, data: u48 };
+const InlineBitset = packed struct { sign: u1 = 0, _reserved_nan: u13 = QUIET_NAN_HEADER, _tag: Tag = Tag.inline_bitset, data: u48 };
 
 fn isPrimitiveType(comptime pattern: u64, val: u64) bool {
     return (val & pattern) == pattern;
