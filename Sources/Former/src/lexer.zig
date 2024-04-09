@@ -7,6 +7,9 @@ const q = @import("queue.zig");
 const print = std.debug.print;
 const Queue = q.Queue;
 
+const SYNTAX_Q: u1 = 0;
+const AUX_Q: u1 = 1;
+
 /// The lexer splits up an input buffer into tokens.
 /// The input buffer are smaller chunks of a source file.
 /// Lines are never split across chunks. The lexer yields after each line.
@@ -20,23 +23,27 @@ const Queue = q.Queue;
 pub const Lexer = struct {
     const Self = @This();
     buffer: []const u8, // Slice/chunk of the source file.
-    syntaxQ: Queue,
-    auxQ: Queue,
-
-    index: u32, // Char scan index into this chunk.
-    auxQIndex: u32, // How many aux tokens we've emitted for this chunk.
-    syntaxQIndex: u32, // How many syntax tokens we've emitted for this chunk.
-    lineQIndex: u32, // syntaxIndex of the previous newline. Newlines have an offset index to the previous.
-    lineChStart: u32, // Character index where this line started. For ch offset calculations.
+    // syntaxQ: Queue,
+    // auxQ: Queue,
+    Q: [2]Queue,
+    QIdx: [2]u32, // How many tokens we've emitted to each queue for cross-references.
 
     prevToken: u64,
+    index: u32, // Char scan index into this chunk.
+    lineQIndex: u32, // syntaxIndex of the previous newline. Newlines have an offset index to the previous.
+    lineChStart: u32, // Character index where this line started. For ch offset calculations.
+    lineNo: u16, // Line number within this chunk. Chunks are sized so this shouldn't overflow.
 
     // indentStack: u64, // A tiny little stack to contain up to 21 levels of indentation. (3 bits per indent offset).
     // kind: TokenKind,
     // pub const TokenKind = enum { number, string, symbol, keyword, identifier, indent, dedent, newline, eof };
 
     pub fn init(buffer: []const u8, syntaxQ: Queue, auxQ: Queue) Self {
-        return Self{ .buffer = buffer, .syntaxQ = syntaxQ, .auxQ = auxQ, .index = 0, .auxQIndex = 0, .syntaxQIndex = 0, .lineQIndex = 0, .lineChStart = 0, .prevToken = 0 };
+        const Q = [_]Queue{ syntaxQ, auxQ };
+        const QIdx = [_]u32{ 0, 0 };
+        // Initialize prev to stream start to avoid needing a null-check in every emit.
+        const initialPrev = tok.auxKindToken(tok.AuxKind.sep_stream_start, 0);
+        return Self{ .buffer = buffer, .syntaxQ = syntaxQ, .auxQ = auxQ, .index = 0, .QIdx = QIdx, .lineQIndex = 0, .lineChStart = 0, .prevToken = initialPrev, .Q = Q };
     }
 
     fn gobble_digits(self: *Lexer) void {
@@ -49,43 +56,69 @@ pub const Lexer = struct {
         }
     }
 
-    fn flushPrev(self: *Lexer, value: u64) void {
-        if (value | (1 << 64)) {
-            // TODO: Emit annotated prev aux token.
-        } else {
-            // TODO: Emit annotated prev syntax token.
+    fn gobble_ch(self: *Lexer, ch: u8) void {
+        while (self.index < self.buffer.len) : (self.index += 1) {
+            _ = switch (self.buffer[self.index]) {
+                ch => continue,
+                else => break,
+            };
         }
+    }
+
+    fn prevIsSyntax(self: *Lexer) bool {
+        return (self.prevToken and (1 << 64)) == 0;
+    }
+
+    fn flushPrev(self: *Lexer, value: u64) void {
+        const qIdx: u1 = if (self.prevIsSyntax()) SYNTAX_Q else AUX_Q;
+        self.Q[qIdx].push(value);
     }
 
     // Newlines and numbers have some special behavior.
     fn emitAux(self: *Lexer, v: u64) void {
         // Emit the previous token and then queue up this one.
-        if (self.prevToken != 0) {
-            // Clear the sign-bit if prev was already an aux token (they all start with 1).
-            const _annotatedPrev = self.prevToken ^ (1 << 64);
-            self.flushPrev(_annotatedPrev);
-        }
-
+        // Clear the sign-bit if prev was already an aux token (they all start with 1).
+        const _annotatedPrev = self.prevToken ^ (1 << 64);
+        self.flushPrev(_annotatedPrev);
         self.prevToken = v;
+        self.QIdx[AUX_Q] += 1;
     }
     fn emitToken(self: *Lexer, v: u64) void {
-        if (self.prevToken != 0) {
-            // No xor needed in this case.
-            // If the previous was a token, it already indicates 0.
-            // If previous was aux, it already indicates 1 to switch here.
-            self.flushPrev(self.prevToken);
-        }
+        // No xor needed in this case.
+        // If the previous was a token, it already indicates 0.
+        // If previous was aux, it already indicates 1 to switch here.
+        self.flushPrev(self.prevToken);
         self.prevToken = v;
+        self.QIdx[SYNTAX_Q] += 1;
     }
 
     fn emitNumber(self: *Lexer, value: u64, auxValue: u64) void {
-        // Emit numbers directly without setting prevToken since they're not NaN tagged.
-        if (self.prevToken != 0) {
-            self.flushPrev(self.prevToken); // Tagged to indicate next is a syntax token.
-            // Numeric tokens don't have any free bits for us to set the switch-bit.
-            // Assume it always indicates a 1 to "switch" to aux.
-        }
+        // Numeric tokens don't have any free bits for us to set the switch-bit.
+        // Assume it always indicates a 1 to "switch" to aux.
         self.emitAux(auxValue); // The aux token can then indicate the switch-bit.
+
+        // Emit the number token, without queuing up the prevToken.
+        self.Q[SYNTAX_Q].push(value);
+        self.QIdx[SYNTAX_Q] += 1;
+    }
+
+    fn emitNewLine(self: *Lexer) void {
+        // Newlines have significance for error-reporting and indentation.
+        // We emit them to both queues.
+        // NewLine in SyntaxQueue points to AuxQueue (32bit) and offset of previous line (16)
+        // NewLine in AuxQueue stores char offset (32 bit) and absolute line number cache (16 bit)
+        const prevOffset = self.QIdx[SYNTAX_Q] - self.lineQIndex; // Soft assumption - max 65k tokens per line.
+        const auxIndex = self.QIdx[AUX_Q] + 1;
+
+        const syntaxNewLine = tok.createNewLine(auxIndex, @truncate(prevOffset));
+        self.emitToken(syntaxNewLine);
+
+        self.emitAux(tok.auxToken(tok.AuxTag.newline, self.index, self.lineNo));
+        self.lineQIndex = self.QIdx[SYNTAX_Q];
+        self.lineNo += 1;
+        self.index += 1;
+        // Points to the beginning of line rather than newline char. Stored to allow line-relative char calculations.
+        self.lineStart = self.index;
     }
 
     fn token_number(self: *Lexer) void {
@@ -98,15 +131,15 @@ pub const Lexer = struct {
 
         const value: u64 = std.fmt.parseInt(u32, self.buffer[start..self.index], 10) catch 0;
 
-        const auxTok = tok.createAuxToken(tok.T_NUMBER, @truncate(offset), @truncate(len));
+        const auxTok = tok.auxToken(tok.T_NUMBER, @truncate(offset), @truncate(len));
         self.emitNumber(value, auxTok);
     }
 
     fn token_string(self: *Lexer) void {
         self.index += 1; // Omit beginning quote.
-        self.tokenStart = self.index;
+        const tokenStart = self.index;
         _ = self.seek_till("\"");
-        self.tokenEnd = self.index - 1;
+        const tokenLen = self.index - 1 - tokenStart;
         // Expect but omit end quote.
         if (self.index < self.buffer.len and self.buffer[self.index] == '"') {
             self.index += 1;
@@ -117,6 +150,12 @@ pub const Lexer = struct {
         // Use the value-field to explicitly store the end, or a ref to the
         // string in some table. The string contains both quotes.
         // return val.createStringPtr(start, end);
+        if (tokenLen > 2 ^ 16) {
+            // Error: String too long.
+            unreachable;
+        }
+
+        self.emitToken(tok.stringLiteral(tokenStart, @truncate(tokenLen)));
     }
 
     fn is_delimiter(ch: u8) bool {
@@ -145,14 +184,12 @@ pub const Lexer = struct {
         return 0;
     }
 
-    fn seek_till(self: *Lexer, ch: []const u8) ?u64 {
+    fn seek_till(self: *Lexer, ch: []const u8) void {
         while (self.index < self.buffer.len and self.buffer[self.index] != ch[0]) : (self.index += 1) {}
-        return null;
     }
 
-    fn seek_till_delimiter(self: *Lexer) ?u64 {
+    fn seek_till_delimiter(self: *Lexer) void {
         while (self.index < self.buffer.len and !is_delimiter(self.buffer[self.index])) : (self.index += 1) {}
-        return null;
     }
 
     fn token_symbol(self: *Lexer) u64 {
@@ -168,17 +205,18 @@ pub const Lexer = struct {
 
         // Non digit or symbol start, so interpret as an identifier.
         _ = self.seek_till_delimiter();
+
+        // Max identifier length.
         if (self.index - start > 255) {
             unreachable;
         }
 
-        return tok.createIdentifier(@truncate(start), @truncate(self.index - start));
+        self.emitToken(tok.identifier(start, @truncate(self.index - start)));
     }
 
-    fn skip(self: *Lexer) ?u64 {
-        self.index += 1;
-        return null;
-    }
+    // fn skip(self: *Lexer) void {
+    //     self.index += 1;
+    // }
 
     fn countIndentation(self: *Lexer) u16 {
         // Only indent with spaces. Mixed indentation is not allowed. Furthermore,
@@ -201,6 +239,8 @@ pub const Lexer = struct {
     }
 
     fn token_indentation(self: *Lexer) u64 {
+        // TODO: This needs revision
+
         const indent: u16 = self.countIndentation();
         const ch = self.peek_ch();
         if (ch == '\n') {
@@ -281,27 +321,25 @@ pub const Lexer = struct {
                             return indent;
                         }
                     } else {
-                        // By skipping whitespace & comments, we can't rely on start of next tok as reliable
-                        // "length" indexes. So instead store length explicitly for strings and identifiers.
-                        self.skip();
+                        const start = self.index;
+                        self.gobble_ch(' ');
+                        const len = self.index - start;
+                        self.emitAux(tok.auxToken(tok.AuxTag.whitespace, start, @truncate(len)));
                     }
                 },
                 '\t' => {
                     // Tabs have no power here! We use spaces exclusively.
-                    self.skip();
+                    self.emitAux(tok.auxToken(tok.AuxTag.whitespace, self.index, 1));
+                    self.index += 1;
                 },
                 '\n' => {
-                    // New-lines are significant.
-                    self.index += 1;
-                    // Points to the beginning of line rather than newline char.
-                    self.lineStart = self.index;
-                    return tok.SYMBOL_NEWLINE;
+                    self.emitNewLine();
                 },
                 '0'...'9', '.' => {
-                    return self.token_number();
+                    self.token_number();
                 },
                 '"' => {
-                    return self.token_string();
+                    self.token_string();
                 },
                 else => {
                     // Capture comments.
