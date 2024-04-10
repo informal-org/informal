@@ -3,16 +3,18 @@
 // Backed by a zig standard arraylist. Stores just u64 values.
 
 const std = @import("std");
+const Allocator = std.mem.Allocator;
 
-const Queue = struct {
-    const Allocator = std.heap.page_allocator;
-    const ArrayList = std.ArrayList(u64, Allocator);
+
+pub const Queue = struct {
+    // const Allocator = std.heap.page_allocator;
+    const ArrayList = std.ArrayList(u64);
 
     list: ArrayList,
     head: usize,
     tail: usize,
 
-    pub fn init(allocator: *Allocator) Queue {
+    pub fn init(allocator: Allocator) Queue {
         return Queue{
             .list = ArrayList.init(allocator),
             .head = 0,
@@ -20,7 +22,7 @@ const Queue = struct {
         };
     }
 
-    pub fn add(self: *Queue, value: u64) void {
+    pub fn push(self: *Queue, value: u64) void {
         self.list.append(value);
         self.tail += 1;
     }

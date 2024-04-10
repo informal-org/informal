@@ -17,7 +17,7 @@ const UNSIGNED_ANY_NAN: u64 = 0x7FF0_0000_0000_0000;
 // const MASK_PAYLOAD: u64 = 0x0000_FFFF_FFFF_FFFF; // High 48.
 // const BASE_TYPE: u16 = 0x7FF0;
 
-pub const QUIET_NAN_HEADER: u13 = 0b111_1111_1111_1;
+pub const QUIET_NAN_HEADER: u12 = 0b111_1111_1111_1;
 
 pub const Tag = enum(u3) {
     ptr,

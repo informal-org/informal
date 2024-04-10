@@ -16,8 +16,8 @@ pub const TokenTag = enum(u3) {
 pub const AuxTag = enum(u3) {
     token, // Tokens with kind, value rather than offset length.
     comment,
-    linebreak,
     whitespace,
+    newline
 };
 
 const DataOffsetLen = packed struct { length: u16, offset: u32 };
@@ -28,39 +28,58 @@ const IdentifierData = DataOffsetLen; // Byte offset, identifier length.
 const StringLiteralData = DataOffsetLen;
 const NewLineData = packed struct { prevOffset: u16, auxIndex: u32 }; // Offset to previous newline in syntaxQueue and index of current newline in auxQueue.
 
-const Token = packed struct { switch_q: u1 = 0, _reserved_nan: u13 = val.QUIET_NAN_HEADER, tag: TokenTag, data: u48 };
-const AuxToken = packed struct { switch_q: u1 = 1, _reserved_nan: u13 = val.QUIET_NAN_HEADER, tag: AuxTag, data: u48 };
+pub const Token = packed struct { switch_q: u1 = 0, _reserved_nan: u12 = val.QUIET_NAN_HEADER, tag: TokenTag, data: u48 };
+pub const AuxToken = packed struct { switch_q: u1 = 1, _reserved_nan: u12 = val.QUIET_NAN_HEADER, tag: AuxTag, data: u48 };
 
+
+// The order here should match bitset lookups in the lexer.
 pub const TokenKind = enum {
-    op_add,
-    op_sub,
-    op_mul,
+    // Multi-character symbolic operators come first. >=, ==, etc.
+    // In reverse ascii-order of first-character to avoid an extra subtract.
+    op_gte, // >=
+    op_dbl_eq, // ==
+    op_lte, // <=
+    op_div_eq, // /=
+    op_minus_eq, // -=
+    op_plus_eq, // +=
+    op_mul_eq, // *=
+    op_not_eq, // !=
+
+    // All single-character operators come next, in reverse ascii-order.
+    grp_close_brace,
+    op_choice, // |
+    grp_open_brace,
+    op_pow, // ^
+    grp_close_sqbr,
+    grp_open_sqbr,
+    op_at,
+    op_question,
+    op_gt,
+    op_assign_eq, // =
+    op_lt,
+    op_semicolon,
+    op_colon_assoc, // :
     op_div,
+    op_dot_attr, // .
+    op_sub,
+    sep_comma,
+    op_add,
+    op_mul,
+    grp_close_paren,
+    grp_open_paren,
     op_mod,
-    op_pow, // **
+
+    // Alphabetical keywords and special-cases come last.
+
     op_and,
     op_or,
     op_not,
-    op_dbl_eq, // ==
-    op_ne, // !=
-    op_lt,
-    op_gt,
-    op_lte,
-    op_gte,
-    op_assign_eq,
+
     op_in,
     op_is,
     op_is_not,
     op_not_in,
-    op_colon_assoc, // :
-    op_dot_attr, // .
 
-    grp_open_paren,
-    grp_close_paren,
-    grp_open_sqbr,
-    grp_close_sqbr,
-    grp_open_brace,
-    grp_close_brace,
     grp_indent,
     grp_dedent,
 
@@ -69,7 +88,6 @@ pub const TokenKind = enum {
     kw_else_if,
     kw_for,
 
-    sep_comma,
     sep_newline,
     sep_stream_end,
 };
@@ -81,27 +99,27 @@ pub const AuxKind = enum {
 };
 
 pub fn createToken(kind: TokenKind) Token {
-    return Token{ .tag = TokenTag.token, .data = TokenData{ .kind = @as(u16, kind), .value = 0 } };
+    return Token{ .tag = TokenTag.token, .data = @as(u48, @bitCast(TokenData{ .kind = @as(u16, @intFromEnum(kind)), .value = 0 })) };
 }
 
 pub fn createNewLine(auxIndex: u32, prevOffset: u16) Token {
-    return Token{ .tag = TokenTag.newline, .data = NewLineData{ .auxIndex = auxIndex, .prevOffset = prevOffset } };
+    return Token{ .tag = TokenTag.newline, .data = @as(u48, @bitCast(NewLineData{ .auxIndex = auxIndex, .prevOffset = prevOffset })) };
 }
 
 pub fn stringLiteral(offset: u32, len: u16) Token {
-    return Token{ .tag = TokenTag.string_literal, .data = StringLiteralData{ .length = len, .offset = offset } };
+    return Token{ .tag = TokenTag.string_literal, .data = @as(u48, @bitCast(StringLiteralData{ .length = len, .offset = offset })) };
 }
 
 pub fn identifier(offset: u32, len: u16) Token {
-    return Token{ .tag = TokenTag.identifier, .data = IdentifierData{ .length = len, .offset = offset } };
+    return Token{ .tag = TokenTag.identifier, .data = @as(u48, @bitCast(IdentifierData{ .length = len, .offset = offset })) };
 }
 
 pub fn auxToken(tag: AuxTag, offset: u32, len: u16) AuxToken {
-    return AuxToken{ .tag = tag, .data = DataOffsetLen{ .length = len, .offset = offset } };
+    return AuxToken{ .tag = tag, .data = @as(u48, @bitCast(DataOffsetLen{ .length = len, .offset = offset })) };
 }
 
 pub fn auxKindToken(kind: AuxKind, value: u32) AuxToken {
-    return AuxToken{ .tag = AuxTag.token, .data = DataKindValue{ .kind = @as(u16, kind), .value = value } };
+    return AuxToken{ .tag = AuxTag.token, .data = @as(u48, @bitCast(DataKindValue{ .kind = @as(u16, @intFromEnum(kind)), .value = value })) };
 }
 
 pub const OP_ADD = createToken(TokenKind.op_add);
