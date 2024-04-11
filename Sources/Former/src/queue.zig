@@ -6,34 +6,41 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 
-pub const Queue = struct {
-    // const Allocator = std.heap.page_allocator;
-    const ArrayList = std.ArrayList(u64);
+pub fn Queue(comptime t: type) type {
+    return struct {
+        const Self = @This();
+        // const Allocator = std.heap.page_allocator;
+        const ArrayList = std.ArrayList(t);
 
-    list: ArrayList,
-    head: usize,
-    tail: usize,
+        list: ArrayList,
+        head: usize,
+        tail: usize,
 
-    pub fn init(allocator: Allocator) Queue {
-        return Queue{
-            .list = ArrayList.init(allocator),
-            .head = 0,
-            .tail = 0,
-        };
-    }
-
-    pub fn push(self: *Queue, value: u64) void {
-        self.list.append(value);
-        self.tail += 1;
-    }
-
-    pub fn next(self: *Queue) ?u64 {
-        if (self.head == self.tail) {
-            return null;
+        pub fn init(allocator: Allocator) Queue {
+            return Self{
+                .list = ArrayList.init(allocator),
+                .head = 0,
+                .tail = 0,
+            };
         }
 
-        const value = self.list[self.head];
-        self.head += 1;
-        return value;
-    }
-};
+        pub fn deinit(self: *Self) void {
+            self.list.deinit();
+        }
+
+        pub fn push(self: *Self, value: t) !void {
+            try self.list.append(value);
+            self.tail += 1;
+        }
+
+        pub fn next(self: *Self) ?t {
+            if (self.head == self.tail) {
+                return null;
+            }
+
+            const value = self.list[self.head];
+            self.head += 1;
+            return value;
+        }
+    };
+}

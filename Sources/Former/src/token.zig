@@ -20,20 +20,41 @@ pub const AuxTag = enum(u3) {
     newline
 };
 
-const DataOffsetLen = packed struct { length: u16, offset: u32 };
-const DataKindValue = packed struct { kind: u16, value: u32 };
+const Range = packed struct { length: u16, offset: u32 };
+const TokData = packed struct { kind: TokenKind, value: u32 };
+const AuxData = packed struct { kind: AuxKind, value: u32 };
 
-const TokenData = DataKindValue;
-const IdentifierData = DataOffsetLen; // Byte offset, identifier length.
-const StringLiteralData = DataOffsetLen;
-const NewLineData = packed struct { prevOffset: u16, auxIndex: u32 }; // Offset to previous newline in syntaxQueue and index of current newline in auxQueue.
+// const IdentifierData = DataOffsetLen; // Byte offset, identifier length.
+// const StringLiteralData = DataOffsetLen;
+const Index = packed struct { offset: u16, index: u32 }; // Offset to previous newline in syntaxQueue and index of current newline in auxQueue.
 
-pub const Token = packed struct { switch_q: u1 = 0, _reserved_nan: u12 = val.QUIET_NAN_HEADER, tag: TokenTag, data: u48 };
-pub const AuxToken = packed struct { switch_q: u1 = 1, _reserved_nan: u12 = val.QUIET_NAN_HEADER, tag: AuxTag, data: u48 };
+
+pub const TokenBody = packed union {
+    data: TokData,
+    range: Range,
+    index: Index,
+};
+
+pub const AuxBody = packed union {
+    data: AuxData,
+    range: Range,
+};
+
+pub const Token = packed struct { alternate: u1 = 0, _reserved_nan: u12 = val.QUIET_NAN_HEADER, tag: TokenTag, body: TokenBody };
+pub const Aux = packed struct { alternate: u1 = 1, _reserved_nan: u12 = val.QUIET_NAN_HEADER, tag: AuxTag, body: AuxBody };
+
+pub const AuxOrToken = union(enum) {
+    token: Token,
+    aux: Aux,
+};
+
+
+// pub const Token = packed struct {  };
+// pub const AuxToken = packed struct { switch_q: u1 = 1, _reserved_nan: u12 = val.QUIET_NAN_HEADER, , data: u48 };
 
 
 // The order here should match bitset lookups in the lexer.
-pub const TokenKind = enum {
+pub const TokenKind = enum(u16) {
     // Multi-character symbolic operators come first. >=, ==, etc.
     // In reverse ascii-order of first-character to avoid an extra subtract.
     op_gte, // >=
@@ -92,35 +113,62 @@ pub const TokenKind = enum {
     sep_stream_end,
 };
 
-pub const AuxKind = enum {
+pub const AuxKind = enum(u16) {
     sep_stream_start,
     indentation,
     number, // References the raw number for col calculations, preserving details like leading zeroes.
 };
 
+
 pub fn createToken(kind: TokenKind) Token {
-    return Token{ .tag = TokenTag.token, .data = @as(u48, @bitCast(TokenData{ .kind = @as(u16, @intFromEnum(kind)), .value = 0 })) };
+    return Token {
+        .tag = TokenTag.token,
+        .body = TokenBody {
+            .data = TokData {
+                .kind = kind,
+                .value = 0
+            }
+        }
+    };
 }
 
 pub fn createNewLine(auxIndex: u32, prevOffset: u16) Token {
-    return Token{ .tag = TokenTag.newline, .data = @as(u48, @bitCast(NewLineData{ .auxIndex = auxIndex, .prevOffset = prevOffset })) };
+    return Token{ 
+        .tag = TokenTag.newline, 
+        .data = TokData{
+            .index = Index{ .index = auxIndex, .offset = prevOffset }
+        }
+    };
 }
 
 pub fn stringLiteral(offset: u32, len: u16) Token {
-    return Token{ .tag = TokenTag.string_literal, .data = @as(u48, @bitCast(StringLiteralData{ .length = len, .offset = offset })) };
+    // return Token{ .tag = TokenTag.string_literal, .data = @as(u48, @bitCast(StringLiteralData{ .length = len, .offset = offset })) };
+    return Token{ .tag = TokenTag.string_literal, .data = TokData{ .range = Range{ .length = len, .offset = offset } } };
 }
 
 pub fn identifier(offset: u32, len: u16) Token {
-    return Token{ .tag = TokenTag.identifier, .data = @as(u48, @bitCast(IdentifierData{ .length = len, .offset = offset })) };
+    return Token{ .tag = TokenTag.identifier, .data = TokData{ .range = Range{ .length = len, .offset = offset } } };
 }
 
-pub fn auxToken(tag: AuxTag, offset: u32, len: u16) AuxToken {
-    return AuxToken{ .tag = tag, .data = @as(u48, @bitCast(DataOffsetLen{ .length = len, .offset = offset })) };
+pub fn auxToken(tag: AuxTag, offset: u32, len: u16) Aux {
+    return Aux{ .tag = tag, .data = AuxData{ .range = Range{ .length = len, .offset = offset } } };
 }
 
-pub fn auxKindToken(kind: AuxKind, value: u32) AuxToken {
-    return AuxToken{ .tag = AuxTag.token, .data = @as(u48, @bitCast(DataKindValue{ .kind = @as(u16, @intFromEnum(kind)), .value = value })) };
+pub fn auxKindToken(kind: AuxKind, value: u32) Aux {
+    // const aTok = AuxToken{ .tag = AuxTag.token, .data = @as(u48, @bitCast(DataKindValue{ .kind = @as(u16, @intFromEnum(kind)), .value = value })) };
+    const aTok = Aux{ .tag = AuxTag.token, .data = AuxData{ .kind = kind, .value = value } };
+    print("auxKindToken: {any}\n", .{aTok});
+    // return aTok;
 }
+
+// pub fn valFromToken(token: Token) u64 {
+//     return @as(u64, @bitCast(token));
+// }
+
+// pub fn valFromAux(token: AuxToken) u64 {
+//     return @as(u64, @bitCast(token));
+// }
+
 
 pub const OP_ADD = createToken(TokenKind.op_add);
 pub const OP_SUB = createToken(TokenKind.op_sub);
@@ -162,3 +210,33 @@ pub const KW_FOR = createToken(TokenKind.kw_for);
 pub const SEP_COMMA = createToken(TokenKind.sep_comma);
 pub const SEP_NEWLINE = createToken(TokenKind.sep_newline);
 pub const SEP_STREAM_END = createToken(TokenKind.sep_stream_end);
+
+
+pub fn print_token(token: Token) void {
+    switch (token.tag) {
+        TokenTag.token => {
+            print("Token {any}", .{token});
+        },
+        TokenTag.value => {
+            print("value", .{});
+        },
+        TokenTag.identifier => {
+            print("identifier", .{});
+        },
+        TokenTag.string_literal => {
+            print("string_literal", .{});
+        },
+        TokenTag.newline => {
+            print("newline", .{});
+        }
+    }
+}
+
+// @bitSizeOf
+const expect = std.testing.expect;
+
+test "Test token sizes" {
+    try expect(@bitSizeOf(Token) == 64);
+    try expect(@bitSizeOf(Aux) == 64);
+    try expect(@bitSizeOf(AuxOrToken) == 128);
+}
