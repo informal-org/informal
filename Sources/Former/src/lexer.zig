@@ -44,8 +44,8 @@ const SYMBOLS = make_character_bitset("%()*+,-./:;<=>?[]^{|}");
 pub const Lexer = struct {
     const Self = @This();
     buffer: []const u8, // Slice/chunk of the source file.
-    syntaxQ: TokenQueue,
-    auxQ: TokenQueue,
+    syntaxQ: *TokenQueue,
+    auxQ: *TokenQueue,
     QIdx: [2]u32, // How many tokens we've emitted to each queue for cross-references.
 
     prevToken: Token,
@@ -58,7 +58,7 @@ pub const Lexer = struct {
     // kind: TokenKind,
     // pub const TokenKind = enum { number, string, symbol, keyword, identifier, indent, dedent, newline, eof };
 
-    pub fn init(buffer: []const u8, syntaxQ: TokenQueue, auxQ: TokenQueue) Self {
+    pub fn init(buffer: []const u8, syntaxQ: *TokenQueue, auxQ: *TokenQueue) Self {
         const QIdx = [_]u32{ 0, 0 };
         // Initialize prev to stream start to avoid needing a null-check in every emit.
         // const initialPrev = @as(u64, @bitCast(tok.auxKindToken(tok.AuxKind.sep_stream_start, 0)));
@@ -355,7 +355,7 @@ pub const Lexer = struct {
                 },
                 '\t' => {
                     // Tabs have no power here! We use spaces exclusively.
-                    try self.emitAux(tok.range(Token.Kind.aux_whitespace, self.index, 1));
+                    try self.emitAux(tok.range(Token.Kind.aux_indentation, self.index, 1));
                     self.index += 1;
                 },
                 '\n' => {
@@ -432,7 +432,7 @@ pub fn testLexToken(buffer: []const u8, expected: []const Token, aux: []const To
     var syntaxQ = TokenQueue.init(test_allocator);
     var auxQ = TokenQueue.init(test_allocator);
     print("address of syntaxQ: {any}\n", .{&syntaxQ});
-    var lexer = Lexer.init(buffer, syntaxQ, auxQ);
+    var lexer = Lexer.init(buffer, &syntaxQ, &auxQ);
     // defer lexer.deinit();
     defer syntaxQ.deinit();
     defer auxQ.deinit();
@@ -468,15 +468,17 @@ pub fn testLexToken(buffer: []const u8, expected: []const Token, aux: []const To
 }
 
 test "Lex digits" {
-
-//     // "1 2 3"
     const auxNum = tok.numberLiteral(0, 1); // tok.auxKindToken(tok.AuxKind.number, 1);
 
     try testLexToken("1 2 3", &[_]Token{
         auxNum,
         auxNum,
         auxNum
-    }, &[_]Token{});
+    }, &[_]Token{
+        tok.AUX_STREAM_START,
+        tok.range(Token.Kind.aux_whitespace, 1, 1),
+        tok.range(Token.Kind.aux_whitespace, 3, 1),
+    });
 
 }
 
