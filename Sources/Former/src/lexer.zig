@@ -421,6 +421,34 @@ fn testTokenEquals(lexed: Token, expected: Token) !void {
     try expectEqual(lexBits, expectedBits);
 }
 
+fn testQueueEquals(buffer: []const u8, resultQ: *TokenQueue, expected: []const Token) !void {
+    if (resultQ.list.items.len != expected.len) {
+        print("\nSyntax Queue - Length mismatch {d} vs {d}\n", .{ resultQ.list.items.len, expected.len });
+        for (resultQ.list.items) |lexedToken| {
+            tok.print_token(lexedToken, buffer);
+            print("\n", .{});
+        }
+    }
+
+    try expectEqual(resultQ.list.items.len, expected.len);
+
+    for (resultQ.list.items, 0..) |lexedToken, i| {
+        const lexBits: u64 = @bitCast(lexedToken);
+        const expectedBits: u64 = @bitCast(expected[i]);
+        if (lexBits != expectedBits) {
+            print("\nLexed: ", .{});
+            tok.print_token(lexedToken, buffer);
+            print(".\nExpected: ", .{});
+            tok.print_token(expected[i], buffer);
+            print(".\n", .{});
+            // print("\nLexerout ", .{});
+        }
+        // tok.print_token(lexedToken, buffer);
+        try testTokenEquals(lexedToken, expected[i]);
+    }
+
+}
+
 pub fn testLexToken(buffer: []const u8, expected: []const Token, aux: []const Token) !void {
     print("\nTest Lex Token: {s}\n", .{buffer});
     defer print("\n--------------------------------------------------------------\n", .{});
@@ -432,34 +460,10 @@ pub fn testLexToken(buffer: []const u8, expected: []const Token, aux: []const To
     defer syntaxQ.deinit();
     defer auxQ.deinit();
     try lexer.lex();
-    if (syntaxQ.list.items.len != expected.len) {
-        print("\nSyntax Queue - Length mismatch {d} vs {d}\n", .{ syntaxQ.list.items.len, expected.len });
-        for (syntaxQ.list.items) |lexedToken| {
-            tok.print_token(lexedToken, buffer);
-            print("\n", .{});
-        }
-    }
+    
+    try testQueueEquals(buffer, &syntaxQ, expected);
+    try testQueueEquals(buffer, &auxQ, aux);
 
-    // print("\nSyntaxQ: {any}\n", .{syntaxQ.list.items});
-    // print("\nlex SyntaxQ: {any}\n", .{lexer.syntaxQ.list.items});
-    // print("\nAuxQ: {any}\n", .{auxQ.list.items});
-
-    try expectEqual(syntaxQ.list.items.len, expected.len);
-    try expectEqual(auxQ.list.items.len, aux.len);
-
-    for (syntaxQ.list.items, 0..) |lexedToken, i| {
-        const lexBits: u64 = @bitCast(lexedToken);
-        const expectedBits: u64 = @bitCast(expected[i]);
-        if (lexBits != expectedBits) {
-            print("\nLexed: ", .{});
-            tok.print_token(lexedToken, buffer);
-            print(".\nExpected: ", .{});
-            tok.print_token(expected[i], buffer);
-            // print("\nLexerout ", .{});
-        }
-        // tok.print_token(lexedToken, buffer);
-        try testTokenEquals(lexedToken, expected[i]);
-    }
 }
 
 test "Token equality" {
@@ -483,9 +487,9 @@ test "Lex digits" {
         tok.nextAlt(tok.numberLiteral(2, 1)),
         tok.nextAlt(tok.numberLiteral(4, 1))
     }, &[_]Token{
-        tok.AUX_STREAM_START,
-        tok.range(Token.Kind.aux_whitespace, 1, 1),
-        tok.range(Token.Kind.aux_whitespace, 3, 1),
+        tok.nextAlt(tok.AUX_STREAM_START),
+        tok.nextAlt(tok.range(Token.Kind.aux_whitespace, 1, 1)),
+        tok.nextAlt(tok.range(Token.Kind.aux_whitespace, 3, 1)),
         tok.AUX_STREAM_END
     });
 }
@@ -496,7 +500,7 @@ test "Lex operator" {
         tok.OP_ADD,
         tok.nextAlt(tok.numberLiteral(2, 1))
     }, &[_]Token{
-        tok.AUX_STREAM_START,
+        tok.nextAlt(tok.AUX_STREAM_START),
         tok.AUX_STREAM_END
     });
 }
