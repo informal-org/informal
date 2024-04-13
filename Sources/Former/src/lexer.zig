@@ -403,6 +403,7 @@ pub const Lexer = struct {
             }
         }
 
+        try self.emitAux(tok.AUX_STREAM_END);
         try self.flushPrev(false);
     }
 };
@@ -432,9 +433,10 @@ pub fn testLexToken(buffer: []const u8, expected: []const Token, aux: []const To
     defer auxQ.deinit();
     try lexer.lex();
     if (syntaxQ.list.items.len != expected.len) {
-        print("\nLength mismatch {d} vs {d}", .{ syntaxQ.list.items.len, expected.len });
+        print("\nSyntax Queue - Length mismatch {d} vs {d}\n", .{ syntaxQ.list.items.len, expected.len });
         for (syntaxQ.list.items) |lexedToken| {
             tok.print_token(lexedToken, buffer);
+            print("\n", .{});
         }
     }
 
@@ -456,16 +458,15 @@ pub fn testLexToken(buffer: []const u8, expected: []const Token, aux: []const To
             // print("\nLexerout ", .{});
         }
         // tok.print_token(lexedToken, buffer);
-        print("\n", .{});
         try testTokenEquals(lexedToken, expected[i]);
     }
 }
 
 test "Token equality" {
-    const auxtok_bits: u64 = @bitCast(tok.range(Token.Kind.aux, 3, 5));
-
+    const auxtok_bits: u64 = @bitCast(tok.range(Token.Kind.aux_stream_end, 3, 5));
+    print("AuxTok bits: {x}\n", .{auxtok_bits});
     // big_endian - 0b0_0_111010_0000_0000_0000_0000_0000_0000_0000_0011_0000_0000_0000_0000_0000_0101;
-    const le_expected_bits: u64 = 0x000005_00000003_E8;
+    const le_expected_bits: u64 = 0x000005_00000003_FC;
     try expect(auxtok_bits == le_expected_bits);
 
     const other_bits: u64 = @bitCast(tok.range(Token.Kind.aux, 10, 20));
@@ -477,7 +478,6 @@ test "Token equality" {
 }
 
 test "Lex digits" {
-
     try testLexToken("1 2 3", &[_]Token{
         tok.nextAlt(tok.numberLiteral(0, 1)),
         tok.nextAlt(tok.numberLiteral(2, 1)),
@@ -486,8 +486,19 @@ test "Lex digits" {
         tok.AUX_STREAM_START,
         tok.range(Token.Kind.aux_whitespace, 1, 1),
         tok.range(Token.Kind.aux_whitespace, 3, 1),
+        tok.AUX_STREAM_END
     });
+}
 
+test "Lex operator" {
+    try testLexToken("1+3", &[_]Token{
+        tok.numberLiteral(0, 1),
+        tok.OP_ADD,
+        tok.nextAlt(tok.numberLiteral(2, 1))
+    }, &[_]Token{
+        tok.AUX_STREAM_START,
+        tok.AUX_STREAM_END
+    });
 }
 
 //     var lexer = Lexer.init("1 2 3", syntaxQ, auxQ);

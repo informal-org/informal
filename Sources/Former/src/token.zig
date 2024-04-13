@@ -69,7 +69,6 @@ pub const Token = packed struct(u64) {
         kw_for,
 
         sep_newline,
-        sep_stream_end,
 
         identifier,
         lit_string,
@@ -78,12 +77,13 @@ pub const Token = packed struct(u64) {
 
         // All aux tokens go at the end - denoted by the AUX_KIND_START constant.
         // Used to detect what's aux.
-        aux=58,
-        aux_comment=59,
-        aux_whitespace=60,
-        aux_newline=61,
-        aux_indentation=62,
-        aux_sep_stream_start=63
+        aux=57,
+        aux_comment=58,
+        aux_whitespace=59,
+        aux_newline=60,
+        aux_indentation=61,
+        aux_stream_start=62,
+        aux_stream_end=63
     };
 
 
@@ -197,8 +197,8 @@ pub const KW_FOR = createToken(Token.Kind.kw_for);
 
 pub const SEP_COMMA = createToken(Token.Kind.sep_comma);
 pub const SEP_NEWLINE = createToken(Token.Kind.sep_newline);
-pub const AUX_STREAM_START = createToken(Token.Kind.aux_sep_stream_start);
-pub const SEP_STREAM_END = createToken(Token.Kind.sep_stream_end);
+pub const AUX_STREAM_START = createToken(Token.Kind.aux_stream_start);
+pub const AUX_STREAM_END = createToken(Token.Kind.aux_stream_end);
 
 
 pub fn print_token(token: Token, buffer: []const u8) void {
@@ -209,7 +209,7 @@ pub fn print_token(token: Token, buffer: []const u8) void {
         k.lit_number, k.lit_string, k.identifier => {
             print("{s} {any} {any} {s}", .{ alt, token.kind, token.data.range, buffer[token.data.range.offset..token.data.range.offset + token.data.range.length]});
         },
-        k.aux, k.aux_comment, k.aux_whitespace, k.aux_newline, k.aux_indentation, k.aux_sep_stream_start => {
+        k.aux, k.aux_comment, k.aux_whitespace, k.aux_newline, k.aux_indentation, k.aux_stream_start, k.aux_stream_end => {
             print("{s} {any}", .{alt, token.kind});
         },
         else => {
