@@ -3,6 +3,7 @@ const val = @import("value.zig");
 const tok = @import("token.zig");
 const constants = @import("constants.zig");
 const q = @import("queue.zig");
+const bitset = @import("bitset.zig");
 
 const print = std.debug.print;
 
@@ -12,24 +13,15 @@ const TokenQueue = q.Queue(Token);
 const SYNTAX_Q: u1 = 0;
 const AUX_Q: u1 = 1;
 
-// Compile time constant function which takes a string of valid delimiter characters and returns a bitset.
-// The bitset is used to quickly check if a character is a delimiter.
-pub fn make_character_bitset(pattern: []const u8) u128 {
-    // assert - is-ascii. Just used internally with fixed compile-time patterns.
-    var bitset: u128 = 0;
-    for (pattern) |ch| {
-        bitset |= 1 << ch;
-    }
-    return bitset;
-}
 
-const DELIMITERS = make_character_bitset("()[]{}\"'.,:; \t\n");
+
+const DELIMITERS = bitset.character_bitset("()[]{}\"'.,:; \t\n");
 const MULTICHAR_SYMBOLS = "!*+-/<=>";
 // Microoptimization - the multichar bitset can fit in u64 since all of these are < 64.
 // Unclear if it's worth it without tests.
-const MULTICHAR_BITSET = make_character_bitset(MULTICHAR_SYMBOLS); // All of these chars are < 64, so truncate. TODO: Verify shift.
+const MULTICHAR_BITSET = bitset.character_bitset(MULTICHAR_SYMBOLS); // All of these chars are < 64, so truncate. TODO: Verify shift.
 const MULTILINE_KEYWORD_COUNT = MULTICHAR_SYMBOLS.len; // 8
-const SYMBOLS = make_character_bitset("%()*+,-./:;<=>?[]^{|}");
+const SYMBOLS = bitset.character_bitset("%()*+,-./:;<=>?[]^{|}");
 
 /// The lexer splits up an input buffer into tokens.
 /// The input buffer are smaller chunks of a source file.
@@ -364,16 +356,15 @@ pub const Lexer = struct {
                     try self.token_string();
                 },
                 else => {
-                    const chByte: u7 = @truncate(@as(u8, ch));
-                    const one: u128 = 1;
-                    const chBit: u128 = one << chByte;
-                    if (chBit | MULTICHAR_BITSET != 0) {
+                    // const chByte: u7 = @truncate(@as(u8, ch));
+                    // const one: u128 = 1;
+                    // const chBit: u128 = one << chByte;
+                    if (MULTICHAR_BITSET.isSet(ch)) {
                         const peekCh = self.peek_ch();
                         // All of the current multi-char symbols have = as the followup char.
                         // If that changes in the future, use a lookup string indexed by chBit popcnt index.
                         if (peekCh == '=') {
-                            const multiChKindVal: u8 = @truncate(@popCount(MULTICHAR_BITSET >> chByte)); // assert < MULTILINE_KEYWORD_COUNT
-                            const tokenKind: Token.Kind = @enumFromInt(multiChKindVal);
+                            const tokenKind = bitset.chToKind(MULTICHAR_BITSET, ch, 0);
                             // Emit the multichar symbol.
                             self.index += 2;
                             try self.emitToken(tok.createToken(tokenKind));
@@ -389,9 +380,9 @@ pub const Lexer = struct {
                     }
 
                     // Single-character symbols.
-                    if (chBit | SYMBOLS != 0) {
-                        const tokKind: u8 = @truncate(@popCount(SYMBOLS >> chByte));
-                        try self.emitToken(tok.createToken(@enumFromInt(tokKind + MULTILINE_KEYWORD_COUNT)));
+                    if (SYMBOLS.isSet(ch)) {
+                        const tokKind = bitset.chToKind(SYMBOLS, ch, MULTILINE_KEYWORD_COUNT);
+                        try self.emitToken(tok.createToken(tokKind));
                         self.index += 1;
                         continue;
                     }
