@@ -3,3 +3,9 @@ build:
 
 add:
     zig build && ./zig-out/bin/Former test/data/add.ifi
+
+release:
+    zig build -Doptimize=ReleaseFast
+
+bench-build: release
+    hyperfine "./zig-out/bin/Former test/data/add.ifi"

@@ -29,8 +29,15 @@ pub fn Queue(comptime t: type) type {
         }
 
         pub fn push(self: *Self, value: t) !void {
+            // std.debug.print("pushing value to queue {any}\n", .{value});
             try self.list.append(value);
             self.tail += 1;
+        }
+
+        pub fn reset(self: *Self) void {
+            self.head = 0;
+            self.tail = 0;
+            self.list.clearRetainingCapacity();
         }
 
         pub fn next(self: *Self) ?t {

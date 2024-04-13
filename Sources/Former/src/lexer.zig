@@ -8,12 +8,10 @@ const bitset = @import("bitset.zig");
 const print = std.debug.print;
 
 const Token = tok.Token;
-const TokenQueue = q.Queue(Token);
+pub const TokenQueue = q.Queue(Token);
 
 const SYNTAX_Q: u1 = 0;
 const AUX_Q: u1 = 1;
-
-
 
 const DELIMITERS = bitset.character_bitset("()[]{}\"'.,:; \t\n");
 const MULTICHAR_SYMBOLS = "!*+-/<=>";
@@ -84,7 +82,6 @@ pub const Lexer = struct {
             self.prevToken.alternate = nextSyntax;
             try self.auxQ.push(self.prevToken);
         }
-        
     }
 
     // Newlines and numbers have some special behavior.
@@ -325,6 +322,7 @@ pub const Lexer = struct {
 
         while (self.index < self.buffer.len) {
             const ch = self.buffer[self.index];
+            // print("Char: {c} {d}\n", .{ch, self.index});
             // Ignore whitespace.
             switch (ch) {
                 ' ' => {
@@ -334,6 +332,7 @@ pub const Lexer = struct {
                         // if (indent != tok.SKIP_TOKEN) {
                         //     return indent;
                         // }
+                        self.index += 1;    // TODO: Not implemented. Temporary skip.
                     } else {
                         const start = self.index;
                         self.gobble_ch(' ');

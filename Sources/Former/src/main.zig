@@ -9,7 +9,7 @@ pub fn main() !void {
         std.debug.print("Usage: Former <filename>\n", .{});
         return error.Unreachable;
     }
-    std.debug.print("Reading file: {s}\n", .{args});
+    // std.debug.print("Reading file: {s}\n", .{args});
     const filename = args[1];
     try reader.compile_file(filename);
 }
