@@ -84,15 +84,11 @@ pub const Lexer = struct {
     }
 
     fn flushPrev(self: *Lexer, nextSyntax: bool) !void {
-        print("Prev is syntax: {any}\n", .{self.prevToken});
         if(@intFromEnum(self.prevToken.kind) < tok.AUX_KIND_START) {
-            print("Pushing to syntax queue: {any}\n", .{self.prevToken});
             self.prevToken.alternate = !nextSyntax;
             try self.syntaxQ.push(self.prevToken);
-            print("Syntax {any}\n", .{self.syntaxQ.list.items});
         }
         else {
-            print("Pushing to aux queue: {any}\n", .{self.prevToken});
             self.prevToken.alternate = nextSyntax;
             try self.auxQ.push(self.prevToken);
         }
@@ -408,8 +404,6 @@ pub const Lexer = struct {
         }
 
         try self.flushPrev(false);
-        print("\nLex end {any}\n", .{ self.syntaxQ.list.items });
-        print("address of syntaxQ: {any}\n", .{&self.syntaxQ});
     }
 };
 
@@ -418,11 +412,12 @@ pub const Lexer = struct {
 const test_allocator = std.testing.allocator;
 const arena_allocator = std.heap.ArenaAllocator;
 const expect = std.testing.expect;
+const expectEqual = std.testing.expectEqual;
 
 fn testTokenEquals(lexed: Token, expected: Token) !void {
     const lexBits: u64 = @bitCast(lexed);
     const expectedBits: u64 = @bitCast(expected);
-    try expect(lexBits == expectedBits);
+    try expectEqual(lexBits, expectedBits);
 }
 
 pub fn testLexToken(buffer: []const u8, expected: []const Token, aux: []const Token) !void {
@@ -431,7 +426,6 @@ pub fn testLexToken(buffer: []const u8, expected: []const Token, aux: []const To
 
     var syntaxQ = TokenQueue.init(test_allocator);
     var auxQ = TokenQueue.init(test_allocator);
-    print("address of syntaxQ: {any}\n", .{&syntaxQ});
     var lexer = Lexer.init(buffer, &syntaxQ, &auxQ);
     // defer lexer.deinit();
     defer syntaxQ.deinit();
@@ -440,40 +434,54 @@ pub fn testLexToken(buffer: []const u8, expected: []const Token, aux: []const To
     if (syntaxQ.list.items.len != expected.len) {
         print("\nLength mismatch {d} vs {d}", .{ syntaxQ.list.items.len, expected.len });
         for (syntaxQ.list.items) |lexedToken| {
-            tok.print_token(lexedToken);
+            tok.print_token(lexedToken, buffer);
         }
     }
 
-    print("\nSyntaxQ: {any}\n", .{syntaxQ.list.items});
-    print("\nlex SyntaxQ: {any}\n", .{lexer.syntaxQ.list.items});
-    print("\nAuxQ: {any}\n", .{auxQ.list.items});
+    // print("\nSyntaxQ: {any}\n", .{syntaxQ.list.items});
+    // print("\nlex SyntaxQ: {any}\n", .{lexer.syntaxQ.list.items});
+    // print("\nAuxQ: {any}\n", .{auxQ.list.items});
 
-    try expect(syntaxQ.list.items.len == expected.len);
-    try expect(auxQ.list.items.len == aux.len);
+    try expectEqual(syntaxQ.list.items.len, expected.len);
+    try expectEqual(auxQ.list.items.len, aux.len);
 
     for (syntaxQ.list.items, 0..) |lexedToken, i| {
         const lexBits: u64 = @bitCast(lexedToken);
         const expectedBits: u64 = @bitCast(expected[i]);
-
-        if (lexBits == expectedBits) {
-            print(".\nExpected ", .{});
-            // tok.print_token(expected[i], buffer);
-            print("\nLexerout ", .{});
+        if (lexBits != expectedBits) {
+            print("\nLexed: ", .{});
+            tok.print_token(lexedToken, buffer);
+            print(".\nExpected: ", .{});
+            tok.print_token(expected[i], buffer);
+            // print("\nLexerout ", .{});
         }
         // tok.print_token(lexedToken, buffer);
         print("\n", .{});
-
-        // try testTokenEquals(lexedToken, expected[i]);
+        try testTokenEquals(lexedToken, expected[i]);
     }
 }
 
+test "Token equality" {
+    const auxtok_bits: u64 = @bitCast(tok.range(Token.Kind.aux, 3, 5));
+
+    // big_endian - 0b0_0_111010_0000_0000_0000_0000_0000_0000_0000_0011_0000_0000_0000_0000_0000_0101;
+    const le_expected_bits: u64 = 0x000005_00000003_E8;
+    try expect(auxtok_bits == le_expected_bits);
+
+    const other_bits: u64 = @bitCast(tok.range(Token.Kind.aux, 10, 20));
+    try expect(other_bits != le_expected_bits);
+
+    const numtok: u64 = @bitCast(tok.numberLiteral(0, 1));
+    const numother: u64 = @bitCast(tok.numberLiteral(5, 10));
+    try expect(numtok != numother);
+}
+
 test "Lex digits" {
-    const auxNum = tok.numberLiteral(0, 1); // tok.auxKindToken(tok.AuxKind.number, 1);
 
     try testLexToken("1 2 3", &[_]Token{
-        auxNum,
-        auxNum,
-        auxNum
+        tok.nextAlt(tok.numberLiteral(0, 1)),
+        tok.nextAlt(tok.numberLiteral(2, 1)),
+        tok.nextAlt(tok.numberLiteral(4, 1))
     }, &[_]Token{
         tok.AUX_STREAM_START,
         tok.range(Token.Kind.aux_whitespace, 1, 1),

@@ -88,7 +88,7 @@ pub const Token = packed struct(u64) {
 
 
     const Value = packed struct { value: u56 };
-    const Range = packed struct { length: u24, offset: u32 };
+    const Range = packed struct { offset: u32, length: u24 };
     // Offset to previous newline in syntaxQueue and index of current newline in auxQueue.
     const Index = packed struct { offset: u24, index: u32 };
     
@@ -98,7 +98,6 @@ pub const Token = packed struct(u64) {
         index: Index,
         value: Value,
     };
-
 };
 
 
@@ -129,13 +128,17 @@ pub fn numberLiteral(offset: u32, len: u24) Token {
     return Token{ .kind = Token.Kind.lit_number, .data = Token.Data{ .range = Token.Range{ .length = len, .offset = offset } } };
 }
 
-pub fn identifier(offset: u32, len: u16) Token {
+pub fn identifier(offset: u32, len: u24) Token {
     return Token{ .kind = Token.Kind.identifier, .data = Token.Data{ .range = Token.Range{ .length = len, .offset = offset } } };
 }
 
 // auxToken -> rangeToken
-pub fn range(kind: Token.Kind, offset: u32, len: u16) Token {
+pub fn range(kind: Token.Kind, offset: u32, len: u24) Token {
     return Token{ .kind = kind, .data = Token.Data{ .range = Token.Range{ .length = len, .offset = offset } } };
+}
+
+pub fn nextAlt(token: Token) Token {
+    return Token{ .alternate=true, .kind = token.kind, .data = token.data };
 }
 
 // pub fn auxKindToken(kind: Token.Kind, value: u32) Token {
@@ -198,8 +201,21 @@ pub const AUX_STREAM_START = createToken(Token.Kind.aux_sep_stream_start);
 pub const SEP_STREAM_END = createToken(Token.Kind.sep_stream_end);
 
 
-pub fn print_token(token: Token) void {
-    print("Token {any}", .{token});
+pub fn print_token(token: Token, buffer: []const u8) void {
+    const k = Token.Kind;
+    const alt = if (token.alternate) "A" else "";
+
+    switch (token.kind) {
+        k.lit_number, k.lit_string, k.identifier => {
+            print("{s} {any} {any} {s}", .{ alt, token.kind, token.data.range, buffer[token.data.range.offset..token.data.range.offset + token.data.range.length]});
+        },
+        k.aux, k.aux_comment, k.aux_whitespace, k.aux_newline, k.aux_indentation, k.aux_sep_stream_start => {
+            print("{s} {any}", .{alt, token.kind});
+        },
+        else => {
+            print("{s} {any}", .{alt, token.kind});
+        }
+    }
 }
 
 // pub fn print_token(token: Token) void {
