@@ -16,7 +16,7 @@ pub fn Queue(comptime t: type) type {
         head: usize,
         tail: usize,
 
-        pub fn init(allocator: Allocator) Queue {
+        pub fn init(allocator: Allocator) Self {
             return Self{
                 .list = ArrayList.init(allocator),
                 .head = 0,

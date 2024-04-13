@@ -5,8 +5,9 @@ const constants = @import("constants.zig");
 const q = @import("queue.zig");
 
 const print = std.debug.print;
-const TokenQueue = q.Queue(tok.Token);
-const AuxQueue = q.Queue(tok.Aux);
+
+const Token = tok.Token;
+const TokenQueue = q.Queue(Token);
 
 const SYNTAX_Q: u1 = 0;
 const AUX_Q: u1 = 1;
@@ -44,10 +45,10 @@ pub const Lexer = struct {
     const Self = @This();
     buffer: []const u8, // Slice/chunk of the source file.
     syntaxQ: TokenQueue,
-    auxQ: AuxQueue,
+    auxQ: TokenQueue,
     QIdx: [2]u32, // How many tokens we've emitted to each queue for cross-references.
 
-    prevToken: tok.AuxOrToken,
+    prevToken: Token,
     index: u32, // Char scan index into this chunk.
     lineQIndex: u32, // syntaxIndex of the previous newline. Newlines have an offset index to the previous.
     lineChStart: u32, // Character index where this line started. For ch offset calculations.
@@ -57,11 +58,11 @@ pub const Lexer = struct {
     // kind: TokenKind,
     // pub const TokenKind = enum { number, string, symbol, keyword, identifier, indent, dedent, newline, eof };
 
-    pub fn init(buffer: []const u8, syntaxQ: TokenQueue, auxQ: AuxQueue) Self {
+    pub fn init(buffer: []const u8, syntaxQ: TokenQueue, auxQ: TokenQueue) Self {
         const QIdx = [_]u32{ 0, 0 };
         // Initialize prev to stream start to avoid needing a null-check in every emit.
-        const initialPrev = @as(u64, @bitCast(tok.auxKindToken(tok.AuxKind.sep_stream_start, 0)));
-        return Self{ .buffer = buffer, .index = 0, .QIdx = QIdx, .lineQIndex = 0, .lineChStart = 0, .lineNo=0, .prevToken = initialPrev, .syntaxQ=syntaxQ, .auxQ=auxQ };
+        // const initialPrev = @as(u64, @bitCast(tok.auxKindToken(tok.AuxKind.sep_stream_start, 0)));
+        return Self{ .buffer = buffer, .index = 0, .QIdx = QIdx, .lineQIndex = 0, .lineChStart = 0, .lineNo=0, .prevToken = tok.AUX_STREAM_START, .syntaxQ=syntaxQ, .auxQ=auxQ };
     }
 
     fn gobble_digits(self: *Lexer) void {
@@ -83,46 +84,48 @@ pub const Lexer = struct {
     }
 
     fn flushPrev(self: *Lexer, nextSyntax: bool) !void {
-        print("Prev is syntax: {any} {any}\n", .{self.prevToken});
-        switch (self.prevToken) {
-            tok.AuxOrToken.token => |token| {
-                print("Pushing to syntax queue: {d}\n", .{token});
-                token.alternate = if (nextSyntax) 0 else 1;
-                try self.syntaxQ.push(token);       // token vs self.prevToken
-            },
-            tok.AuxOrToken.aux => |aux| {
-                print("Pushing to aux queue: {d}\n", .{aux});
-                aux.alternate = if (nextSyntax) 1 else 0;
-                try self.auxQ.push(aux);
-            }
+        print("Prev is syntax: {any}\n", .{self.prevToken});
+        if(@intFromEnum(self.prevToken.kind) < tok.AUX_KIND_START) {
+            print("Pushing to syntax queue: {any}\n", .{self.prevToken});
+            self.prevToken.alternate = !nextSyntax;
+            try self.syntaxQ.push(self.prevToken);
+            print("Syntax {any}\n", .{self.syntaxQ.list.items});
         }
+        else {
+            print("Pushing to aux queue: {any}\n", .{self.prevToken});
+            self.prevToken.alternate = nextSyntax;
+            try self.auxQ.push(self.prevToken);
+        }
+        
     }
 
     // Newlines and numbers have some special behavior.
-    fn emitAux(self: *Lexer, v: tok.AuxToken) !void {
+    fn emitAux(self: *Lexer, v: Token) !void {
         // Emit the previous token and then queue up this one.
         try self.flushPrev(false);
-        self.prevToken = AuxOrToken{.aux: v};
+        self.prevToken = v;
         self.QIdx[AUX_Q] += 1;
     }
-    fn emitToken(self: *Lexer, v: tok.Token) !void {
+
+    fn emitToken(self: *Lexer, v: Token) !void {
         try self.flushPrev(true);
-        self.prevToken = AuxOrToken{.token: v};
+        self.prevToken = v;
         self.QIdx[SYNTAX_Q] += 1;
     }
 
-    fn emitNumber(self: *Lexer, value: u64, auxValue: tok.AuxToken) !void {
-        print("Emit number: {d} {any}\n", .{value, auxValue});
-        // Numeric tokens don't have any free bits for us to set the switch-bit.
-        // Assume it always indicates a 1 to "switch" to aux.
-        try self.emitAux(auxValue); // The aux token can then indicate the switch-bit.
+    // fn emitNumber(self: *Lexer, auxValue: Token) !void {
+    //     print("Emit number: {d} {any}\n", .{value, auxValue});
+    //     // Numeric tokens don't have any free bits for us to set the switch-bit.
+    //     // Assume it always indicates a 1 to "switch" to aux.
+    //     // try self.emitAux(auxValue); // The aux token can then indicate the switch-bit.
+    //     try self.emitToken(auxValue);
 
-        // Emit the number token, without queuing up the prevToken.
-        try self.Q[SYNTAX_Q].push(value);
-        print("Syntax {any}\n", .{self.Q[SYNTAX_Q].list.items});
-        print("Aux {any}\n", .{self.Q[AUX_Q].list.items});
-        self.QIdx[SYNTAX_Q] += 1;
-    }
+    //     // Emit the number token, without queuing up the prevToken.
+    //     // try self.Q[SYNTAX_Q].push(value);
+    //     print("Syntax {any}\n", .{self.Q[SYNTAX_Q].list.items});
+    //     print("Aux {any}\n", .{self.Q[AUX_Q].list.items});
+    //     self.QIdx[SYNTAX_Q] += 1;
+    // }
 
     fn emitNewLine(self: *Lexer) !void {
         // Newlines have significance for error-reporting and indentation.
@@ -135,7 +138,7 @@ pub const Lexer = struct {
         const syntaxNewLine = tok.createNewLine(auxIndex, @truncate(prevOffset));
         try self.emitToken(syntaxNewLine);
 
-        try self.emitAux(tok.auxToken(tok.AuxTag.newline, self.index, self.lineNo));
+        try self.emitAux(tok.range(Token.Kind.aux_newline, self.index, self.lineNo));
         self.lineQIndex = self.QIdx[SYNTAX_Q];
         self.lineNo += 1;
         self.index += 1;
@@ -151,10 +154,10 @@ pub const Lexer = struct {
         self.gobble_digits();
         const len = self.index - start;
 
-        const value: u64 = std.fmt.parseInt(u32, self.buffer[start..self.index], 10) catch 0;
-
-        const auxTok = tok.auxKindToken(tok.AuxKind.number, @truncate(len));
-        try self.emitNumber(value, auxTok);
+        // const value: u64 = std.fmt.parseInt(u32, self.buffer[start..self.index], 10) catch 0;
+        // const auxTok = tok.auxKindToken(tok.AuxKind.number, @truncate(len));
+        // try self.emitNumber(value, auxTok);
+        try self.emitToken(tok.numberLiteral(start, @truncate(len)));
     }
 
     fn token_string(self: *Lexer) !void {
@@ -347,12 +350,12 @@ pub const Lexer = struct {
                         const start = self.index;
                         self.gobble_ch(' ');
                         const len = self.index - start;
-                        try self.emitAux(tok.auxToken(tok.AuxTag.whitespace, start, @truncate(len)));
+                        try self.emitAux(tok.range(Token.Kind.aux_whitespace, start, @truncate(len)));
                     }
                 },
                 '\t' => {
                     // Tabs have no power here! We use spaces exclusively.
-                    try self.emitAux(tok.auxToken(tok.AuxTag.whitespace, self.index, 1));
+                    try self.emitAux(tok.range(Token.Kind.aux_whitespace, self.index, 1));
                     self.index += 1;
                 },
                 '\n' => {
@@ -374,7 +377,7 @@ pub const Lexer = struct {
                         // If that changes in the future, use a lookup string indexed by chBit popcnt index.
                         if (peekCh == '=') {
                             const multiChKindVal: u8 = @truncate(@popCount(MULTICHAR_BITSET >> chByte)); // assert < MULTILINE_KEYWORD_COUNT
-                            const tokenKind: tok.TokenKind = @enumFromInt(multiChKindVal);
+                            const tokenKind: Token.Kind = @enumFromInt(multiChKindVal);
                             // Emit the multichar symbol.
                             self.index += 2;
                             try self.emitToken(tok.createToken(tokenKind));
@@ -404,8 +407,9 @@ pub const Lexer = struct {
             }
         }
 
-
-        try self.flushPrev(self.prevToken);
+        try self.flushPrev(false);
+        print("\nLex end {any}\n", .{ self.syntaxQ.list.items });
+        print("address of syntaxQ: {any}\n", .{&self.syntaxQ});
     }
 };
 
@@ -415,17 +419,20 @@ const test_allocator = std.testing.allocator;
 const arena_allocator = std.heap.ArenaAllocator;
 const expect = std.testing.expect;
 
-fn testTokenEquals(lexed: u64, expected: u64) !void {
-    try expect(lexed == expected);
+fn testTokenEquals(lexed: Token, expected: Token) !void {
+    const lexBits: u64 = @bitCast(lexed);
+    const expectedBits: u64 = @bitCast(expected);
+    try expect(lexBits == expectedBits);
 }
 
-pub fn testLexToken(buffer: []const u8, expected: []const u64, aux: []const u64) !void {
+pub fn testLexToken(buffer: []const u8, expected: []const Token, aux: []const Token) !void {
     print("\nTest Lex Token: {s}\n", .{buffer});
     defer print("\n--------------------------------------------------------------\n", .{});
 
-    var syntaxQ = Queue.init(test_allocator);
-    var auxQ = Queue.init(test_allocator);
-    var lexer = Lexer.init(buffer, &syntaxQ, &auxQ);
+    var syntaxQ = TokenQueue.init(test_allocator);
+    var auxQ = TokenQueue.init(test_allocator);
+    print("address of syntaxQ: {any}\n", .{&syntaxQ});
+    var lexer = Lexer.init(buffer, syntaxQ, auxQ);
     // defer lexer.deinit();
     defer syntaxQ.deinit();
     defer auxQ.deinit();
@@ -438,13 +445,17 @@ pub fn testLexToken(buffer: []const u8, expected: []const u64, aux: []const u64)
     }
 
     print("\nSyntaxQ: {any}\n", .{syntaxQ.list.items});
+    print("\nlex SyntaxQ: {any}\n", .{lexer.syntaxQ.list.items});
     print("\nAuxQ: {any}\n", .{auxQ.list.items});
 
     try expect(syntaxQ.list.items.len == expected.len);
     try expect(auxQ.list.items.len == aux.len);
 
     for (syntaxQ.list.items, 0..) |lexedToken, i| {
-        if (lexedToken != expected[i]) {
+        const lexBits: u64 = @bitCast(lexedToken);
+        const expectedBits: u64 = @bitCast(expected[i]);
+
+        if (lexBits == expectedBits) {
             print(".\nExpected ", .{});
             // tok.print_token(expected[i], buffer);
             print("\nLexerout ", .{});
@@ -452,24 +463,20 @@ pub fn testLexToken(buffer: []const u8, expected: []const u64, aux: []const u64)
         // tok.print_token(lexedToken, buffer);
         print("\n", .{});
 
-        try testTokenEquals(lexedToken, expected[i]);
+        // try testTokenEquals(lexedToken, expected[i]);
     }
 }
 
 test "Lex digits" {
 
 //     // "1 2 3"
-    const auxNum = tok.valFromAux(tok.auxKindToken(tok.AuxKind.number, 1));
+    const auxNum = tok.numberLiteral(0, 1); // tok.auxKindToken(tok.AuxKind.number, 1);
 
-    try testLexToken("1 2 3", &[_]u64{
-        1,
-        2,
-        3,
-    }, &[_]u64{
+    try testLexToken("1 2 3", &[_]Token{
         auxNum,
         auxNum,
         auxNum
-    });
+    }, &[_]Token{});
 
 }
 

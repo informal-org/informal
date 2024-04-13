@@ -3,27 +3,13 @@ const std = @import("std");
 const print = std.debug.print;
 
 
-const Range = packed struct { length: u24, offset: u32 };
-const KindData = packed struct { kind: u24, value: u32 };
-const LiteralData = packed struct { kind: LiteralKind, value: u48 };
-
-pub const LiteralKind = enum(u8) {
-    boolean,
-    string,
-};
-
-const Index = packed struct { offset: u24, index: u32 }; // Offset to previous newline in syntaxQueue and index of current newline in auxQueue.
-
-
 pub const Token = packed struct(u64) { 
-    flags: Flags,
-    kind: Kind,
-    data: Data,
+    alternate: bool = false,
+
+    _reserved: u1 = 0,  // Reserved for future expansion of kind.
+    kind: Kind, // 6,
+    data: Data, // 56
     
-    const Flags = packed struct(u2) {
-        prev: bool = false,
-        next: bool = false,
-    };
 
     pub const Kind = enum(u6) {
         // The order here should match bitset lookups in the lexer.
@@ -86,9 +72,13 @@ pub const Token = packed struct(u64) {
         sep_stream_end,
 
         identifier,
-        literal,
+        lit_string,
+        lit_bool,
+        lit_number,
 
-        // All aux tokens go at the end.
+        // All aux tokens go at the end - denoted by the AUX_KIND_START constant.
+        // Used to detect what's aux.
+        aux=58,
         aux_comment=59,
         aux_whitespace=60,
         aux_newline=61,
@@ -97,44 +87,55 @@ pub const Token = packed struct(u64) {
     };
 
 
+    const Value = packed struct { value: u56 };
+    const Range = packed struct { length: u24, offset: u32 };
+    // Offset to previous newline in syntaxQueue and index of current newline in auxQueue.
+    const Index = packed struct { offset: u24, index: u32 };
+    
+    // 56 bits for data.
     const Data = packed union {
         range: Range,
         index: Index,
-        kind: KindData,
-        literal: LiteralData,
+        value: Value,
     };
 
 };
 
 
+pub const AUX_KIND_START: u6 = @intFromEnum(Token.Kind.aux);
+
 
 pub fn createToken(kind: Token.Kind) Token {
     return Token {
         .kind = kind,
+        .data = Token.Data{ .value = Token.Value{ .value = 0 } }
     };
 }
 
 pub fn createNewLine(auxIndex: u32, prevOffset: u24) Token {
     return Token{ 
-        .kind = Token.Kind.newline,
+        .kind = Token.Kind.sep_newline,
         .data = Token.Data{
-            .index = Index{ .index = auxIndex, .offset = prevOffset }
+            .index = Token.Index{ .index = auxIndex, .offset = prevOffset }
         }
     };
 }
 
 pub fn stringLiteral(offset: u32, len: u24) Token {
-    // return Token{ .tag = TokenTag.string_literal, .data = @as(u48, @bitCast(StringLiteralData{ .length = len, .offset = offset })) };
-    return Token{ .kind = Token.Kind.literal, .data = Token.Data{ .range = Range{ .length = len, .offset = offset } } };
+    return Token{ .kind = Token.Kind.lit_string, .data = Token.Data{ .range = Token.Range{ .length = len, .offset = offset } } };
+}
+
+pub fn numberLiteral(offset: u32, len: u24) Token {
+    return Token{ .kind = Token.Kind.lit_number, .data = Token.Data{ .range = Token.Range{ .length = len, .offset = offset } } };
 }
 
 pub fn identifier(offset: u32, len: u16) Token {
-    return Token{ .kind = Token.Kind.identifier, .data = Token.Data{ .range = Range{ .length = len, .offset = offset } } };
+    return Token{ .kind = Token.Kind.identifier, .data = Token.Data{ .range = Token.Range{ .length = len, .offset = offset } } };
 }
 
-pub fn auxToken(kind: Token.Kind, offset: u32, len: u16) Token {
-    // return Aux{ .tag = tag, .data = AuxData{ .range = Range{ .length = len, .offset = offset } } };
-    return Token{ .kind = kind, .data = Token.Data{ .range = Range{ .length = len, .offset = offset } } };
+// auxToken -> rangeToken
+pub fn range(kind: Token.Kind, offset: u32, len: u16) Token {
+    return Token{ .kind = kind, .data = Token.Data{ .range = Token.Range{ .length = len, .offset = offset } } };
 }
 
 // pub fn auxKindToken(kind: Token.Kind, value: u32) Token {
@@ -193,8 +194,13 @@ pub const KW_FOR = createToken(Token.Kind.kw_for);
 
 pub const SEP_COMMA = createToken(Token.Kind.sep_comma);
 pub const SEP_NEWLINE = createToken(Token.Kind.sep_newline);
+pub const AUX_STREAM_START = createToken(Token.Kind.aux_sep_stream_start);
 pub const SEP_STREAM_END = createToken(Token.Kind.sep_stream_end);
 
+
+pub fn print_token(token: Token) void {
+    print("Token {any}", .{token});
+}
 
 // pub fn print_token(token: Token) void {
 //     switch (token.tag) {
@@ -224,3 +230,18 @@ test "Test token sizes" {
     // try expect(@bitSizeOf(Aux) == 64);
     // try expect(@bitSizeOf(AuxOrToken) == 128);
 }
+
+
+pub const Assoc = enum(u1) {
+    left, right
+};
+
+pub const Arity = enum(u1) {
+    unary, binary
+};
+
+pub const ParserMeta = packed struct(u6) {
+    precedence: u4, 
+    assoc: Assoc,
+    arity: Arity,
+};
