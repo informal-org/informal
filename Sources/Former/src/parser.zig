@@ -156,7 +156,8 @@ pub const Parser = struct {
     // Unary operators. ex. True not.
     // Grouping operators. ex. 1 (... 
     /////////////////////////////////////////////
-    fn expect_binary(self: *Self) !void {
+    // Zig can't infer the error set due to circular refs. Propagate errors from push/pop.
+    fn expect_binary(self: *Self) (std.mem.Allocator.Error)!void {      // (err || error)
         const token = self.syntaxQ.pop();
         if(token.kind == tok.AUX_STREAM_END.kind) {
             // Stream end is fine. Expression is complete without continuation.
@@ -200,7 +201,7 @@ pub const Parser = struct {
         if(isKind(tok.LITERALS, kind)) {
             print("Initial state Literal: {any}\n", .{token});
             try self.emitParsed(token);
-            // try self.expect_binary();    // TODO: Unable to resolve inferred error set.
+            try self.expect_binary(); 
         } else if(isKind(tok.IDENTIFIER, kind)) {
             print("Identifier: {any}\n", .{token});
         } else if(isKind(tok.PAREN_START, kind)) {
@@ -296,14 +297,12 @@ pub fn testParse(buffer: []const u8, tokens: []const Token, aux: []const Token, 
     try parser.parse();
 
     print("\nTest Parse: {s}\n", .{buffer});
-    // print("Tokens: {any}\n", .{tokens});
-    print("Parsed", .{});
     tok.print_token_queue(parsedQ.list.items, buffer);
-    print("Aux: {d}\n", .{aux.len});
-    print("Expected: {any}\n", .{expected});
-
+    
     try testutils.testQueueEquals(buffer, &parsedQ, expected);
 
+    // Ignore aux. Fail when we start using it in tests.
+    try expect(aux.len == 0);
 }
 
 test "Parse basic add" {
@@ -320,6 +319,30 @@ test "Parse basic add" {
         tok.numberLiteral(0, 1),
          // next-alt bit doesn't have much meaning in the parsed expr...
         tok.nextAlt(tok.numberLiteral(2, 1)),
+        tok.OP_ADD
+    };
+
+    try testParse(buffer, tokens, aux, expected);
+}
+
+test "Parse math op precedence" {
+
+    const buffer = "1+2*3";
+    const tokens = &[_]Token{
+        tok.numberLiteral(0, 1),
+        tok.OP_ADD,
+        tok.numberLiteral(2, 1),
+        tok.OP_MUL,
+        tok.numberLiteral(4, 1),
+    };
+
+    const aux = &[_]Token{};
+    // Ensure multiply before add.
+    const expected = &[_]Token{
+        tok.numberLiteral(0, 1),
+        tok.numberLiteral(2, 1),
+        tok.numberLiteral(4, 1),
+        tok.OP_MUL,
         tok.OP_ADD
     };
 

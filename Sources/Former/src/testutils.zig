@@ -15,7 +15,7 @@ const expectEqual = std.testing.expectEqual;
 pub fn testTokenEquals(lexed: Token, expected: Token) !void {
     const lexBits: u64 = @bitCast(lexed);
     const expectedBits: u64 = @bitCast(expected);
-    try expectEqual(lexBits, expectedBits);
+    try expectEqual(expectedBits, lexBits);
 }
 
 pub fn testQueueEquals(buffer: []const u8, resultQ: *TokenQueue, expected: []const Token) !void {
@@ -27,7 +27,7 @@ pub fn testQueueEquals(buffer: []const u8, resultQ: *TokenQueue, expected: []con
         }
     }
 
-    try expectEqual(resultQ.list.items.len, expected.len);
+    try expectEqual(expected.len, resultQ.list.items.len);
 
     for (resultQ.list.items, 0..) |lexedToken, i| {
         const lexBits: u64 = @bitCast(lexedToken);
