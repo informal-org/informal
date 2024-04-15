@@ -2,8 +2,8 @@ const tok = @import("token.zig");
 const std = @import("std");
 
 const stdbits = std.bit_set;
-const BitSet128 = stdbits.IntegerBitSet(128);
-const BitSet64 = stdbits.IntegerBitSet(64);
+pub const BitSet128 = stdbits.IntegerBitSet(128);
+pub const BitSet64 = stdbits.IntegerBitSet(64);
 
 
 // Compile time constant function which takes a string of valid delimiter characters and returns a bitset.
@@ -39,3 +39,6 @@ pub fn chToKind(bitset: BitSet128, ch: u8, offset: usize) tok.Token.Kind {
     return @enumFromInt(chIndex + offset);
 }
 
+pub fn isKind(bitset: BitSet64, kind: tok.Token.Kind) bool {
+    return bitset.isSet(@intFromEnum(kind));
+}

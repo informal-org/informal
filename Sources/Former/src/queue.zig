@@ -6,7 +6,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 
-pub fn Queue(comptime t: type) type {
+pub fn Queue(comptime t: type, comptime default: t) type {
     return struct {
         const Self = @This();
         // const Allocator = std.heap.page_allocator;
@@ -15,6 +15,7 @@ pub fn Queue(comptime t: type) type {
         list: ArrayList,
         head: usize,
         tail: usize,
+        default: t = default,
 
         pub fn init(allocator: Allocator) Self {
             return Self{
@@ -40,12 +41,12 @@ pub fn Queue(comptime t: type) type {
             self.list.clearRetainingCapacity();
         }
 
-        pub fn next(self: *Self) ?t {
+        pub fn pop(self: *Self) t {
             if (self.head == self.tail) {
-                return null;
+                return default;
             }
 
-            const value = self.list[self.head];
+            const value = self.list.items[self.head];
             self.head += 1;
             return value;
         }

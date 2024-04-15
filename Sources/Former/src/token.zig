@@ -1,6 +1,7 @@
 const val = @import("value.zig");
 const std = @import("std");
 const print = std.debug.print;
+const bitset = @import("bitset.zig");
 
 
 pub const Token = packed struct(u64) { 
@@ -31,15 +32,15 @@ pub const Token = packed struct(u64) {
         op_pow, // ^
         grp_close_sqbr,
         grp_open_sqbr,
-        op_at,
-        op_question,
+        // op_at,
+        // op_question,
         op_gt,
         op_assign_eq, // =
         op_lt,
-        op_semicolon,
+        // op_semicolon,
         op_colon_assoc, // :
         op_div,
-        op_dot_attr, // .
+        op_dot_member, // .
         op_sub,
         sep_comma,
         op_add,
@@ -48,7 +49,9 @@ pub const Token = packed struct(u64) {
         grp_open_paren,
         op_mod,
 
-        // Alphabetical keywords and special-cases come last.
+        // Alphabetical keywords and special-cases come last in any order.
+
+        op_unary_minus,
 
         op_and,
         op_or,
@@ -67,6 +70,7 @@ pub const Token = packed struct(u64) {
         kw_else,
         kw_else_if,
         kw_for,
+        kw_def,
 
         sep_newline,
 
@@ -74,6 +78,9 @@ pub const Token = packed struct(u64) {
         lit_string,
         lit_bool,
         lit_number,
+        lit_null,
+
+
 
         // All aux tokens go at the end - denoted by the AUX_KIND_START constant.
         // Used to detect what's aux.
@@ -179,7 +186,7 @@ pub const OP_IS = createToken(Token.Kind.op_is);
 pub const OP_IS_NOT = createToken(Token.Kind.op_is_not);
 pub const OP_NOT_IN = createToken(Token.Kind.op_not_in);
 pub const OP_COLON_ASSOC = createToken(Token.Kind.op_colon_assoc);
-pub const OP_DOT_ATTR = createToken(Token.Kind.op_dot_attr);
+pub const OP_DOT_MEMBER = createToken(Token.Kind.op_dot_member);
 
 pub const GRP_OPEN_PAREN = createToken(Token.Kind.grp_open_paren);
 pub const GRP_CLOSE_PAREN = createToken(Token.Kind.grp_close_paren);
@@ -218,35 +225,6 @@ pub fn print_token(token: Token, buffer: []const u8) void {
     }
 }
 
-// pub fn print_token(token: Token) void {
-//     switch (token.tag) {
-//         TokenTag.token => {
-//             print("Token {any}", .{token});
-//         },
-//         TokenTag.value => {
-//             print("value", .{});
-//         },
-//         TokenTag.identifier => {
-//             print("identifier", .{});
-//         },
-//         TokenTag.string_literal => {
-//             print("string_literal", .{});
-//         },
-//         TokenTag.newline => {
-//             print("newline", .{});
-//         }
-//     }
-// }
-
-// @bitSizeOf
-const expect = std.testing.expect;
-
-test "Test token sizes" {
-    try expect(@bitSizeOf(Token) == 64);
-    // try expect(@bitSizeOf(Aux) == 64);
-    // try expect(@bitSizeOf(AuxOrToken) == 128);
-}
-
 
 pub const Assoc = enum(u1) {
     left, right
@@ -261,3 +239,164 @@ pub const ParserMeta = packed struct(u6) {
     assoc: Assoc,
     arity: Arity,
 };
+
+const TK = Token.Kind;
+
+const LITERALS = bitset.token_bitset(&[_]TK{ TK.lit_string, TK.lit_number, TK.lit_bool, TK.lit_null});
+const UNARY_OPS = bitset.token_bitset(&[_]TK{ TK.op_not, TK.op_unary_minus});
+const GROUP_START = bitset.token_bitset(&[_]TK{ TK.grp_indent, TK.grp_open_paren, TK.grp_open_brace, TK.grp_open_sqbr});
+const IDENTIFIER = bitset.token_bitset(&[_]TK{ TK.identifier});
+const KEYWORD_START = bitset.token_bitset(&[_]TK{ TK.kw_if, TK.kw_for, TK.kw_def});
+const PAREN_START = bitset.token_bitset(&[_]TK{ TK.grp_open_paren });
+const BINARY_OPS = bitset.token_bitset(&[_]TK{ 
+    TK.op_gte,
+    TK.op_dbl_eq,
+    TK.op_lte,
+    TK.op_div_eq,
+    TK.op_minus_eq,
+    TK.op_plus_eq,
+    TK.op_mul_eq,
+    TK.op_not_eq,
+    TK.op_choice,
+    TK.op_pow,
+    // op_at,
+    // op_question,
+    TK.op_gt,
+    TK.op_assign_eq,   // TODO: This one's a special case
+    TK.op_lt,
+    TK.op_colon_assoc, // TODO: This one's a special case
+    TK.op_div,
+    TK.op_dot_member,
+    TK.op_sub,
+    TK.op_add,
+    TK.op_mul,
+    TK.op_mod,
+    TK.op_and,
+    TK.op_or,
+    TK.op_in,
+    TK.op_is,
+    TK.op_as,
+});
+const SEPARATORS = bitset.token_bitset(&[_]TK{ 
+    TK.sep_comma,
+    TK.sep_newline
+});
+
+const PRECEDENCE_LEVELS = [_]bitset.BitSet64 {
+    // Higher binding power -> lower
+    // Grouping is handled separately.
+    bitset.token_bitset(&[_]TK{ TK.op_dot_member }),
+
+    // Unary ops.
+    bitset.token_bitset(&[_]TK{ TK.op_unary_minus, TK.op_not }),
+
+    bitset.token_bitset(&[_]TK{ TK.op_pow }),
+    bitset.token_bitset(&[_]TK{ TK.op_mod, TK.op_div, TK.op_mul }),
+    bitset.token_bitset(&[_]TK{ TK.op_add, TK.op_sub }),
+
+    // Comparison operators
+    bitset.token_bitset(&[_]TK{ TK.op_gte, TK.op_lte, TK.op_lt, TK.op_gt }),
+    bitset.token_bitset(&[_]TK{ TK.op_dbl_eq, TK.op_not_eq }),
+
+    // Logical operators
+    bitset.token_bitset(&[_]TK{ TK.op_and }),
+    bitset.token_bitset(&[_]TK{ TK.op_or }),
+
+    // Assignment operators
+    bitset.token_bitset(&[_]TK{ TK.op_assign_eq, TK.op_div_eq, TK.op_minus_eq, TK.op_plus_eq, TK.op_mul_eq }),
+
+    // Separators
+    bitset.token_bitset(&[_]TK{ TK.sep_comma, TK.sep_newline }),
+};
+
+// The following operators are right associative. Everything else is left-associative.
+// a = b = c is equivalent to a = (b = c). 
+const RIGHT_ASSOC = bitset.token_bitset(&[_]TK{ TK.op_not, TK.op_pow, TK.op_colon_assoc, TK.op_assign_eq, TK.op_div_eq, TK.op_minus_eq, TK.op_plus_eq, TK.op_mul_eq });
+
+
+// Given the current operarator, indicates which other operators to flush from the operator stack
+// Allows us to handle precedence and associativity in a single lookup
+// Doesn't require additional precedence lookups per operator on the stack.
+// Compile-time constant.
+
+const TBL_PRECEDENCE_FLUSH = initPrecedenceTable();
+
+fn initPrecedenceTable() [64]bitset.BitSet64 {
+    @setEvalBranchQuota(10000);
+    var flushTbl: [64]bitset.BitSet64 = undefined;
+    const flushNothing = bitset.BitSet64.initEmpty();
+    for(0..64) |i| {
+        flushTbl[i] = flushNothing;
+    }
+
+    // We only want to construct the precedence table for the tokens which have precedence.
+    // Everything else should be handled by separate state-machine logic and should be unreachable.
+    for(PRECEDENCE_LEVELS) |level| {
+        for(0..64) |i| {        // TODO
+            // Assumption: Each op only shows up in one precedence level.
+            if (level.isSet(i)) {
+                flushTbl[i] = getFlushBitset(@enumFromInt(i));
+            }
+        }
+    }
+    return flushTbl;
+}
+
+fn getFlushBitset(kind: TK) bitset.BitSet64 {
+    // For each token, you flush all tokens with higher precedence, since those operations
+    // must be done before this lower-precedence op.
+    // Also flush if precedence is equal and left-associative, to respect left-to-right precedence.
+    var bs: bitset.BitSet64 = bitset.BitSet64.initEmpty();
+    const tokenKind: u6 = @intFromEnum(kind);
+    for (PRECEDENCE_LEVELS) |level| {
+        if (!level.isSet(tokenKind)) {
+            bs = bs.unionWith(level);
+        } else {
+            // Flush equal precedence if left-associative.
+            if(!RIGHT_ASSOC.isSet(tokenKind)) {
+                bs = bs.unionWith(level);
+            }
+            break;
+        }
+    }
+    return bs;
+}
+
+
+// @bitSizeOf
+const expect = std.testing.expect;
+const expectEqual = std.testing.expectEqual;
+
+test "Test token sizes" {
+    try expect(@bitSizeOf(Token) == 64);
+    // try expect(@bitSizeOf(Aux) == 64);
+    // try expect(@bitSizeOf(AuxOrToken) == 128);
+}
+
+test "Test precedence table" {
+    const dotFlush = TBL_PRECEDENCE_FLUSH[@intFromEnum(TK.op_dot_member)];
+    print("\nDot: {b}\n", .{dotFlush.mask});
+    // try expect(dotFlush.isSet(@intFromEnum(TK.op_dot_member)));
+    // Nothing else is higher precedence.
+    try expectEqual(1, dotFlush.count());
+
+    const divFlush = TBL_PRECEDENCE_FLUSH[@intFromEnum(TK.op_div)];
+    print("Div: {b}\n", .{divFlush.mask});
+    try expectEqual(7, divFlush.count());   // 7 higher/equal precedence operators.
+    // When you see a div, flush all of these operators (but not lower precedence ones like add, sub, etc.)
+    const divFlushExpected = bitset.token_bitset(
+        &[_]TK{ TK.op_mod, TK.op_div, TK.op_mul, TK.op_pow, TK.op_unary_minus, TK.op_not, TK.op_dot_member }
+    );
+    try expectEqual(divFlushExpected.mask, divFlush.mask);
+
+    // Test right-associative. Should not flush itself.
+    const powFlush = TBL_PRECEDENCE_FLUSH[@intFromEnum(TK.op_pow)];
+    print("Pow: {b}\n", .{powFlush.mask});
+    try expectEqual(3, powFlush.count());
+    const powFlushExpected = bitset.token_bitset(
+        &[_]TK{ TK.op_dot_member, TK.op_unary_minus, TK.op_not }
+    );
+    try expectEqual(powFlushExpected.mask, powFlush.mask);
+
+    print("Comma: {b}\n", .{TBL_PRECEDENCE_FLUSH[@intFromEnum(TK.sep_comma)].mask});
+}

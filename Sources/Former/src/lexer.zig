@@ -8,7 +8,7 @@ const bitset = @import("bitset.zig");
 const print = std.debug.print;
 
 const Token = tok.Token;
-pub const TokenQueue = q.Queue(Token);
+pub const TokenQueue = q.Queue(Token, tok.AUX_STREAM_END);
 
 const SYNTAX_Q: u1 = 0;
 const AUX_Q: u1 = 1;
@@ -404,40 +404,10 @@ const test_allocator = std.testing.allocator;
 const arena_allocator = std.heap.ArenaAllocator;
 const expect = std.testing.expect;
 const expectEqual = std.testing.expectEqual;
+const testutils = @import("testutils.zig");
+const testTokenEquals = testutils.testTokenEquals;
+const testQueueEquals = testutils.testQueueEquals;
 
-fn testTokenEquals(lexed: Token, expected: Token) !void {
-    const lexBits: u64 = @bitCast(lexed);
-    const expectedBits: u64 = @bitCast(expected);
-    try expectEqual(lexBits, expectedBits);
-}
-
-fn testQueueEquals(buffer: []const u8, resultQ: *TokenQueue, expected: []const Token) !void {
-    if (resultQ.list.items.len != expected.len) {
-        print("\nSyntax Queue - Length mismatch {d} vs {d}\n", .{ resultQ.list.items.len, expected.len });
-        for (resultQ.list.items) |lexedToken| {
-            tok.print_token(lexedToken, buffer);
-            print("\n", .{});
-        }
-    }
-
-    try expectEqual(resultQ.list.items.len, expected.len);
-
-    for (resultQ.list.items, 0..) |lexedToken, i| {
-        const lexBits: u64 = @bitCast(lexedToken);
-        const expectedBits: u64 = @bitCast(expected[i]);
-        if (lexBits != expectedBits) {
-            print("\nLexed: ", .{});
-            tok.print_token(lexedToken, buffer);
-            print(".\nExpected: ", .{});
-            tok.print_token(expected[i], buffer);
-            print(".\n", .{});
-            // print("\nLexerout ", .{});
-        }
-        // tok.print_token(lexedToken, buffer);
-        try testTokenEquals(lexedToken, expected[i]);
-    }
-
-}
 
 pub fn testLexToken(buffer: []const u8, expected: []const Token, aux: []const Token) !void {
     print("\nTest Lex Token: {s}\n", .{buffer});
@@ -453,7 +423,6 @@ pub fn testLexToken(buffer: []const u8, expected: []const Token, aux: []const To
     
     try testQueueEquals(buffer, &syntaxQ, expected);
     try testQueueEquals(buffer, &auxQ, aux);
-
 }
 
 test "Token equality" {
