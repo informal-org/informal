@@ -225,6 +225,13 @@ pub fn print_token(token: Token, buffer: []const u8) void {
     }
 }
 
+pub fn print_token_queue(queue: []Token, buffer: []const u8) void {
+    for (queue) |token| {
+        print_token(token, buffer);
+        print("\n", .{});
+    }
+}
+
 
 pub const Assoc = enum(u1) {
     left, right
@@ -242,13 +249,13 @@ pub const ParserMeta = packed struct(u6) {
 
 const TK = Token.Kind;
 
-const LITERALS = bitset.token_bitset(&[_]TK{ TK.lit_string, TK.lit_number, TK.lit_bool, TK.lit_null});
-const UNARY_OPS = bitset.token_bitset(&[_]TK{ TK.op_not, TK.op_unary_minus});
-const GROUP_START = bitset.token_bitset(&[_]TK{ TK.grp_indent, TK.grp_open_paren, TK.grp_open_brace, TK.grp_open_sqbr});
-const IDENTIFIER = bitset.token_bitset(&[_]TK{ TK.identifier});
-const KEYWORD_START = bitset.token_bitset(&[_]TK{ TK.kw_if, TK.kw_for, TK.kw_def});
-const PAREN_START = bitset.token_bitset(&[_]TK{ TK.grp_open_paren });
-const BINARY_OPS = bitset.token_bitset(&[_]TK{ 
+pub const LITERALS = bitset.token_bitset(&[_]TK{ TK.lit_string, TK.lit_number, TK.lit_bool, TK.lit_null});
+pub const UNARY_OPS = bitset.token_bitset(&[_]TK{ TK.op_not, TK.op_unary_minus});
+pub const GROUP_START = bitset.token_bitset(&[_]TK{ TK.grp_indent, TK.grp_open_paren, TK.grp_open_brace, TK.grp_open_sqbr});
+pub const IDENTIFIER = bitset.token_bitset(&[_]TK{ TK.identifier});
+pub const KEYWORD_START = bitset.token_bitset(&[_]TK{ TK.kw_if, TK.kw_for, TK.kw_def});
+pub const PAREN_START = bitset.token_bitset(&[_]TK{ TK.grp_open_paren });
+pub const BINARY_OPS = bitset.token_bitset(&[_]TK{ 
     TK.op_gte,
     TK.op_dbl_eq,
     TK.op_lte,
@@ -277,7 +284,7 @@ const BINARY_OPS = bitset.token_bitset(&[_]TK{
     TK.op_is,
     TK.op_as,
 });
-const SEPARATORS = bitset.token_bitset(&[_]TK{ 
+pub const SEPARATORS = bitset.token_bitset(&[_]TK{ 
     TK.sep_comma,
     TK.sep_newline
 });
@@ -319,7 +326,7 @@ const RIGHT_ASSOC = bitset.token_bitset(&[_]TK{ TK.op_not, TK.op_pow, TK.op_colo
 // Doesn't require additional precedence lookups per operator on the stack.
 // Compile-time constant.
 
-const TBL_PRECEDENCE_FLUSH = initPrecedenceTable();
+pub const TBL_PRECEDENCE_FLUSH = initPrecedenceTable();
 
 fn initPrecedenceTable() [64]bitset.BitSet64 {
     @setEvalBranchQuota(10000);
@@ -375,13 +382,13 @@ test "Test token sizes" {
 
 test "Test precedence table" {
     const dotFlush = TBL_PRECEDENCE_FLUSH[@intFromEnum(TK.op_dot_member)];
-    print("\nDot: {b}\n", .{dotFlush.mask});
+    // print("\nDot: {b}\n", .{dotFlush.mask});
     // try expect(dotFlush.isSet(@intFromEnum(TK.op_dot_member)));
     // Nothing else is higher precedence.
     try expectEqual(1, dotFlush.count());
 
     const divFlush = TBL_PRECEDENCE_FLUSH[@intFromEnum(TK.op_div)];
-    print("Div: {b}\n", .{divFlush.mask});
+    // print("Div: {b}\n", .{divFlush.mask});
     try expectEqual(7, divFlush.count());   // 7 higher/equal precedence operators.
     // When you see a div, flush all of these operators (but not lower precedence ones like add, sub, etc.)
     const divFlushExpected = bitset.token_bitset(
@@ -391,12 +398,12 @@ test "Test precedence table" {
 
     // Test right-associative. Should not flush itself.
     const powFlush = TBL_PRECEDENCE_FLUSH[@intFromEnum(TK.op_pow)];
-    print("Pow: {b}\n", .{powFlush.mask});
+    // print("Pow: {b}\n", .{powFlush.mask});
     try expectEqual(3, powFlush.count());
     const powFlushExpected = bitset.token_bitset(
         &[_]TK{ TK.op_dot_member, TK.op_unary_minus, TK.op_not }
     );
     try expectEqual(powFlushExpected.mask, powFlush.mask);
 
-    print("Comma: {b}\n", .{TBL_PRECEDENCE_FLUSH[@intFromEnum(TK.sep_comma)].mask});
+    // print("Comma: {b}\n", .{TBL_PRECEDENCE_FLUSH[@intFromEnum(TK.sep_comma)].mask});
 }

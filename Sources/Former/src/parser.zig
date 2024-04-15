@@ -33,7 +33,10 @@ pub const Parser = struct {
     parsedQ: *TokenQueue, 
     // For each token in the parsedQ, indicates where to find it in the syntaxQ.
     offsetQ: *OffsetQueue,
-    opStack: std.MultiArrayList(ParseNode),
+
+    // Benchmark: MultiArrayList vs ArrayList for this use-case.
+    // Multi will be more compact without the padding, but we push/pop them in pairs anyway.
+    opStack: std.ArrayList(ParseNode),
 
     allocator: Allocator,
     index: u32,
@@ -45,9 +48,13 @@ pub const Parser = struct {
     };
 
     pub fn init(buffer: []const u8, syntaxQ: *TokenQueue, auxQ: *TokenQueue, parsedQ: *TokenQueue, offsetQ: *OffsetQueue, allocator: Allocator) Self {
-        const opStack = std.MultiArrayList(ParseNode){};
+        const opStack = std.ArrayList(ParseNode).init(allocator);
         
         return Self{.buffer = buffer, .syntaxQ = syntaxQ, .auxQ = auxQ, .parsedQ=parsedQ, .offsetQ=offsetQ, .allocator = allocator, .index = 0, .opStack = opStack};    
+    }
+
+    pub fn deinit(self: *Self) void {
+        self.opStack.deinit();
     }
 
     fn emitParsed(self: *Self, token: Token) !void {
@@ -60,8 +67,23 @@ pub const Parser = struct {
         try self.offsetQ.push(@truncate(self.offsetQ.list.items.len - index));
     }
 
+    fn flushOpStack(self: *Self, token: Token) !void {
+        // Indicates which tokens have higher-precedence and associativity.
+        // Those operations must be emitted/done first before the current token.
+        const flushBitset = tok.TBL_PRECEDENCE_FLUSH[@intFromEnum(token.kind)];
+        while(self.opStack.items.len > 0) {
+            const top = self.opStack.items[self.opStack.items.len - 1];
+            const topKind = top.token.kind;
+            if(flushBitset.isSet(@intFromEnum(topKind))) {
+                try self.popOp();
+            } else {
+                break;
+            }
+        }
+    }
+
     fn pushOp(self: *Self, token: Token) !void {
-        // TODO: Emit all lower precedence operators.
+        try self.flushOpStack(token);
         try self.opStack.append(ParseNode{.token = token, .index = self.index});
     }
 
@@ -137,6 +159,8 @@ pub const Parser = struct {
     fn expect_binary(self: *Self) !void {
         const token = self.syntaxQ.pop();
         if(token.kind == tok.AUX_STREAM_END.kind) {
+            // Stream end is fine. Expression is complete without continuation.
+            // 1 + 1 _
             return;
         }
         // 1 __
@@ -148,6 +172,7 @@ pub const Parser = struct {
         } else if(isKind(tok.BINARY_OPS, kind)) {
             print("Binary op: {any}\n", .{token});
             try self.pushOp(token);
+            try self.expect_unary();
         } else {
             print("Invalid token: {any}\n", .{token});
         }
@@ -164,6 +189,30 @@ pub const Parser = struct {
     // Invalid states:
     // Other identifiers or literals.
     // Unary operators.
+    fn expect_unary(self: *Self) !void {
+        const token = self.syntaxQ.pop();
+        if(token.kind == tok.AUX_STREAM_END.kind) {
+            return;
+        }
+        const kind = token.kind;
+        
+        // Pretty similar to the initial state.
+        if(isKind(tok.LITERALS, kind)) {
+            print("Initial state Literal: {any}\n", .{token});
+            try self.emitParsed(token);
+            // try self.expect_binary();    // TODO: Unable to resolve inferred error set.
+        } else if(isKind(tok.IDENTIFIER, kind)) {
+            print("Identifier: {any}\n", .{token});
+        } else if(isKind(tok.PAREN_START, kind)) {
+            print("Paren Start: {any}\n", .{token});
+        } else if(isKind(tok.KEYWORD_START, kind)) {
+            print("Keyword Start: {any}\n", .{token});
+        } else if(isKind(tok.UNARY_OPS, kind)) {
+            print("UNARY Op: {any}\n", .{token});
+        } else {
+            print("Invalid token: {any}\n", .{token});
+        }
+    }
     
 
     /////////////////////////////////////////////
@@ -206,6 +255,13 @@ pub const Parser = struct {
     // Each state function should process a token at a time, with no lookahead or backtracking.
     pub fn parse(self: *Self) !void {
         try self.initial_state();
+
+
+        // At the end - flush the operator stack.
+        // TODO: Validate that it contains no brackets (indicates open without close), etc.
+        while(self.opStack.items.len > 0) {
+            try self.popOp();
+        }
     }
 
 
@@ -235,13 +291,18 @@ pub fn testParse(buffer: []const u8, tokens: []const Token, aux: []const Token, 
     defer parsedQ.deinit();
     defer offsetQ.deinit();
     var parser = Parser.init(buffer, &syntaxQ, &auxQ, &parsedQ, &offsetQ, test_allocator);
-
-    print("\nTest Parse: {s}\n", .{buffer});
-    print("Tokens: {d}\n", .{tokens.len});
-    print("Aux: {d}\n", .{aux.len});
-    print("Expected: {d}\n", .{expected.len});
+    defer parser.deinit();
 
     try parser.parse();
+
+    print("\nTest Parse: {s}\n", .{buffer});
+    // print("Tokens: {any}\n", .{tokens});
+    print("Parsed", .{});
+    tok.print_token_queue(parsedQ.list.items, buffer);
+    print("Aux: {d}\n", .{aux.len});
+    print("Expected: {any}\n", .{expected});
+
+    try testutils.testQueueEquals(buffer, &parsedQ, expected);
 
 }
 
