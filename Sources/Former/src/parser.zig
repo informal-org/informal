@@ -327,6 +327,7 @@ test "Parse basic add" {
 
 test "Parse math op precedence" {
 
+    print("Sys: {d}\n", .{sys.SYS_exit});
     const buffer = "1+2*3";
     const tokens = &[_]Token{
         tok.numberLiteral(0, 1),

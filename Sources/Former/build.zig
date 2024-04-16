@@ -24,9 +24,30 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     exe.linkLibC();
+
+
+    // const cLib = b.addStaticLibrary("syscall", "syscall.h");
+    // cLib.install();
+    // exe.addLibrary(cLib);
+
     // exe.linkLibrary(mlir);
 
     // exe.linkSystemLibrary("mlir");
+
+    // exe.addCSourceFile(.{
+    //     .file = .{
+    //         .path = "src/foo.c",
+    //     },
+    //     // .flags = CFlags,
+    // });
+
+    exe.addIncludePath(.{
+        .path = "lib/include/",
+    });
+
+
+    
+
 
     // This declares intent for the executable to be installed into the
     // standard location when the user invokes the "install" step (the default

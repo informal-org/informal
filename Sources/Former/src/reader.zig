@@ -28,7 +28,7 @@ pub fn compile_file(filename: []u8) !void {
     defer file.close();
 
     const reader = file.reader();
-    var buffer: [16384]u8 = undefined;       // 4096
+    var buffer: [16384]u8 = undefined;   // 16kb - sysctl vm.pagesize
 
     while (true) {
         const readResult = try reader.read(&buffer);
