@@ -3,6 +3,7 @@ const std = @import("std");
 const q = @import("queue.zig");
 
 const Token = tok.Token;
+const TokenWriter = tok.TokenWriter;
 pub const TokenQueue = q.Queue(Token, tok.AUX_STREAM_END);
 const print = std.debug.print;
 
@@ -22,8 +23,7 @@ pub fn testQueueEquals(buffer: []const u8, resultQ: *TokenQueue, expected: []con
     if (resultQ.list.items.len != expected.len) {
         print("\nSyntax Queue - Length mismatch {d} vs {d}\n", .{ resultQ.list.items.len, expected.len });
         for (resultQ.list.items) |lexedToken| {
-            tok.print_token(lexedToken, buffer);
-            print("\n", .{});
+            print("\n {any}", .{TokenWriter{ .token = lexedToken, .buffer = buffer }});
         }
     }
 
@@ -33,12 +33,8 @@ pub fn testQueueEquals(buffer: []const u8, resultQ: *TokenQueue, expected: []con
         const lexBits: u64 = @bitCast(lexedToken);
         const expectedBits: u64 = @bitCast(expected[i]);
         if (lexBits != expectedBits) {
-            print("\nLexed: ", .{});
-            tok.print_token(lexedToken, buffer);
-            print(".\nExpected: ", .{});
-            tok.print_token(expected[i], buffer);
-            print(".\n", .{});
-            // print("\nLexerout ", .{});
+            print("\nLexed: {any}", .{ TokenWriter{ .token = lexedToken, .buffer = buffer }});
+            print("\nExpected: {any}\n", .{ TokenWriter{ .token = expected[i], .buffer = buffer }});
         }
         // tok.print_token(lexedToken, buffer);
         try testTokenEquals(lexedToken, expected[i]);

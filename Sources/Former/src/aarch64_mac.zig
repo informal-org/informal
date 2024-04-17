@@ -8,7 +8,7 @@
 // Reference:
 // /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/mach-o/loader.h
 // Thanks to: https://gpanders.com/blog/exploring-mach-o-part-2/
-const mach_header = struct {
+const MachHeader = struct {
 	magic: u32,		        // mach magic number identifier */
 	cputype: CpuType,	        // cpu specifier */
 	cpusubtype: u32,	    // machine specifier */
@@ -16,7 +16,7 @@ const mach_header = struct {
 	ncmds: u32,		        // number of load commands */
 	sizeofcmds: u32,	    // the size of all the load commands */
 	flags: Flags,		        // flags */
-}
+};
 
 // 32bit = 0xfeedface :)
 const MH_MAGIC = "0xfeedfacf";
@@ -61,36 +61,36 @@ const Filetype = enum(u32) {
 // Reference:
 // https://web.archive.org/web/20090901205800/http://developer.apple.com/mac/library/documentation/DeveloperTools/Conceptual/MachORuntime/Reference/reference.html#//apple_ref/c/tag/section_64
 const Flags = packed struct {
-    noundefs: bool, // The object file contained no undefined references when it was built
-    incrlink: bool, // The object file is the output of an incremental link against a base file and cannot be linked again.
-    dyldlink: bool, // The file is input for the dynamic linker and cannot be statically linked again
-    bindatload: bool, // The dynamic linker should bind the undefined references when the file is loaded.
-    prebound: bool, // The file’s undefined references are prebound
-    split_segs: bool, // The file has its read-only and read-write segments split.
-    lazy_init: bool,
-    twolevel: bool, // The image is using two-level namespace bindings
-    force_flat: bool, // The executable is forcing all images to use flat namespace bindings
-    nomultidefs: bool, // This umbrella guarantees there are no multiple definitions of symbols in its subimages. As a result, the two-level namespace hints can always be used.
-    nofixprebinding: bool,  // The dynamic linker doesn’t notify the prebinding agent about this executable
-    prebindable: bool,  // This file is not prebound but can have its prebinding redone. Used only when MH_PREBEOUND is not set.
-    allmodsbound: bool, // Indicates that this binary binds to all two-level namespace modules of its dependent libraries. Used only when MH_PREBINDABLE and MH_TWOLEVEL are set
-    subsections_via_symbols: bool, // The sections of the object file can be divided into individual blocks. These blocks are dead-stripped if they are not used by other code. 
-    canonical: bool, // This file has been canonicalized by unprebinding—clearing prebinding information from the file. See the redo_prebinding man page for details.
-    weak_defines: bool,
-    binds_to_weak: bool,
-    allow_stack_execution: bool,
-    root_safe: bool,
-    setuid_safe: bool,
-    no_reexported_dylibs: bool,
-    pie: bool,  // OS will load the main executable at a random address. Only used on execute filetypes.
-    dead_strippable_dylib: bool,
-    has_tlv_descriptors: bool,
-    no_heap_execution: bool,
-    app_extension_safe: bool,
-    nlist_outofsync_with_dyldinfo: bool,
-    sim_support: bool,
-    dylib_in_cache: bool,
-    _: u3, // pad to 32 bits
+    noundefs: bool = false, // The object file contained no undefined references when it was built
+    incrlink: bool = false, // The object file is the output of an incremental link against a base file and cannot be linked again.
+    dyldlink: bool = false, // The file is input for the dynamic linker and cannot be statically linked again
+    bindatload: bool = false, // The dynamic linker should bind the undefined references when the file is loaded.
+    prebound: bool = false, // The file’s undefined references are prebound
+    split_segs: bool = false, // The file has its read-only and read-write segments split.
+    lazy_init: bool = false,
+    twolevel: bool = false, // The image is using two-level namespace bindings
+    force_flat: bool = false, // The executable is forcing all images to use flat namespace bindings
+    nomultidefs: bool = false, // This umbrella guarantees there are no multiple definitions of symbols in its subimages. As a result, the two-level namespace hints can always be used.
+    nofixprebinding: bool = false,  // The dynamic linker doesn’t notify the prebinding agent about this executable
+    prebindable: bool = false,  // This file is not prebound but can have its prebinding redone. Used only when MH_PREBEOUND is not set.
+    allmodsbound: bool = false, // Indicates that this binary binds to all two-level namespace modules of its dependent libraries. Used only when MH_PREBINDABLE and MH_TWOLEVEL are set
+    subsections_via_symbols: bool = false, // The sections of the object file can be divided into individual blocks. These blocks are dead-stripped if they are not used by other code. 
+    canonical: bool = false, // This file has been canonicalized by unprebinding—clearing prebinding information from the file. See the redo_prebinding man page for details.
+    weak_defines: bool = false,
+    binds_to_weak: bool = false,
+    allow_stack_execution: bool = false,
+    root_safe: bool = false,
+    setuid_safe: bool = false,
+    no_reexported_dylibs: bool = false,
+    pie: bool = false,  // OS will load the main executable at a random address. Only used on execute filetypes.
+    dead_strippable_dylib: bool = false,
+    has_tlv_descriptors: bool = false,
+    no_heap_execution: bool = false,
+    app_extension_safe: bool = false,
+    nlist_outofsync_with_dyldinfo: bool = false,
+    sim_support: bool = false,
+    dylib_in_cache: bool = false,
+    _: u3 = 0, // pad to 32 bits
 };
 
 // Minimal:
@@ -98,3 +98,27 @@ const Flags = packed struct {
 // DYLDLINK
 // TWOLEVEL
 // PIE
+
+
+pub fn emitBinary() void {
+    const header = MachHeader {
+        .magic =MH_MAGIC,
+        .cputype = CpuType.arm64,
+        .cpusubtype=0,
+        .filetype=Filetype.executable,
+        .ncmds=0,
+        .sizeofcmds=0,
+        .flags=Flags {
+            .noundefs=true,
+            .dyldlink=true,
+            .twolevel=true,
+            .pie=true,
+//            ..Flags{}
+        },
+    };
+
+    print("{any}", .{header});
+
+    // @emit(header);
+
+}

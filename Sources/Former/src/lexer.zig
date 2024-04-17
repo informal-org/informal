@@ -18,8 +18,8 @@ const MULTICHAR_SYMBOLS = "!*+-/<=>";
 // Microoptimization - the multichar bitset can fit in u64 since all of these are < 64.
 // Unclear if it's worth it without tests.
 const MULTICHAR_BITSET = bitset.character_bitset(MULTICHAR_SYMBOLS); // All of these chars are < 64, so truncate. TODO: Verify shift.
-const MULTILINE_KEYWORD_COUNT = MULTICHAR_SYMBOLS.len; // 8
-const SYMBOLS = bitset.character_bitset("%()*+,-./:;<=>?[]^{|}");
+const MULTICHAR_KEYWORD_COUNT = MULTICHAR_SYMBOLS.len; // 7
+const SYMBOLS = bitset.character_bitset("%()*+,-./:<=>[]^{|}");   // "%()*+,-./:;<=>?[]^{|}"
 
 /// The lexer splits up an input buffer into tokens.
 /// The input buffer are smaller chunks of a source file.
@@ -131,11 +131,24 @@ pub const Lexer = struct {
         self.lineChStart = self.index;
     }
 
+    fn token_dot(self: *Lexer) !void {
+        try switch (self.buffer[self.index]) {
+            '0'...'9' => self.token_number(),
+            else => {
+                // Emit the dot symbol.
+                try self.emitToken(tok.OP_DOT_MEMBER);
+                self.index += 1;
+            },
+        };
+
+        // Future: Handle .. / ...
+    }
+
     fn token_number(self: *Lexer) !void {
         // MVL just needs int support for bootstrapping. Stage1+ should parse float.
         // const offset = self.index - self.lineChStart;
         const start = self.index;
-        self.index += 1; // First char is already recognized as a digit.
+        self.index += 1; // First char is already recognized as a digit or dot.
         self.gobble_digits();
         const len = self.index - start;
 
@@ -348,41 +361,49 @@ pub const Lexer = struct {
                 '\n' => {
                     try self.emitNewLine();
                 },
-                '0'...'9', '.' => {
+                '.' => {
+                    try self.token_dot();
+                },
+                '0'...'9' => {
                     try self.token_number();
                 },
                 '"' => {
                     try self.token_string();
                 },
                 else => {
+                    self.index += 1;
+
                     // const chByte: u7 = @truncate(@as(u8, ch));
                     // const one: u128 = 1;
                     // const chBit: u128 = one << chByte;
                     if (MULTICHAR_BITSET.isSet(ch)) {
                         const peekCh = self.peek_ch();
+                        print("Multichar: {c} {c}\n", .{ch, peekCh});
                         // All of the current multi-char symbols have = as the followup char.
                         // If that changes in the future, use a lookup string indexed by chBit popcnt index.
                         if (peekCh == '=') {
                             const tokenKind = bitset.chToKind(MULTICHAR_BITSET, ch, 0);
                             // Emit the multichar symbol.
-                            self.index += 2;
+                            self.index += 1;
                             try self.emitToken(tok.createToken(tokenKind));
                             continue;
                         }
 
                         // Comments
                         if (ch == '/' and peekCh == '/') {
-                            self.index += 2;
+                            self.index += 1;
                             self.seek_till("\n");
                             // self.emitAux()
+                            // TODO: Emit comments.
                         }
                     }
 
                     // Single-character symbols.
                     if (SYMBOLS.isSet(ch)) {
-                        const tokKind = bitset.chToKind(SYMBOLS, ch, MULTILINE_KEYWORD_COUNT);
+                        print("CH {d} index {d} enum val {d}\n", .{ch, bitset.index128(SYMBOLS, ch), @intFromEnum(tok.Token.Kind.grp_close_brace)} );
+                        const tokKind = bitset.chToKind(SYMBOLS, ch, MULTICHAR_KEYWORD_COUNT);
                         try self.emitToken(tok.createToken(tokKind));
-                        self.index += 1;
+                        // Index updated outside.
                         continue;
                     }
 
@@ -462,6 +483,44 @@ test "Lex operator" {
         tok.nextAlt(tok.AUX_STREAM_START),
         tok.AUX_STREAM_END
     });
+}
+
+fn testSymbol(buf: []const u8, kind: Token.Kind) !void {
+    try testLexToken(buf, &[_]Token{
+        tok.nextAlt(tok.createToken(kind))
+    }, &[_]Token{
+        tok.nextAlt(tok.AUX_STREAM_START),
+        tok.AUX_STREAM_END
+    });
+}
+
+test "Lex symbols" {
+    // These are mapped by ascii-order, so sensitive to adding new tokens in between.
+    // If you add or remove a symbol, ensure the lexer.SYMBOLS constant is also updated
+    // "%()*+,-./:<=>[]^{|}"
+    const TK = Token.Kind;
+    
+    try testSymbol("%", TK.op_mod);
+    try testSymbol("(", TK.grp_open_paren);
+    try testSymbol(")", TK.grp_close_paren);
+    try testSymbol("*", TK.op_mul);
+    try testSymbol("+", TK.op_add);
+    try testSymbol(",", TK.sep_comma);
+    try testSymbol("-", TK.op_sub);
+    try testSymbol(".", TK.op_dot_member);
+    try testSymbol("/", TK.op_div);
+    try testSymbol(":", TK.op_colon_assoc);
+    try testSymbol("<", TK.op_lt);
+    try testSymbol("=", TK.op_assign_eq);
+    try testSymbol(">", TK.op_gt);
+    try testSymbol("[", TK.grp_open_bracket);
+    try testSymbol("]", TK.grp_close_bracket);
+    try testSymbol("^", TK.op_pow);
+    try testSymbol("{", TK.grp_open_brace);
+    try testSymbol("|", TK.op_choice);
+    try testSymbol("}", TK.grp_close_brace);
+    
+
 }
 
 //     var lexer = Lexer.init("1 2 3", syntaxQ, auxQ);

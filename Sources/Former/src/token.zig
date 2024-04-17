@@ -30,8 +30,8 @@ pub const Token = packed struct(u64) {
         op_choice, // |
         grp_open_brace,
         op_pow, // ^
-        grp_close_sqbr,
-        grp_open_sqbr,
+        grp_close_bracket,
+        grp_open_bracket,
         // op_at,
         // op_question,
         op_gt,
@@ -105,6 +105,32 @@ pub const Token = packed struct(u64) {
         index: Index,
         value: Value,
     };
+};
+
+pub const TokenWriter = struct {
+    token: Token,
+    buffer: []const u8,
+
+    pub fn format(wrapper: TokenWriter, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        _ = fmt;
+        _ = options;
+
+        const value = wrapper.token;
+        const buffer = wrapper.buffer;
+        const alt = if (value.alternate) "A" else "";
+
+        switch (value.kind) {
+            TK.lit_number, TK.lit_string, TK.identifier => {
+                try std.fmt.format(writer, "{s} {any} {any} {s}", .{ alt, value.kind, value.data.range, buffer[value.data.range.offset..value.data.range.offset + value.data.range.length]});
+            },
+            TK.aux, TK.aux_comment, TK.aux_whitespace, TK.aux_newline, TK.aux_indentation, TK.aux_stream_start, TK.aux_stream_end => {
+                try std.fmt.format(writer, "{s} {any}", .{alt, value.kind});
+            },
+            else => {
+                try std.fmt.format(writer, "{s} {any}", .{alt, value.kind});
+            }
+        }
+    }
 };
 
 
@@ -190,8 +216,8 @@ pub const OP_DOT_MEMBER = createToken(Token.Kind.op_dot_member);
 
 pub const GRP_OPEN_PAREN = createToken(Token.Kind.grp_open_paren);
 pub const GRP_CLOSE_PAREN = createToken(Token.Kind.grp_close_paren);
-pub const GRP_OPEN_SQBR = createToken(Token.Kind.grp_open_sqbr);
-pub const GRP_CLOSE_SQBR = createToken(Token.Kind.grp_close_sqbr);
+pub const grp_open_bracket = createToken(Token.Kind.grp_open_bracket);
+pub const grp_close_bracket = createToken(Token.Kind.grp_close_bracket);
 pub const GRP_OPEN_BRACE = createToken(Token.Kind.grp_open_brace);
 pub const GRP_CLOSE_BRACE = createToken(Token.Kind.grp_close_brace);
 pub const GRP_INDENT = createToken(Token.Kind.grp_indent);
@@ -208,27 +234,9 @@ pub const AUX_STREAM_START = createToken(Token.Kind.aux_stream_start);
 pub const AUX_STREAM_END = createToken(Token.Kind.aux_stream_end);
 
 
-pub fn print_token(token: Token, buffer: []const u8) void {
-    const k = Token.Kind;
-    const alt = if (token.alternate) "A" else "";
-
-    switch (token.kind) {
-        k.lit_number, k.lit_string, k.identifier => {
-            print("{s} {any} {any} {s}", .{ alt, token.kind, token.data.range, buffer[token.data.range.offset..token.data.range.offset + token.data.range.length]});
-        },
-        k.aux, k.aux_comment, k.aux_whitespace, k.aux_newline, k.aux_indentation, k.aux_stream_start, k.aux_stream_end => {
-            print("{s} {any}", .{alt, token.kind});
-        },
-        else => {
-            print("{s} {any}", .{alt, token.kind});
-        }
-    }
-}
-
 pub fn print_token_queue(queue: []Token, buffer: []const u8) void {
     for (queue) |token| {
-        print_token(token, buffer);
-        print("\n", .{});
+        print("{any}\n", .{ TokenWriter{ .token = token, .buffer = buffer } });
     }
 }
 
@@ -251,7 +259,7 @@ const TK = Token.Kind;
 
 pub const LITERALS = bitset.token_bitset(&[_]TK{ TK.lit_string, TK.lit_number, TK.lit_bool, TK.lit_null});
 pub const UNARY_OPS = bitset.token_bitset(&[_]TK{ TK.op_not, TK.op_unary_minus});
-pub const GROUP_START = bitset.token_bitset(&[_]TK{ TK.grp_indent, TK.grp_open_paren, TK.grp_open_brace, TK.grp_open_sqbr});
+pub const GROUP_START = bitset.token_bitset(&[_]TK{ TK.grp_indent, TK.grp_open_paren, TK.grp_open_brace, TK.grp_open_bracket});
 pub const IDENTIFIER = bitset.token_bitset(&[_]TK{ TK.identifier});
 pub const KEYWORD_START = bitset.token_bitset(&[_]TK{ TK.kw_if, TK.kw_for, TK.kw_def});
 pub const PAREN_START = bitset.token_bitset(&[_]TK{ TK.grp_open_paren });
