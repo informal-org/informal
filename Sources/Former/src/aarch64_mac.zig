@@ -260,6 +260,62 @@ const DySymTabCommand = extern struct {
 };
 
 
+// Option - version of the sources used to build the binary.
+const SourceVersionCommand = extern struct {
+    cmd: Command = Command.source_version,
+    cmdsize: u32=16,
+    version: u64=0, // A.B.C.D.E packed as a24.b10.c10.d10.e10 
+};
+
+// Machine-specific data structure.
+const ThreadStateCommand = extern struct {
+    cmd: Command = Command.lc_unixthread,
+    cmdsize: u32,
+
+    flavor: u32,    // flavor of thread state
+    count: u32,     // count of u32s in thread state.
+//    state: ArmThreadState,
+};
+
+const ArmThreadState = extern struct {
+    x0: u64=0,
+    x1: u64=0,
+    x2: u64=0,
+    x3: u64=0,
+    x4: u64=0,
+    x5: u64=0,
+    x6: u64=0,
+    x7: u64=0,
+    x8: u64=0,
+    x9: u64=0,
+    x10: u64=0,
+    x11: u64=0,
+    x12: u64=0,
+    x13: u64=0,
+    x14: u64=0,
+    x15: u64=0,
+    x16: u64=0,
+    x17: u64=0,
+    x18: u64=0,
+    x19: u64=0,
+    x20: u64=0,
+    x21: u64=0,
+    x22: u64=0,
+    x23: u64=0,
+    x24: u64=0,
+    x25: u64=0,
+    x26: u64=0,
+    x27: u64=0,
+    x28: u64=0,
+    fp: u64=0,
+    lr: u64=0,
+    sp: u64=0,
+    pc: u64, // Should be initialized to the address of __text.
+    cpsr: u64=0,        // 32?
+    pad: u64=0
+};
+
+
 const VmProt = packed struct(u32) {
     read: bool = false,
     write: bool = false,
@@ -271,6 +327,7 @@ const VmProt_ReadExec = VmProt {
     .read=true,
     .execute=true
 };
+
 const VmProt_ReadOnly = VmProt {
     .read=true,
 };
@@ -376,18 +433,18 @@ pub fn emitBinary() !void {
     defer file.close();
     const writer = file.writer();
 
+    // Total of each header size. + 16 for magic header (in bytes)
+    const header_size_of_cmds = 0x2c0;
     const header = MachHeader64 {
         .magic =MH_MAGIC,
         .cputype = CpuType.arm64,
         .cpusubtype=0,
         .filetype=Filetype.execute,
-        .ncmds=15,
-        .sizeofcmds=688,        // 
+        .ncmds=7,
+        .sizeofcmds=header_size_of_cmds,
         .flags=Flags {
-            .noundefs=true,
-            .dyldlink=true,
-            .twolevel=true,
-            .pie=true
+            .noundefs=true,     // Everything's statically linked.
+            .pie=true           // Address space randomization
         },
     };
     try writer.writeStruct(header);
@@ -397,7 +454,7 @@ pub fn emitBinary() !void {
     // ------------------------ Commands ------------------------
     const segment_pagezero = SegmentCommand64 {
         .cmd = Command.segment_64,
-        .cmdsize = 72, // Total number of bytes for this segment + its sub-sections.
+        .cmdsize = 0x48, // Total number of bytes for this segment + its sub-sections.
         .segname = padName("__PAGEZERO"),
         .vmaddr = 0,
         .vmsize = 0x100000000,
@@ -410,10 +467,9 @@ pub fn emitBinary() !void {
     };
     try writer.writeStruct(segment_pagezero);
 
-
     const segment_text = SegmentCommand64 {
         .cmd = Command.segment_64,
-        .cmdsize = 232,
+        .cmdsize = 0x98, // 152.
         .segname = padName("__TEXT"),
         .vmaddr = 0x100000000,
         .vmsize = 0x4000,
@@ -421,18 +477,19 @@ pub fn emitBinary() !void {
         .filesize = 0x4000,
         .maxprot = VmProt_ReadExec,
         .initprot = VmProt_ReadExec,
-        .nsects=2,
+        .nsects=1,
         .flags=SegmentCommandFlags{}
     };
     try writer.writeStruct(segment_text);
 
     // The entire thing has to be page-size aligned.
     // So text-size is 16KiB - the header size?
-    const text_size = 16272;
+    const text_size = 16368;    // 3ff0
+    const text_addr = 0x100000000 + text_size;
     const section_text = Section64 {
         .sectname = padName("__text"),
         .segname = padName("__TEXT"),
-        .addr = 0x100000000 + 16272,
+        .addr = text_addr,
         .size = 0xc,    // 13
         .offset=text_size,
         .section_align=0x4, // 2^4 = 16 byte align.
@@ -448,20 +505,20 @@ pub fn emitBinary() !void {
     // 80000400
     try writer.writeStruct(section_text);
 
-    const section_unwind_info = Section64 {
-        .sectname = padName("__unwind_info"),
-        .segname = padName("__TEXT"),
-        .addr = 0x100000000 + 16272 + @as(u64, section_text.size),
-        .size = 0x58,   // 88
-        .offset=@truncate(text_size + section_text.size),
-        .section_align=0x2, // 2^2 = 8 byte align.
-        .reloff=0,
-        .nreloc=0,
-        .flags = SectionFlags{
-            .attributes = SectionAttributes {}
-        },
-    };
-    try writer.writeStruct(section_unwind_info);
+    // const section_unwind_info = Section64 {
+    //     .sectname = padName("__unwind_info"),
+    //     .segname = padName("__TEXT"),
+    //     .addr = 0x100000000 + 16368 + @as(u64, section_text.size),
+    //     .size = 0x58,   // 88
+    //     .offset=@truncate(text_size + section_text.size),
+    //     .section_align=0x2, // 2^2 = 8 byte align.
+    //     .reloff=0,
+    //     .nreloc=0,
+    //     .flags = SectionFlags{
+    //         .attributes = SectionAttributes {}
+    //     },
+    // };
+    // try writer.writeStruct(section_unwind_info);
 
 
     const segment_linkedit = SegmentCommand64 {
@@ -471,7 +528,7 @@ pub fn emitBinary() !void {
         .vmaddr = 0x100000000 + 0x4000,          // + previous command's size.
         .vmsize = 0x4000,
         .fileoff = 0x4000,      // + previous command's fileoff.
-        .filesize = 0x1c8,    // 456 - Where does this come from?
+        .filesize = 0x40,    // 456 - Where does this come from?
         .maxprot = VmProt_ReadOnly,
         .initprot = VmProt_ReadOnly,
         .nsects=0,
@@ -480,29 +537,29 @@ pub fn emitBinary() !void {
     try writer.writeStruct(segment_linkedit);
 
     // ------------------------ Commands ------------------------
-    const cmd_dyld_chained_fixups = LinkEditCommand {
-        .cmd = Command.dyld_chained_fixups,
-        .cmdsize = 0x10,
-        .dataoff = 0x4000,  // 
-        .datasize = 0x38,   // 56
-    };
-    try writer.writeStruct(cmd_dyld_chained_fixups);
+    // const cmd_dyld_chained_fixups = LinkEditCommand {
+    //     .cmd = Command.dyld_chained_fixups,
+    //     .cmdsize = 0x10,
+    //     .dataoff = 0x4000,  // 
+    //     .datasize = 0x38,   // 56
+    // };
+    // try writer.writeStruct(cmd_dyld_chained_fixups);
     
 
-    const cmd_dyld_exports_trie = LinkEditCommand {
-        .cmd = Command.dyld_exports_trie,
-        .cmdsize = 0x10,
-        .dataoff = 0x4038,  // + previous size
-        .datasize = 0x30,
-    };
-    try writer.writeStruct(cmd_dyld_exports_trie);
+    // const cmd_dyld_exports_trie = LinkEditCommand {
+    //     .cmd = Command.dyld_exports_trie,
+    //     .cmdsize = 0x10,
+    //     .dataoff = 0x4038,  // + previous size
+    //     .datasize = 0x30,
+    // };
+    // try writer.writeStruct(cmd_dyld_exports_trie);
 
     const cmd_symtab = SymtabCommand {
         .cmd = Command.lc_symtab,
         .cmdsize = 0x18,
-        .symoff=0x4070,
+        .symoff=0x4000,
         .nsyms=0x02,    // mh_execute_header and _main
-        .stroff=0x4090,
+        .stroff=0x4020,
         .strsize=0x20
     };
     try writer.writeStruct(cmd_symtab);
@@ -518,6 +575,46 @@ pub fn emitBinary() !void {
         .nundefsym=0,
     };
     try writer.writeStruct(cmd_dysymtab);
+
+    const src_version = SourceVersionCommand{};
+    try writer.writeStruct(src_version);
+
+    const unix_threadstate = ThreadStateCommand {
+        .cmdsize = 0x120,
+        .flavor = 0x06, // ?
+        .count = 0x44
+    };
+    try writer.writeStruct(unix_threadstate);
+
+    const arm_thread_state_data = ArmThreadState {
+        .pc = text_addr
+    };
+    try writer.writeStruct(arm_thread_state_data);
+    
+    // Padding for 16kb page alignment. 
+    // Total binary size = 0x4040 = 16448 = 16KB + 64 magic byte header.
+    // Total remaining bytes at this point:
+    // 2^14 - sum of all the header sizes(688). = x3D50
+    // Then fill the bottom with contents.
+    // Generate 15696 bits of padding. 1962 bytes.
+    // const padding_size = 0x3D50;
+    // const padding : [padding_size]u8 = undefined; 
+    // @memset(&padding, 0);
+    // try writer.write(padding);
+    // Probably a better way to do this...
+    for(0..0x3D50) |_| {
+        try writer.writeByte(0);
+    }
+
+
+    // Assembly
+
+
+    // Symbol table
+
+
+    // String table
+
 }
 
 
