@@ -12,6 +12,8 @@
 // A lot of zeroes for page alignment.
 // Actual code and data.
 
+// Recommended setting up XMachOViewer when working on this.
+
 
 // 64 bit support only.
 // Reference:
@@ -172,7 +174,7 @@ const Command = enum(u32) {
 // Extern - to support features like segname.
 const SegmentCommand64 = extern struct {
     cmd: Command,   // LC_SEGMENT_64
-    cmdsize: u32,  // includes sizeof section_64 structs
+    cmdsize: u32,  // includes sizeof section_64 structs. Total number of bytes for this segment + its sub-sections
     segname: [16]u8,   // segment name
     vmaddr: u64, // memory address of this segment (irrelevant in file. Valid in memory)
     vmsize: u64, // memory size of this segment
@@ -191,6 +193,11 @@ const VmProt = packed struct(u32) {
     _: u29 = 0, // pad to 32 bits  
 };
 
+const VmProt_ReadExec = VmProt {
+    .read=true,
+    .execute=true
+};
+
 const SegmentCommandFlags = packed struct(u32) {
     highvm: bool=false, //  the file contents for this segment is for the high part of the VM space, the low part is zero filled (for stacks in core files)
     fvmlib: bool=false, // this segment is the VM that is allocated by a fixed VM library, for overlap checking in the link editor
@@ -200,19 +207,69 @@ const SegmentCommandFlags = packed struct(u32) {
     _: u27=0, // pad to 32 bits
 };
 
-const Section64 = packed struct {
+const Section64 = extern struct {
     sectname: [16]u8,
     segname: [16]u8,
     addr: u64,
     size: u64,
     offset: u32,
-    section_align: u32, // "align" in c, but it's a reserved word in zig.
+    // "align" in c, but it's a reserved word in zig.
+    // Aligns to 2^section_align
+    section_align: u32,
     reloff: u32,
     nreloc: u32,
-    flags: u32,
-    reserved1: u32,
-    reserved2: u32,
-    reserved3: u32,
+    flags: SectionFlags,
+    reserved1: u32=0,
+    reserved2: u32=0,
+    reserved3: u32=0,
+};
+
+const SECTION_ATTRIBUTES_USR = 0xff000000;
+const SECTION_ATTRIBUTES_SYS = 0x00ffff00;
+
+// Is this backwards?
+const SectionAttributes = packed struct(u24) {
+    loc_reloc: bool=false,
+    ext_reloc: bool=false,
+    some_instructions: bool=false,
+    system: u14=0,
+    debug: bool=false,
+    self_modifying_code: bool=false,
+    live_support: bool=false,
+    no_dead_strip: bool=false,
+    strip_static_syms: bool=false,
+    no_toc: bool=false,
+    pure_instructions: bool=false,
+
+
+
+    // pure_instructions: bool=false, // 0x80000000
+    // no_toc: bool=false,            // 0x40000000
+    // strip_static_syms: bool=false, // 0x20000000
+    // no_dead_strip: bool=false,     // 0x10000000
+    // live_support: bool=false,      // 0x08000000
+    
+    // self_modifying_code: bool=false,//0x04000000
+    // debug: bool=false,             // 0x02000000. All must be debug if one is. DWARF debug info.
+    // system: u14=0,  // ?
+    // some_instructions: bool=false,
+    // ext_reloc: bool=false,
+    // loc_reloc: bool=false
+};
+
+
+const SectionType = enum(u8) {
+    regular = 0x0, // regular section
+    zerofill = 0x1, // zero fill on demand section
+    cstring_literals = 0x2, // section with only literal C strings
+    four_byte_literals = 0x3,  // section with only 4 byte literals
+    eight_byte_literals = 0x4,  // section with only 8 byte literals
+    literal_pointers = 0x5, // section with only pointers to literals
+};
+
+const SectionFlags = packed struct(u32) {
+    section_type: SectionType = SectionType.regular,
+    attributes: SectionAttributes,
 };
 
 
@@ -252,9 +309,9 @@ pub fn emitBinary() !void {
     //85000000 00000AFF
 
     // Segment 64 - 0x19
-    const command = SegmentCommand64 {
+    const segment_pagezero = SegmentCommand64 {
         .cmd = Command.segment_64,
-        .cmdsize = 72,
+        .cmdsize = 72, // Total number of bytes for this segment + its sub-sections.
         .segname = padName("__PAGEZERO"),
         .vmaddr = 0,
         .vmsize = 0x100000000,
@@ -265,6 +322,44 @@ pub fn emitBinary() !void {
         .nsects=0,
         .flags=SegmentCommandFlags{}
     };
+
+
+    const segment_text = SegmentCommand64 {
+        .cmd = Command.segment_64,
+        .cmdsize = 232,
+        .segname = padName("__TEXT"),
+        .vmaddr = 0x100000000,
+        .vmsize = 0x4000,
+        .fileoff = 0,
+        .filesize = 0x4000,
+        .maxprot = VmProt_ReadExec,
+        .initprot = VmProt_ReadExec,
+        .nsects=2,
+        .flags=SegmentCommandFlags{}
+    };
+
+    // The entire thing has to be page-size aligned.
+    // So text-size is 16KiB - the header size?
+    const text_size = 16272;
+    const section_text = Section64 {
+        .sectname = padName("__text"),
+        .segname = padName("__TEXT"),
+        .addr = 0x100000000 + 16272,
+        .size = 0xc,    // 13
+        .offset=text_size,
+        .section_align=0x4, // 2^4 = 16 byte align.
+        .reloff=0,
+        .nreloc=0,
+        .flags = SectionFlags{
+            .attributes = SectionAttributes {
+                .pure_instructions=true,
+                .some_instructions=true
+            }
+        },
+    };
+    // 80000400
+
+
 
     const file = try std.fs.cwd().createFile(
         "out.bin",
@@ -278,7 +373,9 @@ pub fn emitBinary() !void {
 
     // try writer.writeAll(&header, @sizeOf(header));
     try writer.writeStruct(header);
-    try writer.writeStruct(command);
+    try writer.writeStruct(segment_pagezero);
+    try writer.writeStruct(segment_text);
+    try writer.writeStruct(section_text);
 }
 
 
