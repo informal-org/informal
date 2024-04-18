@@ -31,6 +31,13 @@ const SYMBOLS = bitset.character_bitset("%()*+,-./:<=>[]^{|}");   // "%()*+,-./:
 /// The syntax queue, containing semantically meaningful tokens.
 /// The aux queue, with tokens for comments, whitespace, etc. (used for formatting, error offsets, etc.)
 /// A bit per token indicates whether the next token appears in the other queue (one token lookahead buffer).
+/// 
+/// Future Optimizations:
+/// Convert this to the direct-threaded tail-call style like the parser and specilize which branches you check based on what's expected.
+/// Doesn't matter for jump-tables, but useful for if-else based dispatch.
+/// We don't do any interning here to avoid allocations, but it may be worthwhile so the reader can
+/// reuse the bytes immediately after the lexer is done with a chunk. 
+/// Depends on context - for IDEs and use-cases where we'll have the buffer in memory, this current approach is better.
 pub const Lexer = struct {
     const Self = @This();
     buffer: []const u8, // Slice/chunk of the source file.

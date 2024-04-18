@@ -107,9 +107,10 @@ const Flags = packed struct {
 };
 
 
-const LoadCommand = packed struct {
+const LoadCommand = extern struct {
     cmd: Command,
     cmdsize: u32,
+    // padding: u32 = 0,       // Padding for 64 bit.
 };
 
 const LC_REQ_DYLD = 0x80000000;
@@ -173,7 +174,7 @@ const Command = enum(u32) {
 
 // Extern - to support features like segname.
 const SegmentCommand64 = extern struct {
-    cmd: Command,   // LC_SEGMENT_64
+    cmd: Command = Command.segment_64,   // LC_SEGMENT_64
     cmdsize: u32,  // includes sizeof section_64 structs. Total number of bytes for this segment + its sub-sections
     segname: [16]u8,   // segment name
     vmaddr: u64, // memory address of this segment (irrelevant in file. Valid in memory)
@@ -186,6 +187,79 @@ const SegmentCommand64 = extern struct {
     flags: SegmentCommandFlags, // flags
 };
 
+const LinkEditCommand = extern struct {
+    // Structure for 
+    // LC_CODE_SIGNATURE, LC_SEGMENT_SPLIT_INFO, LC_FUNCTION_STARTS, 
+    // LC_DATA_IN_CODE, LC_DYLIB_CODE_SIGN_DRS, LC_ATOM_INFO, LC_LINKER_OPTIMIZATION_HINT, 
+    // LC_DYLD_EXPORTS_TRIE, or LC_DYLD_CHAINED_FIXUPS
+    cmd: Command,
+    cmdsize: u32,
+    // 4 fields are defined in the struct, but other compilers seem to emit just 3?
+    dataoff: u32,
+    datasize: u32,
+};
+
+
+// Offsets and dizes of the link-edit "stab" style symbol table.
+const SymtabCommand = extern struct {
+    cmd: Command = Command.lc_symtab, 
+    cmdsize: u32, // Sizeof(struct symtab_command)
+    symoff: u32, // symbol table offset
+    nsyms: u32, // number of symbol table entries
+    stroff: u32, // string table offset
+    strsize: u32, // string table size in bytes.
+};
+
+
+// Second set of symbolic information for dynamic link loader.
+// Original set of symbols from symtab symbols and strings table must also be present here.
+// Organized into three groups:
+// Local symbols - static and debugging symbols - grouped by module.
+// Defined external symbols - grouped by module (sorted by name if not lib)
+// undefined external symbols (sorted by name if MH_BINDATALOAD  is not set)
+// 
+// Contains the offsets and sizes of the following new symbol tables
+// table of contents
+// module table
+// reference symbol table
+// indirect symbol table.
+// First 3 only present if this is a dynamically linked shared lib.
+const DySymTabCommand = extern struct {
+    cmd: Command = Command.dysymtab,
+    cmdsize: u32,
+
+    ilocalsym: u32, // index to local symbols
+    nlocalsym: u32, // number of local symbols
+     // index and number of externally defined symbols
+    iextdefsym: u32 = 0,
+    nextdefsym: u32,
+    // undefined symbols
+    iundefsym: u32,
+    nundefsym: u32 = 0,
+    // Table of contents to help find which module a symbol is defined in.
+    // Only exists in shared libs.
+    tocoff: u32 = 0,
+    ntoc: u32 = 0,
+    // support dynamic binding of modules / whole object files. 
+    // Reflects module file symbol was created from.
+    modtaboff: u32=0,
+    nmodtab: u32=0,
+    // Each module indicates external refs each mod makes (defined and undefined)
+    extrefsymoff: u32=0,
+    nextrefsyms: u32=0,
+    // Symbol pointers and routing stubs.
+    // Ordered to match entries.
+    indirectsymoff: u32=0,
+    nindirectsyms: u32=0,
+    // Relocatable modules
+    extreloff: u32=0,
+    nextrel: u32=0,
+    // Local relocation entries.
+    locreloff: u32=0,
+    nlocrel: u32=0
+};
+
+
 const VmProt = packed struct(u32) {
     read: bool = false,
     write: bool = false,
@@ -196,6 +270,9 @@ const VmProt = packed struct(u32) {
 const VmProt_ReadExec = VmProt {
     .read=true,
     .execute=true
+};
+const VmProt_ReadOnly = VmProt {
+    .read=true,
 };
 
 const SegmentCommandFlags = packed struct(u32) {
@@ -291,6 +368,13 @@ fn padName(name: []const u8) [16]u8 {
 
 
 pub fn emitBinary() !void {
+    const file = try std.fs.cwd().createFile(
+        "out.bin",
+        .{ .read = true },
+    );
+
+    defer file.close();
+    const writer = file.writer();
 
     const header = MachHeader64 {
         .magic =MH_MAGIC,
@@ -306,9 +390,11 @@ pub fn emitBinary() !void {
             .pie=true
         },
     };
-    //85000000 00000AFF
+    try writer.writeStruct(header);
+    // Beware: Emits 00000AFF if you use zig packed struct rather than c-compatible extern struct.
 
     // Segment 64 - 0x19
+    // ------------------------ Commands ------------------------
     const segment_pagezero = SegmentCommand64 {
         .cmd = Command.segment_64,
         .cmdsize = 72, // Total number of bytes for this segment + its sub-sections.
@@ -322,6 +408,7 @@ pub fn emitBinary() !void {
         .nsects=0,
         .flags=SegmentCommandFlags{}
     };
+    try writer.writeStruct(segment_pagezero);
 
 
     const segment_text = SegmentCommand64 {
@@ -337,6 +424,7 @@ pub fn emitBinary() !void {
         .nsects=2,
         .flags=SegmentCommandFlags{}
     };
+    try writer.writeStruct(segment_text);
 
     // The entire thing has to be page-size aligned.
     // So text-size is 16KiB - the header size?
@@ -358,24 +446,78 @@ pub fn emitBinary() !void {
         },
     };
     // 80000400
-
-
-
-    const file = try std.fs.cwd().createFile(
-        "out.bin",
-        .{ .read = true },
-    );
-
-    defer file.close();
-
-    const writer = file.writer();
-    // defer writer.flush();
-
-    // try writer.writeAll(&header, @sizeOf(header));
-    try writer.writeStruct(header);
-    try writer.writeStruct(segment_pagezero);
-    try writer.writeStruct(segment_text);
     try writer.writeStruct(section_text);
+
+    const section_unwind_info = Section64 {
+        .sectname = padName("__unwind_info"),
+        .segname = padName("__TEXT"),
+        .addr = 0x100000000 + 16272 + @as(u64, section_text.size),
+        .size = 0x58,   // 88
+        .offset=@truncate(text_size + section_text.size),
+        .section_align=0x2, // 2^2 = 8 byte align.
+        .reloff=0,
+        .nreloc=0,
+        .flags = SectionFlags{
+            .attributes = SectionAttributes {}
+        },
+    };
+    try writer.writeStruct(section_unwind_info);
+
+
+    const segment_linkedit = SegmentCommand64 {
+        .cmd = Command.segment_64,
+        .cmdsize = 0x48,   // Size of this command header.
+        .segname = padName("__LINKEDIT"),
+        .vmaddr = 0x100000000 + 0x4000,          // + previous command's size.
+        .vmsize = 0x4000,
+        .fileoff = 0x4000,      // + previous command's fileoff.
+        .filesize = 0x1c8,    // 456 - Where does this come from?
+        .maxprot = VmProt_ReadOnly,
+        .initprot = VmProt_ReadOnly,
+        .nsects=0,
+        .flags=SegmentCommandFlags{}
+    };
+    try writer.writeStruct(segment_linkedit);
+
+    // ------------------------ Commands ------------------------
+    const cmd_dyld_chained_fixups = LinkEditCommand {
+        .cmd = Command.dyld_chained_fixups,
+        .cmdsize = 0x10,
+        .dataoff = 0x4000,  // 
+        .datasize = 0x38,   // 56
+    };
+    try writer.writeStruct(cmd_dyld_chained_fixups);
+    
+
+    const cmd_dyld_exports_trie = LinkEditCommand {
+        .cmd = Command.dyld_exports_trie,
+        .cmdsize = 0x10,
+        .dataoff = 0x4038,  // + previous size
+        .datasize = 0x30,
+    };
+    try writer.writeStruct(cmd_dyld_exports_trie);
+
+    const cmd_symtab = SymtabCommand {
+        .cmd = Command.lc_symtab,
+        .cmdsize = 0x18,
+        .symoff=0x4070,
+        .nsyms=0x02,    // mh_execute_header and _main
+        .stroff=0x4090,
+        .strsize=0x20
+    };
+    try writer.writeStruct(cmd_symtab);
+
+    
+    const cmd_dysymtab = DySymTabCommand {
+        .cmdsize = 0x50,
+        .ilocalsym=0,
+        .nlocalsym=0,
+        .iextdefsym=0,
+        .nextdefsym=2,
+        .iundefsym=2,
+        .nundefsym=0,
+    };
+    try writer.writeStruct(cmd_dysymtab);
 }
 
 
