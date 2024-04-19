@@ -1,7 +1,14 @@
+const arm = @import("arm.zig");
+const std = @import("std");
+
+
+const print = std.debug.print;
+
 
 // const sys = @cImport({
 //     @cInclude("aarch64-mac/syscall.h");
 // });
+
 
 
 // General layout:
@@ -407,8 +414,6 @@ const SectionFlags = packed struct(u32) {
 };
 
 
-const std = @import("std");
-
 fn padName(name: []const u8) [16]u8 {
     // Zero pad the name to a fixed length.
     // Probably an easier way to do this...
@@ -430,11 +435,14 @@ pub fn emitBinary() !void {
         .{ .read = true },
     );
 
+
     defer file.close();
     const writer = file.writer();
+    var totalSize: u64 = 0;
 
     // Total of each header size. + 16 for magic header (in bytes)
     const header_size_of_cmds = 0x2c0;
+    // totalSize += header_size_of_cmds;
     const header = MachHeader64 {
         .magic =MH_MAGIC,
         .cputype = CpuType.arm64,
@@ -448,6 +456,7 @@ pub fn emitBinary() !void {
         },
     };
     try writer.writeStruct(header);
+    totalSize += 32;    // 8 32 bit entries at 4 bytes each = 32.
     // Beware: Emits 00000AFF if you use zig packed struct rather than c-compatible extern struct.
 
     // Segment 64 - 0x19
@@ -466,6 +475,7 @@ pub fn emitBinary() !void {
         .flags=SegmentCommandFlags{}
     };
     try writer.writeStruct(segment_pagezero);
+    totalSize += segment_pagezero.cmdsize;
 
     const segment_text = SegmentCommand64 {
         .cmd = Command.segment_64,
@@ -481,6 +491,7 @@ pub fn emitBinary() !void {
         .flags=SegmentCommandFlags{}
     };
     try writer.writeStruct(segment_text);
+    totalSize += segment_text.cmdsize;
 
     // The entire thing has to be page-size aligned.
     // So text-size is 16KiB - the header size?
@@ -504,6 +515,8 @@ pub fn emitBinary() !void {
     };
     // 80000400
     try writer.writeStruct(section_text);
+    totalSize += section_text.size;
+    // Total size already included in above.?
 
     // const section_unwind_info = Section64 {
     //     .sectname = padName("__unwind_info"),
@@ -535,6 +548,7 @@ pub fn emitBinary() !void {
         .flags=SegmentCommandFlags{}
     };
     try writer.writeStruct(segment_linkedit);
+    totalSize += segment_linkedit.cmdsize;
 
     // ------------------------ Commands ------------------------
     // const cmd_dyld_chained_fixups = LinkEditCommand {
@@ -563,6 +577,7 @@ pub fn emitBinary() !void {
         .strsize=0x20
     };
     try writer.writeStruct(cmd_symtab);
+    totalSize += cmd_symtab.cmdsize;
 
     
     const cmd_dysymtab = DySymTabCommand {
@@ -575,9 +590,11 @@ pub fn emitBinary() !void {
         .nundefsym=0,
     };
     try writer.writeStruct(cmd_dysymtab);
+    totalSize += cmd_dysymtab.cmdsize;
 
     const src_version = SourceVersionCommand{};
     try writer.writeStruct(src_version);
+    totalSize += src_version.cmdsize;
 
     const unix_threadstate = ThreadStateCommand {
         .cmdsize = 0x120,
@@ -585,11 +602,13 @@ pub fn emitBinary() !void {
         .count = 0x44
     };
     try writer.writeStruct(unix_threadstate);
+    totalSize += unix_threadstate.cmdsize;
 
     const arm_thread_state_data = ArmThreadState {
         .pc = text_addr
     };
     try writer.writeStruct(arm_thread_state_data);
+    // totalSize - included in above
     
     // Padding for 16kb page alignment. 
     // Total binary size = 0x4040 = 16448 = 16KB + 64 magic byte header.
@@ -602,12 +621,34 @@ pub fn emitBinary() !void {
     // @memset(&padding, 0);
     // try writer.write(padding);
     // Probably a better way to do this...
-    for(0..0x3D50) |_| {
-        try writer.writeByte(0);
-    }
+    // for(0..0x3D50) |_| {
+    //     try writer.writeByte(0);
+    // }
 
+    const instrSize: u32 = 0x50; // instructions and symbol table.
 
+    const finalExecSize: u32 = 0x4040;   // 2^16 + 64KB.
+
+    // The count is still off by 4 bytes... not sure where that's coming from...
+    const paddingSize: u64 = finalExecSize - totalSize - instrSize + 4;
+
+    // totalSize = 736
+    // header size of cmds = 704
+    print("paddingSize {d} {d} {d}", .{totalSize, paddingSize, header_size_of_cmds});
+    
+    // Counting everything - total size = 1408
+    // Without header = 704 - bit too much padding.
+    // Just header = 
+    try writer.writeByteNTimes(0, paddingSize);  // 15624
+    
+    
     // Assembly
+    try writer.writeStruct(arm.MOVW_IMM {
+        .opc= arm.MOVW_IMM.OpCode.MOVZ,
+        .imm16= 42,
+        .rd=arm.Reg.x0,
+    });
+    
 
 
     // Symbol table

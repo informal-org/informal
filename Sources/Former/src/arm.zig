@@ -1,0 +1,96 @@
+const std = @import("std");
+
+// Architecture support for 64 bit ARM (AARCH64). 
+// We only support the 64 bit variant.
+
+pub const Reg = enum(u5) {
+    x0 = 0,
+    x1 = 1,
+    x2 = 2,
+    x3 = 3,
+    x4 = 4,
+    x5 = 5,
+    x6 = 6,
+    x7 = 7,
+    x8 = 8,
+    x9 = 9,
+    x10 = 10,
+    x11 = 11,
+    x12 = 12,
+    x13 = 13,
+    x14 = 14,
+    x15 = 15,
+    x16 = 16,
+    x17 = 17,
+    x18 = 18,
+    x19 = 19,
+    x20 = 20,
+    x21 = 21,
+    x22 = 22,
+    x23 = 23,
+    x24 = 24,
+    x25 = 25,
+    x26 = 26,
+    x27 = 27,
+    x28 = 28,
+    x29 = 29,
+    x30 = 30,
+    x31 = 31,
+};
+
+
+pub const MOVW_IMM = packed struct(u32) {
+    rd: Reg,
+    imm16: u16,
+    hw: u2 = 0b00,
+    _movw_imm: u6 = 0b100_101,
+    opc: OpCode, 
+    sf: u1 = 1,
+
+    pub const OpCode = enum(u2) {
+        MOVN = 0b00,    // Move wide with NOT. Moves the inverse of the optionally-shifted 16 bit imm.
+        MOVZ = 0b10,    // Move wide with zero. 
+        MOVK = 0b11,    // Move wide with keep. Keeps other bits unchanged in the register.
+    };
+};
+
+// SYSCALL
+pub const SVC = packed struct {
+    _base: u5 = 0b00001,
+    imm16: u16,
+    _svc: 0b11010100_000,
+};
+
+
+const expect = std.testing.expect;
+
+test "Test MOV" {
+    const instr = MOVW_IMM {
+        .opc= MOVW_IMM.OpCode.MOVZ,
+        .imm16= 42,
+        .rd=Reg.x0,
+    };
+
+    // Expected bytes in little endian.
+    try expect(std.mem.eql(u8, std.mem.asBytes(&instr), &[_]u8{
+        0x40, 0x05, 0x80, 0xD2
+    }));
+    
+    // Reference for how this instruction is decoded:
+    // 40 05 80 d2
+    // Little endian order:
+    // D2 80 05 40
+    // 11010010 1000 0000 0000 0101 0100 0000
+    // Decode:
+    // 110 [1001] 0 1000 0000 0000 0101 0100 0000
+    // 100x = data processing - immediate
+    // 110 100[101] 000 0000 0000 0101 0100 0000
+    // 101 = Move wide immediate
+    // [1][10] [100101] [00] [0 0000 0000 0101 010 [0 0000]
+    // SF = 1
+    // OPC = 10
+    // 100101
+    // HW = 00
+    // IMM16 = 0000000000101010 = 42!
+    // Rd = x0
+}
