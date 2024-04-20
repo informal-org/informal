@@ -1,5 +1,6 @@
 const arm = @import("arm.zig");
 const std = @import("std");
+const codesig = @import("CodeSignature.zig");
 
 
 const print = std.debug.print;
@@ -378,6 +379,15 @@ const DyldChainedFixup = extern struct {
     symbols_format: u32, // 0 => uncompressed, 1 => zlib compressed
 };
 
+const DyldChainedStarts = extern struct {
+    seg_count: u32,
+    seg_info_offset: u32,       // [1]
+};
+
+
+const DyldChainedImport = extern struct {
+
+};
 
 
 // Machine-specific data structure.
@@ -856,11 +866,45 @@ pub fn emitBinary() !void {
     
     // try writer.write(unwind_info2);
 
+    // Chained fixups
+    const chained_fixups = DyldChainedFixup {
+        .fixups_version = 0,
+        .starts_offset = 0x20,        // 0x4068
+        .imports_offset = 0x30,       // 0x4070
+        .symbols_offset = 0x30,       // 0x4090
+        .imports_count = 0,             // 2
+        .imports_format = 0x01,         // 1 = chained import
+        .symbols_format = 0,
+    };
+    try writer.writeStruct(chained_fixups);
+    try writer.writeByteNTimes(0, 4);   // till it reached starts_offset.
+
+    // dyld chained starts
+    const chained_starts = DyldChainedStarts {
+        .seg_count = 3,
+        .seg_info_offset = 0,
+    };
+    try writer.writeStruct(chained_starts);
+    // 2x4 for starts. 2 x4 for imports
+    try writer.writeByteNTimes(0, 16);
+
+    // dyld - trie.
+    const dytrying = [_]u8{0x00 , 0x01 , 0x5F ,0x00, 0x12 , 0x00 , 0x00 ,0x00, 0x00 , 0x02 , 0x00 ,0x00, 0x00 , 0x03 , 0x00 ,0x90, 0x7F , 0x00 , 0x00 ,0x02, 0x5F , 0x6D , 0x68 ,0x5F, 0x65 , 0x78 , 0x65 ,0x63, 0x75 , 0x74 , 0x65 ,0x5F, 0x68 , 0x65 , 0x61 ,0x64, 0x65 , 0x72 , 0x00 ,0x09, 0x6D , 0x61 , 0x69 ,0x6E, 0x00, 0x0D, 0x00, 0x00};
+    for (dytrying) |byte| {
+        try writer.writeByte(byte);
+    }
+
+    // function starts
+    const funstarts = [_]u8{0x90, 0x7F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+    for (funstarts) |byte| {
+        try writer.writeByte(byte);
+    }
+
 
     // -------------------- Symbol Table --------------------
 
     // TODO: Is this always a fixed size or variable to some alignment?
-    try writer.writeByteNTimes(0, 4);
+   // try writer.writeByteNTimes(0, 4);
 
     // Symbol table
 
@@ -874,41 +918,55 @@ pub fn emitBinary() !void {
 // 6d61 696e 000d 0000 907f 0000 0000 0000
 
 
+    // __mh_execute_header
+    try writer.writeStruct(NList64 { 
+        .stringIndex = 2, // . IDK why it's offset by 2...
+        .nType = NType {
+            .isExternal = true,
+            .symbolType = NType.SymType.sect,
+        },
+        .sectionNumber = 1,
+        .description = NDEF_REFERENCED_DYNAMICALLY,
+        .value=0x100000000,     // Base VM addr,
+    });
+
+    // _main symbol
+    try writer.writeStruct(NList64 { 
+        .stringIndex = 22, // 2 + 19 + 1 (null byte) for prev symbol. 
+        .nType = NType {
+            .isExternal = true,
+            .symbolType = NType.SymType.sect,
+        },
+        .sectionNumber = 1,
+        .description = 0,
+        .value=text_addr,     // Start of main.
+    });
+
+    // String table
+    try writer.writeByte(0x20);
+    try writer.writeByte(0x00);
+    try writer.print("__mh_execute_header", .{});
+    try writer.writeByte(0);
+    try writer.print("_main", .{});
+    try writer.writeByte(0);
+    try writer.writeByteNTimes(0, 4);
+
+    // page size = 1
+    // var sig = codesig.CodeSignature.init(1);
+    // sig.code_directory.ident = "minimal"; // fs.path.basename(full_out_path);
+
+    // try codesig.writeAdhocSignature(&sig, .{
+    //     .file = file,
+    //     .exec_seg_base = section_text.offset,        // Text segment offset
+    //     .exec_seg_limit = section_text.size,       // 
+    //     .file_size = 0x118,        // linkedit data size.
+    //     .dylib = false,
+    // }, writer);
+
+    try codesig.sign(writer);
 
 
-
-    // // __mh_execute_header
-    // try writer.writeStruct(NList64 { 
-    //     .stringIndex = 2, // . IDK why it's offset by 2...
-    //     .nType = NType {
-    //         .isExternal = true,
-    //         .symbolType = NType.SymType.sect,
-    //     },
-    //     .sectionNumber = 1,
-    //     .description = NDEF_REFERENCED_DYNAMICALLY,
-    //     .value=0x100000000,     // Base VM addr,
-    // });
-
-    // // _main symbol
-    // try writer.writeStruct(NList64 { 
-    //     .stringIndex = 22, // 2 + 19 + 1 (null byte) for prev symbol. 
-    //     .nType = NType {
-    //         .isExternal = true,
-    //         .symbolType = NType.SymType.sect,
-    //     },
-    //     .sectionNumber = 1,
-    //     .description = 0,
-    //     .value=text_addr,     // Start of main.
-    // });
-
-    // // String table
-    // try writer.writeByte(0x20);
-    // try writer.writeByte(0x00);
-    // try writer.print("__mh_execute_header", .{});
-    // try writer.writeByte(0);
-    // try writer.print("_main", .{});
-    // try writer.writeByte(0);
-
+    // try writeAdhocSignature
     // // Fixed size or alignment?
     // try writer.writeByteNTimes(0, 4);   
 }
