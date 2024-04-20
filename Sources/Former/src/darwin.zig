@@ -298,12 +298,87 @@ const DySymTabCommand = extern struct {
 };
 
 
+const DylinkerCommand = extern struct {
+    cmd: Command = Command.load_dylinker,
+    cmdsize: u32,    // includes path name size.
+    name_offset: u32 = 0x0c,      // offset to path
+};
+
+const BuildVersionCommand = extern struct {
+    cmd: Command = Command.build_version,
+    cmdsize: u32,
+    platform: u32,
+    minos: u32,
+    sdk: u32,
+    ntools: u32,        // number of tool entries following this.
+};
+
+const BuildToolVersion = extern struct {
+    tool: u32,    // Tool ID
+    version: u32, // Version number of tool
+};
+
+
 // Option - version of the sources used to build the binary.
 const SourceVersionCommand = extern struct {
     cmd: Command = Command.source_version,
     cmdsize: u32=16,
     version: u64=0, // A.B.C.D.E packed as a24.b10.c10.d10.e10 
 };
+
+
+const EntryPointCommand = extern struct {
+    cmd: Command = Command.main,
+    cmdsize: u32=24,
+    entryoff: u64, // file (__TEXT) offset of main()
+    stacksize: u64, // If not zero, initialize stack size for the main thread.
+};
+
+const LinkEditDataCommand = extern struct {
+    cmd: Command,
+    cmdsize: u32,
+    dataoff: u32,
+    datasize: u32,
+};
+
+
+const DataInCodeEntry = extern struct {
+    offset: u32,    // from mach_header to start of data range.
+    length: u16,    // number of bytes in data range
+    kind: DiceKind,
+
+    const DiceKind = enum(u16) {
+        data = 0x0001,
+        jump_table8 = 0x0002,
+        jump_table16 = 0x0003,
+        jump_table32 = 0x0004,
+        abs_jump_table32 = 0x0005,
+    };
+};
+
+
+// struct dyld_chained_fixups_header
+// {
+//     uint32_t    fixups_version;    // 0
+//     uint32_t    starts_offset;     // offset of dyld_chained_starts_in_image in chain_data
+//     uint32_t    imports_offset;    // offset of imports table in chain_data
+//     uint32_t    symbols_offset;    // offset of symbol strings in chain_data
+//     uint32_t    imports_count;     // number of imported symbol names
+//     uint32_t    imports_format;    // DYLD_CHAINED_IMPORT*
+//     uint32_t    symbols_format;    // 0 => uncompressed, 1 => zlib compressed
+// };
+
+const DyldChainedFixup = extern struct {
+    fixups_version: u32, // 0
+    starts_offset: u32,  // offset of dyld_chained_starts_in_image in chain_data
+    imports_offset: u32, // offset of imports table in chain_data
+    symbols_offset: u32, // offset of symbol strings in chain_data
+    imports_count: u32,  // number of imported symbol names
+    imports_format: u32, // DYLD_CHAINED_IMPORT*
+    symbols_format: u32, // 0 => uncompressed, 1 => zlib compressed
+};
+
+
 
 // Machine-specific data structure.
 const ThreadStateCommand = extern struct {
@@ -472,18 +547,20 @@ pub fn emitBinary() !void {
     var totalSize: u64 = 0;
 
     // Total of each header size. + 16 for magic header (in bytes)
-    const header_size_of_cmds = 0x2c0;
+    const header_size_of_cmds = 0x298;
     // totalSize += header_size_of_cmds;
     const header = MachHeader64 {
         .magic =MH_MAGIC,
         .cputype = CpuType.arm64,
         .cpusubtype=0,
         .filetype=Filetype.execute,
-        .ncmds=7,
+        .ncmds=14,
         .sizeofcmds=header_size_of_cmds,
         .flags=Flags {
             .noundefs=true,     // Everything's statically linked.
-            .pie=true           // Address space randomization
+            .pie=true,           // Address space randomization
+            .dyldlink=true,     // Dynamic linker
+            .twolevel=true,     // Two-level namespace
         },
     };
     try writer.writeStruct(header);
@@ -510,7 +587,7 @@ pub fn emitBinary() !void {
 
     const segment_text = SegmentCommand64 {
         .cmd = Command.segment_64,
-        .cmdsize = 0x98, // 152.
+        .cmdsize = 0xe8,
         .segname = padName("__TEXT"),
         .vmaddr = 0x100000000,
         .vmsize = 0x4000,
@@ -518,7 +595,7 @@ pub fn emitBinary() !void {
         .filesize = 0x4000,
         .maxprot = VmProt_ReadExec,
         .initprot = VmProt_ReadExec,
-        .nsects=1,
+        .nsects=2,  // text, unwind info.
         .flags=SegmentCommandFlags{}
     };
     try writer.writeStruct(segment_text);
@@ -526,7 +603,7 @@ pub fn emitBinary() !void {
 
     // The entire thing has to be page-size aligned.
     // So text-size is 16KiB - the header size?
-    const text_size = 16368;    // 3ff0
+    const text_size = 0x3f90;    // 3ff0
     const text_addr = 0x100000000 + text_size;
     const section_text = Section64 {
         .sectname = padName("__text"),
@@ -549,20 +626,21 @@ pub fn emitBinary() !void {
     totalSize += section_text.size;
     // Total size already included in above.?
 
-    // const section_unwind_info = Section64 {
-    //     .sectname = padName("__unwind_info"),
-    //     .segname = padName("__TEXT"),
-    //     .addr = 0x100000000 + 16368 + @as(u64, section_text.size),
-    //     .size = 0x58,   // 88
-    //     .offset=@truncate(text_size + section_text.size),
-    //     .section_align=0x2, // 2^2 = 8 byte align.
-    //     .reloff=0,
-    //     .nreloc=0,
-    //     .flags = SectionFlags{
-    //         .attributes = SectionAttributes {}
-    //     },
-    // };
-    // try writer.writeStruct(section_unwind_info);
+    const section_unwind_info = Section64 {
+        .sectname = padName("__unwind_info"),
+        .segname = padName("__TEXT"),
+        .addr = 0x100000000 + 0x3f90 + @as(u64, section_text.size),
+        .size = 0x58,   // 88
+        .offset=@truncate(text_size + section_text.size),
+        .section_align=0x2, // 2^2 = 8 byte align.
+        .reloff=0,
+        .nreloc=0,
+        .flags = SectionFlags{
+            .attributes = SectionAttributes {}
+        },
+    };
+    try writer.writeStruct(section_unwind_info);
+    totalSize += section_unwind_info.size;
 
 
     const segment_linkedit = SegmentCommand64 {
@@ -572,7 +650,7 @@ pub fn emitBinary() !void {
         .vmaddr = 0x100000000 + 0x4000,          // + previous command's size.
         .vmsize = 0x4000,
         .fileoff = 0x4000,      // + previous command's fileoff.
-        .filesize = 0x40,    // 456 - Where does this come from?
+        .filesize = 0x1c8,    // 456 - Where does this come from?
         .maxprot = VmProt_ReadOnly,
         .initprot = VmProt_ReadOnly,
         .nsects=0,
@@ -582,29 +660,31 @@ pub fn emitBinary() !void {
     totalSize += segment_linkedit.cmdsize;
 
     // ------------------------ Commands ------------------------
-    // const cmd_dyld_chained_fixups = LinkEditCommand {
-    //     .cmd = Command.dyld_chained_fixups,
-    //     .cmdsize = 0x10,
-    //     .dataoff = 0x4000,  // 
-    //     .datasize = 0x38,   // 56
-    // };
-    // try writer.writeStruct(cmd_dyld_chained_fixups);
+    const cmd_dyld_chained_fixups = LinkEditCommand {
+        .cmd = Command.dyld_chained_fixups,
+        .cmdsize = 0x10,
+        .dataoff = 0x4000,  // 
+        .datasize = 0x38,   // 56
+    };
+    try writer.writeStruct(cmd_dyld_chained_fixups);
+    totalSize += cmd_dyld_chained_fixups.cmdsize;
     
 
-    // const cmd_dyld_exports_trie = LinkEditCommand {
-    //     .cmd = Command.dyld_exports_trie,
-    //     .cmdsize = 0x10,
-    //     .dataoff = 0x4038,  // + previous size
-    //     .datasize = 0x30,
-    // };
-    // try writer.writeStruct(cmd_dyld_exports_trie);
+    const cmd_dyld_exports_trie = LinkEditCommand {
+        .cmd = Command.dyld_exports_trie,
+        .cmdsize = 0x10,
+        .dataoff = 0x4038,  // + previous size
+        .datasize = 0x30,
+    };
+    try writer.writeStruct(cmd_dyld_exports_trie);
+    totalSize += cmd_dyld_exports_trie.cmdsize;
 
     const cmd_symtab = SymtabCommand {
         .cmd = Command.lc_symtab,
         .cmdsize = 0x18,
-        .symoff=0x4000,
+        .symoff=0x4070, // 70 = 38 + 30 -> align. 
         .nsyms=0x02,    // mh_execute_header and _main
-        .stroff=0x4020,
+        .stroff=0x4090, // 4020 + 70. 
         .strsize=0x20
     };
     try writer.writeStruct(cmd_symtab);
@@ -623,22 +703,89 @@ pub fn emitBinary() !void {
     try writer.writeStruct(cmd_dysymtab);
     totalSize += cmd_dysymtab.cmdsize;
 
+    const cmd_load_dylinker = DylinkerCommand {
+        .cmd = Command.load_dylinker,
+        .cmdsize = 0x20, // includes path name size
+        .name_offset = 0x0c,
+    };
+    try writer.writeStruct(cmd_load_dylinker);
+    try writer.print("/usr/lib/dyld", .{});
+    try writer.writeByteNTimes(0, 7);   // Alignment.
+    totalSize += cmd_load_dylinker.cmdsize;
+    
+
+    const build_version = BuildVersionCommand {
+        .cmdsize = 0x20,
+        .platform = 1,
+        .minos = 0xe0000,           // TODO: Make this dynamic - 14.0.0
+        .sdk = 0,
+        .ntools = 1,
+    };
+    try writer.writeStruct(build_version);
+    // Tool version - we can output our own here.
+    // LD = 3.
+    const tool_version = BuildToolVersion {
+        .tool = 3,              
+        .version = 0x03fe0100,
+    };
+    try writer.writeStruct(tool_version);
+    totalSize += build_version.cmdsize;
+
     const src_version = SourceVersionCommand{};
     try writer.writeStruct(src_version);
     totalSize += src_version.cmdsize;
 
-    const unix_threadstate = ThreadStateCommand {
-        .cmdsize = 0x120,
-        .flavor = 0x06, // ?
-        .count = 0x44
-    };
-    try writer.writeStruct(unix_threadstate);
-    totalSize += unix_threadstate.cmdsize;
 
-    const arm_thread_state_data = ArmThreadState {
-        .pc = text_addr
+    // Use LC Main instead of unix threadstate.
+    const entry_point = EntryPointCommand {
+        .entryoff = text_size,
+        .stacksize = 0,
     };
-    try writer.writeStruct(arm_thread_state_data);
+    try writer.writeStruct(entry_point);
+    totalSize += entry_point.cmdsize;
+
+
+    const function_starts = LinkEditCommand {
+        .cmd = Command.function_starts,
+        .cmdsize = 0x10,
+        .dataoff = 0x4068,
+        .datasize = 0x08,
+    };
+    try writer.writeStruct(function_starts);
+    totalSize += function_starts.cmdsize;
+
+
+    const dice = LinkEditDataCommand {
+        .cmd = Command.data_in_code,
+        .cmdsize = 0x10,
+        .dataoff = 0x4070,
+        .datasize = 0x00,
+    };
+    try writer.writeStruct(dice);
+    totalSize += dice.cmdsize;
+
+    const signature = LinkEditDataCommand {
+        .cmd = Command.code_signature,
+        .cmdsize = 0x10,
+        .dataoff = 0x40b0,
+        .datasize = 0x118
+    };
+    try writer.writeStruct(signature);
+    totalSize += signature.cmdsize;
+    
+
+    // const unix_threadstate = ThreadStateCommand {
+    //     .cmdsize = 0x120,
+    //     .flavor = 0x06, // ?
+    //     .count = 0x44
+    // };
+    // try writer.writeStruct(unix_threadstate);
+    // totalSize += unix_threadstate.cmdsize;
+
+    // const arm_thread_state_data = ArmThreadState {
+    //     .pc = text_addr
+    // };
+    // try writer.writeStruct(arm_thread_state_data);
     // totalSize - included in above
     
     // Padding for 16kb page alignment. 
@@ -673,6 +820,7 @@ pub fn emitBinary() !void {
     try writer.writeByteNTimes(0, paddingSize);  // 15624
     
     
+    // -------------------- Assembly --------------------
     // Assembly
     // MOVZ x0, #42     ;; Load constant
     try writer.writeStruct(arm.MOVW_IMM {
@@ -691,45 +839,78 @@ pub fn emitBinary() !void {
     // Syscall - exit 42 (so we can read the code out from bash).
     try writer.writeStruct(arm.SVC { .imm16 = arm.SVC.SYSCALL });
 
+
+    // -------------------- Unwind info --------------------
+    const unwind_info = [_]u8{0x01, 0x00, 0x00, 0x00, 0x1C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1C, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x90, 0x3F, 0x00, 0x00, 0x40, };
+    const unwind2 = [_]u8{0x00, 0x00, 0x00, 0x40, 0x00, 0x00, 0x00, 0x9C, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x0C, 0x00, 0x01, 0x00, 0x10, 0x00, 0x01};
+
+    // Loop and write each byte.
+    for (unwind_info) |byte| {
+        try writer.writeByte(byte);
+    }
+    for (unwind2) |byte| {
+        try writer.writeByte(byte);
+    }
+
+    try writer.writeByteNTimes(0, 25);
+    
+    // try writer.write(unwind_info2);
+
+
+    // -------------------- Symbol Table --------------------
+
     // TODO: Is this always a fixed size or variable to some alignment?
     try writer.writeByteNTimes(0, 4);
 
     // Symbol table
 
-    // __mh_execute_header
-    try writer.writeStruct(NList64 { 
-        .stringIndex = 2, // . IDK why it's offset by 2...
-        .nType = NType {
-            .isExternal = true,
-            .symbolType = NType.SymType.sect,
-        },
-        .sectionNumber = 1,
-        .description = NDEF_REFERENCED_DYNAMICALLY,
-        .value=0x100000000,     // Base VM addr,
-    });
 
-    // _main symbol
-    try writer.writeStruct(NList64 { 
-        .stringIndex = 22, // 2 + 19 + 1 (null byte) for prev symbol. 
-        .nType = NType {
-            .isExternal = true,
-            .symbolType = NType.SymType.sect,
-        },
-        .sectionNumber = 1,
-        .description = 0,
-        .value=text_addr,     // Start of main.
-    });
+// 0000 0000 2000 0000 3000 0000 3000 0000 
+// 0000 0000 0100 0000 0000 0000 0000 0000
+// 0300 0000 0000 0000 0000 0000 0000 0000
+// 0000 0000 0000 0000 0001 5f00 1200 0000
+// 0002 0000 0003 0090 7f00 0002 5f6d 685f
+// 6578 6563 7574 655f 6865 6164 6572 0009
+// 6d61 696e 000d 0000 907f 0000 0000 0000
 
-    // String table
-    try writer.writeByte(0x20);
-    try writer.writeByte(0x00);
-    try writer.print("__mh_execute_header", .{});
-    try writer.writeByte(0);
-    try writer.print("_main", .{});
-    try writer.writeByte(0);
 
-    // Fixed size or alignment?
-    try writer.writeByteNTimes(0, 4);   
+
+
+
+    // // __mh_execute_header
+    // try writer.writeStruct(NList64 { 
+    //     .stringIndex = 2, // . IDK why it's offset by 2...
+    //     .nType = NType {
+    //         .isExternal = true,
+    //         .symbolType = NType.SymType.sect,
+    //     },
+    //     .sectionNumber = 1,
+    //     .description = NDEF_REFERENCED_DYNAMICALLY,
+    //     .value=0x100000000,     // Base VM addr,
+    // });
+
+    // // _main symbol
+    // try writer.writeStruct(NList64 { 
+    //     .stringIndex = 22, // 2 + 19 + 1 (null byte) for prev symbol. 
+    //     .nType = NType {
+    //         .isExternal = true,
+    //         .symbolType = NType.SymType.sect,
+    //     },
+    //     .sectionNumber = 1,
+    //     .description = 0,
+    //     .value=text_addr,     // Start of main.
+    // });
+
+    // // String table
+    // try writer.writeByte(0x20);
+    // try writer.writeByte(0x00);
+    // try writer.print("__mh_execute_header", .{});
+    // try writer.writeByte(0);
+    // try writer.print("_main", .{});
+    // try writer.writeByte(0);
+
+    // // Fixed size or alignment?
+    // try writer.writeByteNTimes(0, 4);   
 }
 
 
