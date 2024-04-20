@@ -963,12 +963,13 @@ pub fn emitBinary() !void {
     //     .dylib = false,
     // }, writer);
 
-    try codesig.sign(writer);
+    try codesig.sign(writer, file);
 
 
     // try writeAdhocSignature
-    // // Fixed size or alignment?
-    // try writer.writeByteNTimes(0, 4);   
+
+    // Indicates end of file.
+    try writer.writeByteNTimes(0, 4);   
 }
 
 
