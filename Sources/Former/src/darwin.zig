@@ -963,13 +963,20 @@ pub fn emitBinary() !void {
     //     .dylib = false,
     // }, writer);
 
-    try codesig.sign(writer, file);
+
+    try codesig.sign(writer, file, codesig.SignArgs {
+        .numPages = 1,
+        .identifier = "minimal",
+        .overallBinCodeLimit = 16560,
+        .execTextSegmentOffset = 0,
+        .execTextSegmentLimit = 12
+    });
 
 
     // try writeAdhocSignature
 
     // Indicates end of file.
-    try writer.writeByteNTimes(0, 4);   
+    try writer.writeByteNTimes(0, 4);
 }
 
 
