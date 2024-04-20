@@ -217,6 +217,37 @@ const SymtabCommand = extern struct {
     strsize: u32, // string table size in bytes.
 };
 
+// Symbol table entries are in nlist_64 and stab.
+
+
+const NList64 = extern struct {
+    stringIndex: u32, // index into the string table
+    nType: NType, // type flag
+    sectionNumber: u8 = 0, // section number or NO_SECT (0)
+    description: u16, // see <mach-o/stab.h>
+    value: u64, // value of this symbol (or stab offset)
+};
+
+const NType = packed struct(u8) {
+    isExternal: bool = false,
+    symbolType: SymType, // mask for the type bits
+    isPrivateExternal: bool = false,
+    stab: u3 = 0, // If any bit set, then a symbolic debugging entry.
+
+    // Defined as 4 bit constant in nlist.h, but really just a mask - LSB is isExternal
+    pub const SymType = enum(u3) {
+        undef = 0,    // undefined - n_sects == NO_SECT
+        abs = 0b1,      // absolute defined. n_sect == no_sect. 0x1
+        sect = 0b111,     // defined in section number n_sect. 0xc
+        prebound = 0b110, // prebound undefined (defined in a dylib). 0xe
+        indirect = 0b101, // indirect
+    };
+};
+
+const NDEF_REFERENCED_DYNAMICALLY = 0x0010;
+
+
+
 
 // Second set of symbolic information for dynamic link loader.
 // Original set of symbols from symtab symbols and strings table must also be present here.
@@ -643,19 +674,62 @@ pub fn emitBinary() !void {
     
     
     // Assembly
+    // MOVZ x0, #42     ;; Load constant
     try writer.writeStruct(arm.MOVW_IMM {
         .opc= arm.MOVW_IMM.OpCode.MOVZ,
         .imm16= 42,
         .rd=arm.Reg.x0,
     });
-    
 
+    // MOVZ x16, #1     ;; Load syscall #1 - exit - to ABI syscall register.
+    try writer.writeStruct(arm.MOVW_IMM {
+        .opc= arm.MOVW_IMM.OpCode.MOVZ,
+        .imm16= 1,
+        .rd=arm.Reg.x16,
+    });
+
+    // Syscall - exit 42 (so we can read the code out from bash).
+    try writer.writeStruct(arm.SVC { .imm16 = arm.SVC.SYSCALL });
+
+    // TODO: Is this always a fixed size or variable to some alignment?
+    try writer.writeByteNTimes(0, 4);
 
     // Symbol table
 
+    // __mh_execute_header
+    try writer.writeStruct(NList64 { 
+        .stringIndex = 2, // . IDK why it's offset by 2...
+        .nType = NType {
+            .isExternal = true,
+            .symbolType = NType.SymType.sect,
+        },
+        .sectionNumber = 1,
+        .description = NDEF_REFERENCED_DYNAMICALLY,
+        .value=0x100000000,     // Base VM addr,
+    });
+
+    // _main symbol
+    try writer.writeStruct(NList64 { 
+        .stringIndex = 22, // 2 + 19 + 1 (null byte) for prev symbol. 
+        .nType = NType {
+            .isExternal = true,
+            .symbolType = NType.SymType.sect,
+        },
+        .sectionNumber = 1,
+        .description = 0,
+        .value=text_addr,     // Start of main.
+    });
 
     // String table
+    try writer.writeByte(0x20);
+    try writer.writeByte(0x00);
+    try writer.print("__mh_execute_header", .{});
+    try writer.writeByte(0);
+    try writer.print("_main", .{});
+    try writer.writeByte(0);
 
+    // Fixed size or alignment?
+    try writer.writeByteNTimes(0, 4);   
 }
 
 

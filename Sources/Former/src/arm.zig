@@ -54,11 +54,14 @@ pub const MOVW_IMM = packed struct(u32) {
     };
 };
 
-// SYSCALL
-pub const SVC = packed struct {
+// Supervisor Call - Syscalls, traps, etc.
+pub const SVC = packed struct(u32) {
+    pub const SYSCALL = 0x80;
+
     _base: u5 = 0b00001,
     imm16: u16,
-    _svc: 0b11010100_000,
+    _svc: u11 =  0b11010100_000,
+
 };
 
 
