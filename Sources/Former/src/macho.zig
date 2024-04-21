@@ -322,7 +322,7 @@ const BuildVersionCommand = extern struct {
     // Using too old of a version has caused problems for the Go linker. 
     // 0xe0000 = 14.0.0
     platform: u32 = PLATFORM_MACOS,
-    minos: u32 = 11<<16 | 0<<8 | 0<<0, // 11.0.0
+    minos: u32 = 0xe0000, // 11.0.0 - (11<<16 | 0<<8 | 0<<0)
     sdk: u32 = 0,       // SDK version
     // number of tool entries following this (i.e. linker version)
     // Command size should be increased +8  for each build tool after.
@@ -693,7 +693,7 @@ pub const MachOLinker = struct {
             .addr = text_addr,
             .size = assembly_code_size,
             .offset=text_offset,
-            .section_align=0x4, // 2^4 = 16 byte align.
+            .section_align=4, // 2^4 = 16 byte align.
             .reloff=0,
             .nreloc=0,
             .flags = SectionFlags{
@@ -712,9 +712,9 @@ pub const MachOLinker = struct {
             .sectname = padName("__unwind_info"),
             .segname = padName("__TEXT"),
             .addr = self.sectionAddr,
-            .size = 0x58,   // 80 bytes for the struct. 8 extra bytes - alignment?
+            .size = 88,   // 80 bytes for the struct. 8 extra bytes - alignment?
             .offset=self.sectionOffset,  // Comes right after text.
-            .section_align=0x2, // 2^2 = 8 byte align.
+            .section_align=2, // 2^2 = 8 byte align.
             .reloff=0,
             .nreloc=0,
             .flags = SectionFlags{
@@ -726,7 +726,7 @@ pub const MachOLinker = struct {
         // Starts immediately after cmdText.
         self.cmdLinkEdit = SegmentCommand64 {
             .cmd = Command.segment_64,
-            .cmdsize = 0x48,   // Size of this command header.
+            .cmdsize = 72,   // Size of this command header.
             .segname = padName("__LINKEDIT"),
             .vmaddr = self.vmAddr,    // 0 + 0x4000
             .vmsize = DEFAULT_SEGMENT_VM_SIZE,
@@ -735,7 +735,7 @@ pub const MachOLinker = struct {
             // TODO: Verify this.
             // 0x1C8 - 456 - Sum of previous sizes (excluding it's own size) + the following link header sizes.
             // Header 0x20 + Page Zero 0x48 + Text 0xE8 + Unwind 0x58 + LinkEdits (0x10 + 0x10) = 0x1C8
-            .filesize = 0x1c8,      // 456 - 
+            .filesize = 456,      // 456 - 0x1c8
             .maxprot = VmProt_ReadOnly,
             .initprot = VmProt_ReadOnly,
             .nsects=0,
@@ -744,25 +744,25 @@ pub const MachOLinker = struct {
         try self.emitCommand(writer, self.cmdLinkEdit);
         self.linkOffset = @truncate(self.cmdLinkEdit.fileoff);
 
-        try self.emitLinkEditCommand(writer, Command.dyld_chained_fixups, 0x38);
-        try self.emitLinkEditCommand(writer, Command.dyld_exports_trie, 0x30);
+        try self.emitLinkEditCommand(writer, Command.dyld_chained_fixups, 56);
+        try self.emitLinkEditCommand(writer, Command.dyld_exports_trie, 48);
 
         
         // TODO: This should probably come after the data in code.
         const cmd_symtab = SymtabCommand {
             .cmd = Command.lc_symtab,
-            .cmdsize = 0x18,
-            .symoff=0x4070, // 70 = 38 + 30 -> align. 
-            .nsyms=0x02,    // mh_execute_header and _main
-            .stroff=0x4090, // 4020 + 70. 
-            .strsize=0x20
+            .cmdsize = 24,
+            .symoff=16496, // 70 = 38 + 30 -> align. 
+            .nsyms=2,    // mh_execute_header and _main
+            .stroff=16528, // 4020 + 70. 
+            .strsize=32
         };
         try writer.writeStruct(cmd_symtab);
         self.totalSize += cmd_symtab.cmdsize;
         self.numCommands += 1;
 
         const cmd_dysymtab = DySymTabCommand {
-            .cmdsize = 0x50,
+            .cmdsize = 80,
             .ilocalsym=0,
             .nlocalsym=0,
             .iextdefsym=0,
@@ -776,8 +776,8 @@ pub const MachOLinker = struct {
 
         const cmd_load_dylinker = DylinkerCommand {
             .cmd = Command.load_dylinker,
-            .cmdsize = 0x20, // includes path name size
-            .name_offset = 0x0c,
+            .cmdsize = 32, // includes path name size
+            .name_offset = 12,
         };
         try writer.writeStruct(cmd_load_dylinker);
         try writer.print("/usr/lib/dyld", .{});
@@ -802,12 +802,12 @@ pub const MachOLinker = struct {
         self.totalSize += entry_point.cmdsize;
 
 
-        try self.emitLinkEditCommand(writer, Command.function_starts, 0x08);
-        try self.emitLinkEditCommand(writer, Command.data_in_code, 0x00);
+        try self.emitLinkEditCommand(writer, Command.function_starts, 8);
+        try self.emitLinkEditCommand(writer, Command.data_in_code, 0);
         
         // TODO: The signature section should probably come after the cmd_symtab
         self.linkOffset = cmd_symtab.stroff + cmd_symtab.strsize;
-        try self.emitLinkEditCommand(writer, Command.code_signature, 0x118);
+        try self.emitLinkEditCommand(writer, Command.code_signature, 280);
         // ------------------------------------------------
         // End of header section.
         // ------------------------------------------------
@@ -815,10 +815,10 @@ pub const MachOLinker = struct {
         
         // ------------------------ Zero padding ------------------------
 
-        const instrSize: u32 = 0x50; // instructions and symbol table.
-        const finalExecSize: u32 = 0x4040;   // 2^16 + 64KB.
+        const instrSize: u32 = 80; // instructions and symbol table.
+        const finalExecSize: u32 = 16448;   // 2^16 + 64KB, 0x4040
 
-        // The count is still off by 4 bytes... not sure where that's coming from...
+        // +4 from min padding size?
         const paddingSize: u64 = finalExecSize - self.totalSize - instrSize + 4;
 
         print("paddingSize {d} {d} {d}", .{self.totalSize, paddingSize, header_size_of_cmds});
@@ -869,11 +869,11 @@ pub const MachOLinker = struct {
         // Chained fixups
         const chained_fixups = DyldChainedFixup {
             .fixups_version = 0,
-            .starts_offset = 0x20,        // 0x4068
-            .imports_offset = 0x30,       // 0x4070
-            .symbols_offset = 0x30,       // 0x4090
+            .starts_offset = 32,        // 0x4068
+            .imports_offset = 48,       // 0x4070
+            .symbols_offset = 48,       // 0x4090
             .imports_count = 0,             // 2
-            .imports_format = 0x01,         // 1 = chained import
+            .imports_format = 1,         // 1 = chained import
             .symbols_format = 0,
         };
         try writer.writeStruct(chained_fixups);
