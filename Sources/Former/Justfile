@@ -10,16 +10,20 @@ release:
 bench-build: release
     hyperfine "./zig-out/bin/Former test/data/add.ifi"
 
+run:
+	#!/usr/bin/env sh
+	zig run src/macho.zig
+	chmod +x out.bin
+	./out.bin
+	echo "\nRan with code: $?"
+	[ $? -eq 42 ] || true
+	# echo $?
 
 bindiff:
     bash -c "diff -y <(xxd minimal) <(xxd ~/code/informal/Sources/Former/out.bin)"
 
 llink:
 	ld64.lld hello.o -o llvm_hello -arch arm64 -platform_version macos 10.15 11.0 -e _main
-
-run: build
-	bash -c "./out.bin && echo $?"
-
 
 ldlink:
 	# Must have -pie and -codesignature or it'll run into security restrictions on mac
