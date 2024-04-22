@@ -20,6 +20,10 @@
 // Reference:
 // /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/mach-o/loader.h
 // Thanks to: https://gpanders.com/blog/exploring-mach-o-part-2/ 
+// 
+// Coding convention: 
+// Use hex for any numeric values which will appear in the output file.
+// It'll help when comparing against a hex dump for debugging.
 
 
 const arm = @import("arm.zig");
@@ -318,7 +322,7 @@ const DylinkerCommand = extern struct {
 const PLATFORM_MACOS = 1;
 const BuildVersionCommand = extern struct {
     cmd: Command = Command.build_version,
-    cmdsize: u32 = 24, // 4 * 6 32 bit fields = 24 bytes for build version command. 
+    cmdsize: u32 = 0x18, // 4 * 6 32 bit fields = 24 bytes for build version command. 
     // Using too old of a version has caused problems for the Go linker. 
     // 0xe0000 = 14.0.0
     platform: u32 = PLATFORM_MACOS,
@@ -338,14 +342,14 @@ const BuildToolVersion = extern struct {
 // Option - version of the sources used to build the binary.
 const SourceVersionCommand = extern struct {
     cmd: Command = Command.source_version,
-    cmdsize: u32=16,
+    cmdsize: u32=0x10,
     version: u64=0, // A.B.C.D.E packed as a24.b10.c10.d10.e10 
 };
 
 
 const EntryPointCommand = extern struct {
     cmd: Command = Command.main,
-    cmdsize: u32=24,
+    cmdsize: u32=0x18,
     entryoff: u64, // file (__TEXT) offset of main()
     stacksize: u64, // If not zero, initialize stack size for the main thread.
 };
@@ -584,7 +588,6 @@ pub const MachOLinker = struct {
         };
     }
 
-    // Map 4k by default for each segment.
     const DEFAULT_SEGMENT_VM_SIZE = 0x4000;       // In-memory size of this segment.
     const SEGMENT_FILE_MAP_SIZE = 0x4000;         // How much to map from file for this segment.
     const VM_BASE_ADDR = 0x100000000;
@@ -602,7 +605,7 @@ pub const MachOLinker = struct {
         .nsects=0,
         .flags=SegmentCommandFlags{}
     };
-    const SIZE_SEG_PAGE_ZERO = 0x48;
+    const SIZE_SEG_PAGE_ZERO = 0x48;    // 72
 
     fn emitCommand(self: *Self, writer: anytype, cmd: SegmentCommand64) !void {
         try writer.writeStruct(cmd);
@@ -610,6 +613,7 @@ pub const MachOLinker = struct {
         self.vmAddr = cmd.vmaddr + cmd.vmsize;
         self.fileOff = cmd.fileoff + cmd.filesize;
         self.numCommands += 1;
+        print("Total size {d} - Command: {any}\n", .{self.totalSize, cmd.cmd});
     }
 
     fn emitSection(self: *Self, writer: anytype, section: Section64) !void {
@@ -617,18 +621,20 @@ pub const MachOLinker = struct {
         self.totalSize += section.size;
         self.sectionAddr = section.addr + section.size;
         self.sectionOffset = @truncate(section.offset + section.size);
+        print("Total size {d} - Section: {s}\n", .{self.totalSize, section.sectname});
     }
 
     fn emitLinkEditCommand(self: *Self, writer: anytype, cmd: Command, size: u32) !void {
         const link_edit = LinkEditCommand {
             .cmd = cmd,
-            .cmdsize = 0x10,
+            .cmdsize = 0x10,    // 16
             .dataoff = self.linkOffset,
             .datasize = size,
         };
         try writer.writeStruct(link_edit);
         self.totalSize += link_edit.cmdsize;
         self.linkOffset = link_edit.dataoff + link_edit.datasize;
+        print("Total size {d} - Link Command: {any}\n", .{self.totalSize, cmd});
     }
 
     pub fn emitBinary(self: *Self) !void {
@@ -640,11 +646,11 @@ pub const MachOLinker = struct {
         defer file.close();
         const writer = file.writer();
 
-        const assembly_code_size = 12;
+        const assembly_code_size = 0xC;     // 12
         // Emit the header sections.
 
         // Total of each header size. + 16 for magic header (in bytes)
-        const header_size_of_cmds = 664;      // 298
+        const header_size_of_cmds = 0x298;      // 298
         const numCommands = 14;
 
         const header = MachHeader64 {
@@ -661,7 +667,7 @@ pub const MachOLinker = struct {
         
         self.cmdText = SegmentCommand64 {
             .cmd = Command.segment_64,
-            .cmdsize = 232,        // base size + size of sub section. E8
+            .cmdsize = 0xE8,        // base size + size of sub section. 232
             .segname = padName("__TEXT"),
             .vmaddr = self.vmAddr,
             .vmsize = DEFAULT_SEGMENT_VM_SIZE,
@@ -685,7 +691,7 @@ pub const MachOLinker = struct {
         // The signature section comes afterwards.
 
         // Where the executable text sections starts in the file.
-        const text_offset = 16272;    // 3ff0
+        const text_offset = 0x3F90;    //  16272
         const text_addr = VM_BASE_ADDR + text_offset;
         self.sectionText = Section64 {
             .sectname = padName("__text"),
@@ -712,7 +718,7 @@ pub const MachOLinker = struct {
             .sectname = padName("__unwind_info"),
             .segname = padName("__TEXT"),
             .addr = self.sectionAddr,
-            .size = 88,   // 80 bytes for the struct. 8 extra bytes - alignment?
+            .size = 0x88,   // 88 - 80 bytes for the struct. 8 extra bytes - alignment?
             .offset=self.sectionOffset,  // Comes right after text.
             .section_align=2, // 2^2 = 8 byte align.
             .reloff=0,
@@ -726,7 +732,7 @@ pub const MachOLinker = struct {
         // Starts immediately after cmdText.
         self.cmdLinkEdit = SegmentCommand64 {
             .cmd = Command.segment_64,
-            .cmdsize = 72,   // Size of this command header.
+            .cmdsize = 0x48,   // 72 - Size of this command header.
             .segname = padName("__LINKEDIT"),
             .vmaddr = self.vmAddr,    // 0 + 0x4000
             .vmsize = DEFAULT_SEGMENT_VM_SIZE,
@@ -735,7 +741,7 @@ pub const MachOLinker = struct {
             // TODO: Verify this.
             // 0x1C8 - 456 - Sum of previous sizes (excluding it's own size) + the following link header sizes.
             // Header 0x20 + Page Zero 0x48 + Text 0xE8 + Unwind 0x58 + LinkEdits (0x10 + 0x10) = 0x1C8
-            .filesize = 456,      // 456 - 0x1c8
+            .filesize = 0x1C8,      // 456 - 0x1c8
             .maxprot = VmProt_ReadOnly,
             .initprot = VmProt_ReadOnly,
             .nsects=0,
@@ -751,18 +757,18 @@ pub const MachOLinker = struct {
         // TODO: This should probably come after the data in code.
         const cmd_symtab = SymtabCommand {
             .cmd = Command.lc_symtab,
-            .cmdsize = 24,
-            .symoff=16496, // 70 = 38 + 30 -> align. 
+            .cmdsize = 0x18,  // 24
+            .symoff=0x4070, // 16496 - 0x70 = 0x38 + 0x30 + data size/alignment. 
             .nsyms=2,    // mh_execute_header and _main
-            .stroff=16528, // 4020 + 70. 
-            .strsize=32
+            .stroff=0x4090, // 16528 - 0x4020 + 0x70. 
+            .strsize=0x20     // 32
         };
         try writer.writeStruct(cmd_symtab);
         self.totalSize += cmd_symtab.cmdsize;
         self.numCommands += 1;
 
         const cmd_dysymtab = DySymTabCommand {
-            .cmdsize = 80,
+            .cmdsize = 0x50,  // 80
             .ilocalsym=0,
             .nlocalsym=0,
             .iextdefsym=0,
@@ -776,8 +782,8 @@ pub const MachOLinker = struct {
 
         const cmd_load_dylinker = DylinkerCommand {
             .cmd = Command.load_dylinker,
-            .cmdsize = 32, // includes path name size
-            .name_offset = 12,
+            .cmdsize = 0x20, // 32 - includes path name size
+            .name_offset = 0xC,  // 12
         };
         try writer.writeStruct(cmd_load_dylinker);
         try writer.print("/usr/lib/dyld", .{});
@@ -807,7 +813,7 @@ pub const MachOLinker = struct {
         
         // TODO: The signature section should probably come after the cmd_symtab
         self.linkOffset = cmd_symtab.stroff + cmd_symtab.strsize;
-        try self.emitLinkEditCommand(writer, Command.code_signature, 280);
+        try self.emitLinkEditCommand(writer, Command.code_signature, 0x118);  // 280
         // ------------------------------------------------
         // End of header section.
         // ------------------------------------------------
@@ -815,8 +821,8 @@ pub const MachOLinker = struct {
         
         // ------------------------ Zero padding ------------------------
 
-        const instrSize: u32 = 80; // instructions and symbol table.
-        const finalExecSize: u32 = 16448;   // 2^16 + 64KB, 0x4040
+        const instrSize: u32 = 0x50; // 80 - instructions and symbol table.
+        const finalExecSize: u32 = 0x4040;   // 16448 - 2^16 + 64KB, 0x4040
 
         // +4 from min padding size?
         const paddingSize: u64 = finalExecSize - self.totalSize - instrSize + 4;
@@ -939,7 +945,7 @@ pub const MachOLinker = struct {
         try codesig.sign(writer, file, codesig.SignArgs {
             .numPages = 1,
             .identifier = "minimal",
-            .overallBinCodeLimit = 16560,
+            .overallBinCodeLimit = 0x40B0,   // 16560
             .execTextSegmentOffset = 0,
             .execTextSegmentLimit = 12
         });
