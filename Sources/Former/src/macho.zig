@@ -326,7 +326,7 @@ const BuildVersionCommand = extern struct {
     // Using too old of a version has caused problems for the Go linker. 
     // 0xe0000 = 14.0.0
     platform: u32 = PLATFORM_MACOS,
-    minos: u32 = 0xe0000, // 11.0.0 - (11<<16 | 0<<8 | 0<<0)
+    minos: u32 = (11<<16 | 0<<8 | 0<<0), // 11.0.0 - 
     sdk: u32 = 0,       // SDK version
     // number of tool entries following this (i.e. linker version)
     // Command size should be increased +8  for each build tool after.
@@ -718,7 +718,7 @@ pub const MachOLinker = struct {
             .sectname = padName("__unwind_info"),
             .segname = padName("__TEXT"),
             .addr = self.sectionAddr,
-            .size = 0x88,   // 88 - 80 bytes for the struct. 8 extra bytes - alignment?
+            .size = 0x58,   // 88 - 80 bytes for the struct. 8 extra bytes - alignment?
             .offset=self.sectionOffset,  // Comes right after text.
             .section_align=2, // 2^2 = 8 byte align.
             .reloff=0,
@@ -750,8 +750,8 @@ pub const MachOLinker = struct {
         try self.emitCommand(writer, self.cmdLinkEdit);
         self.linkOffset = @truncate(self.cmdLinkEdit.fileoff);
 
-        try self.emitLinkEditCommand(writer, Command.dyld_chained_fixups, 56);
-        try self.emitLinkEditCommand(writer, Command.dyld_exports_trie, 48);
+        try self.emitLinkEditCommand(writer, Command.dyld_chained_fixups, 0x38);    // 56
+        try self.emitLinkEditCommand(writer, Command.dyld_exports_trie, 0x30);  // 48
 
         
         // TODO: This should probably come after the data in code.
@@ -875,9 +875,9 @@ pub const MachOLinker = struct {
         // Chained fixups
         const chained_fixups = DyldChainedFixup {
             .fixups_version = 0,
-            .starts_offset = 32,        // 0x4068
-            .imports_offset = 48,       // 0x4070
-            .symbols_offset = 48,       // 0x4090
+            .starts_offset = 0x20,        // 32 - 0x20 -  0x4068
+            .imports_offset = 0x30,       // 48 - 0x30 - 0x4070
+            .symbols_offset = 0x30,       // 48 - 0x30 - 0x4090
             .imports_count = 0,             // 2
             .imports_format = 1,         // 1 = chained import
             .symbols_format = 0,
