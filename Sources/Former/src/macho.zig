@@ -576,6 +576,8 @@ pub const MachOLinker = struct {
     numSections: u32,
     headerSize: u32,
 
+    totalLinkEditSize: u32,
+
     cmdText: SegmentCommand64 = undefined,
     sectionText: Section64 = undefined,
     cmdLinkEdit: SegmentCommand64 = undefined,
@@ -597,6 +599,7 @@ pub const MachOLinker = struct {
             .numCommands = 0,
             .numSections = 0,
             .headerSize = 0,
+            .totalLinkEditSize = 0,
             .allocator = allocator,
             .headerBuffer = std.ArrayList(u8).init(allocator),
             .sectionBuffer = std.ArrayList(u8).init(allocator),
@@ -676,7 +679,28 @@ pub const MachOLinker = struct {
         };
         try self.bufferHeaderCmd(std.mem.asBytes(&link_edit));
         self.linkOffset = link_edit.dataoff + link_edit.datasize;
+        self.totalLinkEditSize += link_edit.datasize;
         print("Total size {d} - Link Command: {any}\n", .{self.headerBuffer.items.len, cmd});
+    }
+
+    fn flushLinkEditSegment(self: *Self, writer: anytype, fileOff: u32, vmAddr: u64) !void {
+        // The LinkEdit segment encompasses everything after the text section, until end of file.
+        const linkEditSize = self.linkOffset - fileOff;     // Current link edit size vs section start.
+        
+        self.cmdLinkEdit = SegmentCommand64 {
+            .cmd = Command.segment_64,
+            .cmdsize = 0x48,   // 72 - Size of this command header.
+            .segname = padName("__LINKEDIT"),
+            .vmaddr = vmAddr,    // 0 + 0x4000
+            .vmsize = DEFAULT_SEGMENT_VM_SIZE,
+            .fileoff = fileOff,    // 0 + 0x4000
+            .filesize = linkEditSize,      // 456 - 0x1c8. -80 to remove unwind. 0x178 without unwind?
+            .maxprot = VmProt_ReadOnly,
+            .initprot = VmProt_ReadOnly,
+            .nsects=0,
+            .flags=SegmentCommandFlags{}
+        };
+        try self.emitCommand(writer, self.cmdLinkEdit);
     }
 
     fn bufferHeaderBytes(self: *Self, bytes: []const u8) !void {
@@ -773,26 +797,12 @@ pub const MachOLinker = struct {
         try self.emitSection(writer, section_unwind_info);
         try self.flushSegment(writer);
 
+
+        // --------------------- Segment LINKEDIT ------------------------
         // Starts immediately after cmdText.
-        self.cmdLinkEdit = SegmentCommand64 {
-            .cmd = Command.segment_64,
-            .cmdsize = 0x48,   // 72 - Size of this command header.
-            .segname = padName("__LINKEDIT"),
-            .vmaddr = self.vmAddr,    // 0 + 0x4000
-            .vmsize = DEFAULT_SEGMENT_VM_SIZE,
-            .fileoff = self.fileOff,    // 0 + 0x4000
-            
-            // TODO: Verify this.
-            // 0x1C8 - 456 - Sum of previous sizes (excluding it's own size) + the following link header sizes.
-            // Header 0x20 + Page Zero 0x48 + Text 0xE8 + Unwind 0x58 + LinkEdits (0x10 + 0x10) = 0x1C8
-            .filesize = 0x1C8,      // 456 - 0x1c8. -80 to remove unwind. 0x178 without unwind?
-            .maxprot = VmProt_ReadOnly,
-            .initprot = VmProt_ReadOnly,
-            .nsects=0,
-            .flags=SegmentCommandFlags{}
-        };
-        try self.emitCommand(writer, self.cmdLinkEdit);
-        self.linkOffset = @truncate(self.cmdLinkEdit.fileoff);
+        const linkEditSectionStart: u32 = @truncate(self.fileOff);
+        const linkEditVmAddr = self.vmAddr;
+        self.linkOffset = linkEditSectionStart;
 
         try self.emitLinkEditCommand(writer, Command.dyld_chained_fixups, 0x38);    // 56
         try self.emitLinkEditCommand(writer, Command.dyld_exports_trie, 0x30);  // 48
@@ -849,7 +859,6 @@ pub const MachOLinker = struct {
         // _main: 5 + 1
         // Alignment.
         const strSize = mem.alignForward(u32, 20 + 6 + 2, 16);
-        print("Pre symtab {x}. Str size {x} \n", .{self.linkOffset, strSize});
         const cmd_symtab = SymtabCommand {
             .cmd = Command.lc_symtab,
             .cmdsize = 0x18,  // 24
@@ -862,7 +871,10 @@ pub const MachOLinker = struct {
         self.linkOffset = cmd_symtab.stroff + cmd_symtab.strsize;
 
 
-        try self.emitLinkEditCommand(writer, Command.code_signature, 0x118);  // 280
+        try self.emitLinkEditCommand(writer, Command.code_signature, 0x118);  // TODO: 280
+        try self.flushLinkEditSegment(writer, linkEditSectionStart, linkEditVmAddr);
+
+
         // ------------------------------------------------
         // End of header section.
         // ------------------------------------------------
