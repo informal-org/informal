@@ -12,6 +12,7 @@ bench-build: release
 
 run:
 	#!/usr/bin/env sh
+	rm out.bin || true
 	zig run src/macho.zig
 	chmod +x out.bin
 	./out.bin

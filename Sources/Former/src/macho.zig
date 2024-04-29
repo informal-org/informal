@@ -31,6 +31,7 @@ const std = @import("std");
 const mem = std.mem;
 const codesig = @import("CodeSignature.zig");
 const print = std.debug.print;
+const Allocator = std.mem.Allocator;
 
 
 // 32bit = 0xfeedface :)
@@ -578,8 +579,11 @@ pub const MachOLinker = struct {
     sectionText: Section64 = undefined,
     cmdLinkEdit: SegmentCommand64 = undefined,
 
+    headerBuffer: std.ArrayList(u8) = undefined,
+    allocator: Allocator,
 
-    pub fn init() Self {
+
+    pub fn init(allocator: Allocator) Self {
         return Self{
             .totalSize = 0,
             .linkOffset = 0,
@@ -587,8 +591,14 @@ pub const MachOLinker = struct {
             .sectionAddr = 0,
             .sectionOffset = 0,
             .fileOff = 0,
-            .numCommands = 0
+            .numCommands = 0,
+            .allocator = allocator,
+            .headerBuffer = std.ArrayList(u8).init(allocator),
         };
+    }
+
+    pub fn deinit(self: *Self) void {
+        self.headerBuffer.deinit();
     }
 
     const DEFAULT_SEGMENT_VM_SIZE = 0x4000;       // In-memory size of this segment.
@@ -611,7 +621,9 @@ pub const MachOLinker = struct {
     const SIZE_SEG_PAGE_ZERO = 0x48;    // 72
 
     fn emitCommand(self: *Self, writer: anytype, cmd: SegmentCommand64) !void {
-        try writer.writeStruct(cmd);
+        _ = writer;
+        // try writer.writeStruct(cmd);
+        try self.headerBuffer.appendSlice(std.mem.asBytes(&cmd));
         self.totalSize += cmd.cmdsize;
         self.vmAddr = cmd.vmaddr + cmd.vmsize;
         self.fileOff = cmd.fileoff + cmd.filesize;
@@ -620,7 +632,9 @@ pub const MachOLinker = struct {
     }
 
     fn emitSection(self: *Self, writer: anytype, section: Section64) !void {
-        try writer.writeStruct(section);
+        _ = writer;
+        // try writer.writeStruct(section);
+        try self.headerBuffer.appendSlice(std.mem.asBytes(&section));
         self.totalSize += section.size;
         self.sectionAddr = section.addr + section.size;
         self.sectionOffset = @truncate(section.offset + section.size);
@@ -628,16 +642,24 @@ pub const MachOLinker = struct {
     }
 
     fn emitLinkEditCommand(self: *Self, writer: anytype, cmd: Command, size: u32) !void {
+        _ = writer;
+
         const link_edit = LinkEditCommand {
             .cmd = cmd,
             .cmdsize = 0x10,    // 16
             .dataoff = self.linkOffset,
             .datasize = size,
         };
-        try writer.writeStruct(link_edit);
+        // try writer.writeStruct(link_edit);
+        try self.headerBuffer.appendSlice(std.mem.asBytes(&link_edit));
         self.totalSize += link_edit.cmdsize;
         self.linkOffset = link_edit.dataoff + link_edit.datasize;
         print("Total size {d} - Link Command: {any}\n", .{self.totalSize, cmd});
+    }
+
+    fn flushHeader(self: *Self, writer: anytype) !void {
+        // try writer.write(self.headerBuffer.items);
+        try writer.writeAll(self.headerBuffer.items);
     }
 
     pub fn emitBinary(self: *Self) !void {
@@ -662,7 +684,8 @@ pub const MachOLinker = struct {
             .sizeofcmds=header_size_of_cmds,
         };
         // Mach Header - Size 32
-        try writer.writeStruct(header);
+        // try writer.writeStruct(header);
+        try self.headerBuffer.appendSlice(std.mem.asBytes(&header));        // TODO
         self.totalSize += SIZE_MACH_HEADER; // 8 32 bit entries at 4 bytes each = 32. 0x20
 
         // ------------------------ Commands ------------------------
@@ -796,7 +819,8 @@ pub const MachOLinker = struct {
             .stroff=0x4090, // 16528 - 0x4020 + 0x70. 
             .strsize=0x20     // 32
         };
-        try writer.writeStruct(cmd_symtab);
+        // try writer.writeStruct(cmd_symtab);
+        try self.headerBuffer.appendSlice(std.mem.asBytes(&cmd_symtab));
         self.totalSize += cmd_symtab.cmdsize;
         self.numCommands += 1;
 
@@ -809,7 +833,8 @@ pub const MachOLinker = struct {
             .iundefsym=2,
             .nundefsym=0,
         };
-        try writer.writeStruct(cmd_dysymtab);
+        // try writer.writeStruct(cmd_dysymtab);
+        try self.headerBuffer.appendSlice(std.mem.asBytes(&cmd_dysymtab));
         self.totalSize += cmd_dysymtab.cmdsize;
         self.numCommands += 1;
 
@@ -818,17 +843,23 @@ pub const MachOLinker = struct {
             .cmdsize = 0x20, // 32 - includes path name size
             .name_offset = 0xC,  // 12
         };
-        try writer.writeStruct(cmd_load_dylinker);
-        try writer.print("/usr/lib/dyld", .{});
-        try writer.writeByteNTimes(0, 7);   // Alignment.
+        // try writer.writeStruct(cmd_load_dylinker);
+        try self.headerBuffer.appendSlice(std.mem.asBytes(&cmd_load_dylinker));
+        // try writer.print("/usr/lib/dyld", .{});
+        try self.headerBuffer.appendSlice("/usr/lib/dyld");
+        // try writer.writeByteNTimes(0, 7);   // Alignment.
+        const z8 = [_]u8{0, 0, 0, 0, 0, 0, 0};
+        try self.headerBuffer.appendSlice(&z8);
         self.totalSize += cmd_load_dylinker.cmdsize;
         
         const build_version = BuildVersionCommand {};
-        try writer.writeStruct(build_version);
+        // try writer.writeStruct(build_version);
+        try self.headerBuffer.appendSlice(std.mem.asBytes(&build_version));
         self.totalSize += build_version.cmdsize;
         
         const src_version = SourceVersionCommand{};
-        try writer.writeStruct(src_version);
+        // try writer.writeStruct(src_version);
+        try self.headerBuffer.appendSlice(std.mem.asBytes(&src_version));
         self.totalSize += src_version.cmdsize;
 
 
@@ -837,10 +868,12 @@ pub const MachOLinker = struct {
             .entryoff = self.sectionText.offset,
             .stacksize = 0,
         };
-        try writer.writeStruct(entry_point);
+        // try writer.writeStruct(entry_point);
+        try self.headerBuffer.appendSlice(std.mem.asBytes(&entry_point));
         self.totalSize += entry_point.cmdsize;
 
 
+        // TODO: Remove
         try self.emitLinkEditCommand(writer, Command.function_starts, 8);
         try self.emitLinkEditCommand(writer, Command.data_in_code, 0);
         
@@ -850,7 +883,7 @@ pub const MachOLinker = struct {
         // ------------------------------------------------
         // End of header section.
         // ------------------------------------------------
-
+        try self.flushHeader(writer);
         
         // ------------------------ Zero padding ------------------------
 
@@ -993,6 +1026,9 @@ pub const MachOLinker = struct {
 
 
 pub fn main() !void {
-    var linker = MachOLinker.init();
+
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var linker = MachOLinker.init(gpa.allocator());
+    defer linker.deinit();
     try linker.emitBinary();
 }
