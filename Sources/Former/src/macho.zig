@@ -574,13 +574,17 @@ pub const MachOLinker = struct {
     sectionOffset: u32,
     fileOff: u64,
     numCommands: u32,
+    numSections: u32,
     headerSize: u32,
 
     cmdText: SegmentCommand64 = undefined,
     sectionText: Section64 = undefined,
     cmdLinkEdit: SegmentCommand64 = undefined,
 
-    headerBuffer: std.ArrayList(u8) = undefined,
+    // Header is buffered until the entire header is available so we can calculate the size.
+    headerBuffer: std.ArrayList(u8),
+    // Some segments have multiple sections. 
+    sectionBuffer: std.ArrayList(u8),
     allocator: Allocator,
 
 
@@ -593,9 +597,11 @@ pub const MachOLinker = struct {
             .sectionOffset = 0,
             .fileOff = 0,
             .numCommands = 0,
+            .numSections = 0,
             .headerSize = 0,
             .allocator = allocator,
             .headerBuffer = std.ArrayList(u8).init(allocator),
+            .sectionBuffer = std.ArrayList(u8).init(allocator),
         };
     }
 
@@ -635,11 +641,34 @@ pub const MachOLinker = struct {
     fn emitSection(self: *Self, writer: anytype, section: Section64) !void {
         _ = writer;
         // try writer.writeStruct(section);
-        try self.headerBuffer.appendSlice(std.mem.asBytes(&section));
+        try self.sectionBuffer.appendSlice(std.mem.asBytes(&section));
         self.totalSize += section.size;
+        self.numSections += 1;
         self.sectionAddr = section.addr + section.size;
         self.sectionOffset = @truncate(section.offset + section.size);
         print("Total size {d} / {d} - Addr {x} - Section: {s}\n", .{self.totalSize, self.headerBuffer.items.len, self.sectionAddr, section.sectname});
+    }
+
+    fn flushSegment(self: *Self, writer: anytype) !void {
+        const cmdSize = @sizeOf(SegmentCommand64);  // 48
+        self.cmdText = SegmentCommand64 {
+            .cmd = Command.segment_64,
+            .cmdsize = @truncate(cmdSize + self.sectionBuffer.items.len), // = 0xE8
+            .segname = padName("__TEXT"),
+            .vmaddr = self.vmAddr,      // 0x100000000
+            .vmsize = DEFAULT_SEGMENT_VM_SIZE,
+            .fileoff = self.fileOff,
+            .filesize = SEGMENT_FILE_MAP_SIZE,  // 0x4000
+            .maxprot = VmProt_ReadExec,
+            .initprot = VmProt_ReadExec,
+            .nsects=self.numSections,  // 2. Filled in automatically. text, unwind info.
+            .flags=SegmentCommandFlags{}
+        };
+
+        print("Segment size: {x} - {x} = {x}\n", .{cmdSize, self.sectionBuffer.items.len, self.cmdText.cmdsize});
+        try self.emitCommand(writer, self.cmdText);
+        try self.bufferHeaderBytes(self.sectionBuffer.items);
+        self.sectionBuffer.clearAndFree();
     }
 
     fn emitLinkEditCommand(self: *Self, writer: anytype, cmd: Command, size: u32) !void {
@@ -684,7 +713,6 @@ pub const MachOLinker = struct {
         self.headerSize = @truncate(self.headerBuffer.items.len + SIZE_MACH_HEADER);
 
         // self.headerBuffer.clearAndFree();
-        
     }
 
     pub fn emitBinary(self: *Self) !void {
@@ -705,22 +733,8 @@ pub const MachOLinker = struct {
         // Page zero - Size 0x48
         try self.emitCommand(writer, SEG_PAGE_ZERO);
         
-        self.cmdText = SegmentCommand64 {
-            .cmd = Command.segment_64,
-            // xE8 with 2 sections. 232 - 72 bytres for cmdText. 80 for text. 80 for unwind.
-            // x98 with 1 section. 152 - 72 bytes for cmdText. 80 for text.
-            .cmdsize = 0xE8,        
-            .segname = padName("__TEXT"),
-            .vmaddr = self.vmAddr,      // 0x100000000
-            .vmsize = DEFAULT_SEGMENT_VM_SIZE,
-            .fileoff = self.fileOff,
-            .filesize = SEGMENT_FILE_MAP_SIZE,  // 0x4000
-            .maxprot = VmProt_ReadExec,
-            .initprot = VmProt_ReadExec,
-            .nsects=2,  // text, unwind info.
-            .flags=SegmentCommandFlags{}
-        };
-        try self.emitCommand(writer, self.cmdText);
+        try self.flushSegment(writer);
+        // try self.emitCommand(writer, self.cmdText);
 
 
         // 112
