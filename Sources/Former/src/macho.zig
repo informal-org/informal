@@ -28,6 +28,7 @@
 
 const arm = @import("arm.zig");
 const std = @import("std");
+const mem = std.mem;
 const codesig = @import("CodeSignature.zig");
 const print = std.debug.print;
 
@@ -194,6 +195,7 @@ const LoadCommand = extern struct {
 
 
 // Extern - to support features like segname.
+// 72 bytes.
 const SegmentCommand64 = extern struct {
     cmd: Command = Command.segment_64,   // LC_SEGMENT_64
     cmdsize: u32,  // includes sizeof section_64 structs. Total number of bytes for this segment + its sub-sections
@@ -483,6 +485,7 @@ const SegmentCommandFlags = packed struct(u32) {
     _: u27=0, // pad to 32 bits
 };
 
+// 80 bytes
 const Section64 = extern struct {
     sectname: [16]u8,
     segname: [16]u8,
@@ -613,7 +616,7 @@ pub const MachOLinker = struct {
         self.vmAddr = cmd.vmaddr + cmd.vmsize;
         self.fileOff = cmd.fileoff + cmd.filesize;
         self.numCommands += 1;
-        print("Total size {d} - Command: {any}\n", .{self.totalSize, cmd.cmd});
+        print("Total size {d} - vmAddr {x} - Command: {any}\n", .{self.totalSize, self.vmAddr, cmd.cmd});
     }
 
     fn emitSection(self: *Self, writer: anytype, section: Section64) !void {
@@ -621,7 +624,7 @@ pub const MachOLinker = struct {
         self.totalSize += section.size;
         self.sectionAddr = section.addr + section.size;
         self.sectionOffset = @truncate(section.offset + section.size);
-        print("Total size {d} - Section: {s}\n", .{self.totalSize, section.sectname});
+        print("Total size {d} Addr {x} - Section: {s}\n", .{self.totalSize, self.sectionAddr, section.sectname});
     }
 
     fn emitLinkEditCommand(self: *Self, writer: anytype, cmd: Command, size: u32) !void {
@@ -646,11 +649,12 @@ pub const MachOLinker = struct {
         defer file.close();
         const writer = file.writer();
 
-        const assembly_code_size = 0xC;     // 12
+        const assembly_code_size = 0xC;     // 12   - TODO: Parametrize this.
         // Emit the header sections.
 
         // Total of each header size. + 16 for magic header (in bytes)
-        const header_size_of_cmds = 0x298;      // 298
+        const header_size_of_cmds = 0x298;      // 298 - TODO: Compute this
+        // const header_size_of_cmds = 0x248;  // -80 for removing unwind info.
         const numCommands = 14;
 
         const header = MachHeader64 {
@@ -667,9 +671,11 @@ pub const MachOLinker = struct {
         
         self.cmdText = SegmentCommand64 {
             .cmd = Command.segment_64,
-            .cmdsize = 0xE8,        // base size + size of sub section. 232
+            // xE8 with 2 sections. 232 - 72 bytres for cmdText. 80 for text. 80 for unwind.
+            // x98 with 1 section. 152 - 72 bytes for cmdText. 80 for text.
+            .cmdsize = 0xE8,        
             .segname = padName("__TEXT"),
-            .vmaddr = self.vmAddr,
+            .vmaddr = self.vmAddr,      // 0x100000000
             .vmsize = DEFAULT_SEGMENT_VM_SIZE,
             .fileoff = self.fileOff,
             .filesize = SEGMENT_FILE_MAP_SIZE,  // 0x4000
@@ -691,14 +697,38 @@ pub const MachOLinker = struct {
         // The signature section comes afterwards.
 
         // Where the executable text sections starts in the file.
-        const text_offset = 0x3F90;    //  16272
+        // Total TEXT segment size = 0x4000.
+        // After unwind info = 100003ff4 + 0xC for code = 0x4000
+        // So before unwind info = 0x3ff4 - unwind info size of 0x58 = 0x3F9C
+        // Which again has a size of 0xC = either for code or due to alignment?
+        // Default segment vm size from cmdText = 0x4000
+        // Difference = 0x70 (112 bytes).
+        // 0x58 for unwind info = 0x18 remaining (24)
+        // 12 = code
+        //
+
+        // Another example. Code size = 0x40 - 10 4 byte instructions
+        // Unwind info is still 0x58. Addr 0x3fA8 + 0x58 = 4000. 
+        // So the size after it was alignment.
+        // Addr = 0x3F80 + 0x40 = 0x3FA8.
+
+        // Let's try with 9 commands.
+        // Addr = 0x3F80 still. size = 0x24
+        // Addr = 0x3FA4. Size = 0x58. = 0x3FFC - remaining 4 bytes is padding.
+        // 4 byte alignment means the section MUST start at an address that is a multiple of this alignment value.
+
+        // const text_offset = 0x3F90;    //  16272 - TODO: Compute this.
+
+
+        // const text_offset = DEFAULT_SEGMENT_VM_SIZE - assembly_code_size;
+        const text_offset = 0x3F90;   //  16272 - TODO: Compute this.// 16272
         const text_addr = VM_BASE_ADDR + text_offset;
         self.sectionText = Section64 {
             .sectname = padName("__text"),
             .segname = padName("__TEXT"),
             .addr = text_addr,
             .size = assembly_code_size,
-            .offset=text_offset,
+            .offset=text_offset, //mem.alignBackward(u32, text_offset, 4),  // TODO: Forward or backward?
             .section_align=4, // 2^4 = 16 byte align.
             .reloff=0,
             .nreloc=0,
@@ -713,12 +743,15 @@ pub const MachOLinker = struct {
         try self.emitSection(writer, self.sectionText);
         
         
-        // These secitons appear after the code boundary.
+                // These secitons appear after the code boundary.
+        const unwind_size = 0x58;   // 88 - 80 bytes for the struct. 8 extra bytes from somewhere...
+        // const unwind_start = (self.cmdText.vmaddr + self.cmdText.vmsize) - unwind_size;
+        // const uwind_off = (self.cmdText.fileoff + self.cmdText.filesize) - unwind_size;
         const section_unwind_info = Section64 {
             .sectname = padName("__unwind_info"),
             .segname = padName("__TEXT"),
             .addr = self.sectionAddr,
-            .size = 0x58,   // 88 - 80 bytes for the struct. 8 extra bytes - alignment?
+            .size = unwind_size,   
             .offset=self.sectionOffset,  // Comes right after text.
             .section_align=2, // 2^2 = 8 byte align.
             .reloff=0,
@@ -741,7 +774,7 @@ pub const MachOLinker = struct {
             // TODO: Verify this.
             // 0x1C8 - 456 - Sum of previous sizes (excluding it's own size) + the following link header sizes.
             // Header 0x20 + Page Zero 0x48 + Text 0xE8 + Unwind 0x58 + LinkEdits (0x10 + 0x10) = 0x1C8
-            .filesize = 0x1C8,      // 456 - 0x1c8
+            .filesize = 0x1C8,      // 456 - 0x1c8. -80 to remove unwind. 0x178 without unwind?
             .maxprot = VmProt_ReadOnly,
             .initprot = VmProt_ReadOnly,
             .nsects=0,
@@ -822,6 +855,7 @@ pub const MachOLinker = struct {
         // ------------------------ Zero padding ------------------------
 
         const instrSize: u32 = 0x50; // 80 - instructions and symbol table.
+        // const instrSize = 80;       // 80
         const finalExecSize: u32 = 0x4040;   // 16448 - 2^16 + 64KB, 0x4040
 
         // +4 from min padding size?
@@ -878,8 +912,8 @@ pub const MachOLinker = struct {
             .starts_offset = 0x20,        // 32 - 0x20 -  0x4068
             .imports_offset = 0x30,       // 48 - 0x30 - 0x4070
             .symbols_offset = 0x30,       // 48 - 0x30 - 0x4090
-            .imports_count = 0,             // 2
-            .imports_format = 1,         // 1 = chained import
+            .imports_count = 0,           // 2
+            .imports_format = 1,          // 1 = chained import
             .symbols_format = 0,
         };
         try writer.writeStruct(chained_fixups);
