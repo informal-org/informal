@@ -683,6 +683,12 @@ pub const MachOLinker = struct {
         try self.headerBuffer.appendSlice(bytes);
     }
 
+    fn bufferHeaderAlignment(self: *Self, length: u64) !void {
+        for (0..length) |_| {
+            try self.headerBuffer.append(0);
+        }
+    }
+
     fn bufferHeaderCmd(self: *Self, bytes: []const u8) !void {
         try self.headerBuffer.appendSlice(bytes);
         self.numCommands += 1;
@@ -721,7 +727,9 @@ pub const MachOLinker = struct {
         // ------------------------ Commands ------------------------
         // Page zero - Size 0x48
         try self.emitCommand(writer, SEG_PAGE_ZERO);
-        
+
+        // --------------------- Segment TEXT ------------------------
+        // Buffer up sub-section for TEXT segment.
         const unwind_size = 0x58;   // 88 - 80 bytes for the struct. 8 extra bytes from somewhere...
 
         //  16272 - 0x3F90
@@ -789,18 +797,6 @@ pub const MachOLinker = struct {
         try self.emitLinkEditCommand(writer, Command.dyld_chained_fixups, 0x38);    // 56
         try self.emitLinkEditCommand(writer, Command.dyld_exports_trie, 0x30);  // 48
 
-        
-        // TODO: This should probably come after the data in code.
-        const cmd_symtab = SymtabCommand {
-            .cmd = Command.lc_symtab,
-            .cmdsize = 0x18,  // 24
-            .symoff=0x4070, // 16496 - 0x70 = 0x38 + 0x30 + data size/alignment. 
-            .nsyms=2,    // mh_execute_header and _main
-            .stroff=0x4090, // 16528 - 0x4020 + 0x70. 
-            .strsize=0x20     // 32
-        };
-        try self.bufferHeaderCmd(std.mem.asBytes(&cmd_symtab));
-
         const cmd_dysymtab = DySymTabCommand {
             .cmdsize = 0x50,  // 80
             .ilocalsym=0,
@@ -812,17 +808,19 @@ pub const MachOLinker = struct {
         };
         try self.bufferHeaderCmd(std.mem.asBytes(&cmd_dysymtab));
 
+
+        const dylinkPath = "/usr/lib/dyld";
+        const dylinkContentSize = @sizeOf(DylinkerCommand) + dylinkPath.len;
+        const dylinkSize = mem.alignForward(u32, dylinkContentSize, 8);
         const cmd_load_dylinker = DylinkerCommand {
             .cmd = Command.load_dylinker,
-            .cmdsize = 0x20, // 32 - includes path name size
+            .cmdsize = dylinkSize,
             .name_offset = 0xC,  // 12
         };
         try self.bufferHeaderCmd(std.mem.asBytes(&cmd_load_dylinker));
-        try self.bufferHeaderBytes("/usr/lib/dyld");
+        try self.bufferHeaderBytes(dylinkPath);
+        try self.bufferHeaderAlignment(dylinkSize - dylinkContentSize);
         
-        // Alignment
-        const z7 = [_]u8{0, 0, 0, 0, 0, 0, 0};
-        try self.bufferHeaderBytes(&z7);
         
         const build_version = BuildVersionCommand {};
         try self.bufferHeaderCmd(std.mem.asBytes(&build_version));
@@ -842,9 +840,28 @@ pub const MachOLinker = struct {
         // TODO: Remove
         try self.emitLinkEditCommand(writer, Command.function_starts, 8);
         try self.emitLinkEditCommand(writer, Command.data_in_code, 0);
+
+
         
-        // TODO: The signature section should probably come after the cmd_symtab
+        const numSymbols = 2;
+        // 2 bytes for string header. 0x20 0
+        // __mh_execute_header: 19 + 1
+        // _main: 5 + 1
+        // Alignment.
+        const strSize = mem.alignForward(u32, 20 + 6 + 2, 16);
+        print("Pre symtab {x}. Str size {x} \n", .{self.linkOffset, strSize});
+        const cmd_symtab = SymtabCommand {
+            .cmd = Command.lc_symtab,
+            .cmdsize = 0x18,  // 24
+            .symoff=self.linkOffset,
+            .nsyms=numSymbols,    // mh_execute_header and _main
+            .stroff=self.linkOffset + (numSymbols * @sizeOf(NList64)), // 16528 - 0x4020 + 0x70. 
+            .strsize=strSize
+        };
+        try self.bufferHeaderCmd(std.mem.asBytes(&cmd_symtab));
         self.linkOffset = cmd_symtab.stroff + cmd_symtab.strsize;
+
+
         try self.emitLinkEditCommand(writer, Command.code_signature, 0x118);  // 280
         // ------------------------------------------------
         // End of header section.
