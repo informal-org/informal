@@ -574,6 +574,7 @@ pub const MachOLinker = struct {
     sectionOffset: u32,
     fileOff: u64,
     numCommands: u32,
+    headerSize: u32,
 
     cmdText: SegmentCommand64 = undefined,
     sectionText: Section64 = undefined,
@@ -592,6 +593,7 @@ pub const MachOLinker = struct {
             .sectionOffset = 0,
             .fileOff = 0,
             .numCommands = 0,
+            .headerSize = 0,
             .allocator = allocator,
             .headerBuffer = std.ArrayList(u8).init(allocator),
         };
@@ -678,7 +680,11 @@ pub const MachOLinker = struct {
         try writer.writeStruct(header);
 
         try writer.writeAll(self.headerBuffer.items);
-        self.headerBuffer.clearAndFree();
+        // Where the header section ends and zero padding begins.
+        self.headerSize = @truncate(self.headerBuffer.items.len + SIZE_MACH_HEADER);
+
+        // self.headerBuffer.clearAndFree();
+        
     }
 
     pub fn emitBinary(self: *Self) !void {
@@ -692,14 +698,7 @@ pub const MachOLinker = struct {
 
         const assembly_code_size = 0xC;     // 12   - TODO: Parametrize this.
         // Emit the header sections.
-
-        // Total of each header size. + 16 for magic header (in bytes)
-        // const header_size_of_cmds = 0x298;      // 298 - TODO: Compute this
-        // const header_size_of_cmds = 0x248;  // -80 for removing unwind info.
-        // const numCommands = 14;
-
         
-        // try self.headerBuffer.appendSlice(std.mem.asBytes(&header));        // TODO
         self.totalSize += SIZE_MACH_HEADER; // 8 32 bit entries at 4 bytes each = 32. 0x20
 
         // ------------------------ Commands ------------------------
@@ -758,14 +757,19 @@ pub const MachOLinker = struct {
 
 
         // const text_offset = DEFAULT_SEGMENT_VM_SIZE - assembly_code_size;
-        const text_offset = 0x3F90;   //  16272 - TODO: Compute this.// 16272
+        const unwind_size = 0x58;   // 88 - 80 bytes for the struct. 8 extra bytes from somewhere...
+
+        //  16272 - 0x3F90
+        const text_offset = mem.alignBackward(u64, 0x4000 - unwind_size - assembly_code_size, 16);   
+        
+        print("Text offset: {x} \n", .{text_offset});
         const text_addr = VM_BASE_ADDR + text_offset;
         self.sectionText = Section64 {
             .sectname = padName("__text"),
             .segname = padName("__TEXT"),
             .addr = text_addr,
             .size = assembly_code_size,
-            .offset=text_offset, //mem.alignBackward(u32, text_offset, 4),  // TODO: Forward or backward?
+            .offset=@truncate(text_offset),
             .section_align=4, // 2^4 = 16 byte align.
             .reloff=0,
             .nreloc=0,
@@ -781,7 +785,7 @@ pub const MachOLinker = struct {
         
         
                 // These secitons appear after the code boundary.
-        const unwind_size = 0x58;   // 88 - 80 bytes for the struct. 8 extra bytes from somewhere...
+        
         // const unwind_start = (self.cmdText.vmaddr + self.cmdText.vmsize) - unwind_size;
         // const uwind_off = (self.cmdText.fileoff + self.cmdText.filesize) - unwind_size;
         const section_unwind_info = Section64 {
@@ -906,7 +910,7 @@ pub const MachOLinker = struct {
         // +4 from min padding size?
         const paddingSize: u64 = finalExecSize - self.totalSize - instrSize + 4;
 
-        print("paddingSize {d} {d} \n", .{self.totalSize, paddingSize});
+        print("paddingSize {d} {d} {d} \n", .{self.totalSize, self.headerBuffer.items.len, paddingSize});
         
         // Counting everything - total size = 1408
         // Without header = 704 - bit too much padding.
