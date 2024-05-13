@@ -754,10 +754,10 @@ pub const MachOLinker = struct {
 
         // --------------------- Segment TEXT ------------------------
         // Buffer up sub-section for TEXT segment.
-        const unwind_size = 0x58;   // 88 - 80 bytes for the struct. 8 extra bytes from somewhere...
 
-        //  16272 - 0x3F90
-        const text_offset = mem.alignBackward(u64, 0x4000 - unwind_size - assembly_code_size, 16);
+        // Something's off with the alignment, -16 ensures text_offset + code size < 0x4000.
+        // If we have unwind info, do 0x4000 - unwind_size - assembly_code_size - 16
+        const text_offset = mem.alignBackward(u64, 0x4000 - assembly_code_size - 16, 16);
         
         print("Text offset: {x} \n", .{text_offset});
         const text_addr = VM_BASE_ADDR + text_offset;
@@ -780,21 +780,6 @@ pub const MachOLinker = struct {
         // Section text's size is included in the segment size.
         try self.emitSection(writer, self.sectionText);
         
-        // These secitons appear after the code boundary.
-        const section_unwind_info = Section64 {
-            .sectname = padName("__unwind_info"),
-            .segname = padName("__TEXT"),
-            .addr = self.sectionAddr,
-            .size = unwind_size,   
-            .offset=self.sectionOffset,  // Comes right after text.
-            .section_align=2, // 2^2 = 8 byte align.
-            .reloff=0,
-            .nreloc=0,
-            .flags = SectionFlags{
-                .attributes = SectionAttributes {}
-            },
-        };
-        try self.emitSection(writer, section_unwind_info);
         try self.flushSegment(writer);
 
 
@@ -902,21 +887,9 @@ pub const MachOLinker = struct {
         // Syscall - exit 42 (so we can read the code out from bash).
         try writer.writeStruct(arm.SVC { .imm16 = arm.SVC.SYSCALL });
 
-
-        // -------------------- Unwind info --------------------
-        // 74 / 75 + 25 null bytes.
-        const unwind_info = [_]u8{0x01, 0x00, 0x00, 0x00, 0x1C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1C, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x90, 0x3F, 0x00, 0x00, 0x40, };
-        const unwind2 = [_]u8{0x00, 0x00, 0x00, 0x40, 0x00, 0x00, 0x00, 0x9C, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x0C, 0x00, 0x01, 0x00, 0x10, 0x00, 0x01};
-
-        // Loop and write each byte.
-        for (unwind_info) |byte| {
-            try writer.writeByte(byte);
-        }
-        for (unwind2) |byte| {
-            try writer.writeByte(byte);
-        }
-
-        try writer.writeByteNTimes(0, 25);
+        // Zero pad for 16 byte alignment.
+        const textPadding = 0x4000 - text_offset - assembly_code_size;
+        try writer.writeByteNTimes(0, textPadding);
         
         // Chained fixups
         const chained_fixups = DyldChainedFixup {
