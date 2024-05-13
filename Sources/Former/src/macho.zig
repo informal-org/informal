@@ -746,7 +746,9 @@ pub const MachOLinker = struct {
         defer file.close();
         const writer = file.writer();
 
-        const assembly_code_size = 0xC;     // 12   - TODO: Parametrize this.
+        // const assembly_code_size = 0xC;     // 12   - TODO: Parametrize this.
+        const num_instructions = 3;
+        const assembly_code_size = 4 * num_instructions;
         
         // ------------------------ Commands ------------------------
         // Page zero - Size 0x48
@@ -875,6 +877,12 @@ pub const MachOLinker = struct {
             .rd=arm.Reg.x0,
         });
 
+        // try writer.writeStruct(arm.MOVW_IMM {
+        //     .opc= arm.MOVW_IMM.OpCode.MOVZ,
+        //     .imm16= 40,
+        //     .rd=arm.Reg.x5,
+        // });
+
         // MOVZ x16, #1     ;; Load syscall #1 - exit - to ABI syscall register.
         try writer.writeStruct(arm.MOVW_IMM {
             .opc= arm.MOVW_IMM.OpCode.MOVZ,
@@ -905,7 +913,7 @@ pub const MachOLinker = struct {
 
         // _main symbol
         try writer.writeStruct(NList64 { 
-            .stringIndex = 22, // 2 + 19 + 1 (null byte) for prev symbol. 
+            .stringIndex = 22, // 2 + 19 ("__mh_execute_header") + 1 (null byte) for prev symbol. 
             .nType = NType {
                 .isExternal = true,
                 .symbolType = NType.SymType.sect,
