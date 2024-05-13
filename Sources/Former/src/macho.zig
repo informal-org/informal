@@ -833,13 +833,6 @@ pub const MachOLinker = struct {
         try self.bufferHeaderAlignment(dylinkSize - dylinkContentSize);
         
         
-        const build_version = BuildVersionCommand {};
-        try self.bufferHeaderCmd(std.mem.asBytes(&build_version));
-        
-        const src_version = SourceVersionCommand{};
-        try self.bufferHeaderCmd(std.mem.asBytes(&src_version));
-
-
         // LC Main is preferred instead of unix threadstate on arm mac
         const entry_point = EntryPointCommand {
             .entryoff = self.sectionText.offset,
@@ -847,13 +840,6 @@ pub const MachOLinker = struct {
         };
         try self.bufferHeaderCmd(std.mem.asBytes(&entry_point));
 
-
-        // TODO: Remove
-        // try self.emitLinkEditCommand(writer, Command.function_starts, 8);
-        try self.emitLinkEditCommand(writer, Command.data_in_code, 0);
-
-
-        
         const numSymbols = 2;
         // 2 bytes for string header. 0x20 0
         // __mh_execute_header: 19 + 1
@@ -959,12 +945,6 @@ pub const MachOLinker = struct {
         for (dytrying) |byte| {
             try writer.writeByte(byte);
         }
-
-        // // function starts
-        // const funstarts = [_]u8{0x90, 0x7F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-        // for (funstarts) |byte| {
-        //     try writer.writeByte(byte);
-        // }
 
         // -------------------- Symbol Table --------------------
 
