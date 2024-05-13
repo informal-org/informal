@@ -139,6 +139,11 @@ pub const SignArgs = struct {
     execTextSegmentLimit: u64,
 };
 
+pub fn estimateSize(args: SignArgs) u64 {
+    const nCodeSlots = @as(u32, @intCast(mem.alignForward(usize, args.overallBinCodeLimit, pageSize) / pageSize));
+    const hashEnd = nCodeSlots*HASH_SIZE;
+    return superBlobSize + blobSize + codeDirectorySize + args.identifier.len + 1 + hashEnd;
+}
 
 pub fn sign(writer: anytype, file: fs.File, args: SignArgs) !void {
     // General format for the ad-hoc signatures:

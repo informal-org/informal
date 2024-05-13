@@ -806,14 +806,15 @@ pub const MachOLinker = struct {
 
         try self.emitLinkEditCommand(writer, Command.dyld_chained_fixups, 0x38);    // 56
         try self.emitLinkEditCommand(writer, Command.dyld_exports_trie, 0x30);  // 48
-
+        const num_local_symbols = 0;
+        const num_ext_def_symbols = 2;
         const cmd_dysymtab = DySymTabCommand {
             .cmdsize = 0x50,  // 80
             .ilocalsym=0,
-            .nlocalsym=0,
-            .iextdefsym=0,
-            .nextdefsym=2,
-            .iundefsym=2,
+            .nlocalsym=num_local_symbols,
+            .iextdefsym=num_local_symbols,
+            .nextdefsym=num_ext_def_symbols,
+            .iundefsym=num_local_symbols + num_ext_def_symbols,
             .nundefsym=0,
         };
         try self.bufferHeaderCmd(std.mem.asBytes(&cmd_dysymtab));
@@ -848,7 +849,7 @@ pub const MachOLinker = struct {
 
 
         // TODO: Remove
-        try self.emitLinkEditCommand(writer, Command.function_starts, 8);
+        // try self.emitLinkEditCommand(writer, Command.function_starts, 8);
         try self.emitLinkEditCommand(writer, Command.data_in_code, 0);
 
 
@@ -871,7 +872,15 @@ pub const MachOLinker = struct {
         self.linkOffset = cmd_symtab.stroff + cmd_symtab.strsize;
 
 
-        try self.emitLinkEditCommand(writer, Command.code_signature, 0x118);  // TODO: 280
+        const signArgs = codesig.SignArgs {
+            .numPages = 1,
+            .identifier = "minimal",
+            .overallBinCodeLimit = 0x40B0,   // 16560
+            .execTextSegmentOffset = 0,
+            .execTextSegmentLimit = 12
+        };
+        // Other compilers seem to align this size. i.e. 276 -> 280. But unaligned also works.
+        try self.emitLinkEditCommand(writer, Command.code_signature, @truncate(codesig.estimateSize(signArgs)));
         try self.flushLinkEditSegment(writer, linkEditSectionStart, linkEditVmAddr);
 
 
@@ -951,11 +960,11 @@ pub const MachOLinker = struct {
             try writer.writeByte(byte);
         }
 
-        // function starts
-        const funstarts = [_]u8{0x90, 0x7F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-        for (funstarts) |byte| {
-            try writer.writeByte(byte);
-        }
+        // // function starts
+        // const funstarts = [_]u8{0x90, 0x7F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+        // for (funstarts) |byte| {
+        //     try writer.writeByte(byte);
+        // }
 
         // -------------------- Symbol Table --------------------
 
@@ -993,13 +1002,7 @@ pub const MachOLinker = struct {
         try writer.writeByteNTimes(0, 4);
 
 
-        try codesig.sign(writer, file, codesig.SignArgs {
-            .numPages = 1,
-            .identifier = "minimal",
-            .overallBinCodeLimit = 0x40B0,   // 16560
-            .execTextSegmentOffset = 0,
-            .execTextSegmentLimit = 12
-        });
+        try codesig.sign(writer, file, signArgs);
 
         // Indicates end of file.
         try writer.writeByteNTimes(0, 4);
