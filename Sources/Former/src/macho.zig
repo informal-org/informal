@@ -789,8 +789,6 @@ pub const MachOLinker = struct {
         const linkEditVmAddr = self.vmAddr;
         self.linkOffset = linkEditSectionStart;
 
-        try self.emitLinkEditCommand(writer, Command.dyld_chained_fixups, 0x38);    // 56
-        try self.emitLinkEditCommand(writer, Command.dyld_exports_trie, 0x30);  // 48
         const num_local_symbols = 0;
         const num_ext_def_symbols = 2;
         const cmd_dysymtab = DySymTabCommand {
@@ -891,34 +889,6 @@ pub const MachOLinker = struct {
         const textPadding = 0x4000 - text_offset - assembly_code_size;
         try writer.writeByteNTimes(0, textPadding);
         
-        // Chained fixups
-        const chained_fixups = DyldChainedFixup {
-            .fixups_version = 0,
-            .starts_offset = 0x20,        // 32 - 0x20 -  0x4068
-            .imports_offset = 0x30,       // 48 - 0x30 - 0x4070
-            .symbols_offset = 0x30,       // 48 - 0x30 - 0x4090
-            .imports_count = 0,           // 2
-            .imports_format = 1,          // 1 = chained import
-            .symbols_format = 0,
-        };
-        try writer.writeStruct(chained_fixups);
-        try writer.writeByteNTimes(0, 4);   // till it reached starts_offset.
-
-        // dyld chained starts
-        const chained_starts = DyldChainedStarts {
-            .seg_count = 3,
-            .seg_info_offset = 0,
-        };
-        try writer.writeStruct(chained_starts);
-        // 2x4 for starts. 2 x4 for imports
-        try writer.writeByteNTimes(0, 16);
-
-        // dyld - trie.
-        const dytrying = [_]u8{0x00 , 0x01 , 0x5F ,0x00, 0x12 , 0x00 , 0x00 ,0x00, 0x00 , 0x02 , 0x00 ,0x00, 0x00 , 0x03 , 0x00 ,0x90, 0x7F , 0x00 , 0x00 ,0x02, 0x5F , 0x6D , 0x68 ,0x5F, 0x65 , 0x78 , 0x65 ,0x63, 0x75 , 0x74 , 0x65 ,0x5F, 0x68 , 0x65 , 0x61 ,0x64, 0x65 , 0x72 , 0x00 ,0x09, 0x6D , 0x61 , 0x69 ,0x6E, 0x00, 0x0D, 0x00, 0x00};
-        for (dytrying) |byte| {
-            try writer.writeByte(byte);
-        }
-
         // -------------------- Symbol Table --------------------
 
         // __mh_execute_header
