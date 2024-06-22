@@ -18,24 +18,27 @@ const isKind = bitset.isKind;
 
 
 
-// The parser takes a token stream from the lexer and converts it into a valid structure.
-// It's only concerned with the grammatic structure of the code - not the meaning.
-// It's a hybrid state-machine / recursive descent parser with state tables.
+// The parser takes a token stream from the lexer and converts it into a valid 
+// structure. It's only concerned with the grammatic structure of the code 
+// - not the meaning. It's a hybrid state-machine / recursive descent parser 
+// with state tables.
 pub const Parser = struct {
     const Self = @This();
     buffer: []const u8,
     syntaxQ: *TokenQueue,
     auxQ: *TokenQueue,
 
-    // The AST is stored is a postfix order - where all operands come before the operator.
-    // This stack structure avoids the need for any explicit pointers for operators
-    // and matches the dependency order we want to emit bytecode in and matches the order of evaluation.
+    // The AST is stored is a postfix order - where all operands come before the
+    // operator. This stack structure avoids the need for any explicit pointers
+    // for operators and matches the dependency order we want to emit bytecode
+    // in and matches the order of evaluation.
     parsedQ: *TokenQueue, 
     // For each token in the parsedQ, indicates where to find it in the syntaxQ.
     offsetQ: *OffsetQueue,
 
     // Benchmark: MultiArrayList vs ArrayList for this use-case.
-    // Multi will be more compact without the padding, but we push/pop them in pairs anyway.
+    // Multi will be more compact without the padding, but we push/pop them in
+    // pairs anyway.
     opStack: std.ArrayList(ParseNode),
 
     allocator: Allocator,
@@ -47,10 +50,14 @@ pub const Parser = struct {
         index: usize,
     };
 
-    pub fn init(buffer: []const u8, syntaxQ: *TokenQueue, auxQ: *TokenQueue, parsedQ: *TokenQueue, offsetQ: *OffsetQueue, allocator: Allocator) Self {
+    pub fn init(
+        buffer: []const u8, syntaxQ: *TokenQueue, auxQ: *TokenQueue, 
+        parsedQ: *TokenQueue, offsetQ: *OffsetQueue, allocator: Allocator) Self {
         const opStack = std.ArrayList(ParseNode).init(allocator);
         
-        return Self{.buffer = buffer, .syntaxQ = syntaxQ, .auxQ = auxQ, .parsedQ=parsedQ, .offsetQ=offsetQ, .allocator = allocator, .index = 0, .opStack = opStack};    
+        return Self{.buffer = buffer, .syntaxQ = syntaxQ, .auxQ = auxQ, 
+        .parsedQ=parsedQ, .offsetQ=offsetQ, .allocator = allocator, 
+        .index = 0, .opStack = opStack};    
     }
 
     pub fn deinit(self: *Self) void {
@@ -70,7 +77,8 @@ pub const Parser = struct {
     fn flushOpStack(self: *Self, token: Token) !void {
         // Indicates which tokens have higher-precedence and associativity.
         // Those operations must be emitted/done first before the current token.
-        const flushBitset = tok.TBL_PRECEDENCE_FLUSH[@intFromEnum(token.kind)];
+        const kindInt = @intFromEnum(token.kind);
+        const flushBitset = tok.TBL_PRECEDENCE_FLUSH[kindInt];
         while(self.opStack.items.len > 0) {
             const top = self.opStack.items[self.opStack.items.len - 1];
             const topKind = top.token.kind;
@@ -101,7 +109,8 @@ pub const Parser = struct {
     // Identifiers - Emit directly. Transition to expect after identifier.
     // ( - Push onto the stack. Transition to initial_state.
     // Unary operators.
-    // Block keywords like def, if, etc. are valid. Switch to their custom handlers.
+    // Block keywords like def, if, etc. are valid. Switch to their custom
+    // handlers.
     // ------------------------------------------
     // Invalid states:
     // Binary operators - need an operand on the left.
@@ -146,18 +155,20 @@ pub const Parser = struct {
     // We've seen an operand on the left. Now expecting a binary operation.
     // Valid states:
     // Binary operators:
-    //     Precedence flush: Lookup current operator for a bitmask of what to flush - encodes precedence and associtivity.
-    //     Check any non-matches if they're error-cases in another bitset.
-    //     Push the operand onto the stack - indicate that it's a binary op (to differentiate unary vs binary -)
-    //     Transition to expect_unary.
+    // - Precedence flush: Lookup current operator for a bitmask of what to
+    //   flush - encodes precedence and associtivity.
+    // - Check any non-matches if they're error-cases in another bitset.
+    // - Push the operand onto the stack - indicate that it's a binary op (to
+    //   differentiate unary vs binary -)
+    // - Transition to expect_unary.
     // Separators - 1, 2
     // Invalid States:
     // Literals / Identifiers - Need a binary operator. 1 1 is invalid.
     // Unary operators. ex. True not.
     // Grouping operators. ex. 1 (... 
     /////////////////////////////////////////////
-    // Zig can't infer the error set due to circular refs. Propagate errors from push/pop.
-    fn expect_binary(self: *Self) (std.mem.Allocator.Error)!void {      // (err || error)
+    // Zig can't infer the error set due to circular. Propagate from push/pop.
+    fn expect_binary(self: *Self) (std.mem.Allocator.Error)!void { // (err || error)
         const token = self.syntaxQ.pop();
         if(token.kind == tok.AUX_STREAM_END.kind) {
             // Stream end is fine. Expression is complete without continuation.
@@ -218,21 +229,24 @@ pub const Parser = struct {
 
     /////////////////////////////////////////////
     // Expect Binary String Operations
-    // We've seen a string literal. You can index it, or call string functions on it.
+    // We've seen a string literal. 
+    // You can index it, or call string functions on it.
     // Allow [] and . operations and other binary functions like +, and, etc.
     /////////////////////////////////////////////
     
 
     /////////////////////////////////////////////
     // Expect Right Unary Operations. a op ___
-    // We're in the middle of an expression. There may be an operator to the left.
+    // We're in the middle of an expression. 
+    // There may be an operator to the left.
     // Valid states:
     // Unary operators:
     //     Precedence flush.
     // Literals: 
     //     Numeric -> Expect binary literal operations.
     //     String -> Expect binary string operations.
-    // Keyword starts - sub-expressions which will give a value. x + if y then z else w
+    // Keyword starts - sub-expressions which will give a value. 
+    // ex. x + if y then z else w
     // Identifiers: -> Expect identifier operations
     // Grouping is valid. i.e. 1 * (2 + 3)
     // Invalid states: 
@@ -245,21 +259,23 @@ pub const Parser = struct {
     // Expect assignment right. a = ___
     // We're at an assignment operator.
     // Mark the currently open line or group as containing an assignment.
-    // This allows the symbol-resolution to recognize declaration vs reference without lookahead.
+    // This allows the symbol-resolution to recognize declaration vs reference
+    // without lookahead.
     // That'll also support de-structuring like [a, b, c] = ...
     /////////////////////////////////////////////
     
     
 
     // Initialize the parser state.
-    // Note: All sub-parse functions MUST be tail-recursive, in a direct-threaded style.
-    // Each state function should process a token at a time, with no lookahead or backtracking.
+    // Note: All sub-parse functions MUST be tail-recursive, in a
+    // direct-threaded style. Each state function should process a token at a
+    // time, with no lookahead or backtracking.
     pub fn parse(self: *Self) !void {
         try self.initial_state();
 
 
-        // At the end - flush the operator stack.
-        // TODO: Validate that it contains no brackets (indicates open without close), etc.
+        // At the end - flush the operator stack. TODO: Validate that it
+        // contains no brackets (indicates open without close), etc.
         while(self.opStack.items.len > 0) {
             try self.popOp();
         }

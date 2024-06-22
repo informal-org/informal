@@ -6,8 +6,9 @@ pub const BitSet128 = stdbits.IntegerBitSet(128);
 pub const BitSet64 = stdbits.IntegerBitSet(64);
 
 
-// Compile time constant function which takes a string of valid delimiter characters and returns a bitset.
-// The bitset is used to quickly check if a character is a delimiter.
+// Compile time constant function which takes a string of valid delimiter
+// characters and returns a bitset. The bitset is used to quickly check if a
+// character is a delimiter.
 pub fn character_bitset(pattern: []const u8) BitSet128 {
     var bs = BitSet128.initEmpty();
     // assert - is-ascii. Just used internally with fixed compile-time patterns.
@@ -35,7 +36,8 @@ pub fn index128(bitset: BitSet128, val: u8) u7 {
 }
 
 pub fn chToKind(bitset: BitSet128, ch: u8, offset: u7) tok.Token.Kind {
-    // Return the token kind for a given character already known to be in this bitset.
+    // Return the token kind for a given character already known to be in this
+    // bitset.
     const chIndex: u7 = index128(bitset, ch);
     return @enumFromInt(chIndex + offset);
 }

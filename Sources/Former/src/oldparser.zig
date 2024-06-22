@@ -8,9 +8,10 @@ pub const Parser = struct {
     buffer: []const u8,
     index: u32,
     allocator: Allocator,
-    // The AST is stored is a postfix order - where all operands come before the operator.
-    // This stack structure avoids the need for any explicit pointers for operators
-    // and matches the dependency order we want to emit bytecode in and matches the order of evaluation.
+    // The AST is stored is a postfix order - where all operands come before the
+    // operator. This stack structure avoids the need for any explicit pointers
+    // for operators and matches the dependency order we want to emit bytecode
+    // in and matches the order of evaluation.
     ast: std.MultiArrayList(ast.AstNode),
     strings: std.StringHashMap(usize),
     symbols: std.StringHashMap(u64),
@@ -25,7 +26,8 @@ pub const Parser = struct {
         const operators = std.ArrayList(ast.AstNode).init(allocator);
         // symbols.put("and", val.KW_AND);
 
-        return Self{ .buffer = buffer, .index = 0, .allocator = allocator, .ast = tokens, .strings = strings, .symbols = symbols, .operators = operators };
+        return Self{ .buffer = buffer, .index = 0, .allocator = allocator, 
+        .ast = tokens, .strings = strings, .symbols = symbols, .operators = operators };
     }
 
     pub fn deinit(self: *Parser) void {
@@ -62,7 +64,8 @@ pub const Parser = struct {
     // fn is_delimiter(ch: u8) bool {
     //     // No mathematical operators in MVL.
     //     return switch (ch) {
-    //         '(', ')', '[', ']', '{', '}', '"', '\'', '.', ',', ':', ';', ' ', '\t', '\n' => true,
+    //         '(', ')', '[', ']', '{', '}', '"', '\'', '.', 
+    // ',', ':', ';', ' ', '\t', '\n' => true,
     //         else => false,
     //     };
     // }
@@ -71,7 +74,8 @@ pub const Parser = struct {
         // Peek if the next tokens start with the given match string.
         for (matchStr, 0..) |character, matchIndex| {
             const bufferI = self.index + matchIndex;
-            if ((bufferI >= self.buffer.len) or (self.buffer[bufferI] != character)) {
+            if ((bufferI >= self.buffer.len) or 
+            (self.buffer[bufferI] != character)) {
                 return false;
             }
         }
@@ -86,7 +90,8 @@ pub const Parser = struct {
     }
 
     fn seek_till(self: *Self, ch: []const u8) ?u64 {
-        while (self.index < self.buffer.len and self.buffer[self.index] != ch[0]) : (self.index += 1) {}
+        while (self.index < self.buffer.len and 
+        self.buffer[self.index] != ch[0]) : (self.index += 1) {}
         return null;
     }
 
@@ -105,9 +110,11 @@ pub const Parser = struct {
         const start = self.index;
         self.index += 1; // First char is already recognized as a digit.
         self.gobble_digits();
-        const value: u64 = std.fmt.parseInt(u32, self.buffer[start..self.index], 10) catch 0;
+        const value: u64 = std.fmt.parseInt(u32, 
+        self.buffer[start..self.index], 10) catch 0;
 
-        return ast.AstNode{ .value = value, .loc = ast.Location{ .start = start, .end = self.index } };
+        return ast.AstNode{ .value = value, .loc = ast.Location{ .start = start,
+         .end = self.index } };
     }
 
     fn lex_string(self: *Self) ast.AstNode {
@@ -125,16 +132,19 @@ pub const Parser = struct {
         // string in some table. The string contains both quotes.
         // return val.createStringPtr(start, end);
 
-        const stringId = self.strings.getOrPutValue(self.buffer[start..end], self.strings.count());
+        const stringId = self.strings.getOrPutValue(
+            self.buffer[start..end], self.strings.count());
         const stringRef = val.createReference(val.AST_STRING, stringId);
-        return ast.AstNode{ .value = stringRef, .loc = ast.Location{ .start = start, .end = end } };
+        return ast.AstNode{ .value = stringRef, .loc = ast.Location{ 
+            .start = start, .end = end } };
     }
 
     fn lex_identifier(self: *Self) ast.AstNode {
         // First char is known to not be a number or delimiter.
         const start = self.index;
         // Non digit or symbol start, so interpret as an identifier.
-        while (self.index < self.buffer.len and is_alphanumeric(self.buffer[self.index])) : (self.index += 1) {}
+        while (self.index < self.buffer.len and is_alphanumeric(
+            self.buffer[self.index])) : (self.index += 1) {}
 
         if (self.index - start > 255) {
             unreachable;
@@ -149,7 +159,8 @@ pub const Parser = struct {
             _ = self.symbols.getOrPutValue(identifier, symbolId.?) catch {};
         }
 
-        return ast.AstNode{ .value = symbolId.?, .loc = ast.Location{ .start = start, .end = self.index } };
+        return ast.AstNode{ .value = symbolId.?, .loc = ast.Location{ 
+            .start = start, .end = self.index } };
     }
 
     // fn lex_block(self: *Self) {
@@ -163,7 +174,8 @@ pub const Parser = struct {
         _ = self.seek_till("\n");
         const end = self.index;
         const commentRef = val.createReference(val.AST_COMMENT, 0);
-        return ast.AstNode{ .value = commentRef, .loc = ast.Location{ .start = start, .end = end } };
+        return ast.AstNode{ .value = commentRef, .loc = ast.Location{ 
+            .start = start, .end = end } };
     }
 
     fn op_pop(self: *Self) !void {
@@ -178,19 +190,22 @@ pub const Parser = struct {
         }
         const top = self.operators.items[self.operators.items.len - 1];
         const topPrecedence = val.getPrecedence(top.value);
-        return topPrecedence > precedence or (topPrecedence == precedence and isLeftAssociative);
+        return topPrecedence > precedence or (
+            topPrecedence == precedence and isLeftAssociative);
     }
 
     fn kw(self: *Self, keyword: u64, length: u8) ast.AstNode {
         const start = self.index;
         self.index += length;
-        return ast.AstNode{ .value = keyword, .loc = ast.Location{ .start = start, .end = self.index } };
+        return ast.AstNode{ .value = keyword, .loc = ast.Location{ .start = start, 
+        .end = self.index } };
     }
 
     fn insert_op(self: *Self, op: ast.AstNode) !void {
         const precedence = val.getPrecedence(op.value);
         const isLeftAssociative = val.isLeftAssociative(op.value);
-        while (self.should_pop_op(precedence, isLeftAssociative)) {
+        while (self.should_pop_op(precedence, 
+            isLeftAssociative)) {
             try self.op_pop();
         }
         try self.operators.append(op);
@@ -213,9 +228,11 @@ pub const Parser = struct {
         while (self.index < self.buffer.len) {
             const ch = self.buffer[self.index];
             if (is_alpha(ch)) {
-                try self.ast.append(self.allocator, self.lex_identifier());
+                try self.ast.append(self.allocator, 
+                self.lex_identifier());
             } else if (is_digit(ch)) {
-                try self.ast.append(self.allocator, self.lex_number());
+                try self.ast.append(self.allocator, 
+                self.lex_number());
             } else {
                 // var token: ?ast.AstNode = null;
                 _ = switch (ch) {
@@ -273,7 +290,8 @@ pub fn testParser(buffer: []const u8, expected: []const u64) !void {
 
     _ = try parser.lex();
     if (parser.ast.len != expected.len) {
-        print("Expected {d} tokens, got {d}\n", .{ expected.len, parser.ast.len });
+        print("Expected {d} tokens, got {d}\n", .{ expected.len, 
+        parser.ast.len });
         for (parser.ast.items(.value)) |token| {
             print("{x}", .{token});
         }

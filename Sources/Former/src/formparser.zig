@@ -10,7 +10,8 @@ const print = std.debug.print;
 const Form = struct { head: u64, body: u64 };
 
 fn formPointer(index: u64, length: u64) u64 {
-    return val.createPrimitiveArray(@truncate(u29, index), @truncate(u19, length));
+    return val.createPrimitiveArray(@truncate(u29, index),
+     @truncate(u19, length));
 }
 
 pub const FormParser = struct {
@@ -45,12 +46,14 @@ pub const FormParser = struct {
                 // Leading indentation or inline open brace.
                 tok.SYMBOL_INDENT => {
                     // Begin a new sub-map. Recurse.
-                    current = try self.parse(head, tok.SYMBOL_DEDENT);
+                    current = try self.parse(head,
+                    tok.SYMBOL_DEDENT);
                     head = null;
                 },
                 tok.SYMBOL_OPEN_BRACE => {
                     // Equivalent to indent, just less ambiguous for nested blocks.
-                    current = try self.parse(head, tok.SYMBOL_DEDENT);
+                    current = try self.parse(head, 
+                    tok.SYMBOL_DEDENT);
                     head = null;
                 },
                 tok.SYMBOL_NEWLINE, tok.SYMBOL_COMMA => {
@@ -58,7 +61,9 @@ pub const FormParser = struct {
                     // Or end of expression.
                     // End current form. Insert into map.
                     if (head != null and current != null) {
-                        try currentForm.append(Form{ .head = head.?, .body = current.? });
+                        try currentForm.append(Form{ 
+                            .head = head.?, 
+                            .body = current.? });
                         head = null;
                         current = null;
                     } else {
@@ -78,15 +83,20 @@ pub const FormParser = struct {
 
                         // This is equivalent of calling a sub-parse and appending it.
                         // TODO: Double-check the scoping rules here.
-                        const remaining = try self.parse(head, tok.SYMBOL_NEWLINE);
+                        const remaining = try self.parse(head, 
+                        tok.SYMBOL_NEWLINE);
                         head = null;
-                        const subBody = Form{ .head = current.?, .body = remaining };
-                        const idx = formPointer(self.forms.items.len, 1);
+                        const subBody = Form{ .head = current.?, 
+                        .body = remaining };
+                        const idx = formPointer(self.forms.items.len,
+                         1);
                         try self.forms.append(subBody);
-                        try currentForm.append(Form{ .head = tok.SYMBOL_EQUALS, .body = idx });
+                        try currentForm.append(Form{ .head = tok.SYMBOL_EQUALS, 
+                        .body = idx });
                         current = idx;
                     } else {
-                        print("Syntax error. Expected head before =.", .{});
+                        print("Syntax error. Expected head before =.",
+                         .{});
                     }
                 },
                 else => {
@@ -132,9 +142,11 @@ fn testParse(buffer: []const u8, expected: []const Form) !void {
     var lexer = lex.Lexer.init(buffer, test_allocator);
     defer lexer.deinit();
     _ = try lexer.lex(0, 0);
-    var parser = FormParser.init(test_allocator, lexer);
+    var parser = FormParser.init(test_allocator, 
+    lexer);
     defer parser.deinit();
-    var result = try parser.parse(null, tok.SYMBOL_STREAM_END);
+    var result = try parser.parse(null, 
+    tok.SYMBOL_STREAM_END);
     _ = result;
 
     for (parser.forms.items, 0..) |form, i| {
@@ -142,7 +154,8 @@ fn testParse(buffer: []const u8, expected: []const Form) !void {
         tok.print_token(form.head, buffer);
         tok.print_token(form.body, buffer);
         if (i < expected.len) {
-            print("\nExpected: ({x} {x})\n", .{ expected[i].head, expected[i].body });
+            print("\nExpected: ({x} {x})\n", .{ expected[i].head, 
+            expected[i].body });
             try testFormEquals(form, expected[i]);
         } else {
             print("Unexpected.", .{});
@@ -158,7 +171,8 @@ fn testParse(buffer: []const u8, expected: []const Form) !void {
 test "FormParser.Test parse map" {
     var source = "a: b";
     var expected = [_]Form{
-        Form{ .head = val.createObject(tok.T_IDENTIFIER, 0, 1), .body = val.createObject(tok.T_IDENTIFIER, 3, 1) },
+        Form{ .head = val.createObject(tok.T_IDENTIFIER, 0, 1), 
+        .body = val.createObject(tok.T_IDENTIFIER, 3, 1) },
     };
 
     try testParse(source, &expected);
@@ -168,7 +182,8 @@ test "FormParser.Test parse map" {
         \\  b
     ;
     var expected2 = [_]Form{
-        Form{ .head = val.createObject(tok.T_IDENTIFIER, 0, 1), .body = val.createObject(tok.T_IDENTIFIER, 5, 1) },
+        Form{ .head = val.createObject(tok.T_IDENTIFIER, 0, 1), 
+        .body = val.createObject(tok.T_IDENTIFIER, 5, 1) },
     };
     try testParse(test2, &expected2);
 }

@@ -15,51 +15,68 @@ const AUX_Q: u1 = 1;
 
 const DELIMITERS = bitset.character_bitset("()[]{}\"'.,:; \t\n");
 const MULTICHAR_SYMBOLS = "!*+-/<=>";
-// Microoptimization - the multichar bitset can fit in u64 since all of these are < 64.
-// Unclear if it's worth it without tests.
-const MULTICHAR_BITSET = bitset.character_bitset(MULTICHAR_SYMBOLS); // All of these chars are < 64, so truncate. TODO: Verify shift.
+// Microoptimization - the multichar bitset can fit in u64 since all of these
+// are < 64. Unclear if it's worth it without tests.
+// All of these chars are < 64, so truncate. TODO: Verify shift.
+const MULTICHAR_BITSET = bitset.character_bitset(MULTICHAR_SYMBOLS);
 const MULTICHAR_KEYWORD_COUNT = MULTICHAR_SYMBOLS.len; // 7
-const SYMBOLS = bitset.character_bitset("%()*+,-./:<=>[]^{|}");   // "%()*+,-./:;<=>?[]^{|}"
+// "%()*+,-./:;<=>?[]^{|}"
+const SYMBOLS = bitset.character_bitset("%()*+,-./:<=>[]^{|}");  
 
 /// The lexer splits up an input buffer into tokens.
 /// The input buffer are smaller chunks of a source file.
 /// Lines are never split across chunks. The lexer yields after each line.
-/// The higher level controller chooses when to split chunks or continue, passing in the appropriate context.
-/// In general, we split by line-level when running in language server mode and by file when running in batch mode.
-/// All output is chunk-relative - if it specifies a line number, it's line number within this chunk.
+/// The higher level controller chooses when to split chunks or continue,
+//passing in the appropriate context. / In general, we split by line-level when
+//running in language server mode and by file when running in batch mode. / All
+//output is chunk-relative - if it specifies a line number, it's line number
+//within this chunk.
 /// The lexer outputs to two queues:
-/// The syntax queue, containing semantically meaningful tokens.
-/// The aux queue, with tokens for comments, whitespace, etc. (used for formatting, error offsets, etc.)
-/// A bit per token indicates whether the next token appears in the other queue (one token lookahead buffer).
+/// The syntax queue, containing semantically meaningful tokens. / The aux
+//queue, with tokens for comments, whitespace, etc. (used for formatting, error
+//offsets, etc.) / A bit per token indicates whether the next token appears in
+//the other queue (one token lookahead buffer).
 /// 
 /// Future Optimizations:
-/// Convert this to the direct-threaded tail-call style like the parser and specilize which branches you check based on what's expected.
-/// Doesn't matter for jump-tables, but useful for if-else based dispatch.
-/// We don't do any interning here to avoid allocations, but it may be worthwhile so the reader can
-/// reuse the bytes immediately after the lexer is done with a chunk. 
-/// Depends on context - for IDEs and use-cases where we'll have the buffer in memory, this current approach is better.
+/// Convert this to the direct-threaded tail-call style like the parser and
+//specilize which branches you check based on what's expected. / Doesn't matter
+//for jump-tables, but useful for if-else based dispatch. / We don't do any
+//interning here to avoid allocations, but it may be worthwhile so the reader
+//can / reuse the bytes immediately after the lexer is done with a chunk. /
+//Depends on context - for IDEs and use-cases where we'll have the buffer in
+//memory, this current approach is better.
 pub const Lexer = struct {
     const Self = @This();
     buffer: []const u8, // Slice/chunk of the source file.
     syntaxQ: *TokenQueue,
     auxQ: *TokenQueue,
-    QIdx: [2]u32, // How many tokens we've emitted to each queue for cross-references.
+    // How many tokens we've emitted to each queue for cross-references.
+    QIdx: [2]u32,
 
     prevToken: Token,
     index: u32, // Char scan index into this chunk.
-    lineQIndex: u32, // syntaxIndex of the previous newline. Newlines have an offset index to the previous.
-    lineChStart: u32, // Character index where this line started. For ch offset calculations.
-    lineNo: u16, // Line number within this chunk. Chunks are sized so this shouldn't overflow.
+    // syntaxIndex of the previous newline. Newlines have an offset index to the previous.
+    lineQIndex: u32, 
+    // Character index where this line started. For ch offset calculations.
+    lineChStart: u32,
+    // Line number within this chunk. Chunks are sized so this shouldn't overflow.
+    lineNo: u16,
 
-    // indentStack: u64, // A tiny little stack to contain up to 21 levels of indentation. (3 bits per indent offset).
+    // A tiny little stack to contain up to 21 levels of indentation. 
+    // (3 bits per indent offset).
+    // indentStack: u64,
     // kind: TokenKind,
-    // pub const TokenKind = enum { number, string, symbol, keyword, identifier, indent, dedent, newline, eof };
+    // pub const TokenKind = enum { number, string, symbol, keyword, 
+    // identifier, indent, dedent, newline, eof };
 
     pub fn init(buffer: []const u8, syntaxQ: *TokenQueue, auxQ: *TokenQueue) Self {
         const QIdx = [_]u32{ 0, 0 };
-        // Initialize prev to stream start to avoid needing a null-check in every emit.
-        // const initialPrev = @as(u64, @bitCast(tok.auxKindToken(tok.AuxKind.sep_stream_start, 0)));
-        return Self{ .buffer = buffer, .index = 0, .QIdx = QIdx, .lineQIndex = 0, .lineChStart = 0, .lineNo=0, .prevToken = tok.AUX_STREAM_START, .syntaxQ=syntaxQ, .auxQ=auxQ };
+        // Initialize prev to stream start to avoid needing a null-check in
+        // every emit. const initialPrev = @as(u64,
+        // @bitCast(tok.auxKindToken(tok.AuxKind.sep_stream_start, 0)));
+        return Self{ .buffer = buffer, .index = 0, .QIdx = QIdx, .lineQIndex = 0, 
+        .lineChStart = 0, .lineNo=0, .prevToken = tok.AUX_STREAM_START, 
+        .syntaxQ=syntaxQ, .auxQ=auxQ };
     }
 
     fn gobble_digits(self: *Lexer) void {
@@ -107,9 +124,10 @@ pub const Lexer = struct {
 
     // fn emitNumber(self: *Lexer, auxValue: Token) !void {
     //     print("Emit number: {d} {any}\n", .{value, auxValue});
-    //     // Numeric tokens don't have any free bits for us to set the switch-bit.
+    //// Numeric tokens don't have any free bits for us to set the switch-bit.
     //     // Assume it always indicates a 1 to "switch" to aux.
-    //     // try self.emitAux(auxValue); // The aux token can then indicate the switch-bit.
+    // The aux token can then indicate the switch-bit.
+    //     // try self.emitAux(auxValue);
     //     try self.emitToken(auxValue);
 
     //     // Emit the number token, without queuing up the prevToken.
@@ -122,19 +140,24 @@ pub const Lexer = struct {
     fn emitNewLine(self: *Lexer) !void {
         // Newlines have significance for error-reporting and indentation.
         // We emit them to both queues.
-        // NewLine in SyntaxQueue points to AuxQueue (32bit) and offset of previous line (16)
-        // NewLine in AuxQueue stores char offset (32 bit) and absolute line number cache (16 bit)
-        const prevOffset = self.QIdx[SYNTAX_Q] - self.lineQIndex; // Soft assumption - max 65k tokens per line.
+        // NewLine in SyntaxQueue points to AuxQueue (32bit) and offset of
+        // previous line (16) NewLine in AuxQueue stores char offset (32 bit)
+        // and absolute line number cache (16 bit)
+        // Soft assumption - max 65k tokens per line.
+        const prevOffset = self.QIdx[SYNTAX_Q] - self.lineQIndex;
         const auxIndex = self.QIdx[AUX_Q] + 1;
 
-        const syntaxNewLine = tok.createNewLine(auxIndex, @truncate(prevOffset));
+        const syntaxNewLine = tok.createNewLine(auxIndex, 
+        @truncate(prevOffset));
         try self.emitToken(syntaxNewLine);
 
-        try self.emitAux(tok.range(Token.Kind.aux_newline, self.index, self.lineNo));
+        try self.emitAux(tok.range(Token.Kind.aux_newline, 
+            self.index, self.lineNo));
         self.lineQIndex = self.QIdx[SYNTAX_Q];
         self.lineNo += 1;
         self.index += 1;
-        // Points to the beginning of line rather than newline char. Stored to allow line-relative char calculations.
+        // Points to the beginning of line rather than newline char. Stored to
+        // allow line-relative char calculations.
         self.lineChStart = self.index;
     }
 
@@ -152,7 +175,7 @@ pub const Lexer = struct {
     }
 
     fn token_number(self: *Lexer) !void {
-        // MVL just needs int support for bootstrapping. Stage1+ should parse float.
+        // MVL just needs int support for bootstrapping. TODO parse float.
         // const offset = self.index - self.lineChStart;
         const start = self.index;
         self.index += 1; // First char is already recognized as a digit or dot.
@@ -185,13 +208,15 @@ pub const Lexer = struct {
             unreachable;
         }
 
-        try self.emitToken(tok.stringLiteral(tokenStart, @truncate(tokenLen)));
+        try self.emitToken(tok.stringLiteral(tokenStart,
+         @truncate(tokenLen)));
     }
 
     fn is_delimiter(ch: u8) bool {
         // No mathematical operators in MVL.
         return switch (ch) {
-            '(', ')', '[', ']', '{', '}', '"', '\'', '.', ',', ':', ';', ' ', '\t', '\n' => true,
+            '(', ')', '[', ']', '{', '}', '"', '\'', '.', ',', 
+            ':', ';', ' ', '\t', '\n' => true,
             else => false,
         };
     }
@@ -215,11 +240,13 @@ pub const Lexer = struct {
     }
 
     fn seek_till(self: *Lexer, ch: []const u8) void {
-        while (self.index < self.buffer.len and self.buffer[self.index] != ch[0]) : (self.index += 1) {}
+        while (self.index < self.buffer.len and 
+        self.buffer[self.index] != ch[0]) : (self.index += 1) {}
     }
 
     fn seek_till_delimiter(self: *Lexer) void {
-        while (self.index < self.buffer.len and !is_delimiter(self.buffer[self.index])) : (self.index += 1) {}
+        while (self.index < self.buffer.len and 
+        !is_delimiter(self.buffer[self.index])) : (self.index += 1) {}
     }
 
     fn token_identifier(self: *Lexer) !u64 {
@@ -242,7 +269,8 @@ pub const Lexer = struct {
             unreachable;
         }
 
-        try self.emitToken(tok.identifier(start, @truncate(self.index - start)));
+        try self.emitToken(tok.identifier(start, 
+        @truncate(self.index - start)));
     }
 
     // fn skip(self: *Lexer) void {
@@ -252,7 +280,8 @@ pub const Lexer = struct {
     fn countIndentation(self: *Lexer) u16 {
         // Only indent with spaces. Mixed indentation is not allowed. Furthermore,
         var indent: u16 = 0;
-        while (self.index < self.buffer.len and self.buffer[self.index] == ' ') : (self.index += 1) {
+        while (self.index < self.buffer.len and 
+        self.buffer[self.index] == ' ') : (self.index += 1) {
             // It's an indentation char. Check if it matches.
             indent += 1;
         }
@@ -278,8 +307,9 @@ pub const Lexer = struct {
             // Skip emitting anything when the entire line is empty.
             return tok.SKIP_TOKEN; // TODO: Return a special token to skip
         } else if (ch == '\t') {
-            // Error on tabs - because it'll look like indentation visually, but don't have semantic meaning.
-            // So either we have to raise an error error or accept tabs.
+            // Error on tabs - because it'll look like indentation visually, but
+            // don't have semantic meaning. So either we have to raise an error
+            // error or accept tabs.
             print("Error: Mixed indentation. Use 4 spaces to align.", .{});
             return tok.LEX_ERROR; // TODO
         } else {
@@ -287,7 +317,8 @@ pub const Lexer = struct {
             if (indent > self.depth) {
                 const diff = indent - self.depth;
                 if (diff > 8) {
-                    // You can indent pretty far, but just can't do more than 8 spaces at a time.
+                    // You can indent pretty far, but just can't do more than 8
+                    // spaces at a time.
                     print("Indentation level too deep. Use 4 spaces to align.", .{});
                     return tok.LEX_ERROR;
                 }
@@ -326,7 +357,8 @@ pub const Lexer = struct {
         }
 
         self.depth = indent;
-        // TODO: Return dedent count in the token context somehow since we can't emit multiple tokens at once.
+        // TODO: Return dedent count in the token context somehow since we can't
+        // emit multiple tokens at once.
         return tok.SYMBOL_DEDENT;
     }
 
@@ -357,12 +389,16 @@ pub const Lexer = struct {
                         const start = self.index;
                         self.gobble_ch(' ');
                         const len = self.index - start;
-                        try self.emitAux(tok.range(Token.Kind.aux_whitespace, start, @truncate(len)));
+                        try self.emitAux(tok.range(
+                            Token.Kind.aux_whitespace, 
+                            start,
+                            @truncate(len)));
                     }
                 },
                 '\t' => {
                     // Tabs have no power here! We use spaces exclusively.
-                    try self.emitAux(tok.range(Token.Kind.aux_indentation, self.index, 1));
+                    try self.emitAux(tok.range(Token.Kind.aux_indentation,
+                    self.index, 1));
                     self.index += 1;
                 },
                 '\n' => {
@@ -386,10 +422,12 @@ pub const Lexer = struct {
                     if (MULTICHAR_BITSET.isSet(ch)) {
                         const peekCh = self.peek_ch();
                         print("Multichar: {c} {c}\n", .{ch, peekCh});
-                        // All of the current multi-char symbols have = as the followup char.
-                        // If that changes in the future, use a lookup string indexed by chBit popcnt index.
+                        // All of the current multi-char symbols have = as the
+                        // followup char. If that changes in the future, use a
+                        // lookup string indexed by chBit popcnt index.
                         if (peekCh == '=') {
-                            const tokenKind = bitset.chToKind(MULTICHAR_BITSET, ch, 0);
+                            const tokenKind = bitset.chToKind(
+                                MULTICHAR_BITSET, ch, 0);
                             // Emit the multichar symbol.
                             self.index += 1;
                             try self.emitToken(tok.createToken(tokenKind));
@@ -407,16 +445,20 @@ pub const Lexer = struct {
 
                     // Single-character symbols.
                     if (SYMBOLS.isSet(ch)) {
-                        print("CH {d} index {d} enum val {d}\n", .{ch, bitset.index128(SYMBOLS, ch), @intFromEnum(tok.Token.Kind.grp_close_brace)} );
-                        const tokKind = bitset.chToKind(SYMBOLS, ch, MULTICHAR_KEYWORD_COUNT);
+                        print("CH {d} index {d} enum val {d}\n", .{
+                            ch, 
+                            bitset.index128(SYMBOLS, ch), 
+                            @intFromEnum(tok.Token.Kind.grp_close_brace)} );
+                        const tokKind = bitset.chToKind(SYMBOLS, 
+                        ch, MULTICHAR_KEYWORD_COUNT);
                         try self.emitToken(tok.createToken(tokKind));
                         // Index updated outside.
                         continue;
                     }
 
                     // TODO: Parse alphabetic keywords like if, for.
-                    // self.token_symbol();
-                    // handle cases where it's not a valid identifier and none of the recognized tokens.
+                    // self.token_symbol(); handle cases where it's not a valid
+                    // identifier and none of the recognized tokens.
                 },
             }
         }
@@ -454,13 +496,15 @@ pub fn testLexToken(buffer: []const u8, expected: []const Token, aux: []const To
 }
 
 test "Token equality" {
-    const auxtok_bits: u64 = @bitCast(tok.range(Token.Kind.aux_stream_end, 3, 5));
+    const auxtok_bits: u64 = @bitCast(tok.range(
+        Token.Kind.aux_stream_end, 3, 5));
     print("AuxTok bits: {x}\n", .{auxtok_bits});
     // big_endian - 0b0_0_111010_0000_0000_0000_0000_0000_0000_0000_0011_0000_0000_0000_0000_0000_0101;
     const le_expected_bits: u64 = 0x000005_00000003_FC;
     try expect(auxtok_bits == le_expected_bits);
 
-    const other_bits: u64 = @bitCast(tok.range(Token.Kind.aux, 10, 20));
+    const other_bits: u64 = @bitCast(tok.range(
+        Token.Kind.aux, 10, 20));
     try expect(other_bits != le_expected_bits);
 
     const numtok: u64 = @bitCast(tok.numberLiteral(0, 1));
@@ -526,8 +570,6 @@ test "Lex symbols" {
     try testSymbol("{", TK.grp_open_brace);
     try testSymbol("|", TK.op_choice);
     try testSymbol("}", TK.grp_close_brace);
-    
-
 }
 
 //     var lexer = Lexer.init("1 2 3", syntaxQ, auxQ);
@@ -536,56 +578,56 @@ test "Lex symbols" {
 //     // try testLexToken("1 2 3", &[_]u64{ 1, 2, 3 });
 // }
 
-// test "Lex delimiters and identifiers" {
-//     // Delimiters , . = : and identifiers.
-//     // (a, bb):"
-//     // 01234567
-//     try testLexToken("(a, bb):", &[_]u64{
-//         tok.SYMBOL_OPEN_PAREN,
-//         val.createObject(tok.T_IDENTIFIER, 1, 1),
-//         tok.SYMBOL_COMMA,
-//         val.createObject(tok.T_IDENTIFIER, 4, 2),
-//         tok.SYMBOL_CLOSE_PAREN,
-//         tok.SYMBOL_COLON,
-//     });
-// }
+test "Lex delimiters and identifiers" {
+    // Delimiters , . = : and identifiers.
+    // (a, bb):"
+    // 01234567
+    try testLexToken("(a, bb):", &[_]u64{
+        tok.SYMBOL_OPEN_PAREN,
+        val.createObject(tok.T_IDENTIFIER, 1, 1),
+        tok.SYMBOL_COMMA,
+        val.createObject(tok.T_IDENTIFIER, 4, 2),
+        tok.SYMBOL_CLOSE_PAREN,
+        tok.SYMBOL_COLON,
+    });
+}
 
-// test "Lex string" {
-//     // "Hello"
-//     // 0123456
-//     try testLexToken("\"Hello\"", &[_]u64{
-//         val.createStringPtr(1, 5), // Doesn't include quotes.
-//     });
-// }
+test "Lex string" {
+    // "Hello"
+    // 0123456
+    try testLexToken("\"Hello\"", &[_]u64{
+        val.createStringPtr(1, 5), // Doesn't include quotes.
+    });
+}
 
-// test "Test indentation" {
-//     // "Hello"
-//     // 0123456
-//     var source =
-//         \\a
-//         \\  b
-//         \\  b2
-//         \\     c
-//         \\       d
-//         \\  b3
-//     ;
-//     try testLexToken(source, &[_]u64{
-//         val.createObject(tok.T_IDENTIFIER, 0, 1), // a
-//         tok.SYMBOL_NEWLINE,
-//         tok.SYMBOL_INDENT,
-//         val.createObject(tok.T_IDENTIFIER, 4, 1), // b
-//         tok.SYMBOL_NEWLINE,
-//         val.createObject(tok.T_IDENTIFIER, 8, 2), // b2
-//         tok.SYMBOL_NEWLINE,
-//         tok.SYMBOL_INDENT,
-//         val.createObject(tok.T_IDENTIFIER, 16, 1), // c
-//         tok.SYMBOL_NEWLINE,
-//         tok.SYMBOL_INDENT,
-//         val.createObject(tok.T_IDENTIFIER, 25, 1), // d
-//         tok.SYMBOL_NEWLINE,
-//         tok.SYMBOL_DEDENT,
-//         tok.SYMBOL_DEDENT,
-//         val.createObject(tok.T_IDENTIFIER, 29, 2), // b3
-//         tok.SYMBOL_DEDENT,
-//     });
-// }
+test "Test indentation" {
+    // "Hello"
+    // 0123456
+    var source =
+        \\a
+        \\  b
+        \\  b2
+        \\     c
+        \\       d
+        \\  b3
+    ;
+    try testLexToken(source, &[_]u64{
+        val.createObject(tok.T_IDENTIFIER, 0, 1), // a
+        tok.SYMBOL_NEWLINE,
+        tok.SYMBOL_INDENT,
+        val.createObject(tok.T_IDENTIFIER, 4, 1), // b
+        tok.SYMBOL_NEWLINE,
+        val.createObject(tok.T_IDENTIFIER, 8, 2), // b2
+        tok.SYMBOL_NEWLINE,
+        tok.SYMBOL_INDENT,
+        val.createObject(tok.T_IDENTIFIER, 16, 1), // c
+        tok.SYMBOL_NEWLINE,
+        tok.SYMBOL_INDENT,
+        val.createObject(tok.T_IDENTIFIER, 25, 1), // d
+        tok.SYMBOL_NEWLINE,
+        tok.SYMBOL_DEDENT,
+        tok.SYMBOL_DEDENT,
+        val.createObject(tok.T_IDENTIFIER, 29, 2), // b3
+        tok.SYMBOL_DEDENT,
+    });
+}

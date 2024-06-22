@@ -9,7 +9,9 @@ const ParseOp = enum(u8) {
     fail = 1, // Terminate with an error.
     push = 2, // Push current char to context stack.
     pop = 3, // Emit the top of the current context stack.
-    peek = 4, // Don't output or advance. Transition to next state and peek at current context rather than input.
+    // Don't output or advance. Transition to next state and peek at current
+    // context rather than input.
+    peek = 4,
     advance = 5, // Advance the input, building up the current token.
     skip = 6, // Advance the input without emitting anything.
     emit = 7, // At an unambiguous terminal. Emit the current type onto the ast.
@@ -132,9 +134,13 @@ const StateTransition = struct {
 pub const CompiledParseState = struct {
     /// Compiled state machine which consumes character, and outputs next-state.
     match: u128, // Bitset of ascii charcode -> match(1) or not(0)
-    matchIndexNext: u64, // Bitset of popcnt-index of char -> 0 (default next) or 1 (special cases)
-    defaultNext: StateTransition, // The most common next-state shared by many characters.
-    nextOffset: usize, // The other possible next-states. Indexed by popcnt-index. Index into an array of StateTransitions defined in parent.
+    // Bitset of popcnt-index of char -> 0 (default next) or 1 (special cases)
+    matchIndexNext: u64, 
+    // The most common next-state shared by many characters.
+    defaultNext: StateTransition, 
+    // The other possible next-states. Indexed by popcnt-index. Index into an
+    // array of StateTransitions defined in parent.
+    nextOffset: usize, 
     fail: StateTransition, // What to do if the match failed.
 };
 
@@ -147,7 +153,9 @@ const Token = struct {
 
 fn cmpByState(_context: void, a: StateTransition, b: StateTransition) bool {
     _ = _context; // autofix
-    return a.next < b.next or @intFromEnum(a.operation) < @intFromEnum(b.operation) or a.type < b.type;
+    return a.next < b.next or 
+    @intFromEnum(a.operation) < @intFromEnum(b.operation) 
+    or a.type < b.type;
 }
 
 pub fn mostFrequentTransition(currentState: [127]StateTransition) StateTransition {
@@ -157,13 +165,19 @@ pub fn mostFrequentTransition(currentState: [127]StateTransition) StateTransitio
         cloneState[i] = transition;
     }
 
-    std.sort.heap(StateTransition, &cloneState, {}, cmpByState);
-    var mostFrequent = StateTransition{ .operation = ParseOp.fail, .next = 9999999, .type = 0 };
+    std.sort.heap(StateTransition, &cloneState, {},
+     cmpByState);
+    var mostFrequent = StateTransition{ 
+        .operation = ParseOp.fail, 
+        .next = 9999999, .type = 0 };
     var mostFrequentCount: u32 = 0;
     var currentCount: u32 = 0;
     var currentTransition = cloneState[0];
     for (currentState) |transition| {
-        if (transition.operation != ParseOp.uninitialized and transition.next == currentTransition.next and transition.operation == currentTransition.operation and transition.type == currentTransition.type) {
+        if (transition.operation != ParseOp.uninitialized and
+         transition.next == currentTransition.next and
+          transition.operation == currentTransition.operation and
+           transition.type == currentTransition.type) {
             currentCount += 1;
         } else {
             if (currentCount > mostFrequentCount) {
@@ -193,7 +207,9 @@ pub const TableParser = struct {
         const strings = std.StringHashMap(usize).init(allocator);
         const symbols = std.StringHashMap(u64).init(allocator);
         const ast = std.MultiArrayList(asttypes.AstNode).init(allocator);
-        return Self{ .states = states, .allocator = allocator, .compiled = compiled, .transitions = transitions, .strings = strings, .symbols = symbols, .ast = ast };
+        return Self{ .states = states, .allocator = allocator, 
+        .compiled = compiled, .transitions = transitions, 
+        .strings = strings, .symbols = symbols, .ast = ast };
     }
 
     pub fn deinit(self: *Self) void {
@@ -245,7 +261,9 @@ pub const TableParser = struct {
                 bitsetMatch |= mask;
                 // print("Bitset match: {b}\n", .{bitsetMatch});
 
-                if (transition.next != defaultNext.next or transition.operation != defaultNext.operation or transition.type != defaultNext.type) {
+                if (transition.next != defaultNext.next or 
+                transition.operation != defaultNext.operation or 
+                transition.type != defaultNext.type) {
                     // Defaults are set to 0. Everything else is a 1.
                     const matchMask: u64 = @as(u64, 1) << matchIndex;
                     matchIndexNext |= matchMask;
@@ -281,7 +299,8 @@ pub const TableParser = struct {
             for (state.match) |char| {
                 if (currentState[char].operation == ParseOp.uninitialized) {
                     // print("Setting {d} for char {c}\n", .{ currentId, char });
-                    currentState[char] = StateTransition{ .operation = state.operation, .next = state.next, .type = state.type };
+                    currentState[char] = StateTransition{ .operation = state.operation, 
+                    .next = state.next, .type = state.type };
                 } else {
                     // Can't have two rules defining conflicting matches for the same character.
                     print("Duplicate character match definition: {c} for state {d}.", .{ char, state.id });
@@ -333,24 +352,30 @@ pub const TableParser = struct {
                 // Specify a mask with the first N bits set to 1, so we can compute how many characters < C matches.
                 const charMatchIndexMask = charMask - 1; // N bits set to 1.
                 // Count how many chars can match < current char.
-                const matchIndex: u6 = @truncate(@popCount(charMatchIndexMask & currentState.match));
+                const matchIndex: u6 = @truncate(
+                    @popCount(charMatchIndexMask & currentState.match));
                 // Assert - matchIndexCount < 64
 
                 print("Non-default match: {b}\n", .{currentState.matchIndexNext});
 
                 // Use that index to lookup in a bitset of whether it's the most common default match
                 const defaultNextMask: u64 = @as(u64, 1) << matchIndex;
-                const isDefaultNextState = (currentState.matchIndexNext & defaultNextMask) == 0;
+                const isDefaultNextState = (currentState.matchIndexNext & 
+                defaultNextMask) == 0;
                 // The most common transition is stored in a separate field to reduce duplication in the nextState array.
                 var nextTransition: StateTransition = currentState.defaultNext;
                 if (!isDefaultNextState) {
-                    // Otherwise, lookup by the non-zero'th index to find the distinct next state.
+                    // Otherwise, lookup by the non-zero'th index to find the
+                    // distinct next state.
                     const nextIndexMask = defaultNextMask - 1;
-                    const nextIndex = @popCount(currentState.matchIndexNext & nextIndexMask);
+                    const nextIndex = @popCount(
+                        currentState.matchIndexNext & nextIndexMask);
 
-                    nextTransition = self.transitions.items[currentState.nextOffset + nextIndex];
+                    nextTransition = self.transitions.items[
+                        currentState.nextOffset + nextIndex];
                 }
-                print("Match. Next state: {d}. Op {?}\n", .{ nextTransition.next, nextTransition.operation });
+                print("Match. Next state: {d}. Op {?}\n", .{ 
+                    nextTransition.next, nextTransition.operation });
 
                 currentState = self.compiled.items[nextTransition.next];
 
@@ -376,15 +401,21 @@ const expect = std.testing.expect;
 const print = std.debug.print;
 
 const TBL_FLOAT = [_]ParseSubState{
-    ParseSubState{ .id = 0, .match = "0123456789", .operation = ParseOp.advance, .next = 1, .type = 0 },
-    ParseSubState{ .id = 0, .match = ".", .operation = ParseOp.advance, .next = 2, .type = 0 },
+    ParseSubState{ .id = 0, .match = "0123456789", 
+    .operation = ParseOp.advance, .next = 1, .type = 0 },
+    ParseSubState{ .id = 0, .match = ".", 
+    .operation = ParseOp.advance, .next = 2, .type = 0 },
     // ParseSubState{ .id = 0, .match = SENTINEL_END, .operation = ParseOp.fail, .next = 0 },  // Empty string.
-    ParseSubState{ .id = 1, .match = "0123456789", .operation = ParseOp.advance, .next = 1, .type = 0 },
-    ParseSubState{ .id = 1, .match = ".", .operation = ParseOp.advance, .next = 2, .type = 0 },
+    ParseSubState{ .id = 1, .match = "0123456789", 
+    .operation = ParseOp.advance, .next = 1, .type = 0 },
+    ParseSubState{ .id = 1, .match = ".", 
+    .operation = ParseOp.advance, .next = 2, .type = 0 },
     // TODO ParseSubState{ .id = 1, .match = SENTINEL_END, .operation = ParseOp.emit, .next = 0, .type = 0 },
-    ParseSubState{ .id = 2, .match = "0123456789", .operation = ParseOp.advance, .next = 3, .type = 0 },
+    ParseSubState{ .id = 2, .match = "0123456789", 
+    .operation = ParseOp.advance, .next = 3, .type = 0 },
     // ParseSubState{ .id = 2, .match = SENTINEL_END, .operation = ParseOp.fail, .next = 0 },  // . without fractions.
-    ParseSubState{ .id = 3, .match = "0123456789", .operation = ParseOp.advance, .next = 3, .type = 0 }, // Parse fractions.
+    ParseSubState{ .id = 3, .match = "0123456789", 
+    .operation = ParseOp.advance, .next = 3, .type = 0 }, // Parse fractions.
     // TODO ParseSubState{ .id = 3, .match = SENTINEL_END, .operation = ParseOp.emit, .next = 0, .type = 0 },
 };
 
@@ -399,7 +430,8 @@ test "Float parser" {
 test "Most frequent state transition" {
     var states = mem.zeroes([127]StateTransition);
 
-    states[0] = StateTransition{ .operation = ParseOp.advance, .next = 0, .type = 0 };
+    states[0] = StateTransition{ .operation = ParseOp.advance, .next = 0, 
+    .type = 0 };
     states[1] = StateTransition{ .operation = ParseOp.advance, .next = 0, .type = 0 };
     states[2] = StateTransition{ .operation = ParseOp.advance, .next = 1, .type = 0 };
     states[3] = StateTransition{ .operation = ParseOp.advance, .next = 1, .type = 0 };
@@ -416,14 +448,22 @@ test "Most frequent state transition" {
 test "Compile state" {
     var states = mem.zeroes([127]StateTransition);
 
-    states[0] = StateTransition{ .operation = ParseOp.advance, .next = 0, .type = 0 };
-    states[2] = StateTransition{ .operation = ParseOp.advance, .next = 0, .type = 0 };
-    states[3] = StateTransition{ .operation = ParseOp.advance, .next = 1, .type = 0 };
-    states[5] = StateTransition{ .operation = ParseOp.advance, .next = 1, .type = 0 };
-    states[6] = StateTransition{ .operation = ParseOp.advance, .next = 1, .type = 0 };
-    states[7] = StateTransition{ .operation = ParseOp.advance, .next = 3, .type = 1 };
-    states[10] = StateTransition{ .operation = ParseOp.advance, .next = 3, .type = 2 };
-    states[11] = StateTransition{ .operation = ParseOp.advance, .next = 3, .type = 3 };
+    states[0] = StateTransition{ .operation = ParseOp.advance, .next = 0, 
+    .type = 0 };
+    states[2] = StateTransition{ .operation = ParseOp.advance, .next = 0, 
+    .type = 0 };
+    states[3] = StateTransition{ .operation = ParseOp.advance, .next = 1, 
+    .type = 0 };
+    states[5] = StateTransition{ .operation = ParseOp.advance, .next = 1, 
+    .type = 0 };
+    states[6] = StateTransition{ .operation = ParseOp.advance, .next = 1, 
+    .type = 0 };
+    states[7] = StateTransition{ .operation = ParseOp.advance, .next = 3, 
+    .type = 1 };
+    states[10] = StateTransition{ .operation = ParseOp.advance, .next = 3, 
+    .type = 2 };
+    states[11] = StateTransition{ .operation = ParseOp.advance, .next = 3, 
+    .type = 3 };
 
     const tbl = [_]ParseSubState{};
     var parser = TableParser.init(&tbl, test_allocator);
