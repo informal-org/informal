@@ -29,9 +29,13 @@ class Pattern:
 
 
 class Choice(Pattern):
-    def __init__(self, elements: List[Union[Pattern, str]]):
+    def __init__(self, elements: List[Union[Pattern, str]], name=None):
         self.elements = elements
+        self.name = name
         super().__init__()
+
+    def __repr__(self):
+        return f"{self.name + ' : ' if self.name else ''}Choice({self.elements})"
 
     def to_state_machine(self, visited):
         # Converts this pattern to a state machine.
@@ -60,49 +64,57 @@ class Choice(Pattern):
 
 class Sequence(Pattern):
     ### Sequence of patterns. Does not support recursion.
-    def __init__(self, elements: List[Union[Pattern, str]]):
+    def __init__(self, elements: List[Union[Pattern, str]], name=None):
         self.elements = elements
+        self.name = name
         super().__init__()
+        
+
+    def __repr__(self):
+        return f"{self.name + ' : ' if self.name else ''}Sequence({self.elements})"
 
 
-def PrecedenceSeq(Sequence):
-    """
-    Sequence which respects precedence rules in how it recurses.
-    So left hand side will recurse to any lower-priority operators, 
-    and right hand side will recurse to any higher-priority operators.
-    Associtivity determines behavior of equal precedence operators.
-    """
-    def __init__(self, elements: List[Union[Pattern, str]]):
-        super().__init__(elements)
+# def PrecedenceSeq(Sequence):
+#     """
+#     Sequence which respects precedence rules in how it recurses.
+#     So left hand side will recurse to any lower-priority operators, 
+#     and right hand side will recurse to any higher-priority operators.
+#     Associtivity determines behavior of equal precedence operators.
+#     """
+#     def __init__(self, elements: List[Union[Pattern, str]]):
+#         super().__init__(elements)
 
 
-class LeftSeq(PrecedenceSeq):
-    """
-    Left associative sequence. a + b + c = (a + b) + c. 
-    Left side binds more tightly to equal precedence operators.
-    """
-    def __init__(self, elements: List[Union[Pattern, str]]):
-        self.elements = elements
-        super().__init__()
+# class LeftSeq(PrecedenceSeq):
+#     """
+#     Left associative sequence. a + b + c = (a + b) + c. 
+#     Left side binds more tightly to equal precedence operators.
+#     """
+#     def __init__(self, elements: List[Union[Pattern, str]]):
+#         self.elements = elements
+#         super().__init__()
 
 
-class RightSeq(PrecedenceSeq):
-    """
-    Right associative sequence.
-    a = b = c is equivalent to a = (b = c).
-    """
+# class RightSeq(PrecedenceSeq):
+#     """
+#     Right associative sequence.
+#     a = b = c is equivalent to a = (b = c).
+#     """
     
-    def __init__(self, elements: List[Union[Pattern, str]]):
-        self.elements = elements
-        super().__init__()
+#     def __init__(self, elements: List[Union[Pattern, str]]):
+#         self.elements = elements
+#         super().__init__()
 
     
 
 class Union(Pattern):
-    def __init__(self, elements: List[Union[Pattern, str]]):
+    def __init__(self, elements: List[Union[Pattern, str]], name=None):
         self.elements = elements
+        self.name = name
         super().__init__()
 
+    def __repr__(self):
+        return f"{self.name + ' : ' if self.name else ''}Union({self.elements})"
 
 class State:
     def __init__(self, transitions, pattern: Pattern = None):
@@ -122,16 +134,18 @@ class OrderedState:
         """
         self.transitions = defaultdict(list)
     
-    def merge(self, other: Union[State, "OrderedState"]):
+    def merge(self, other):
         """
         Merge the other states into this states, such that a single lookup can lookup both transitions in order.
+        other: Union[State, "OrderedState"]
         """
-        for k, v in other.transitions.items():
-            if isinstance(v, State):
-                self.transitions[k].append((v, other.pattern))
-            else:
-                # Ordered state.
-                self.transitions[k].extend(v)
+        pass
+        # for k, v in other.transitions.items():
+        #     if isinstance(v, State):
+        #         self.transitions[k].append((v, other.pattern))
+        #     else:
+        #         # Ordered state.
+        #         self.transitions[k].extend(v)
 
 
 
@@ -194,69 +208,89 @@ def bottom_up_parse(root):
     
     while explore_queue:
         current_pattern, index = explore_queue.pop(0)
+        def pattern_finished():
+            # We've reached the end of this sequence.
+            # Emit some kind of marker, and continue processing where this is a sub-sequence.
+            print(f"End of sequence after { pattern_at } - {current_pattern}")
+            other_dependencies = dependencies[current_pattern]
+            print(f"Continuing with: {other_dependencies}")
+            for elem, elem_index in other_dependencies:
+                if elem == current_pattern:
+                    # TODO: Any special case here?
+                    print("Skipping self.")
+                    continue
+                if isinstance(elem, Sequence):
+                    if elem_index + 1 < len(elem.elements):
+                        print(f"TODO explore {elem} at {elem_index + 1}")
+                        explore_queue.append((elem, elem_index + 1))
+                    else:
+                        # That one's done too!
+                        print(f"End of sub-sequence: {elem}")
+                        other_dependencies += dependencies[elem]
+                elif isinstance(elem, Choice):
+                    # If any of the options pass, then propagate up.
+                    # Union requires all to pass.
+                    print(f"Dependency for choice {elem} met.")
+                    other_dependencies += dependencies[elem]
+                else:
+                    raise ValueError(f"Not implemented - pattern type {type(elem)}.")
+
+
         if isinstance(current_pattern, Sequence):
+            print("Exploring Sequence: ", current_pattern.name, " at ", index)
             pattern_at = current_pattern.elements[index]
             if isinstance(pattern_at, str):
                 # We can process this node and continue processing this sequence.
-                pass
+                # TODO: Actual state machine processing.
+                print("Matching: ", pattern_at)
+                if index + 1 < len(current_pattern.elements):
+                    print("Enqueuing next: ", current_pattern, index + 1)
+                    explore_queue.append((current_pattern, index + 1))
+                else:
+                    print("End of sequence: ", current_pattern)
+                    pattern_finished()
             else:
                 # Welp - must go deeper.
                 if pattern_at not in dependencies:
                     explore_queue.append((pattern_at, 0))
+                else:
+                    # This is a dependency we've already seen.
+                    print("Dependency already seen: ", pattern_at.name)
+                    
+                    if index + 1 < len(current_pattern.elements):
+                        print("Enqueuing next: ", current_pattern, index + 1)
+                        explore_queue.append((current_pattern, index + 1))
+                    else:
+                        print("End of sequence: ", current_pattern)
+                        pattern_finished()
+
+
                 # When that dependency finishes, indicate to come back here.
                 dependencies[pattern_at].append((current_pattern, index))
-
         elif isinstance(current_pattern, Union) or isinstance(current_pattern, Choice):
-            # All elements are possible roots.
-            continue
+            # All elements are possible roots. Queue them up!
+            assert index == 0, "Index should be 0 for Union/Choice."
+            print("Exploring Union/Choice: ", current_pattern.elements)
+            finished = True
+            for sub_index, elem in enumerate(current_pattern.elements):
+                if isinstance(elem, str):
+                    # TODO: Do something proper with this
+                    print("Matching choice str - ", elem)
+                else:
+                    finished = False
+                    if elem not in dependencies:
+                        print("Enqueuing: ", elem)
+                        # This hasn't been explored yet.
+                        explore_queue.append((elem, 0))
+                    dependencies[elem].append((current_pattern, sub_index))
+
+            if finished:
+                # If all of the things were terminal, then mark this as done.
+                pattern_finished()
         else:
             # Patterns with strings should not end up here.
             # It should be part of some higher-level pattern.
-            raise ValueError("Unknown pattern type.")
-        
-
-        if isinstance(current_pattern, Sequence):
-            pattern_at = current_pattern.elements[index]
-            if isinstance(current_pattern, str):
-                pass
-            else:
-                if pattern_at not in dependencies:
-                    if isinstance(pattern_at, Sequence):
-                        explore_queue.append((pattern_at, 0))
-                    elif isinstance(pattern_at, Union) or isinstance(pattern_at, Choice):
-                        for elem in pattern_at.elements:
-                            explore_queue.append((pattern_at, 0))
-                # Do we need to ensure it's not already in there?
-                dependencies[pattern_at].append((current_pattern, index))
-        elif isinstance(current_pattern, Union) or isinstance(current_pattern, Choice):
-            # Index doesn't really apply. All elements are equally valid.
-            for elem in current_pattern.elements:
-                dependencies[elem].append((current_pattern, index))
-                if elem not in dependencies:
-                    explore_queue.append((elem, 0))
-
-        if isinstance(current_pattern, str):
-            # TODO
-            continue
-        elif isinstance(current_pattern, Pattern):
-            
-        
-            # It's a sub-pattern. Explore it if it's not already queued up.
-            if pattern_at not in dependencies:
-                if isinstance(pattern_at, Sequence) or isinstance(pattern_at, str):
-                    explore_queue.append((pattern_at, 0))
-                elif isinstance(pattern_at, Union) or isinstance(pattern_at, Choice):
-                    for elem in pattern_at.elements:
-                        dependencies[elem].append((current_pattern, index))
-                        explore_queue.append((elem, 0))
-
-            
-            
-
-            for i, e in enumerate(current_pattern.elements):
-                if isinstance(e, Pattern):
-                    dependencies.setdefault(e, []).append((current, i))
-                    explore_queue.append((e, i))
+            raise ValueError(f"Unknown pattern type - {current_pattern} - {type(current_pattern)}.")
 
 
 PATTERN_TERMINAL = "TERMINAL"
@@ -299,4 +333,9 @@ def start_compile(patterns, mode="any"):
     return compile([(p, p) for p in patterns], mode)
 
 # To start with, let's just test a list of strings with no nesting.
-print(start_compile(["cat", "car"], mode="all"))
+# print(start_compile(["cat", "car"], mode="all"))
+
+term = Choice(["a", "b", "c"], name="term")
+expr = Choice([], name="expr")
+expr.elements = [Sequence([expr, "+", term], name="expr + term"), term]
+bottom_up_parse(expr)
