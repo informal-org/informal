@@ -35,7 +35,7 @@ class Choice(Pattern):
         super().__init__()
 
     def __repr__(self):
-        return f"{self.name + ' : ' if self.name else ''}Choice({self.elements})"
+        return f"{self.name if self.name else ' | '.join([str(e) for e in self.elements])}"
 
     def to_state_machine(self, visited):
         # Converts this pattern to a state machine.
@@ -71,7 +71,10 @@ class Sequence(Pattern):
         
 
     def __repr__(self):
-        return f"{self.name + ' : ' if self.name else ''}Sequence({self.elements})"
+        return f"{self.name + ' = ' if self.name else ''}{', '.join([str(e) for e in self.elements])}"
+    
+    def str(self):
+        return f"{self.name if self.name else ', '.join([str(e) for e in self.elements])}"
 
 
 # def PrecedenceSeq(Sequence):
@@ -212,13 +215,14 @@ def bottom_up_parse(root):
             # We've reached the end of this sequence.
             # Emit some kind of marker, and continue processing where this is a sub-sequence.
             print(f"End of sequence after { pattern_at } - {current_pattern}")
-            other_dependencies = dependencies[current_pattern]
+            other_dependencies = dependencies[current_pattern].copy()
+            dependencies[current_pattern] = []
             print(f"Continuing with: {other_dependencies}")
             for elem, elem_index in other_dependencies:
-                if elem == current_pattern:
-                    # TODO: Any special case here?
-                    print("Skipping self.")
-                    continue
+                # if elem == current_pattern:
+                #     # TODO: Any special case here?
+                #     print("Skipping self.")
+                #     continue
                 if isinstance(elem, Sequence):
                     if elem_index + 1 < len(elem.elements):
                         print(f"TODO explore {elem} at {elem_index + 1}")
@@ -227,17 +231,19 @@ def bottom_up_parse(root):
                         # That one's done too!
                         print(f"End of sub-sequence: {elem}")
                         other_dependencies += dependencies[elem]
+                        dependencies[elem] = []
                 elif isinstance(elem, Choice):
                     # If any of the options pass, then propagate up.
                     # Union requires all to pass.
                     print(f"Dependency for choice {elem} met.")
                     other_dependencies += dependencies[elem]
+                    dependencies[elem] = []
                 else:
                     raise ValueError(f"Not implemented - pattern type {type(elem)}.")
 
 
         if isinstance(current_pattern, Sequence):
-            print("Exploring Sequence: ", current_pattern.name, " at ", index)
+            print("Exploring Sequence: ", current_pattern, " at ", index)
             pattern_at = current_pattern.elements[index]
             if isinstance(pattern_at, str):
                 # We can process this node and continue processing this sequence.
@@ -270,7 +276,7 @@ def bottom_up_parse(root):
         elif isinstance(current_pattern, Union) or isinstance(current_pattern, Choice):
             # All elements are possible roots. Queue them up!
             assert index == 0, "Index should be 0 for Union/Choice."
-            print("Exploring Union/Choice: ", current_pattern.elements)
+            print("Exploring Union/Choice: ", current_pattern)
             finished = True
             for sub_index, elem in enumerate(current_pattern.elements):
                 if isinstance(elem, str):
