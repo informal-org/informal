@@ -345,10 +345,19 @@ def gen_state_machine(root: Pattern):
             if pattern_at.state is None:
                 pattern_at.state = new_state()
 
-        # When pattern at finishes, go to the next state.
-        dependencies[pattern_at].append((pattern, index))
+            # When pattern at finishes, go to the next state.
+            dependencies[pattern_at].append((pattern, index))
+        else:
+            # This might be in the queue or already done...
+            if not dependencies[pattern_at]:
+                # Already done - consider it met.
+                advance(pattern, index)
+            else:
+                dependencies[pattern_at].append((pattern, index))
+
 
     def terminate(pattern):
+        print("terminate: ", pattern)
         # This pattern has been met.
         # Advance any patterns waiting on this one.
         pattern_deps = dependencies[pattern].copy()     # TODO: This copy seems unnecessary.
@@ -395,7 +404,8 @@ def gen_state_machine(root: Pattern):
         current_pattern, index = explore_queue.pop(0)
         visit(current_pattern, index)
 
-
+    print("States: ", states)
+    print(dependencies)
 
 
 PATTERN_TERMINAL = "TERMINAL"
