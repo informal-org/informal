@@ -4,12 +4,13 @@ Pattern to table compiler.
 Ordered choice between patterns - rather than checking each pattern in order, we compile a lookup table of character -> list of patterns which match in order.
 """
 from collections import defaultdict
-from typing import List, Union
+from typing import List, Union, Optional
 
 
 class Pattern:
     def __init__(self):
         self.initial_state = OrderedState()
+        self.state = None
 
     def add_seq(self, seq: str, pattern):
         next_state = None
@@ -28,8 +29,17 @@ class Pattern:
             self.current_state = next_state
 
 
+class Literal(Pattern):
+    def __init__(self, value: str):
+        self.value = value
+        super().__init__()
+
+    def __repr__(self):
+        return self.value
+
+
 class Choice(Pattern):
-    def __init__(self, elements: List[Union[Pattern, str]], name=None):
+    def __init__(self, elements: List[Pattern], name=None):
         self.elements = elements
         self.name = name
         super().__init__()
@@ -110,23 +120,34 @@ class Sequence(Pattern):
 
     
 
-class Union(Pattern):
-    def __init__(self, elements: List[Union[Pattern, str]], name=None):
-        self.elements = elements
-        self.name = name
-        super().__init__()
+# class Union(Pattern):
+#     def __init__(self, elements: List[Union[Pattern, str]], name=None):
+#         self.elements = elements
+#         self.name = name
+#         super().__init__()
+#
+#     def __repr__(self):
+#         return f"{self.name + ' : ' if self.name else ''}Union({self.elements})"
 
-    def __repr__(self):
-        return f"{self.name + ' : ' if self.name else ''}Union({self.elements})"
 
 class State:
-    def __init__(self, transitions, pattern: Pattern = None):
+    def __init__(self, state_id, transitions):
         """
         Transitions are all valid transitions from this current state.
         Represented with a map in python, from input -> next state. 
         In Zig, this can be done with a popcount list for compactness.
         """
+        self.state_id = state_id
         self.transitions = transitions
+
+
+class Transition:
+    """
+    What to do for a given input. Should always contain a goto state.
+    May also contain other actions, and action-related parameters.
+    """
+    def __init__(self, next_state, pattern: Optional[Pattern] = None):
+        self.next_state = next_state    # ID or reference to the next state.
         self.pattern = pattern
 
 
@@ -206,41 +227,45 @@ def depth_get_matches(pattern, visited_nodes):
 
 def bottom_up_parse(root):
     dependencies = defaultdict(list)   # pattern -> list of refs (pattern, index).
-    root_wrapper = Sequence([root])
-    explore_queue = [(root_wrapper, 0)]
+    initial_root_wrapper = Sequence([root])
+    explore_queue = [(initial_root_wrapper, 0)]
+
+    def pattern_finished(terminated_pattern):
+        # We've reached the end of this sequence.
+        # Emit some kind of marker, and continue processing where this is a sub-sequence.
+        # TODO: Should this be cleared out for choices as well or maintained until all choice nodes are done?
+        other_dependencies = dependencies[terminated_pattern].copy()
+        dependencies[terminated_pattern] = []
+        # Is this equivalent to just adding other deps to explore queue?
+        for elem, elem_index in other_dependencies:
+            if isinstance(elem, Sequence):
+                if elem_index + 1 < len(elem.elements):
+                    explore_queue.append((elem, elem_index + 1))
+                else:
+                    # That one's done too!
+                    pattern_finished(elem)
+            elif isinstance(elem, Choice):
+                # If any of the options pass, then propagate up.
+                # Union requires all to pass.
+                other_dependencies += dependencies[elem]
+                dependencies[elem] = []
+            else:
+                raise ValueError(f"Not implemented - pattern type {type(elem)}.")
+            
+    def enqueue_explore(elem, index):
+        if isinstance(elem, Sequence):
+            if index + 1 < len(elem.elements):
+                explore_queue.append((elem, index + 1))
+            else:
+                pattern_finished(elem)
+        elif isinstance(elem, Choice):
+            assert index == 0, "Index should be 0 for Choice."
+            pass    # TODO
+        else:
+            raise ValueError(f"Not implemented - pattern type {type(elem)}.")
     
     while explore_queue:
         current_pattern, index = explore_queue.pop(0)
-        def pattern_finished():
-            # We've reached the end of this sequence.
-            # Emit some kind of marker, and continue processing where this is a sub-sequence.
-            print(f"End of sequence after { pattern_at } - {current_pattern}")
-            other_dependencies = dependencies[current_pattern].copy()
-            dependencies[current_pattern] = []
-            print(f"Continuing with: {other_dependencies}")
-            for elem, elem_index in other_dependencies:
-                # if elem == current_pattern:
-                #     # TODO: Any special case here?
-                #     print("Skipping self.")
-                #     continue
-                if isinstance(elem, Sequence):
-                    if elem_index + 1 < len(elem.elements):
-                        print(f"TODO explore {elem} at {elem_index + 1}")
-                        explore_queue.append((elem, elem_index + 1))
-                    else:
-                        # That one's done too!
-                        print(f"End of sub-sequence: {elem}")
-                        other_dependencies += dependencies[elem]
-                        dependencies[elem] = []
-                elif isinstance(elem, Choice):
-                    # If any of the options pass, then propagate up.
-                    # Union requires all to pass.
-                    print(f"Dependency for choice {elem} met.")
-                    other_dependencies += dependencies[elem]
-                    dependencies[elem] = []
-                else:
-                    raise ValueError(f"Not implemented - pattern type {type(elem)}.")
-
 
         if isinstance(current_pattern, Sequence):
             print("Exploring Sequence: ", current_pattern, " at ", index)
@@ -254,7 +279,7 @@ def bottom_up_parse(root):
                     explore_queue.append((current_pattern, index + 1))
                 else:
                     print("End of sequence: ", current_pattern)
-                    pattern_finished()
+                    pattern_finished(current_pattern)
             else:
                 # Welp - must go deeper.
                 if pattern_at not in dependencies:
@@ -268,12 +293,12 @@ def bottom_up_parse(root):
                         explore_queue.append((current_pattern, index + 1))
                     else:
                         print("End of sequence: ", current_pattern)
-                        pattern_finished()
+                        pattern_finished(current_pattern)
 
 
                 # When that dependency finishes, indicate to come back here.
                 dependencies[pattern_at].append((current_pattern, index))
-        elif isinstance(current_pattern, Union) or isinstance(current_pattern, Choice):
+        elif isinstance(current_pattern, Choice):
             # All elements are possible roots. Queue them up!
             assert index == 0, "Index should be 0 for Union/Choice."
             print("Exploring Union/Choice: ", current_pattern)
@@ -292,11 +317,85 @@ def bottom_up_parse(root):
 
             if finished:
                 # If all of the things were terminal, then mark this as done.
-                pattern_finished()
+                pattern_finished(current_pattern)
         else:
             # Patterns with strings should not end up here.
             # It should be part of some higher-level pattern.
             raise ValueError(f"Unknown pattern type - {current_pattern} - {type(current_pattern)}.")
+
+
+def gen_state_machine(root: Pattern):
+    # List of States. Index = ID. Each state goes from a given input -> Transition.
+    states = []
+    def new_state():
+        state = State(state_id=len(states), transitions=dict())
+        states.append(state)
+        return state
+
+
+    dependencies = defaultdict(list)    # pattern -> list of unvisited references (pattern, index of ref).
+    initial_root_wrapper = Sequence([root])
+    explore_queue = []
+
+    def enqueue(pattern, index):
+        pattern_at = pattern.elements[index]
+        if pattern_at not in dependencies:
+            # If this pattern isn't already in the queue (i.e. something else isn't awaiting it), add it.
+            explore_queue.append((pattern, index))
+            if pattern_at.state is None:
+                pattern_at.state = new_state()
+
+        # When pattern at finishes, go to the next state.
+        dependencies[pattern_at].append((pattern, index))
+
+    def terminate(pattern):
+        # This pattern has been met.
+        # Advance any patterns waiting on this one.
+        pattern_deps = dependencies[pattern].copy()     # TODO: This copy seems unnecessary.
+        dependencies[pattern] = []
+        for dep_pattern, dep_index in pattern_deps:
+            advance(dep_pattern, dep_index)
+
+    def advance(pattern, index):
+        # When some sub-pattern finishes, we advance any dependent patterns which were waiting on it.
+        # Which entails, enqueueing the next input if it's not terminal.
+        # If it terminates, this sub-pattern has been met as well. Advance its dependencies.
+        if isinstance(pattern, Sequence):
+            if index + 1 < len(pattern.elements):
+                enqueue(pattern, index + 1)
+            else:
+                terminate(pattern)
+        elif isinstance(pattern, Choice):
+            # One option of a choice has been met.
+            # Advance everything waiting on this choice if any option passes. The full state machine isn't known, but
+            # we have a placeholder state ID for this. For union, we may need to wait on all to pass.
+            terminate(pattern)
+        elif isinstance(pattern, Literal):
+            # Literals always immediately terminate.
+            terminate(pattern)
+
+    def visit(pattern, index=0):
+        assert index < len(pattern.elements), f"Index {index} out of bounds {len(pattern.elements)} for {pattern}."
+        pattern_at = pattern.elements[index]
+        print("visit: ", pattern_at)
+        if isinstance(pattern_at, Literal):
+            terminate(pattern_at)
+        elif isinstance(pattern_at, Sequence):
+            enqueue(pattern_at, 0)
+        elif isinstance(pattern_at, Choice):
+            for i in range(len(pattern_at.elements)):
+                enqueue(pattern_at, i)
+
+    # Explore
+
+    enqueue(initial_root_wrapper, 0)
+    while explore_queue:
+        # Elements in the explore queue have their dependencies already met.
+        # We can advance them to their next states.
+        current_pattern, index = explore_queue.pop(0)
+        visit(current_pattern, index)
+
+
 
 
 PATTERN_TERMINAL = "TERMINAL"
@@ -341,7 +440,8 @@ def start_compile(patterns, mode="any"):
 # To start with, let's just test a list of strings with no nesting.
 # print(start_compile(["cat", "car"], mode="all"))
 
-term = Choice(["a", "b", "c"], name="term")
+term = Choice([Literal("a"), Literal("b"), Literal("c")], name="term")
 expr = Choice([], name="expr")
-expr.elements = [Sequence([expr, "+", term], name="expr + term"), term]
-bottom_up_parse(expr)
+expr.elements = [Sequence([expr, Literal("+"), term], name="expr + term"), term]
+# bottom_up_parse(expr)
+gen_state_machine(expr)
