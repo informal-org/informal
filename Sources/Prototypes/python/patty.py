@@ -434,32 +434,40 @@ class TopDownParser:
         # If they go to different states, then merge those states and go there instead.
         # That old state is potentially dangling now.
         pass
+
+    def chain(self, terminals, next_state):
+        # For each terminal, merge it with the next state. Return that list of terminals.
+        if not terminals:
+            return [next_state]
+        new_terminals = []
+        for terminal in terminals:
+            new_terminals.append(self.merge(terminal, next_state))
+        return new_terminals
     
-    def visit(self, pattern, state_id=-1):
+    def visit(self, pattern):
         if pattern in self.visited:
             # TODO: Handle recursion.
             # It should kinda return that State ID.
             pass
         
-        if state_id == -1:
-            state = self.new_state()
-        else:
-            state = self.states[state_id]
+        state = self.new_state()  # Start state.
         self.visited[pattern] = state.state_id
+        terminals = [state]
 
         if isinstance(pattern, Sequence):
             for elem in pattern.elements:
                 if isinstance(elem, Literal):
+                    elem_state = self.new_state()
                     next_state = self.new_state()
-                    state.transitions[elem.value] = next_state
-                    state = next_state
+                    elem_state.transitions[elem.value] = next_state
+                    terminals = self.chain(terminals, next_state)
                 elif isinstance(elem, Sequence):
-                    state = self.visit(elem, state.state_id)
+                    next_state, next_terminals = self.visit(elem)
+                    terminals = self.chain(terminals, next_state)
                 elif isinstance(elem, Choice):
-                    next_states = self.visit(elem, state.state_id)
-                    # TODO: What is state now? 
-
-
+                    next_states = self.visit(elem)
+                    for state in next_states:
+                        pass
         elif isinstance(pattern, Choice):
             # It should return this list of terminals.
             # If previous was a sequence, then it needs to chain each of them.
