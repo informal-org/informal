@@ -4,7 +4,7 @@ Pattern to table compiler.
 Ordered choice between patterns - rather than checking each pattern in order, we compile a lookup table of character -> list of patterns which match in order.
 """
 from collections import defaultdict
-from typing import List, Union, Optional
+from typing import Dict, List, Set, Union, Optional
 
 
 class Pattern:
@@ -405,7 +405,128 @@ def gen_state_machine(root: Pattern):
         visit(current_pattern, index)
 
     print("States: ", states)
-    print(dependencies)
+    # All dependencies should be met at the end.
+    for dep, remaining in dependencies.items():
+        if remaining:
+            print("Unmet dependency! ", dep, remaining)
+
+
+def top_down_parser(root: Pattern, visited: Dict[Pattern, int], states: List[State]):
+    # Loop over the pattern. If it's a sequence, we chain the patterns together. If it's a choice, we merge the sub-patterns.
+    # Handle recursion. Left-recursion should point back to that pattern's State ID and have some behavior when it terminates.
+    if root in visited:
+        # TODO: Handle recursion.
+        pass
+
+
+class TopDownParser:
+    def __init__(self):
+        self.visited = {}   # Pattern -> State ID
+        self.states = []
+
+    def new_state(self):
+        state = State(state_id=len(self.states), transitions=dict())
+        self.states.append(state)
+        return state
+    
+    def merge(self, state, other):
+        # If they share a key and both go to the same state, keep as is.
+        # If they go to different states, then merge those states and go there instead.
+        # That old state is potentially dangling now.
+        pass
+    
+    def visit(self, pattern, state_id=-1):
+        if pattern in self.visited:
+            # TODO: Handle recursion.
+            # It should kinda return that State ID.
+            pass
+        
+        if state_id == -1:
+            state = self.new_state()
+        else:
+            state = self.states[state_id]
+        self.visited[pattern] = state.state_id
+
+        if isinstance(pattern, Sequence):
+            for elem in pattern.elements:
+                if isinstance(elem, Literal):
+                    next_state = self.new_state()
+                    state.transitions[elem.value] = next_state
+                    state = next_state
+                elif isinstance(elem, Sequence):
+                    state = self.visit(elem, state.state_id)
+                elif isinstance(elem, Choice):
+                    next_states = self.visit(elem, state.state_id)
+                    # TODO: What is state now? 
+
+
+        elif isinstance(pattern, Choice):
+            # It should return this list of terminals.
+            # If previous was a sequence, then it needs to chain each of them.
+            terminals = []
+            for elem in pattern.elements:
+                elem_state = self.new_state()
+                if isinstance(elem, Literal):
+                    next_state = self.new_state()
+                    elem_state.transitions[elem.value] = next_state
+                    self.merge(state, elem_state)
+                    terminals.append(next_state)
+                elif isinstance(elem, Sequence):
+                    # Construct a sub-graph for that sequence.
+                    end_state = self.visit(elem, elem_state.state_id)
+                    self.merge(state, elem_state)
+                    terminals.append(end_state)
+                elif isinstance(elem, Choice):
+                    end_state = self.visit(elem, elem_state.state_id)
+                    self.merge(state, elem_state)
+                    terminals.append(end_state)
+                else:
+                    raise ValueError(f"Unknown pattern type {type(elem)}.")
+            
+
+            elem_state = self.visit(elem, state.state_id)
+            
+
+
+
+
+
+"""
+Test case: a + b * c
+Expected result: a b c * +
+State ID -> (transition, action)
+0: 
+   abc: (1, emit)
+1:
+   +: (2, push)
+   *: (5, emit)    -- emit immedietly since we recognize it as the highest precedence. AND left associative.
+   eof: (_, end)   -- after an operator or with just a number.
+2:  
+    -- Ops with lower or equal precedence than + should cause a pop - which DOES NOT advance the input cursor.
+    abc: (3, emit)
+3:
+    -- Ops with lower or equal precedence than + should cause a pop - which DOES NOT advance the input cursor.
+    +: (4, pop)
+    *: (5, emit)
+4:
+    -- You get to this state when popping +. The states observed here are the stack states. Pop everything lower or equal.
+    +: (4, pop)
+    *: (3, _)   -- return back on any higher precedence.
+5:  -- Right hand side after *
+    abc: (1, emit)
+
+   
+Intuition:
+When it's at an operator, we queue it up until we see the next operator with lower precedence
+    meaning this should be done before that operator.
+Pushes need to remember not just the operator but where in the input that was from to differentiate multiple instances of the same op.
+Pop should not advance the input - giving you a chance to pop repeatedly.
+We need to either be able to look at the top of the stack OR get some kind of state context from what's on the stack - i.e. pop makes it transition to something from the stack.
+    OR the state associated with POP makes it look at the stack as the input instead, allowing it to decide from that context.
+    Then when it's done, you advance to the next input which continues with input handling - likely back to the state it was in.
+
+"""
+
 
 
 PATTERN_TERMINAL = "TERMINAL"
