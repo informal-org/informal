@@ -418,6 +418,12 @@ def top_down_parser(root: Pattern, visited: Dict[Pattern, int], states: List[Sta
         # TODO: Handle recursion.
         pass
 
+ACTION_EMIT = "emit"
+ACTION_PUSH = "push"
+ACTION_POP = "pop"
+
+STATE_TERMINAL = "TERMINAL"
+
 
 class TopDownParser:
     def __init__(self):
@@ -433,16 +439,27 @@ class TopDownParser:
         # If they share a key and both go to the same state, keep as is.
         # If they go to different states, then merge those states and go there instead.
         # That old state is potentially dangling now.
-        pass
+        for key, (next_state, action) in other.transitions.items():
+            if key in state.transitions:
+                state_transition, state_action = state.transitions[key]
+                if state_transition == next_state:
+                    if state_action != action:
+                        raise ValueError(f"Conflicting actions {state_action} != {action} for {key}.")
+                    # Already merged.
+                    continue
+                else:
+                    pass
 
-    def chain(self, terminals, next_state):
-        # For each terminal, merge it with the next state. Return that list of terminals.
-        if not terminals:
-            return [next_state]
-        new_terminals = []
-        for terminal in terminals:
-            new_terminals.append(self.merge(terminal, next_state))
-        return new_terminals
+    def chain(self, state, next_state):
+        # Find all terminal-endpoints for this state, and set them to transition to the next state.
+        if state.transitions:
+            for key, (next_state, action) in state.transitions.items():
+                if next_state == STATE_TERMINAL:
+                    state.transitions[key] = (next_state, action)
+            return state
+        else:
+            return self.merge(state, next_state)
+        
     
     def visit(self, pattern):
         if pattern in self.visited:
@@ -458,9 +475,8 @@ class TopDownParser:
             for elem in pattern.elements:
                 if isinstance(elem, Literal):
                     elem_state = self.new_state()
-                    next_state = self.new_state()
-                    elem_state.transitions[elem.value] = next_state
-                    terminals = self.chain(terminals, next_state)
+                    elem_state.transitions[elem.value] = (STATE_TERMINAL, ACTION_EMIT)   # Likely something in the future to indicate what to emit.
+                    self.chain(state, elem_state)
                 elif isinstance(elem, Sequence):
                     next_state, next_terminals = self.visit(elem)
                     terminals = self.chain(terminals, next_state)
