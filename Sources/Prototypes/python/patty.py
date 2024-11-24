@@ -435,10 +435,16 @@ class TopDownParser:
         self.states.append(state)
         return state
     
-    def merge(self, state, other):
+    def merge(self, state, other, pending_state_action=None, pending_other_action=None):
         # If they share a key and both go to the same state, keep as is.
         # If they go to different states, then merge those states and go there instead.
         # That old state is potentially dangling now.
+        if state == STATE_TERMINAL:
+            pass
+        
+        if other == STATE_TERMINAL:
+            pass
+
         for key, (next_state, action) in other.transitions.items():
             if key in state.transitions:
                 state_transition, state_action = state.transitions[key]
@@ -448,7 +454,11 @@ class TopDownParser:
                     # Already merged.
                     continue
                 else:
-                    pass
+                    if state_action != action:
+                        # IDK what to do here...
+                        # Likely need to push down the action context to the merge, and have it perform that appropriately.
+                        raise NotImplementedError(f"Conflicting actions during merge {state_action} != {action} for {key}.")
+                    state.transitions[key] = (self.merge(state_transition, next_state), state_action)
 
     def chain(self, state, next_state):
         # Find all terminal-endpoints for this state, and set them to transition to the next state.
@@ -484,6 +494,7 @@ class TopDownParser:
                     next_states = self.visit(elem)
                     for state in next_states:
                         pass
+            # TODO: Add in an action_emit for the sequence itself here.
         elif isinstance(pattern, Choice):
             # It should return this list of terminals.
             # If previous was a sequence, then it needs to chain each of them.
@@ -548,6 +559,16 @@ Pop should not advance the input - giving you a chance to pop repeatedly.
 We need to either be able to look at the top of the stack OR get some kind of state context from what's on the stack - i.e. pop makes it transition to something from the stack.
     OR the state associated with POP makes it look at the stack as the input instead, allowing it to decide from that context.
     Then when it's done, you advance to the next input which continues with input handling - likely back to the state it was in.
+
+    
+---
+Approach:
+    Merged states represent an overlap of various states. We need to match without backtracking, and since the state machine is built incrementally, 
+    we have to store some placeholders to indicate merge-points. Where they begin and where each of the merged states end.
+    When you then add a new sequence to it, it has to append it by merging it where both paths left-off.
+    If the sequence loops around, you merge it by tiling it until it repeats. And looping at that point back to a known previous state.
+        You recognize it at each merge start and end points to see if the other paths are at some known previous state.
+        This analysis has to see how much input is consumed in each path, which should exclude stack-pops which don't act on the input.
 
 """
 
