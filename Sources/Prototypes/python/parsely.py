@@ -9,6 +9,11 @@ Choices merge states. Any non-overlapping states are direct transitions.
     You first compile all of the sub-patterns. If multiple choice nodes overlap for the first input, branch while pushing some context to the stack. 
     Any failure states would then backtrack to the next path. 
     A post-processing pass can then eliminate this backtracking altogether by creating additional states based on what's known at each failure point and jump to the appropriate next-state.
+
+Each state has a type. Actions are defined by the state (like a moore machine), not by the transition.
+Start and transitions nodes branch by input (if they branch at all).
+Terminal states branch by what's on the context stack.
+
 """
 
 from enum import Enum
@@ -16,13 +21,15 @@ from enum import Enum
 
 STATE_ID = 0
 
+
+# Whether we consume from input or context depends on the current operating mode.
 class StateType(Enum):
-    START = 0    # Always pushes to the context stack
-    SUCCESS = 1  # Always does a peek of the context stack and branches.
-    FAILURE = 2  # Peeks the context stack and branches based on it.
-    CHOICE = 3   # Snapshots the current state so it can be restored.
-    PUSH = 4
-    POP = 5
+    TRANSITION = 0    # Advances input/context (pop). Branch to next state. Without emitting.
+    EMIT = 1   # Emits current context/state as output (depending on mode). Branch to next state.
+    CALL = 2  # Push current state to stack. Branch by input. Mode = input.
+    SUCCESS = 3  # Pops context stack and jumps to its success-state.
+    FAILURE = 4  # Pop the context stack and jumps to its failure-state.
+    PEEK = 5   # Toggles the mode to peek at the context stack / input.
 
 
 
@@ -34,6 +41,8 @@ class State:
         self.pattern = pattern
         # List of states which reference this state.
         self.referenced_by = {}
+        # Unconditional next-state. Used in start / success / failure sometimes.
+        self.next_state = None
         # From some input / context -> what state to transition to.
         self.transitions = {}
 
