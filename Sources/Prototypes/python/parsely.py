@@ -10,46 +10,68 @@ Choices merge states. Any non-overlapping states are direct transitions.
     Any failure states would then backtrack to the next path. 
     A post-processing pass can then eliminate this backtracking altogether by creating additional states based on what's known at each failure point and jump to the appropriate next-state.
 
-Each state has a type. Actions are defined by the state (like a moore machine), not by the transition.
-Start and transitions nodes branch by input (if they branch at all).
-Terminal states branch by what's on the context stack.
-
+Actions are defined on the state (like a moore machine), not by the transition. You can perform an action on the input or on the context stack.
+Each transition matches by the current input cursor and by the top of the context stack. The state action is performed before any transition.
 """
 
+from collections import defaultdict
 from enum import Enum
+from dataclasses import dataclass
 
 
 STATE_ID = 0
 
 
-# Whether we consume from input or context depends on the current operating mode.
-class StateType(Enum):
-    TRANSITION = 0    # Advances input/context (pop). Branch to next state. Without emitting.
-    EMIT = 1   # Emits current context/state as output (depending on mode). Branch to next state.
-    CALL = 2  # Push current state to stack. Branch by input. Mode = input.
-    SUCCESS = 3  # Pops context stack and jumps to its success-state.
-    FAILURE = 4  # Pop the context stack and jumps to its failure-state.
-    PEEK = 5   # Toggles the mode to peek at the context stack / input.
+# Input action is done before context action.
+# Actions are done before any transitions.
+class InputAction(Enum):
+    NONE = 0
+    ADVANCE = 1        # Advance the cursor to the next character.
+    EMIT_ADVANCE = 2   # Emit to output and advance the cursor.
+    SEEK = 3           # Backtrack to a previous checkpoint.
 
+
+class ContextAction(Enum):
+    NONE = 0
+    PUSH = 1
+    POP = 2              # Pop and discard.
+    POP_EMIT = 3
+    POP_JUMP_SUCCESS = 4 
+    POP_JUMP_FAILURE = 5
+
+
+PATTERN_ANY = "ANY"
+PATTERN_END = "END"  # End of stack / end of input.
+
+@dataclass
+class Pattern:
+    input = PATTERN_ANY
+    context = PATTERN_ANY
+
+
+@dataclass
+class Action:
+    input: InputAction = InputAction.NONE
+    context: ContextAction = ContextAction.NONE
 
 
 class State:
-    def __init__(self, state_type, pattern):
+    def __init__(self, action):
         self.id = STATE_ID
         STATE_ID += 1
-        self.state_type = state_type
-        self.pattern = pattern
+        self.action = action
         # List of states which reference this state.
         self.referenced_by = {}
         # Unconditional next-state. Used in start / success / failure sometimes.
         self.next_state = None
-        # From some input / context -> what state to transition to.
-        self.transitions = {}
+        # From pattern -> state. As two layer dict (input, context) -> state.
+        self.transitions = defaultdict(lambda: defaultdict(lambda: None))
 
-    def add_transition(self, input_ctx, state):
-        assert input_ctx not in self.transitions, f"Transition already exists for {input_ctx} in {self}"
-        self.transitions[input_ctx] = state
-        state.add_reference(input_ctx, self)
+    def add_transition(self, pattern, state):
+        # assert input_ctx not in self.transitions, f"Transition already exists for {input_ctx} in {self}"
+        # self.transitions[input_ctx] = state
+        # state.add_reference(input_ctx, self)
+        assert self.transitions[pattern.input][pattern.context] is None, f"Transition already exists for {pattern} in {self}"
 
     def add_reference(self, context, state):
         assert context not in self.referenced_by, f"Reference already exists for {context} in {self}"
