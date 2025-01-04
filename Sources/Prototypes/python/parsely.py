@@ -33,20 +33,20 @@ class InputAction(Enum):
 
 class ContextAction(Enum):
     NONE = 0
-    PUSH = 1
+    PUSH = 1             # Snapshot the current state. When you enter a sub-pattern or choice.
     POP = 2              # Pop and discard.
     POP_EMIT = 3
     POP_JUMP_SUCCESS = 4 
-    POP_JUMP_FAILURE = 5
+    POP_JUMP_FAILURE = 5   # Backtrack to the next option. Discard the current option context.
 
 
 PATTERN_ANY = "ANY"
 PATTERN_END = "END"  # End of stack / end of input.
 
 @dataclass
-class Pattern:
-    input = PATTERN_ANY
-    context = PATTERN_ANY
+class Transition:
+    context_pattern = PATTERN_ANY
+    input_pattern = PATTERN_ANY
 
 
 @dataclass
@@ -56,26 +56,25 @@ class Action:
 
 
 class State:
-    def __init__(self, action):
+    def __init__(self, pattern, action):
         self.id = STATE_ID
         STATE_ID += 1
+        self.pattern = pattern
         self.action = action
         # List of states which reference this state.
-        self.referenced_by = {}
+        self.referenced_by = set()
         # Unconditional next-state. Used in start / success / failure sometimes.
         self.next_state = None
-        # From pattern -> state. As two layer dict (input, context) -> state.
+        # From pattern -> state. As two layer dict (context, input) -> state.
         self.transitions = defaultdict(lambda: defaultdict(lambda: None))
 
-    def add_transition(self, pattern, state):
-        # assert input_ctx not in self.transitions, f"Transition already exists for {input_ctx} in {self}"
-        # self.transitions[input_ctx] = state
-        # state.add_reference(input_ctx, self)
-        assert self.transitions[pattern.input][pattern.context] is None, f"Transition already exists for {pattern} in {self}"
+    def add_transition(self, transition, state):
+        assert self.transitions[transition.context_pattern][transition.input_pattern] is None, f"Transition already exists for {transition} in {self}"
+        self.transitions[transition.context_pattern][transition.input_pattern] = state
+        state.add_reference(state)
 
-    def add_reference(self, context, state):
-        assert context not in self.referenced_by, f"Reference already exists for {context} in {self}"
-        self.referenced_by[context] = state
+    def add_reference(self, state):
+        self.referenced_by.add(state)
     
     def __repr__(self):
         return f"State({self.state_type}, {self.pattern})"
@@ -84,9 +83,9 @@ class State:
 
 class Pattern:
     def __init__(self):
-        self.start = State(StateType.START, self)
-        self.failure = State(StateType.FAILURE, self)
-        self.success = State(StateType.SUCCESS, self)
+        self.start = State(self, Action(context=ContextAction.PUSH))
+        self.failure = State(self, Action(context=ContextAction.POP_JUMP_FAILURE))
+        self.success = State(self, Action(context=ContextAction.POP_EMIT))
 
 class Literal(Pattern):
     def __init__(self, value: str):
@@ -122,16 +121,47 @@ def chain(context, left, right):
               Choices create separate paths, which are these contexts.
               The context does not matter for what happens within a state sub-graph. Just branches where it might go afterwards.
     """
-    left.success.add_transition(context, right.start)
+    left.success.add_transition(Transition(context, PATTERN_ANY), right.start)
 
 
-def branch(choice_pattern, option):
-    context = State(state_type=StateType.CHOICE, pattern=choice_pattern)
-    choice_pattern.start.add_transition(context, option.start)
-    option.success.add_transition(context, choice_pattern.end)
-    option.failure.add_transition(context, choice_pattern.failure)
-    # That choice pattern failure should then backtrack to the next option.
-    return context
+def branch(choice_pattern):
+    """
+    Choices are sequentially evaluated in the initial backtracking version.
+    One option's failure leads to the next option's start. 
+    The branch root branches to the first option's start.
+    The final option's failure leads to the choice pattern's failure.
+    """
+    options = choice_pattern.patterns
+    assert len(options) >= 2, "No options in choice"  # Must have atleast two options.
+
+    # Create a start and end state for each option.
+    option_starts = []
+    option_fails = []
+    for option in options:
+        option_start = State(pattern=option, action=Action(context=ContextAction.PUSH))
+        option_success = State(pattern=options[i], action=Action(context=ContextAction.POP_EMIT))
+        option_success.add_transition(Transition(context=PATTERN_ANY, input=PATTERN_ANY), choice_pattern.success)
+        option_fail = State(pattern=option, action=Action(context=ContextAction.POP_JUMP_FAILURE))
+        # Build this option, with the given branch-specific start, success and failure states.
+        build(option, option_start, option_success, option_fail)
+
+        option_starts.append(option_start)
+        option_fails.append(option_fail)
+
+    # Start with the first option. 
+    choice_pattern.start.add_transition(Transition(context=PATTERN_ANY, input=PATTERN_ANY), option_starts[0])
+
+    # Chain the options together so that the first option's failure leads to the next option's start.
+    for i in range(len(options) - 1):
+        option_fails[i].add_transition(Transition(context=PATTERN_ANY, input=PATTERN_ANY), option_starts[i + 1])
+
+    # The final option's failure leads to the choice pattern's failure.
+    option_fails[-1].add_transition(Transition(context=PATTERN_ANY, input=PATTERN_ANY), choice_pattern.failure)
+    
+
+
+def build(pattern, start, success, failure):
+    pass
 
 
 class Builder:
