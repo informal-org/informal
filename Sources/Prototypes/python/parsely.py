@@ -142,8 +142,10 @@ def branch(choice_pattern):
         option_success = State(pattern=options[i], action=Action(context=ContextAction.POP_EMIT))
         option_success.add_transition(Transition(context=PATTERN_ANY, input=PATTERN_ANY), choice_pattern.success)
         option_fail = State(pattern=option, action=Action(context=ContextAction.POP_JUMP_FAILURE))
-        # Build this option, with the given branch-specific start, success and failure states.
-        build(option, option_start, option_success, option_fail)
+        option.failure.add_transition(Transition(context=option_start.id, input=PATTERN_ANY), option_fail)
+        option.success.add_transition(Transition(context=option_start.id, input=PATTERN_ANY), option_success)
+        option_start.add_transition(Transition(context=PATTERN_ANY, input=PATTERN_ANY), option.start)
+        build(option)
 
         option_starts.append(option_start)
         option_fails.append(option_fail)
@@ -160,7 +162,7 @@ def branch(choice_pattern):
     
 
 
-def build(pattern, start, success, failure):
+def build(pattern):
     pass
 
 
