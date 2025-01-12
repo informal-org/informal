@@ -95,7 +95,7 @@ class State:
         self.referenced_by.add(state)
     
     def __repr__(self):
-        return f"State({self.state_type}, {self.pattern})"
+        return f"State({self.id}, {self.pattern})"
     
 
 
@@ -121,6 +121,17 @@ class Literal(Pattern):
     
     def __repr__(self):
         return f"Literal({self.value})"
+    
+class Any(Pattern):
+    def __init__(self, terminals: list):
+        self.terminals = terminals   # List of characters which terminate this pattern and starts the next one.
+        super().__init__()
+
+    def __str__(self):
+        return f"Any()"
+    
+    def __repr__(self):
+        return f"Any()"
 
 class Choice(Pattern):
     def __init__(self, patterns: list[Pattern]):
@@ -236,13 +247,11 @@ class Builder:
             return
         
         self.visited.add(root)
-
-
         if isinstance(root, Literal):
             # Basically a sequence. 
             current_state = root.start
             for c in root.value:
-                next_state = State(root, Action())
+                next_state = State(root, Action(input=InputAction.ADVANCE))
                 current_state.add_transition(
                     Transition(context=PATTERN_ANY, input=c),
                     next_state
@@ -255,6 +264,24 @@ class Builder:
             current_state.add_transition(
                 Transition(context=PATTERN_ANY, input=PATTERN_ANY),
                 root.success
+            )
+        elif isinstance(root, Any):
+            start_state = root.start
+            start_state.add_transition(
+                Transition(context=PATTERN_ANY, input=PATTERN_ANY),
+                any_state
+            )
+            any_state = State(root, Action())  # TODO: action should advance input somehow but only after matching.
+            for terminal in root.terminals:
+                # Terminate successfully when you see any of the terminal characters.
+                start_state.add_transition(
+                    Transition(context=PATTERN_ANY, input=terminal),
+                    root.success
+                )
+            # Loop back to the same state on any non-terminal characters.
+            start_state.add_transition(
+                Transition(context=PATTERN_ANY, input=PATTERN_DEFAULT),
+                any_state
             )
         elif isinstance(root, Sequence):
             self.chain(root)
@@ -274,6 +301,125 @@ class Builder:
 
         
 
+
+def parse(root, input):
+    state = root.start
+    stack = []
+    cursor = 0
+    output = []
+
+    current_char = input[cursor] if cursor < len(input) else PATTERN_END
+    current_context = stack[-1]['state'].id if stack else PATTERN_DEFAULT
+
+    while cursor < len(input):
+        print(f"State: {state.id}\t Action: {state.action}\t Input: {current_char}\t StackTop: {current_context}")
+        
+        # Input actions are done first.
+        if state.action.input == InputAction.ADVANCE:
+            cursor += 1
+        elif state.action.input == InputAction.EMIT_ADVANCE:
+            print("EmitAdvance: ", input[cursor])
+            output.append(input[cursor])
+            cursor += 1
+        elif state.action.input == InputAction.SEEK:
+            # Backtrack
+            stack_top = stack[-1]
+            print("Seeking to ", stack_top)
+            cursor = stack_top.get('cursor')
+        elif state.action.input == InputAction.NONE:
+            pass
+        else:
+            raise ValueError(f"Unknown input action: {state.action.input}")
+        
+        # Do the context action.
+        if state.action.context == ContextAction.PUSH:
+            stack.append({
+                'cursor': cursor,
+                'state': state
+            })
+        elif state.action.context == ContextAction.POP_EMIT:
+            if stack:
+                stack_top = stack.pop()
+                out = {
+                    'cursor_start': stack_top['cursor'],
+                    'cursor_end': cursor,
+                    'state': stack_top['state']
+                }
+                print("Pop Emit: ", out)
+                if cursor < len(input):
+                    print('Output: ', input[out['cursor_start']:out['cursor_end']])
+                output.append(out)
+            else:
+                raise ValueError("No stack to pop - pop_emit")
+        elif state.action.context == ContextAction.POP_JUMP_SUCCESS:
+            if stack:
+                stack_top = stack.pop()
+                state = stack_top['state'].success
+            else:
+                raise ValueError("No stack to pop - pop_jump_success")
+        elif state.action.context == ContextAction.POP_JUMP_FAILURE:
+            if stack:
+                stack_top = stack.pop()
+                state = stack_top['state'].failure
+            else:
+                raise ValueError("No stack to pop - pop_jump_failure")
+        elif state.action.context == ContextAction.POP_PUSH:
+            if stack:
+                stack.pop()
+                stack.append({
+                    'cursor': cursor,
+                    'state': state
+                })
+            else:
+                raise ValueError("No stack to pop - pop_push")
+        elif state.action.context == ContextAction.NONE:
+            pass
+        else:
+            raise ValueError(f"Unknown context action: {stack.action.context}")
+
+
+        # Try specific transitions first, then fallback to default patterns
+        current_char = input[cursor] if cursor < len(input) else PATTERN_END
+        current_context = stack[-1]['state'].id if stack else PATTERN_DEFAULT
+        next_state = None
+        
+        context_transitions = state.transitions.get(
+            current_context, 
+            state.transitions.get(
+                PATTERN_ANY, 
+                state.transitions.get(
+                    PATTERN_DEFAULT,
+                    {}
+                )
+            )
+        )
+        if context_transitions:
+            next_state = context_transitions.get(current_char, context_transitions.get(PATTERN_ANY, context_transitions.get(PATTERN_DEFAULT, None)))
+            if next_state is None:
+                print(f"No next state found for context {current_context} and input {current_char} in state {state.id}")
+                next_state = state.failure
+        else:
+            print(f"No transitions found for context {current_context} and input {current_char} in state {state.id}")
+            next_state = state.failure
+        
+
+        state = next_state
+
+        # Check for end conditions. TODO
+        # if cursor >= len(input) and not stack:
+        #     return True, ''.join(output)
+
+        if state == root.success:
+            print("Success: ", output)
+            print("Input remaining: ", cursor < len(input))
+            return True, output
+        elif state == root.failure:
+            print("Failure: ", output)
+            return False, output
+        elif cursor >= len(input):
+            print("Input exhausted: ", output)
+            return False, output
+
             
 # pattern = Sequence([Literal("hello"), Literal("world")])
 pattern = Choice([Literal("hello"), Literal("world")])
@@ -283,3 +429,11 @@ builder.print_states()
 print("Start: ", pattern.start.id)
 print("Success: ", pattern.success.id)
 print("Failure: ", pattern.failure.id)
+
+print(parse(pattern, "hello world"))
+
+
+
+# declaration = Sequence([
+#     Any([":"]), Literal(":"), Any("\n")
+# ])

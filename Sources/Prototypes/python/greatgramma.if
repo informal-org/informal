@@ -1,3 +1,12 @@
+// Let's start with some set of primitives without trying to go to an extreme minimalism.
+// Comments - //
+// "" - String
+// name: a b c - Pattern declaration. Where each symbol references a previously defined name OR is that raw symbol. a + b. Or we use '+ for raw symbols?
+// This has ambiguity with defining a variable vs defining a reference to some previous thing. In the single line context, it's always a reference.
+
+Choice: a | b
+
+
 SingleQuoteString:
     "'"
     characters: String
