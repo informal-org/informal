@@ -54,11 +54,11 @@ PATTERN_END = "END"  # End of stack / end of input.
 
 @dataclass
 class Transition:
-    context_pattern: str = PATTERN_DEFAULT
-    input_pattern: str = PATTERN_DEFAULT
+    context: str = PATTERN_DEFAULT
+    input: str = PATTERN_DEFAULT
 
     def __str__(self):
-        return f"Transition({self.context_pattern}, {self.input_pattern})"
+        return f"Transition({self.context}, {self.input})"
 
 
 @dataclass
@@ -87,8 +87,8 @@ class State:
         ALL_STATES.append(self)
 
     def add_transition(self, transition, state):
-        assert self.transitions[transition.context_pattern][transition.input_pattern] is None, f"Transition already exists for {transition} in {self}"
-        self.transitions[transition.context_pattern][transition.input_pattern] = state
+        assert self.transitions[transition.context][transition.input] is None, f"Transition already exists for {transition} in {self}"
+        self.transitions[transition.context][transition.input] = state
         state.add_reference(state)
 
     def add_reference(self, state):
@@ -107,6 +107,9 @@ class Pattern:
 
     def __str__(self):
         return f"Pattern({self.start.id})"
+    
+    def __repr__(self):
+        return f"Pattern({self.start.id})"
 
 class Literal(Pattern):
     def __init__(self, value: str):
@@ -114,6 +117,9 @@ class Literal(Pattern):
         super().__init__()
 
     def __str__(self):
+        return f"Literal({self.value})"
+    
+    def __repr__(self):
         return f"Literal({self.value})"
 
 class Choice(Pattern):
@@ -123,6 +129,9 @@ class Choice(Pattern):
 
     def __str__(self):
         return f"Choice({self.patterns})"
+    
+    def __repr__(self):
+        return f"Choice({self.patterns})"
 
 
 class Sequence(Pattern):
@@ -131,6 +140,9 @@ class Sequence(Pattern):
         super().__init__()
 
     def __str__(self):
+        return f"Sequence({self.patterns})"
+    
+    def __repr__(self):
         return f"Sequence({self.patterns})"
 
 
@@ -232,16 +244,16 @@ class Builder:
             for c in root.value:
                 next_state = State(root, Action())
                 current_state.add_transition(
-                    Transition(context_pattern=PATTERN_ANY, input_pattern=c),
+                    Transition(context=PATTERN_ANY, input=c),
                     next_state
                 )
                 current_state.add_transition(
-                    Transition(context_pattern=PATTERN_DEFAULT, input_pattern=PATTERN_DEFAULT),
+                    Transition(context=PATTERN_DEFAULT, input=PATTERN_DEFAULT),
                     root.failure
                 )
                 current_state = next_state
             current_state.add_transition(
-                Transition(context_pattern=PATTERN_ANY, input_pattern=PATTERN_ANY),
+                Transition(context=PATTERN_ANY, input=PATTERN_ANY),
                 root.success
             )
         elif isinstance(root, Sequence):
@@ -263,7 +275,11 @@ class Builder:
         
 
             
-pattern = Literal("hello")
+# pattern = Sequence([Literal("hello"), Literal("world")])
+pattern = Choice([Literal("hello"), Literal("world")])
 builder = Builder()
 builder.build(pattern)
 builder.print_states()
+print("Start: ", pattern.start.id)
+print("Success: ", pattern.success.id)
+print("Failure: ", pattern.failure.id)

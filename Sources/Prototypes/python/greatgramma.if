@@ -1,0 +1,47 @@
+SingleQuoteString:
+    "'"
+    characters: String
+    "'"
+
+DoubleQuoteString:
+    '"'
+    characters: String
+    '"'
+
+RawString: SingleQuoteString | DoubleQuoteString
+
+DeclarationTerm:
+    label: String
+    ":"
+    type: Type
+
+Choice:
+    a: String
+    "|"
+    b: Type
+
+Type: Choice | String
+
+DeclarationBlock:
+    label: String
+    ":/n/t"
+    terms: TermList | Term
+
+TermList:
+    term: Term
+    "\n\t"
+    rest: TermList | Term
+
+Term: DeclarationTerm | RawString
+
+
+
+Declaration: DeclarationTerm | DeclarationBlock
+
+DeclarationList:
+    declaration: Declaration
+    "\n"
+    rest: DeclarationList | Declaration
+
+Root: DeclarationList | Declaration
+
