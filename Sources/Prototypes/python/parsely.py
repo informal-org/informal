@@ -17,7 +17,10 @@ Each transition matches by the current input cursor and by the top of the contex
 from collections import defaultdict
 from enum import Enum
 from dataclasses import dataclass
+import logging
 
+logging.basicConfig(level=logging.INFO, format='%(message)s')
+logger = logging.getLogger("parsely")
 
 STATE_ID = 0
 ALL_STATES = []
@@ -170,12 +173,17 @@ class Builder:
         The simplest way to do this is just with some extraneous states in between (rather than maintaining more complex contexts which change).
         """
 
-        context_node = sequence.start
         current_state = sequence.patterns[0]
+        first_node = State(pattern=sequence.patterns[0], action=Action(context=ContextAction.PUSH))
         sequence.start.add_transition(
+            Transition(context=PATTERN_ANY, input=PATTERN_ANY),
+            first_node
+        )
+        first_node.add_transition(
             Transition(context=PATTERN_ANY, input=PATTERN_ANY),
             current_state.start
         )
+        context_node = first_node
         self.build(current_state)
 
         for elem in sequence.patterns[1:]:
@@ -291,7 +299,7 @@ class Builder:
             raise ValueError(f"Unknown pattern type: {type(root)}")
         
 
-    def print_states(self):
+    def print_states(self, root):
         for state in ALL_STATES:
             print(state.id, state.pattern, state.action)
             # Print the nested dictionary of transitions
@@ -299,11 +307,16 @@ class Builder:
                 for input_pattern, next_state in input_patterns.items():
                     print(f"    {context_pattern} -> {input_pattern} -> {next_state.id}")
 
+        print("Start: ", root.start.id)
+        print("Success: ", root.success.id)
+        print("Failure: ", root.failure.id)
+
+
         
 
 
 def parse(root, input):
-    print("----")
+    logger.debug("----")
     state = root.start
     stack = []
     cursor = 0
@@ -313,19 +326,19 @@ def parse(root, input):
     current_context = stack[-1]['state'].id if stack else PATTERN_DEFAULT
 
     while True:
-        print(f"State: {state.id}\t Action: {state.action}\t Input: {current_char}\t StackTop: {current_context}")
+        logger.debug(f"State: {state.id}\t Action: {state.action}\t Input: {current_char}\t StackTop: {current_context}")
         
         # Input actions are done first.
         if state.action.input == InputAction.ADVANCE:
             cursor += 1
         elif state.action.input == InputAction.EMIT_ADVANCE:
-            print("EmitAdvance: ", input[cursor])
+            logger.debug("EmitAdvance: ", input[cursor])
             output.append(input[cursor])
             cursor += 1
         elif state.action.input == InputAction.SEEK:
             # Backtrack
             stack_top = stack[-1]
-            print("Seeking to ", stack_top)
+            logger.debug("Seeking to %s", stack_top)
             cursor = stack_top.get('cursor')
         elif state.action.input == InputAction.NONE:
             pass
@@ -346,9 +359,9 @@ def parse(root, input):
                     'cursor_end': cursor,
                     'state': stack_top['state']
                 }
-                print("Pop Emit: ", out)
+                logger.debug("Pop Emit: %s", out)
                 if cursor < len(input):
-                    print('Output: ', input[out['cursor_start']:out['cursor_end']])
+                    logger.debug('Output: %s', input[out['cursor_start']:out['cursor_end']])
                 output.append(out)
             else:
                 raise ValueError("No stack to pop - pop_emit")
@@ -397,10 +410,10 @@ def parse(root, input):
         if context_transitions:
             next_state = context_transitions.get(current_char, context_transitions.get(PATTERN_ANY, context_transitions.get(PATTERN_DEFAULT, None)))
             if next_state is None:
-                print(f"No next state found for context {current_context} and input {current_char} in state {state.id}")
+                logger.debug(f"No next state found for context {current_context} and input {current_char} in state {state.id}")
                 next_state = state.pattern.failure
         else:
-            print(f"No transitions found for context {current_context} and input {current_char} in state {state.id}")
+            logger.debug(f"No transitions found for context {current_context} and input {current_char} in state {state.id}")
             next_state = state.pattern.failure
         
 
@@ -411,11 +424,11 @@ def parse(root, input):
         #     return True, ''.join(output)
 
         if state == root.success:
-            print("Success: ", output)
-            print("Input remaining: ", cursor < len(input))
+            logger.debug("Success: %s", output)
+            logger.debug("Input remaining: %s", cursor < len(input))
             return True, output
         elif state == root.failure:
-            print("Failure: ", output)
+            logger.debug("Failure: %s", output)
             return False, output
 
             
