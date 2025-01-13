@@ -224,7 +224,7 @@ class Builder:
             option.success.add_transition(Transition(context=option_start.id, input=PATTERN_ANY), option_success)
             option_success.add_transition(Transition(context=PATTERN_ANY, input=PATTERN_ANY), choice_pattern.success)
 
-            option_fail = State(pattern=option, action=Action(context=ContextAction.POP_JUMP_FAILURE))
+            option_fail = State(pattern=option, action=Action())
             option.failure.add_transition(Transition(context=option_start.id, input=PATTERN_ANY), option_fail)
             
             self.build(option)
@@ -303,6 +303,7 @@ class Builder:
 
 
 def parse(root, input):
+    print("----")
     state = root.start
     stack = []
     cursor = 0
@@ -311,7 +312,7 @@ def parse(root, input):
     current_char = input[cursor] if cursor < len(input) else PATTERN_END
     current_context = stack[-1]['state'].id if stack else PATTERN_DEFAULT
 
-    while cursor < len(input):
+    while True:
         print(f"State: {state.id}\t Action: {state.action}\t Input: {current_char}\t StackTop: {current_context}")
         
         # Input actions are done first.
@@ -360,7 +361,7 @@ def parse(root, input):
         elif state.action.context == ContextAction.POP_JUMP_FAILURE:
             if stack:
                 stack_top = stack.pop()
-                state = stack_top['state'].failure
+                state = stack_top['state'].pattern.failure
             else:
                 raise ValueError("No stack to pop - pop_jump_failure")
         elif state.action.context == ContextAction.POP_PUSH:
@@ -397,10 +398,10 @@ def parse(root, input):
             next_state = context_transitions.get(current_char, context_transitions.get(PATTERN_ANY, context_transitions.get(PATTERN_DEFAULT, None)))
             if next_state is None:
                 print(f"No next state found for context {current_context} and input {current_char} in state {state.id}")
-                next_state = state.failure
+                next_state = state.pattern.failure
         else:
             print(f"No transitions found for context {current_context} and input {current_char} in state {state.id}")
-            next_state = state.failure
+            next_state = state.pattern.failure
         
 
         state = next_state
@@ -416,21 +417,18 @@ def parse(root, input):
         elif state == root.failure:
             print("Failure: ", output)
             return False, output
-        elif cursor >= len(input):
-            print("Input exhausted: ", output)
-            return False, output
 
             
 # pattern = Sequence([Literal("hello"), Literal("world")])
-pattern = Choice([Literal("hello"), Literal("world")])
-builder = Builder()
-builder.build(pattern)
-builder.print_states()
-print("Start: ", pattern.start.id)
-print("Success: ", pattern.success.id)
-print("Failure: ", pattern.failure.id)
+# pattern = Choice([Literal("hello"), Literal("world")])
+# builder = Builder()
+# builder.build(pattern)
+# builder.print_states()
+# print("Start: ", pattern.start.id)
+# print("Success: ", pattern.success.id)
+# print("Failure: ", pattern.failure.id)
 
-print(parse(pattern, "hello world"))
+# print(parse(pattern, "hello world"))
 
 
 
