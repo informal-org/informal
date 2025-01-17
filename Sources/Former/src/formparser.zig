@@ -10,7 +10,9 @@ const print = std.debug.print;
 const Form = struct { head: u64, body: u64 };
 
 fn formPointer(index: u64, length: u64) u64 {
-    return val.createPrimitiveArray(@truncate(u29, index), @truncate(u19, length));
+    const idx: u29 = @truncate(index);
+    const len: u19 = @truncate(length);
+    return val.createPrimitiveArray(idx, len);
 }
 
 pub const FormParser = struct {
@@ -134,7 +136,7 @@ fn testParse(buffer: []const u8, expected: []const Form) !void {
     _ = try lexer.lex(0, 0);
     var parser = FormParser.init(test_allocator, lexer);
     defer parser.deinit();
-    var result = try parser.parse(null, tok.SYMBOL_STREAM_END);
+    const result = try parser.parse(null, tok.SYMBOL_STREAM_END);
     _ = result;
 
     for (parser.forms.items, 0..) |form, i| {
@@ -156,14 +158,14 @@ fn testParse(buffer: []const u8, expected: []const Form) !void {
 // a :
 // { c : d } : {e : f}
 test "FormParser.Test parse map" {
-    var source = "a: b";
+    const source = "a: b";
     var expected = [_]Form{
         Form{ .head = val.createObject(tok.T_IDENTIFIER, 0, 1), .body = val.createObject(tok.T_IDENTIFIER, 3, 1) },
     };
 
     try testParse(source, &expected);
 
-    var test2 =
+    const test2 =
         \\a:
         \\  b
     ;
