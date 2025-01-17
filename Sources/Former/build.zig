@@ -19,12 +19,11 @@ pub fn build(b: *std.Build) void {
         .name = "Former",
         // In this case the main source file is merely a path, however, in more
         // complicated build scripts, this could be a generated file.
-        .root_source_file = .{ .path = "src/main.zig" },
+        .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
     exe.linkLibC();
-
 
     // const cLib = b.addStaticLibrary("syscall", "syscall.h");
     // cLib.install();
@@ -41,13 +40,7 @@ pub fn build(b: *std.Build) void {
     //     // .flags = CFlags,
     // });
 
-    exe.addIncludePath(.{
-        .path = "lib/include/",
-    });
-
-
-    
-
+    exe.addIncludePath(b.path("lib/include/"));
 
     // This declares intent for the executable to be installed into the
     // standard location when the user invokes the "install" step (the default
@@ -80,7 +73,7 @@ pub fn build(b: *std.Build) void {
     // Creates a step for unit testing. This only builds the test executable
     // but does not run it.
     const unit_tests = b.addTest(.{
-        .root_source_file = .{ .path = "src/main.zig" },
+        .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
