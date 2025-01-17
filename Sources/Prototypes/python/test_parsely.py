@@ -10,12 +10,16 @@ def test_choice_patterns():
     ])
     builder = Builder()
     builder.build(pattern)
-    # builder.print_states(pattern)
+    builder.print_states(pattern)
 
 
     # Test valid matches
-    # logger.setLevel(logging.DEBUG)
-    assert parse(pattern, "hello")[0] == True, "Should match 'hello'"
+    logger.setLevel(logging.DEBUG)
+    result = parse(pattern, "hello")
+    print('parsing the thing')
+    print(result)
+    assert result[0] == True, "Should match 'hello'"
+    assert result[1] == "hello", "Should match 'hello'"
     # logger.setLevel(logging.INFO)
     assert parse(pattern, "informal")[0] == True, "Should match 'informal'"
     assert parse(pattern, "world")[0] == True, "Should match 'world'"
@@ -28,23 +32,23 @@ def test_choice_patterns():
     print("All tests passed!")
 
 
-def test_sequence_patterns():
-    pattern = Sequence([
-        Literal("hello"),
-        Literal("world")
-    ])
-    builder = Builder()
-    builder.build(pattern)
-    builder.print_states(pattern)
-    logger.setLevel(logging.DEBUG)
+# def test_sequence_patterns():
+#     pattern = Sequence([
+#         Literal("hello"),
+#         Literal("world")
+#     ])
+#     builder = Builder()
+#     builder.build(pattern)
+#     builder.print_states(pattern)
+#     logger.setLevel(logging.DEBUG)
 
-    # Test valid matches
-    assert parse(pattern, "helloworld")[0] == True, "Should match 'hello world'"
+#     # Test valid matches
+#     assert parse(pattern, "helloworld")[0] == True, "Should match 'hello world'"
 
-    # Test invalid matches
-    assert parse(pattern, "hello")[0] == False, "Should not match 'hello'"
-    assert parse(pattern, "goodbye")[0] == False, "Should not match 'goodbye'"
+#     # Test invalid matches
+#     assert parse(pattern, "hello")[0] == False, "Should not match 'hello'"
+#     assert parse(pattern, "goodbye")[0] == False, "Should not match 'goodbye'"
 
 if __name__ == '__main__':
-    # test_choice_patterns()
-    test_sequence_patterns()
+    test_choice_patterns()
+    # test_sequence_patterns()

@@ -300,6 +300,7 @@ class Builder:
         
 
     def print_states(self, root):
+        global ALL_STATES
         for state in ALL_STATES:
             print(state.id, state.pattern, state.action)
             # Print the nested dictionary of transitions
@@ -310,9 +311,6 @@ class Builder:
         print("Start: ", root.start.id)
         print("Success: ", root.success.id)
         print("Failure: ", root.failure.id)
-
-
-        
 
 
 def parse(root, input):
@@ -326,7 +324,7 @@ def parse(root, input):
     current_context = stack[-1]['state'].id if stack else PATTERN_DEFAULT
 
     while True:
-        logger.debug(f"State: {state.id}\t Action: {state.action}\t Input: {current_char}\t StackTop: {current_context}")
+        logger.debug(f"State: {state.id}\t {state.pattern}\t Action: {state.action}\t Input: {current_char}\t StackTop: {current_context}")
         
         # Input actions are done first.
         if state.action.input == InputAction.ADVANCE:
@@ -419,10 +417,6 @@ def parse(root, input):
 
         state = next_state
 
-        # Check for end conditions. TODO
-        # if cursor >= len(input) and not stack:
-        #     return True, ''.join(output)
-
         if state == root.success:
             logger.debug("Success: %s", output)
             logger.debug("Input remaining: %s", cursor < len(input))
@@ -431,20 +425,3 @@ def parse(root, input):
             logger.debug("Failure: %s", output)
             return False, output
 
-            
-# pattern = Sequence([Literal("hello"), Literal("world")])
-# pattern = Choice([Literal("hello"), Literal("world")])
-# builder = Builder()
-# builder.build(pattern)
-# builder.print_states()
-# print("Start: ", pattern.start.id)
-# print("Success: ", pattern.success.id)
-# print("Failure: ", pattern.failure.id)
-
-# print(parse(pattern, "hello world"))
-
-
-
-# declaration = Sequence([
-#     Any([":"]), Literal(":"), Any("\n")
-# ])
