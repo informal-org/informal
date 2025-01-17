@@ -5,7 +5,6 @@ const stdbits = std.bit_set;
 pub const BitSet128 = stdbits.IntegerBitSet(128);
 pub const BitSet64 = stdbits.IntegerBitSet(64);
 
-
 // Compile time constant function which takes a string of valid delimiter characters and returns a bitset.
 // The bitset is used to quickly check if a character is a delimiter.
 pub fn character_bitset(pattern: []const u8) BitSet128 {

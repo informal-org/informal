@@ -3,7 +3,7 @@
 // The signature section is the very last piece of a MachO binary, representing a SHA256 hash of each page of the binary.
 // (Older versions of MacOS supported SHA-1, and dual hashing, but that's deprecated).
 // Ad-hoc signatures are non-portable, content-hashes. Portable, distribution signatures require signing with a cert.
-// 
+//
 // This implementation of ad-hoc code signing is heavily based on the Zig and Golang implementations
 // The ParallelHasher and code directory encoding is taken directly from Zig, stripped down to the features we need.
 // The general ad hoc signing is based on the Go implementation.
@@ -21,14 +21,12 @@ const macho = std.macho;
 const mem = std.mem;
 const Allocator = mem.Allocator;
 const Sha256 = std.crypto.hash.sha2.Sha256;
-const HASH_SIZE = 32;       // Sha256.digest_length;
+const HASH_SIZE = 32; // Sha256.digest_length;
 
 const ThreadPool = std.Thread.Pool;
 const WaitGroup = std.Thread.WaitGroup;
 
-
 pub fn ParallelHasher(comptime PHasher: type) type {
-
     return struct {
         allocator: Allocator,
         thread_pool: *ThreadPool,
@@ -91,9 +89,9 @@ pub fn ParallelHasher(comptime PHasher: type) type {
         const Self = @This();
     };
 }
-    
+
 fn writeCodeDirectory(writer: anytype, codedir: macho.CodeDirectory) !void {
-    // The format requires the structs to be encoded in big-endian, 
+    // The format requires the structs to be encoded in big-endian,
     // while the Arm platform is little endian...
     // So each field is manually encoded.
     try writer.writeInt(u32, codedir.magic, .big);
@@ -119,10 +117,9 @@ fn writeCodeDirectory(writer: anytype, codedir: macho.CodeDirectory) !void {
     try writer.writeInt(u64, codedir.execSegFlags, .big);
 }
 
-
 const pageSizeBits = 12;
 const pageSize = 1 << pageSizeBits;
-const codeDirectorySize = 13*4 + 4 + 4*8;   // 0x58
+const codeDirectorySize = 13 * 4 + 4 + 4 * 8; // 0x58
 const superBlobSize = 3 * 4;
 const blobSize = 2 * 4;
 
@@ -141,7 +138,7 @@ pub const SignArgs = struct {
 
 pub fn estimateSize(args: SignArgs) u64 {
     const nCodeSlots = @as(u32, @intCast(mem.alignForward(usize, args.overallBinCodeLimit, pageSize) / pageSize));
-    const hashEnd = nCodeSlots*HASH_SIZE;
+    const hashEnd = nCodeSlots * HASH_SIZE;
     return superBlobSize + blobSize + codeDirectorySize + args.identifier.len + 1 + hashEnd;
 }
 
@@ -156,18 +153,18 @@ pub fn sign(writer: anytype, file: fs.File, args: SignArgs) !void {
 
     // Go computes this as: (codeSize + pageSize - 1) / pageSize
     const nCodeSlots = @as(u32, @intCast(mem.alignForward(usize, args.overallBinCodeLimit, pageSize) / pageSize));
-    
+
     // Compute CodeDirectory length
-    const codeDirOffset = superBlobSize + blobSize;     // 0x0014 = 20
-    const idOff: u32 = codeDirectorySize;   // Identifier starts after the code directory.
+    const codeDirOffset = superBlobSize + blobSize; // 0x0014 = 20
+    const idOff: u32 = codeDirectorySize; // Identifier starts after the code directory.
     const hashOff: u32 = @truncate(idOff + args.identifier.len + 1); // Hash starts after directory + identifier + null terminator.
-    const hashEnd = hashOff + nCodeSlots*HASH_SIZE;  // End of hash section.
+    const hashEnd = hashOff + nCodeSlots * HASH_SIZE; // End of hash section.
     const totalSignatureSize = codeDirOffset + hashEnd;
 
     // Part 1 - Super blob header ---------------------------------------------------------
-    const sb = macho.SuperBlob{ 
+    const sb = macho.SuperBlob{
         .magic = macho.CSMAGIC_EMBEDDED_SIGNATURE,
-        .length = totalSignatureSize,   // Overall size of the binary. Zig sums this incrementally per blob. Go uses the above.
+        .length = totalSignatureSize, // Overall size of the binary. Zig sums this incrementally per blob. Go uses the above.
         .count = 1, // # of BlobIndex entries following. We just need 1 for the code-dir.
     };
     try writer.writeInt(u32, sb.magic, .big);
@@ -178,26 +175,24 @@ pub fn sign(writer: anytype, file: fs.File, args: SignArgs) !void {
     // The Zig version supports multiple blob indexes for requirements, entitlements, etc.
     // We just need a single index blob for the code-signature, like the go version.
     try writer.writeInt(u32, macho.CSSLOT_CODEDIRECTORY, .big); // 0
-    try writer.writeInt(u32, codeDirOffset, .big);    
-
-
+    try writer.writeInt(u32, codeDirOffset, .big);
 
     // Part 3 - Code Directory ------------------------------------------------------------
-    const code_dir = macho.CodeDirectory {
+    const code_dir = macho.CodeDirectory{
         .magic = macho.CSMAGIC_CODEDIRECTORY,
-        .length = @truncate(hashEnd),      // @sizeOf(macho.CodeDirectory) / 256
-        .version = macho.CS_SUPPORTSEXECSEG,    // 0x20400
+        .length = @truncate(hashEnd), // @sizeOf(macho.CodeDirectory) / 256
+        .version = macho.CS_SUPPORTSEXECSEG, // 0x20400
         .flags = macho.CS_ADHOC | macho.CS_LINKER_SIGNED,
-        .hashOffset = hashOff,   // hashOff
-        .identOffset = idOff,  // idOff
-        .nCodeSlots = nCodeSlots,    // nHashes
+        .hashOffset = hashOff, // hashOff
+        .identOffset = idOff, // idOff
+        .nCodeSlots = nCodeSlots, // nHashes
         .codeLimit = args.overallBinCodeLimit, // code size - limit and 64 are separate. 0x40b0
-        .hashSize = HASH_SIZE,     // sha256 size.
+        .hashSize = HASH_SIZE, // sha256 size.
         .hashType = macho.CS_HASHTYPE_SHA256,
-        .pageSize = pageSizeBits,     // page size in bits.
-        .execSegBase = args.execTextSegmentOffset,     // textOff
-        .execSegLimit = args.execTextSegmentLimit,     // Limit of exec sec
-        .execSegFlags = macho.CS_EXECSEG_MAIN_BINARY,      // only for main
+        .pageSize = pageSizeBits, // page size in bits.
+        .execSegBase = args.execTextSegmentOffset, // textOff
+        .execSegLimit = args.execTextSegmentLimit, // Limit of exec sec
+        .execSegFlags = macho.CS_EXECSEG_MAIN_BINARY, // only for main
 
         // Other flags.
         .codeLimit64 = 0,
@@ -206,7 +201,7 @@ pub fn sign(writer: anytype, file: fs.File, args: SignArgs) !void {
         .scatterOffset = 0,
         .spare2 = 0,
         .platform = 0,
-        .nSpecialSlots = 0
+        .nSpecialSlots = 0,
     };
 
     try writeCodeDirectory(writer, code_dir);
@@ -214,13 +209,12 @@ pub fn sign(writer: anytype, file: fs.File, args: SignArgs) !void {
     // Part 4 - Binary name --------------------------------------------------------------
     // Write file name identifier.
     try writer.writeAll(args.identifier);
-    try writer.writeByte(0);    // Null terminate.
-
+    try writer.writeByte(0); // Null terminate.
 
     // Part 5 - Hash signature -----------------------------------------------------------
     // Hash the file contents
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator(); 
+    const allocator = gpa.allocator();
     var thread_pool: ThreadPool = undefined;
     try thread_pool.init(.{ .allocator = allocator });
     defer thread_pool.deinit();
@@ -232,12 +226,10 @@ pub fn sign(writer: anytype, file: fs.File, args: SignArgs) !void {
     var hasher = ParallelHasher(Sha256){ .allocator = allocator, .thread_pool = &thread_pool };
     try hasher.hash(file, code_slots.items, .{
         .chunk_size = pageSize,
-        .max_file_size = args.overallBinCodeLimit,     
+        .max_file_size = args.overallBinCodeLimit,
     });
 
     for (code_slots.items) |slot| {
         try writer.writeAll(&slot);
     }
-
 }
-

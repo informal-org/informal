@@ -19,7 +19,7 @@ const MULTICHAR_SYMBOLS = "!*+-/<=>";
 // Unclear if it's worth it without tests.
 const MULTICHAR_BITSET = bitset.character_bitset(MULTICHAR_SYMBOLS); // All of these chars are < 64, so truncate. TODO: Verify shift.
 const MULTICHAR_KEYWORD_COUNT = MULTICHAR_SYMBOLS.len; // 7
-const SYMBOLS = bitset.character_bitset("%()*+,-./:<=>[]^{|}");   // "%()*+,-./:;<=>?[]^{|}"
+const SYMBOLS = bitset.character_bitset("%()*+,-./:<=>[]^{|}"); // "%()*+,-./:;<=>?[]^{|}"
 
 /// The lexer splits up an input buffer into tokens.
 /// The input buffer are smaller chunks of a source file.
@@ -31,12 +31,12 @@ const SYMBOLS = bitset.character_bitset("%()*+,-./:<=>[]^{|}");   // "%()*+,-./:
 /// The syntax queue, containing semantically meaningful tokens.
 /// The aux queue, with tokens for comments, whitespace, etc. (used for formatting, error offsets, etc.)
 /// A bit per token indicates whether the next token appears in the other queue (one token lookahead buffer).
-/// 
+///
 /// Future Optimizations:
 /// Convert this to the direct-threaded tail-call style like the parser and specilize which branches you check based on what's expected.
 /// Doesn't matter for jump-tables, but useful for if-else based dispatch.
 /// We don't do any interning here to avoid allocations, but it may be worthwhile so the reader can
-/// reuse the bytes immediately after the lexer is done with a chunk. 
+/// reuse the bytes immediately after the lexer is done with a chunk.
 /// Depends on context - for IDEs and use-cases where we'll have the buffer in memory, this current approach is better.
 pub const Lexer = struct {
     const Self = @This();
@@ -59,7 +59,7 @@ pub const Lexer = struct {
         const QIdx = [_]u32{ 0, 0 };
         // Initialize prev to stream start to avoid needing a null-check in every emit.
         // const initialPrev = @as(u64, @bitCast(tok.auxKindToken(tok.AuxKind.sep_stream_start, 0)));
-        return Self{ .buffer = buffer, .index = 0, .QIdx = QIdx, .lineQIndex = 0, .lineChStart = 0, .lineNo=0, .prevToken = tok.AUX_STREAM_START, .syntaxQ=syntaxQ, .auxQ=auxQ };
+        return Self{ .buffer = buffer, .index = 0, .QIdx = QIdx, .lineQIndex = 0, .lineChStart = 0, .lineNo = 0, .prevToken = tok.AUX_STREAM_START, .syntaxQ = syntaxQ, .auxQ = auxQ };
     }
 
     fn gobble_digits(self: *Lexer) void {
@@ -74,18 +74,17 @@ pub const Lexer = struct {
 
     fn gobble_ch(self: *Lexer, ch: u8) void {
         while (self.index < self.buffer.len) : (self.index += 1) {
-            if(self.buffer[self.index] != ch) {
+            if (self.buffer[self.index] != ch) {
                 break;
             }
         }
     }
 
     fn flushPrev(self: *Lexer, nextSyntax: bool) !void {
-        if(@intFromEnum(self.prevToken.kind) < tok.AUX_KIND_START) {
+        if (@intFromEnum(self.prevToken.kind) < tok.AUX_KIND_START) {
             self.prevToken.alternate = !nextSyntax;
             try self.syntaxQ.push(self.prevToken);
-        }
-        else {
+        } else {
             self.prevToken.alternate = nextSyntax;
             try self.auxQ.push(self.prevToken);
         }
@@ -352,7 +351,7 @@ pub const Lexer = struct {
                         // if (indent != tok.SKIP_TOKEN) {
                         //     return indent;
                         // }
-                        self.index += 1;    // TODO: Not implemented. Temporary skip.
+                        self.index += 1; // TODO: Not implemented. Temporary skip.
                     } else {
                         const start = self.index;
                         self.gobble_ch(' ');
@@ -385,7 +384,7 @@ pub const Lexer = struct {
                     // const chBit: u128 = one << chByte;
                     if (MULTICHAR_BITSET.isSet(ch)) {
                         const peekCh = self.peek_ch();
-                        print("Multichar: {c} {c}\n", .{ch, peekCh});
+                        print("Multichar: {c} {c}\n", .{ ch, peekCh });
                         // All of the current multi-char symbols have = as the followup char.
                         // If that changes in the future, use a lookup string indexed by chBit popcnt index.
                         if (peekCh == '=') {
@@ -407,7 +406,7 @@ pub const Lexer = struct {
 
                     // Single-character symbols.
                     if (SYMBOLS.isSet(ch)) {
-                        print("CH {d} index {d} enum val {d}\n", .{ch, bitset.index128(SYMBOLS, ch), @intFromEnum(tok.Token.Kind.grp_close_brace)} );
+                        print("CH {d} index {d} enum val {d}\n", .{ ch, bitset.index128(SYMBOLS, ch), @intFromEnum(tok.Token.Kind.grp_close_brace) });
                         const tokKind = bitset.chToKind(SYMBOLS, ch, MULTICHAR_KEYWORD_COUNT);
                         try self.emitToken(tok.createToken(tokKind));
                         // Index updated outside.
@@ -436,7 +435,6 @@ const testutils = @import("testutils.zig");
 const testTokenEquals = testutils.testTokenEquals;
 const testQueueEquals = testutils.testQueueEquals;
 
-
 pub fn testLexToken(buffer: []const u8, expected: []const Token, aux: []const Token) !void {
     print("\nTest Lex Token: {s}\n", .{buffer});
     defer print("\n--------------------------------------------------------------\n", .{});
@@ -448,7 +446,7 @@ pub fn testLexToken(buffer: []const u8, expected: []const Token, aux: []const To
     defer syntaxQ.deinit();
     defer auxQ.deinit();
     try lexer.lex();
-    
+
     try testQueueEquals(buffer, &syntaxQ, expected);
     try testQueueEquals(buffer, &auxQ, aux);
 }
@@ -469,36 +467,15 @@ test "Token equality" {
 }
 
 test "Lex digits" {
-    try testLexToken("1 2 3", &[_]Token{
-        tok.nextAlt(tok.numberLiteral(0, 1)),
-        tok.nextAlt(tok.numberLiteral(2, 1)),
-        tok.nextAlt(tok.numberLiteral(4, 1))
-    }, &[_]Token{
-        tok.nextAlt(tok.AUX_STREAM_START),
-        tok.nextAlt(tok.range(Token.Kind.aux_whitespace, 1, 1)),
-        tok.nextAlt(tok.range(Token.Kind.aux_whitespace, 3, 1)),
-        tok.AUX_STREAM_END
-    });
+    try testLexToken("1 2 3", &[_]Token{ tok.nextAlt(tok.numberLiteral(0, 1)), tok.nextAlt(tok.numberLiteral(2, 1)), tok.nextAlt(tok.numberLiteral(4, 1)) }, &[_]Token{ tok.nextAlt(tok.AUX_STREAM_START), tok.nextAlt(tok.range(Token.Kind.aux_whitespace, 1, 1)), tok.nextAlt(tok.range(Token.Kind.aux_whitespace, 3, 1)), tok.AUX_STREAM_END });
 }
 
 test "Lex operator" {
-    try testLexToken("1+3", &[_]Token{
-        tok.numberLiteral(0, 1),
-        tok.OP_ADD,
-        tok.nextAlt(tok.numberLiteral(2, 1))
-    }, &[_]Token{
-        tok.nextAlt(tok.AUX_STREAM_START),
-        tok.AUX_STREAM_END
-    });
+    try testLexToken("1+3", &[_]Token{ tok.numberLiteral(0, 1), tok.OP_ADD, tok.nextAlt(tok.numberLiteral(2, 1)) }, &[_]Token{ tok.nextAlt(tok.AUX_STREAM_START), tok.AUX_STREAM_END });
 }
 
 fn testSymbol(buf: []const u8, kind: Token.Kind) !void {
-    try testLexToken(buf, &[_]Token{
-        tok.nextAlt(tok.createToken(kind))
-    }, &[_]Token{
-        tok.nextAlt(tok.AUX_STREAM_START),
-        tok.AUX_STREAM_END
-    });
+    try testLexToken(buf, &[_]Token{tok.nextAlt(tok.createToken(kind))}, &[_]Token{ tok.nextAlt(tok.AUX_STREAM_START), tok.AUX_STREAM_END });
 }
 
 test "Lex symbols" {
@@ -506,7 +483,7 @@ test "Lex symbols" {
     // If you add or remove a symbol, ensure the lexer.SYMBOLS constant is also updated
     // "%()*+,-./:<=>[]^{|}"
     const TK = Token.Kind;
-    
+
     try testSymbol("%", TK.op_mod);
     try testSymbol("(", TK.grp_open_paren);
     try testSymbol(")", TK.grp_close_paren);
@@ -526,8 +503,6 @@ test "Lex symbols" {
     try testSymbol("{", TK.grp_open_brace);
     try testSymbol("|", TK.op_choice);
     try testSymbol("}", TK.grp_close_brace);
-    
-
 }
 
 //     var lexer = Lexer.init("1 2 3", syntaxQ, auxQ);

@@ -2,8 +2,6 @@ const std = @import("std");
 const lex = @import("lexer.zig");
 const queue = @import("queue.zig");
 
-
-
 pub fn process_chunk(chunk: []u8, syntaxQ: *lex.TokenQueue, auxQ: *lex.TokenQueue) !void {
 
     // std.debug.print("Processing next chunk\n", .{});
@@ -12,7 +10,6 @@ pub fn process_chunk(chunk: []u8, syntaxQ: *lex.TokenQueue, auxQ: *lex.TokenQueu
 
     var lexer = lex.Lexer.init(chunk, syntaxQ, auxQ);
     try lexer.lex();
-
 }
 
 pub fn compile_file(filename: []u8) !void {
@@ -28,7 +25,7 @@ pub fn compile_file(filename: []u8) !void {
     defer file.close();
 
     const reader = file.reader();
-    var buffer: [16384]u8 = undefined;   // 16kb - sysctl vm.pagesize
+    var buffer: [16384]u8 = undefined; // 16kb - sysctl vm.pagesize
 
     while (true) {
         const readResult = try reader.read(&buffer);

@@ -15,9 +15,6 @@ const TokBitset = bitset.BitSet64;
 
 const isKind = bitset.isKind;
 
-
-
-
 // The parser takes a token stream from the lexer and converts it into a valid structure.
 // It's only concerned with the grammatic structure of the code - not the meaning.
 // It's a hybrid state-machine / recursive descent parser with state tables.
@@ -30,7 +27,7 @@ pub const Parser = struct {
     // The AST is stored is a postfix order - where all operands come before the operator.
     // This stack structure avoids the need for any explicit pointers for operators
     // and matches the dependency order we want to emit bytecode in and matches the order of evaluation.
-    parsedQ: *TokenQueue, 
+    parsedQ: *TokenQueue,
     // For each token in the parsedQ, indicates where to find it in the syntaxQ.
     offsetQ: *OffsetQueue,
 
@@ -41,7 +38,6 @@ pub const Parser = struct {
     allocator: Allocator,
     index: u32,
 
-
     const ParseNode = struct {
         token: Token,
         index: usize,
@@ -49,8 +45,8 @@ pub const Parser = struct {
 
     pub fn init(buffer: []const u8, syntaxQ: *TokenQueue, auxQ: *TokenQueue, parsedQ: *TokenQueue, offsetQ: *OffsetQueue, allocator: Allocator) Self {
         const opStack = std.ArrayList(ParseNode).init(allocator);
-        
-        return Self{.buffer = buffer, .syntaxQ = syntaxQ, .auxQ = auxQ, .parsedQ=parsedQ, .offsetQ=offsetQ, .allocator = allocator, .index = 0, .opStack = opStack};    
+
+        return Self{ .buffer = buffer, .syntaxQ = syntaxQ, .auxQ = auxQ, .parsedQ = parsedQ, .offsetQ = offsetQ, .allocator = allocator, .index = 0, .opStack = opStack };
     }
 
     pub fn deinit(self: *Self) void {
@@ -71,10 +67,10 @@ pub const Parser = struct {
         // Indicates which tokens have higher-precedence and associativity.
         // Those operations must be emitted/done first before the current token.
         const flushBitset = tok.TBL_PRECEDENCE_FLUSH[@intFromEnum(token.kind)];
-        while(self.opStack.items.len > 0) {
+        while (self.opStack.items.len > 0) {
             const top = self.opStack.items[self.opStack.items.len - 1];
             const topKind = top.token.kind;
-            if(flushBitset.isSet(@intFromEnum(topKind))) {
+            if (flushBitset.isSet(@intFromEnum(topKind))) {
                 try self.popOp();
             } else {
                 break;
@@ -84,7 +80,7 @@ pub const Parser = struct {
 
     fn pushOp(self: *Self, token: Token) !void {
         try self.flushOpStack(token);
-        try self.opStack.append(ParseNode{.token = token, .index = self.index});
+        try self.opStack.append(ParseNode{ .token = token, .index = self.index });
     }
 
     fn popOp(self: *Self) !void {
@@ -111,21 +107,21 @@ pub const Parser = struct {
     /////////////////////////////////////////////
     fn initial_state(self: *Self) !void {
         const token = self.syntaxQ.pop();
-        if(token.kind == tok.AUX_STREAM_END.kind) {
+        if (token.kind == tok.AUX_STREAM_END.kind) {
             return;
         }
         const kind = token.kind;
-        if(isKind(tok.LITERALS, kind)) {
+        if (isKind(tok.LITERALS, kind)) {
             print("Initial state Literal: {any}\n", .{token});
             try self.emitParsed(token);
             try self.expect_binary();
-        } else if(isKind(tok.IDENTIFIER, kind)) {
+        } else if (isKind(tok.IDENTIFIER, kind)) {
             print("Identifier: {any}\n", .{token});
-        } else if(isKind(tok.PAREN_START, kind)) {
+        } else if (isKind(tok.PAREN_START, kind)) {
             print("Paren Start: {any}\n", .{token});
-        } else if(isKind(tok.KEYWORD_START, kind)) {
+        } else if (isKind(tok.KEYWORD_START, kind)) {
             print("Keyword Start: {any}\n", .{token});
-        } else if(isKind(tok.UNARY_OPS, kind)) {
+        } else if (isKind(tok.UNARY_OPS, kind)) {
             print("UNARY Op: {any}\n", .{token});
         } else {
             print("Invalid token: {any}\n", .{token});
@@ -139,8 +135,7 @@ pub const Parser = struct {
         //     _ => {} // self.expect_error(token),
         // }
     }
-    
-    
+
     /////////////////////////////////////////////
     // Expect Binary Literal Operations
     // We've seen an operand on the left. Now expecting a binary operation.
@@ -154,12 +149,12 @@ pub const Parser = struct {
     // Invalid States:
     // Literals / Identifiers - Need a binary operator. 1 1 is invalid.
     // Unary operators. ex. True not.
-    // Grouping operators. ex. 1 (... 
+    // Grouping operators. ex. 1 (...
     /////////////////////////////////////////////
     // Zig can't infer the error set due to circular refs. Propagate errors from push/pop.
-    fn expect_binary(self: *Self) (std.mem.Allocator.Error)!void {      // (err || error)
+    fn expect_binary(self: *Self) (std.mem.Allocator.Error)!void { // (err || error)
         const token = self.syntaxQ.pop();
-        if(token.kind == tok.AUX_STREAM_END.kind) {
+        if (token.kind == tok.AUX_STREAM_END.kind) {
             // Stream end is fine. Expression is complete without continuation.
             // 1 + 1 _
             return;
@@ -168,9 +163,9 @@ pub const Parser = struct {
         // "hello " ___
 
         const kind = token.kind;
-        if(isKind(tok.SEPARATORS, kind)) {
+        if (isKind(tok.SEPARATORS, kind)) {
             print("Separators: {any}\n", .{token});
-        } else if(isKind(tok.BINARY_OPS, kind)) {
+        } else if (isKind(tok.BINARY_OPS, kind)) {
             print("Binary op: {any}\n", .{token});
             try self.pushOp(token);
             try self.expect_unary();
@@ -178,7 +173,6 @@ pub const Parser = struct {
             print("Invalid token: {any}\n", .{token});
         }
     }
-    
 
     /////////////////////////////////////////////
     // Expect Identifier Operations
@@ -192,36 +186,34 @@ pub const Parser = struct {
     // Unary operators.
     fn expect_unary(self: *Self) !void {
         const token = self.syntaxQ.pop();
-        if(token.kind == tok.AUX_STREAM_END.kind) {
+        if (token.kind == tok.AUX_STREAM_END.kind) {
             return;
         }
         const kind = token.kind;
-        
+
         // Pretty similar to the initial state.
-        if(isKind(tok.LITERALS, kind)) {
+        if (isKind(tok.LITERALS, kind)) {
             print("Initial state Literal: {any}\n", .{token});
             try self.emitParsed(token);
-            try self.expect_binary(); 
-        } else if(isKind(tok.IDENTIFIER, kind)) {
+            try self.expect_binary();
+        } else if (isKind(tok.IDENTIFIER, kind)) {
             print("Identifier: {any}\n", .{token});
-        } else if(isKind(tok.PAREN_START, kind)) {
+        } else if (isKind(tok.PAREN_START, kind)) {
             print("Paren Start: {any}\n", .{token});
-        } else if(isKind(tok.KEYWORD_START, kind)) {
+        } else if (isKind(tok.KEYWORD_START, kind)) {
             print("Keyword Start: {any}\n", .{token});
-        } else if(isKind(tok.UNARY_OPS, kind)) {
+        } else if (isKind(tok.UNARY_OPS, kind)) {
             print("UNARY Op: {any}\n", .{token});
         } else {
             print("Invalid token: {any}\n", .{token});
         }
     }
-    
 
     /////////////////////////////////////////////
     // Expect Binary String Operations
     // We've seen a string literal. You can index it, or call string functions on it.
     // Allow [] and . operations and other binary functions like +, and, etc.
     /////////////////////////////////////////////
-    
 
     /////////////////////////////////////////////
     // Expect Right Unary Operations. a op ___
@@ -229,17 +221,16 @@ pub const Parser = struct {
     // Valid states:
     // Unary operators:
     //     Precedence flush.
-    // Literals: 
+    // Literals:
     //     Numeric -> Expect binary literal operations.
     //     String -> Expect binary string operations.
     // Keyword starts - sub-expressions which will give a value. x + if y then z else w
     // Identifiers: -> Expect identifier operations
     // Grouping is valid. i.e. 1 * (2 + 3)
-    // Invalid states: 
+    // Invalid states:
     // Binary operators.
     // Indentation, separators, {}, [].
     // Keyword continuations - i.e. a + else
-    
 
     /////////////////////////////////////////////
     // Expect assignment right. a = ___
@@ -248,8 +239,6 @@ pub const Parser = struct {
     // This allows the symbol-resolution to recognize declaration vs reference without lookahead.
     // That'll also support de-structuring like [a, b, c] = ...
     /////////////////////////////////////////////
-    
-    
 
     // Initialize the parser state.
     // Note: All sub-parse functions MUST be tail-recursive, in a direct-threaded style.
@@ -257,23 +246,18 @@ pub const Parser = struct {
     pub fn parse(self: *Self) !void {
         try self.initial_state();
 
-
         // At the end - flush the operator stack.
         // TODO: Validate that it contains no brackets (indicates open without close), etc.
-        while(self.opStack.items.len > 0) {
+        while (self.opStack.items.len > 0) {
             try self.popOp();
         }
     }
-
-
 };
-
 
 const test_allocator = std.testing.allocator;
 const expect = std.testing.expect;
 const expectEqual = std.testing.expectEqual;
 const testutils = @import("testutils.zig");
-
 
 // pub fn testParseExpression(buffer: []const u8, expected: []const Token) !void {
 //     print("\nTest Parse: {s}\n", .{buffer});
@@ -282,7 +266,6 @@ const testutils = @import("testutils.zig");
 pub fn testParse(buffer: []const u8, tokens: []const Token, aux: []const Token, expected: []const Token) !void {
     var syntaxQ = TokenQueue.init(test_allocator);
     try testutils.pushAll(&syntaxQ, tokens);
-
 
     var auxQ = TokenQueue.init(test_allocator);
     var parsedQ = TokenQueue.init(test_allocator);
@@ -298,7 +281,7 @@ pub fn testParse(buffer: []const u8, tokens: []const Token, aux: []const Token, 
 
     print("\nTest Parse: {s}\n", .{buffer});
     tok.print_token_queue(parsedQ.list.items, buffer);
-    
+
     try testutils.testQueueEquals(buffer, &parsedQ, expected);
 
     // Ignore aux. Fail when we start using it in tests.
@@ -307,26 +290,21 @@ pub fn testParse(buffer: []const u8, tokens: []const Token, aux: []const Token, 
 
 test "Parse basic add" {
     const buffer = "1+3";
-    const tokens = &[_]Token{
-        tok.numberLiteral(0, 1),
-        tok.OP_ADD,
-        tok.nextAlt(tok.numberLiteral(2, 1))
-    };
+    const tokens = &[_]Token{ tok.numberLiteral(0, 1), tok.OP_ADD, tok.nextAlt(tok.numberLiteral(2, 1)) };
 
     const aux = &[_]Token{};
 
     const expected = &[_]Token{
         tok.numberLiteral(0, 1),
-         // next-alt bit doesn't have much meaning in the parsed expr...
+        // next-alt bit doesn't have much meaning in the parsed expr...
         tok.nextAlt(tok.numberLiteral(2, 1)),
-        tok.OP_ADD
+        tok.OP_ADD,
     };
 
     try testParse(buffer, tokens, aux, expected);
 }
 
 test "Parse math op precedence" {
-
     print("Sys: {d}\n", .{sys.SYS_exit});
     const buffer = "1+2*3";
     const tokens = &[_]Token{
@@ -339,13 +317,7 @@ test "Parse math op precedence" {
 
     const aux = &[_]Token{};
     // Ensure multiply before add.
-    const expected = &[_]Token{
-        tok.numberLiteral(0, 1),
-        tok.numberLiteral(2, 1),
-        tok.numberLiteral(4, 1),
-        tok.OP_MUL,
-        tok.OP_ADD
-    };
+    const expected = &[_]Token{ tok.numberLiteral(0, 1), tok.numberLiteral(2, 1), tok.numberLiteral(4, 1), tok.OP_MUL, tok.OP_ADD };
 
     try testParse(buffer, tokens, aux, expected);
 }

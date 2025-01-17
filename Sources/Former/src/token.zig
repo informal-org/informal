@@ -3,14 +3,12 @@ const std = @import("std");
 const print = std.debug.print;
 const bitset = @import("bitset.zig");
 
-
-pub const Token = packed struct(u64) { 
+pub const Token = packed struct(u64) {
     alternate: bool = false,
 
-    _reserved: u1 = 0,  // Reserved for future expansion of kind.
+    _reserved: u1 = 0, // Reserved for future expansion of kind.
     kind: Kind, // 6,
     data: Data, // 56
-    
 
     pub const Kind = enum(u6) {
         // The order here should match bitset lookups in the lexer.
@@ -80,25 +78,22 @@ pub const Token = packed struct(u64) {
         lit_number,
         lit_null,
 
-
-
         // All aux tokens go at the end - denoted by the AUX_KIND_START constant.
         // Used to detect what's aux.
-        aux=57,
-        aux_comment=58,
-        aux_whitespace=59,
-        aux_newline=60,
-        aux_indentation=61,
-        aux_stream_start=62,
-        aux_stream_end=63
+        aux = 57,
+        aux_comment = 58,
+        aux_whitespace = 59,
+        aux_newline = 60,
+        aux_indentation = 61,
+        aux_stream_start = 62,
+        aux_stream_end = 63,
     };
-
 
     const Value = packed struct { value: u56 };
     const Range = packed struct { offset: u32, length: u24 };
     // Offset to previous newline in syntaxQueue and index of current newline in auxQueue.
     const Index = packed struct { offset: u24, index: u32 };
-    
+
     // 56 bits for data.
     const Data = packed union {
         range: Range,
@@ -121,36 +116,26 @@ pub const TokenWriter = struct {
 
         switch (value.kind) {
             TK.lit_number, TK.lit_string, TK.identifier => {
-                try std.fmt.format(writer, "{s} {any} {any} {s}", .{ alt, value.kind, value.data.range, buffer[value.data.range.offset..value.data.range.offset + value.data.range.length]});
+                try std.fmt.format(writer, "{s} {any} {any} {s}", .{ alt, value.kind, value.data.range, buffer[value.data.range.offset .. value.data.range.offset + value.data.range.length] });
             },
             TK.aux, TK.aux_comment, TK.aux_whitespace, TK.aux_newline, TK.aux_indentation, TK.aux_stream_start, TK.aux_stream_end => {
-                try std.fmt.format(writer, "{s} {any}", .{alt, value.kind});
+                try std.fmt.format(writer, "{s} {any}", .{ alt, value.kind });
             },
             else => {
-                try std.fmt.format(writer, "{s} {any}", .{alt, value.kind});
-            }
+                try std.fmt.format(writer, "{s} {any}", .{ alt, value.kind });
+            },
         }
     }
 };
 
-
 pub const AUX_KIND_START: u6 = @intFromEnum(Token.Kind.aux);
 
-
 pub fn createToken(kind: Token.Kind) Token {
-    return Token {
-        .kind = kind,
-        .data = Token.Data{ .value = Token.Value{ .value = 0 } }
-    };
+    return Token{ .kind = kind, .data = Token.Data{ .value = Token.Value{ .value = 0 } } };
 }
 
 pub fn createNewLine(auxIndex: u32, prevOffset: u24) Token {
-    return Token{ 
-        .kind = Token.Kind.sep_newline,
-        .data = Token.Data{
-            .index = Token.Index{ .index = auxIndex, .offset = prevOffset }
-        }
-    };
+    return Token{ .kind = Token.Kind.sep_newline, .data = Token.Data{ .index = Token.Index{ .index = auxIndex, .offset = prevOffset } } };
 }
 
 pub fn stringLiteral(offset: u32, len: u24) Token {
@@ -171,7 +156,7 @@ pub fn range(kind: Token.Kind, offset: u32, len: u24) Token {
 }
 
 pub fn nextAlt(token: Token) Token {
-    return Token{ .alternate=true, .kind = token.kind, .data = token.data };
+    return Token{ .alternate = true, .kind = token.kind, .data = token.data };
 }
 
 // pub fn auxKindToken(kind: Token.Kind, value: u32) Token {
@@ -189,7 +174,6 @@ pub fn nextAlt(token: Token) Token {
 // pub fn valFromAux(token: AuxToken) u64 {
 //     return @as(u64, @bitCast(token));
 // }
-
 
 pub const OP_ADD = createToken(Token.Kind.op_add);
 pub const OP_SUB = createToken(Token.Kind.op_sub);
@@ -233,37 +217,31 @@ pub const SEP_NEWLINE = createToken(Token.Kind.sep_newline);
 pub const AUX_STREAM_START = createToken(Token.Kind.aux_stream_start);
 pub const AUX_STREAM_END = createToken(Token.Kind.aux_stream_end);
 
-
 pub fn print_token_queue(queue: []Token, buffer: []const u8) void {
     for (queue) |token| {
-        print("{any}\n", .{ TokenWriter{ .token = token, .buffer = buffer } });
+        print("{any}\n", .{TokenWriter{ .token = token, .buffer = buffer }});
     }
 }
 
+pub const Assoc = enum(u1) { left, right };
 
-pub const Assoc = enum(u1) {
-    left, right
-};
-
-pub const Arity = enum(u1) {
-    unary, binary
-};
+pub const Arity = enum(u1) { unary, binary };
 
 pub const ParserMeta = packed struct(u6) {
-    precedence: u4, 
+    precedence: u4,
     assoc: Assoc,
     arity: Arity,
 };
 
 const TK = Token.Kind;
 
-pub const LITERALS = bitset.token_bitset(&[_]TK{ TK.lit_string, TK.lit_number, TK.lit_bool, TK.lit_null});
-pub const UNARY_OPS = bitset.token_bitset(&[_]TK{ TK.op_not, TK.op_unary_minus});
-pub const GROUP_START = bitset.token_bitset(&[_]TK{ TK.grp_indent, TK.grp_open_paren, TK.grp_open_brace, TK.grp_open_bracket});
-pub const IDENTIFIER = bitset.token_bitset(&[_]TK{ TK.identifier});
-pub const KEYWORD_START = bitset.token_bitset(&[_]TK{ TK.kw_if, TK.kw_for, TK.kw_def});
-pub const PAREN_START = bitset.token_bitset(&[_]TK{ TK.grp_open_paren });
-pub const BINARY_OPS = bitset.token_bitset(&[_]TK{ 
+pub const LITERALS = bitset.token_bitset(&[_]TK{ TK.lit_string, TK.lit_number, TK.lit_bool, TK.lit_null });
+pub const UNARY_OPS = bitset.token_bitset(&[_]TK{ TK.op_not, TK.op_unary_minus });
+pub const GROUP_START = bitset.token_bitset(&[_]TK{ TK.grp_indent, TK.grp_open_paren, TK.grp_open_brace, TK.grp_open_bracket });
+pub const IDENTIFIER = bitset.token_bitset(&[_]TK{TK.identifier});
+pub const KEYWORD_START = bitset.token_bitset(&[_]TK{ TK.kw_if, TK.kw_for, TK.kw_def });
+pub const PAREN_START = bitset.token_bitset(&[_]TK{TK.grp_open_paren});
+pub const BINARY_OPS = bitset.token_bitset(&[_]TK{
     TK.op_gte,
     TK.op_dbl_eq,
     TK.op_lte,
@@ -277,7 +255,7 @@ pub const BINARY_OPS = bitset.token_bitset(&[_]TK{
     // op_at,
     // op_question,
     TK.op_gt,
-    TK.op_assign_eq,   // TODO: This one's a special case
+    TK.op_assign_eq, // TODO: This one's a special case
     TK.op_lt,
     TK.op_colon_assoc, // TODO: This one's a special case
     TK.op_div,
@@ -292,20 +270,17 @@ pub const BINARY_OPS = bitset.token_bitset(&[_]TK{
     TK.op_is,
     TK.op_as,
 });
-pub const SEPARATORS = bitset.token_bitset(&[_]TK{ 
-    TK.sep_comma,
-    TK.sep_newline
-});
+pub const SEPARATORS = bitset.token_bitset(&[_]TK{ TK.sep_comma, TK.sep_newline });
 
-const PRECEDENCE_LEVELS = [_]bitset.BitSet64 {
+const PRECEDENCE_LEVELS = [_]bitset.BitSet64{
     // Higher binding power -> lower
     // Grouping is handled separately.
-    bitset.token_bitset(&[_]TK{ TK.op_dot_member }),
+    bitset.token_bitset(&[_]TK{TK.op_dot_member}),
 
     // Unary ops.
     bitset.token_bitset(&[_]TK{ TK.op_unary_minus, TK.op_not }),
 
-    bitset.token_bitset(&[_]TK{ TK.op_pow }),
+    bitset.token_bitset(&[_]TK{TK.op_pow}),
     bitset.token_bitset(&[_]TK{ TK.op_mod, TK.op_div, TK.op_mul }),
     bitset.token_bitset(&[_]TK{ TK.op_add, TK.op_sub }),
 
@@ -314,8 +289,8 @@ const PRECEDENCE_LEVELS = [_]bitset.BitSet64 {
     bitset.token_bitset(&[_]TK{ TK.op_dbl_eq, TK.op_not_eq }),
 
     // Logical operators
-    bitset.token_bitset(&[_]TK{ TK.op_and }),
-    bitset.token_bitset(&[_]TK{ TK.op_or }),
+    bitset.token_bitset(&[_]TK{TK.op_and}),
+    bitset.token_bitset(&[_]TK{TK.op_or}),
 
     // Assignment operators
     bitset.token_bitset(&[_]TK{ TK.op_assign_eq, TK.op_div_eq, TK.op_minus_eq, TK.op_plus_eq, TK.op_mul_eq }),
@@ -325,9 +300,8 @@ const PRECEDENCE_LEVELS = [_]bitset.BitSet64 {
 };
 
 // The following operators are right associative. Everything else is left-associative.
-// a = b = c is equivalent to a = (b = c). 
+// a = b = c is equivalent to a = (b = c).
 const RIGHT_ASSOC = bitset.token_bitset(&[_]TK{ TK.op_not, TK.op_pow, TK.op_colon_assoc, TK.op_assign_eq, TK.op_div_eq, TK.op_minus_eq, TK.op_plus_eq, TK.op_mul_eq });
-
 
 // Given the current operarator, indicates which other operators to flush from the operator stack
 // Allows us to handle precedence and associativity in a single lookup
@@ -340,14 +314,14 @@ fn initPrecedenceTable() [64]bitset.BitSet64 {
     @setEvalBranchQuota(10000);
     var flushTbl: [64]bitset.BitSet64 = undefined;
     const flushNothing = bitset.BitSet64.initEmpty();
-    for(0..64) |i| {
+    for (0..64) |i| {
         flushTbl[i] = flushNothing;
     }
 
     // We only want to construct the precedence table for the tokens which have precedence.
     // Everything else should be handled by separate state-machine logic and should be unreachable.
-    for(PRECEDENCE_LEVELS) |level| {
-        for(0..64) |i| {        // TODO
+    for (PRECEDENCE_LEVELS) |level| {
+        for (0..64) |i| { // TODO
             // Assumption: Each op only shows up in one precedence level.
             if (level.isSet(i)) {
                 flushTbl[i] = getFlushBitset(@enumFromInt(i));
@@ -368,7 +342,7 @@ fn getFlushBitset(kind: TK) bitset.BitSet64 {
             bs = bs.unionWith(level);
         } else {
             // Flush equal precedence if left-associative.
-            if(!RIGHT_ASSOC.isSet(tokenKind)) {
+            if (!RIGHT_ASSOC.isSet(tokenKind)) {
                 bs = bs.unionWith(level);
             }
             break;
@@ -376,7 +350,6 @@ fn getFlushBitset(kind: TK) bitset.BitSet64 {
     }
     return bs;
 }
-
 
 // @bitSizeOf
 const expect = std.testing.expect;
@@ -397,20 +370,16 @@ test "Test precedence table" {
 
     const divFlush = TBL_PRECEDENCE_FLUSH[@intFromEnum(TK.op_div)];
     // print("Div: {b}\n", .{divFlush.mask});
-    try expectEqual(7, divFlush.count());   // 7 higher/equal precedence operators.
+    try expectEqual(7, divFlush.count()); // 7 higher/equal precedence operators.
     // When you see a div, flush all of these operators (but not lower precedence ones like add, sub, etc.)
-    const divFlushExpected = bitset.token_bitset(
-        &[_]TK{ TK.op_mod, TK.op_div, TK.op_mul, TK.op_pow, TK.op_unary_minus, TK.op_not, TK.op_dot_member }
-    );
+    const divFlushExpected = bitset.token_bitset(&[_]TK{ TK.op_mod, TK.op_div, TK.op_mul, TK.op_pow, TK.op_unary_minus, TK.op_not, TK.op_dot_member });
     try expectEqual(divFlushExpected.mask, divFlush.mask);
 
     // Test right-associative. Should not flush itself.
     const powFlush = TBL_PRECEDENCE_FLUSH[@intFromEnum(TK.op_pow)];
     // print("Pow: {b}\n", .{powFlush.mask});
     try expectEqual(3, powFlush.count());
-    const powFlushExpected = bitset.token_bitset(
-        &[_]TK{ TK.op_dot_member, TK.op_unary_minus, TK.op_not }
-    );
+    const powFlushExpected = bitset.token_bitset(&[_]TK{ TK.op_dot_member, TK.op_unary_minus, TK.op_not });
     try expectEqual(powFlushExpected.mask, powFlush.mask);
 
     // print("Comma: {b}\n", .{TBL_PRECEDENCE_FLUSH[@intFromEnum(TK.sep_comma)].mask});

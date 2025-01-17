@@ -1,6 +1,6 @@
 const std = @import("std");
 
-// Architecture support for 64 bit ARM (AARCH64). 
+// Architecture support for 64 bit ARM (AARCH64).
 // We only support the 64 bit variant.
 
 pub const Reg = enum(u5) {
@@ -38,19 +38,18 @@ pub const Reg = enum(u5) {
     x31 = 31,
 };
 
-
 pub const MOVW_IMM = packed struct(u32) {
     rd: Reg,
     imm16: u16,
     hw: u2 = 0b00,
     _movw_imm: u6 = 0b100_101,
-    opc: OpCode, 
+    opc: OpCode,
     sf: u1 = 1,
 
     pub const OpCode = enum(u2) {
-        MOVN = 0b00,    // Move wide with NOT. Moves the inverse of the optionally-shifted 16 bit imm.
-        MOVZ = 0b10,    // Move wide with zero. 
-        MOVK = 0b11,    // Move wide with keep. Keeps other bits unchanged in the register.
+        MOVN = 0b00, // Move wide with NOT. Moves the inverse of the optionally-shifted 16 bit imm.
+        MOVZ = 0b10, // Move wide with zero.
+        MOVK = 0b11, // Move wide with keep. Keeps other bits unchanged in the register.
     };
 };
 
@@ -60,25 +59,21 @@ pub const SVC = packed struct(u32) {
 
     _base: u5 = 0b00001,
     imm16: u16,
-    _svc: u11 =  0b11010100_000,
-
+    _svc: u11 = 0b11010100_000,
 };
-
 
 const expect = std.testing.expect;
 
 test "Test MOV" {
-    const instr = MOVW_IMM {
-        .opc= MOVW_IMM.OpCode.MOVZ,
-        .imm16= 42,
-        .rd=Reg.x0,
+    const instr = MOVW_IMM{
+        .opc = MOVW_IMM.OpCode.MOVZ,
+        .imm16 = 42,
+        .rd = Reg.x0,
     };
 
     // Expected bytes in little endian.
-    try expect(std.mem.eql(u8, std.mem.asBytes(&instr), &[_]u8{
-        0x40, 0x05, 0x80, 0xD2
-    }));
-    
+    try expect(std.mem.eql(u8, std.mem.asBytes(&instr), &[_]u8{ 0x40, 0x05, 0x80, 0xD2 }));
+
     // Reference for how this instruction is decoded:
     // 40 05 80 d2
     // Little endian order:
