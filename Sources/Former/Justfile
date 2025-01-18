@@ -13,7 +13,8 @@ bench-build: release
 run:
 	#!/usr/bin/env sh
 	rm out.bin || true
-	zig run src/macho.zig
+	# zig run src/macho.zig
+	zig build && ./zig-out/bin/Former test/data/add.ifi
 	chmod +x out.bin
 	./out.bin
 	echo "\nRan with code: $?"

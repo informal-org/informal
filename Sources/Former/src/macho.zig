@@ -707,7 +707,7 @@ pub const MachOLinker = struct {
         self.headerBuffer.clearAndFree();
     }
 
-    pub fn emitBinary(self: *Self) !void {
+    pub fn emitBinary(self: *Self, code: []u32) !void {
         const file = try std.fs.cwd().createFile(
             "out.bin",
             .{ .read = true },
@@ -717,7 +717,8 @@ pub const MachOLinker = struct {
         const writer = file.writer();
 
         // const assembly_code_size = 0xC;     // 12   - TODO: Parametrize this.
-        const num_instructions = 3;
+        // const num_instructions = 3;
+        const num_instructions = code.len;
         const assembly_code_size = 4 * num_instructions;
 
         // ------------------------ Commands ------------------------
@@ -827,30 +828,34 @@ pub const MachOLinker = struct {
         print("paddingSize {d} {d} {d} \n", .{ self.headerSize, self.headerBuffer.items.len, paddingSize });
         try writer.writeByteNTimes(0, paddingSize);
 
-        // -------------------- Assembly --------------------
-        // Assembly
-        // MOVZ x0, #42     ;; Load constant
-        try writer.writeStruct(arm.MOVW_IMM{
-            .opc = arm.MOVW_IMM.OpCode.MOVZ,
-            .imm16 = 42,
-            .rd = arm.Reg.x0,
-        });
-
-        // try writer.writeStruct(arm.MOVW_IMM {
-        //     .opc= arm.MOVW_IMM.OpCode.MOVZ,
-        //     .imm16= 40,
-        //     .rd=arm.Reg.x5,
+        // // -------------------- Assembly --------------------
+        // // Assembly
+        // // MOVZ x0, #42     ;; Load constant
+        // try writer.writeStruct(arm.MOVW_IMM{
+        //     .opc = arm.MOVW_IMM.OpCode.MOVZ,
+        //     .imm16 = 42,
+        //     .rd = arm.Reg.x0,
         // });
 
-        // MOVZ x16, #1     ;; Load syscall #1 - exit - to ABI syscall register.
-        try writer.writeStruct(arm.MOVW_IMM{
-            .opc = arm.MOVW_IMM.OpCode.MOVZ,
-            .imm16 = 1,
-            .rd = arm.Reg.x16,
-        });
+        // // try writer.writeStruct(arm.MOVW_IMM {
+        // //     .opc= arm.MOVW_IMM.OpCode.MOVZ,
+        // //     .imm16= 40,
+        // //     .rd=arm.Reg.x5,
+        // // });
 
-        // Syscall - exit 42 (so we can read the code out from bash).
-        try writer.writeStruct(arm.SVC{ .imm16 = arm.SVC.SYSCALL });
+        // // MOVZ x16, #1     ;; Load syscall #1 - exit - to ABI syscall register.
+        // try writer.writeStruct(arm.MOVW_IMM{
+        //     .opc = arm.MOVW_IMM.OpCode.MOVZ,
+        //     .imm16 = 1,
+        //     .rd = arm.Reg.x16,
+        // });
+
+        // // Syscall - exit 42 (so we can read the code out from bash).
+        // try writer.writeStruct(arm.SVC{ .imm16 = arm.SVC.SYSCALL });
+
+        for (code) |instr| {
+            try writer.writeInt(u32, instr, std.builtin.Endian.little);
+        }
 
         // Zero pad for 16 byte alignment.
         const textPadding = 0x4000 - text_offset - assembly_code_size;

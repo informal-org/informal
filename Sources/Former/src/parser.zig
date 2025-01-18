@@ -7,8 +7,8 @@ const bitset = @import("bitset.zig");
 
 const print = std.debug.print;
 const Token = tok.Token;
-const TokenQueue = q.Queue(Token, tok.AUX_STREAM_END);
-const OffsetQueue = q.Queue(u16, 0);
+pub const TokenQueue = q.Queue(Token, tok.AUX_STREAM_END);
+pub const OffsetQueue = q.Queue(u16, 0);
 const Allocator = std.mem.Allocator;
 
 const TokBitset = bitset.BitSet64;
