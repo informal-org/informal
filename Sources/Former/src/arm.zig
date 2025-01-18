@@ -53,6 +53,28 @@ pub const MOVW_IMM = packed struct(u32) {
     };
 };
 
+// Add extended register
+pub const ADD_XREG = packed struct(u32) {
+    rd: Reg, // Destination register
+    rn: Reg, // First source register
+    shift: u3 = 0b000, // Cannot be 101, 110 or 111,
+    option: Option64 = Option64.SXTX, // UXTX_LSL?
+    rm: Reg, // Second source register
+    _: u10 = 0b00_0101_1001, // Fixed opcode for ADD (register)
+    sf: u1 = 1, // 1 = 64-bit operation, 0 = 32-bit operation
+
+    pub const Option64 = enum(u3) {
+        UXTB = 0b000, // Unsigned extend byte.
+        UXTH = 0b001, // Unsigned extend halfword.
+        UXTW = 0b010, // Unsigned extend word.
+        UXTX_LSL = 0b011,
+        SXTB = 0b100, // Signed extend byte.
+        SXTH = 0b101, // Signed extend halfword.
+        SXTW = 0b110, // Signed extend word.
+        SXTX = 0b111,
+    };
+};
+
 // Supervisor Call - Syscalls, traps, etc.
 pub const SVC = packed struct(u32) {
     pub const SYSCALL = 0x80;

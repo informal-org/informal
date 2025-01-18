@@ -55,7 +55,19 @@ pub const Codegen = struct {
                 }));
                 try self.objCode.append(instr);
             },
-            TK.op_add => {},
+            TK.op_add => {
+                const rd = arm.Reg.x0;
+                const rn: arm.Reg = @enumFromInt(self.registerMap.count() - 1);
+                const rm: arm.Reg = @enumFromInt(self.registerMap.count() - 2);
+
+                const instr: u32 = @as(u32, @bitCast(arm.ADD_XREG{
+                    .rd = rd,
+                    .rn = rn,
+                    // .option = arm.ADD_XREG.Option64.UXTB,
+                    .rm = rm,
+                }));
+                try self.objCode.append(instr);
+            },
             else => {
                 print("unhandled token {any}\n", .{token});
             },
