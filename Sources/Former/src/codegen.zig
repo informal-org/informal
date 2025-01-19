@@ -81,6 +81,21 @@ pub const Codegen = struct {
             return error.SyscallRegisterAlreadyInUse;
         }
 
+        // const verify_addimm = arm.ADD_IMM{
+        //     .rd = arm.Reg.x0,
+        //     .rn = arm.Reg.x0,
+        //     .imm12 = 10,
+        //     .sh = 0,
+        // };
+        // try self.objCode.append(@as(u32, @bitCast(verify_addimm)));
+
+        // const verify_and_imm = arm.AND_IMM{
+        //     .rd = arm.Reg.x0,
+        //     .rn = arm.Reg.x0,
+        //     .mask = 0b01,
+        // };
+        // try self.objCode.append(@as(u32, @bitCast(verify_and_imm)));
+
         const instr: u32 = @as(u32, @bitCast(arm.MOVW_IMM{
             .opc = arm.MOVW_IMM.OpCode.MOVZ,
             .imm16 = @intFromEnum(syscall),

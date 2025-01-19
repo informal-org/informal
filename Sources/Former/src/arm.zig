@@ -58,21 +58,41 @@ pub const ADD_XREG = packed struct(u32) {
     rd: Reg, // Destination register
     rn: Reg, // First source register
     shift: u3 = 0b000, // Cannot be 101, 110 or 111,
-    option: Option64 = Option64.SXTX, // UXTX_LSL?
+    option: Option64 = Option64.UXTX_LSL, // UXTX_LSL?
     rm: Reg, // Second source register
     _: u10 = 0b00_0101_1001, // Fixed opcode for ADD (register)
     sf: u1 = 1, // 1 = 64-bit operation, 0 = 32-bit operation
 
     pub const Option64 = enum(u3) {
-        UXTB = 0b000, // Unsigned extend byte.
-        UXTH = 0b001, // Unsigned extend halfword.
-        UXTW = 0b010, // Unsigned extend word.
-        UXTX_LSL = 0b011,
+        UXTB = 0b000, // Unsigned zero-extend byte.
+        UXTH = 0b001, // Unsigned zero-extend halfword.
+        UXTW = 0b010, // Unsigned zero-extend word.
+        UXTX_LSL = 0b011, // Unsigned zero-extend / logical shift left.
         SXTB = 0b100, // Signed extend byte.
         SXTH = 0b101, // Signed extend halfword.
         SXTW = 0b110, // Signed extend word.
         SXTX = 0b111,
     };
+};
+
+pub const ADD_IMM = packed struct(u32) {
+    rd: Reg,
+    rn: Reg,
+    imm12: u12,
+    sh: u1 = 0, // 1 = LSL 12.
+    _: u8 = 0b00100010,
+    sf: u1 = 1, // 64-bit mode
+};
+
+pub const AND_IMM = packed struct(u32) {
+    rd: Reg,
+    rn: Reg,
+    // imms: u6,
+    // immr: u6,
+    // n: u1,
+    mask: u13, // 13 bits in 64 bit mode.
+    _: u8 = 0b0010_0100,
+    sf: u1 = 1,
 };
 
 // Supervisor Call - Syscalls, traps, etc.
