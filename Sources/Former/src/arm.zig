@@ -186,8 +186,58 @@ pub const ImmMovWideEncoding = packed struct(u32) {
         LSL_48 = 0b11, // 64 bit mode only
     };
 };
-pub const ImmBitfieldEncoding = packed struct(u32) { _: u32 };
-pub const ImmExtractEncoding = packed struct(u32) { _: u32 };
+pub const ImmBitfieldEncoding = packed struct(u32) {
+    // SBFM = Signed Bitfield Move
+    // If imms >= immr, copy (imms-immr+1) bits from position immr in source reg to the LSB bits of destination reg.
+    // Take bits immr through imms and rotate right by immr, sign fill upper bits.
+    // If imms < immr, copy (imms+1) bits from LSB of source to (regsize-immr) of the dest.
+    // Take imms+1 low bits and rotate right by immr sign fill upper bits.
+    // Destination bits below bitfield are set to zero, and bits above are set to a copy of the most significant bit of the bitfield.
+
+    // See https://devblogs.microsoft.com/oldnewthing/20220803-00/?p=106941
+    // UBFM = Unsigned bitfield move.
+    // UBFX = Unsigned bitfield extract.
+    // [................bbbbbbbb....] -> [000000000000000000000000bbbbbbbb]
+
+    // UBFIZ = Unsigned bitfield insert into zeroes
+    // When immr > imms
+    // Reinterprets UBFM as bitfield insertion and reinterprets right-rot as left-shift.
+    // [........................bbbbbbbb] -> [00000000000000000bbbbbbbb0000]
+
+    // BFXIL = Like the other two, but leaves the unsued bits as-is rather than filling with 0 or sign.
+    // BFC = Clear w bits starting at lsb with zero.
+
+    rd: Reg,
+    rn: Reg,
+    imms: u6,
+    immr: u6,
+    N: u1 = 1, // 0 in 32 bit mode. 1 in 64 bit mode.
+    _: 0b100_110,
+    opc: OpCode,
+    sf: u1 = SFMode.A64,
+
+    pub const OpCode = enum(u2) {
+        SBFM = 0b00,
+        BFM = 0b01,
+        UBFM = 0b10,
+    };
+};
+pub const ImmExtractEncoding = packed struct(u32) {
+    // Reference - https://devblogs.microsoft.com/oldnewthing/20220803-00/?p=106941
+    // Just one opcode defined. EXTR - Word/Double-word extraction.
+    // Extract a register from a pair of registers.
+    // [Rn..... [NNNN]][[MMMMMMMM]....... Rm] -> [NNNNMMMMMMMM]
+    // RN and RM registers concantenated in big-endian order.
+
+    rd: Reg,
+    rn: Reg,
+    imms: u6, // 0xxxxx in 32 bit mode. LSB pos from which to extract. 0-31 / 0-63
+    rm: Reg,
+    o0: u1 = 0,
+    N: u1 = 1, // 0 in 32 bit mode. 1 in 64 bit mode.
+    op21: u2 = 0b00,
+    sf: u1 = SFMode.A64,
+};
 
 pub const BranchEncoding = packed struct(u32) { _: u32 };
 pub const RegisterEncoding = packed struct(u32) { _: u32 };
