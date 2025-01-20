@@ -8,10 +8,9 @@ const Allocator = std.mem.Allocator;
 const Token = tok.Token;
 const TK = Token.Kind;
 const print = std.debug.print;
+const platform = @import("platform.zig");
 
-pub const Syscall = enum(u16) {
-    exit = 1,
-};
+pub const Syscall = platform.Syscall;
 
 pub const Codegen = struct {
     // Converts parsed token stream into assembly.
@@ -46,14 +45,8 @@ pub const Codegen = struct {
                 const reg = self.getFreeReg();
                 const value = self.buffer[token.data.range.offset .. token.data.range.offset + token.data.range.length];
                 const imm16 = std.fmt.parseInt(u16, value, 10) catch unreachable;
-                print("emitting {any} to reg {any}\n", .{ imm16, reg });
-
-                const instr: u32 = @as(u32, @bitCast(arm.MOVW_IMM{
-                    .opc = arm.MOVW_IMM.OpCode.MOVZ,
-                    .imm16 = imm16,
-                    .rd = reg,
-                }));
-                try self.objCode.append(instr);
+                // print("emitting {any} to reg {any}\n", .{ imm16, reg });
+                try self.objCode.append(arm.movz(reg, imm16));
             },
             TK.op_add => {
                 const rd = arm.Reg.x0;
@@ -89,14 +82,15 @@ pub const Codegen = struct {
         // };
         // try self.objCode.append(@as(u32, @bitCast(verify_addimm)));
 
-        const verify_addimm = arm.ImmAddSubEncoding{
-            .rd = arm.Reg.x0,
-            .rn = arm.Reg.x0,
-            .imm12 = 10,
-            .shift = 0,
-            .op = arm.ImmAddSubEncoding.OpCode.ADD,
-        };
-        try self.objCode.append(@as(u32, @bitCast(verify_addimm)));
+        // const verify_addimm = arm.ImmAddSub{
+        //     .rd = arm.Reg.x0,
+        //     .rn = arm.Reg.x0,
+        //     .imm12 = 10,
+        //     .op = arm.ImmAddSub.Op.ADD,
+        // };
+        // try self.objCode.append(verify_addimm.encode());
+
+        // try self.objCode.append(arm.addi(arm.Reg.x0, arm.Reg.x0, 10));
 
         // const verify_and_imm = arm.AND_IMM{
         //     .rd = arm.Reg.x0,
@@ -105,15 +99,10 @@ pub const Codegen = struct {
         // };
         // try self.objCode.append(@as(u32, @bitCast(verify_and_imm)));
 
-        const instr: u32 = @as(u32, @bitCast(arm.MOVW_IMM{
-            .opc = arm.MOVW_IMM.OpCode.MOVZ,
-            .imm16 = @intFromEnum(syscall),
-            .rd = arm.Reg.x16,
-        }));
-        try self.objCode.append(instr);
+        try self.objCode.append(arm.movz(arm.Reg.x16, @intFromEnum(syscall)));
 
         // Syscall - exit 42 (so we can read the code out from bash).
-        try self.objCode.append(@as(u32, @bitCast(arm.SVC{ .imm16 = arm.SVC.SYSCALL })));
+        try self.objCode.append(arm.svc(syscall));
     }
 
     pub fn emitAll(self: *Self, tokenQueue: []Token) !void {
