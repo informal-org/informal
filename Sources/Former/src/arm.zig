@@ -2,6 +2,8 @@ const std = @import("std");
 
 // Architecture support for 64 bit ARM (AARCH64).
 // We only support the 64 bit variant.
+// Reference:
+// https://developer.arm.com/documentation/ddi0602/2024-12/Index-by-Encoding?lang=en
 
 pub const Reg = enum(u5) {
     x0 = 0,
@@ -37,6 +39,104 @@ pub const Reg = enum(u5) {
     x30 = 30,
     x31 = 31,
 };
+
+pub const SFMode = enum(u1) {
+    A32 = 0, // 32-bit architecture.
+    A64 = 1, // 64-bit architecture.
+};
+
+pub const ArmInstruction = union(enum) {
+    SME: MatrixEncoding,
+    SVE: VectorEncoding,
+    DataProcessingImmediate: ImmediateEncoding,
+    Branch: BranchEncoding,
+    DataProcessingRegister: RegisterEncoding,
+    DataProcessingAdvanced: FloatEncoding, // Scalar Floating-Point and Advanced SIMD
+    LoadStore: LoadStoreEncoding,
+};
+
+pub const MatrixEncoding = packed struct(u32) { _: u32 };
+pub const VectorEncoding = packed struct(u32) { _: u32 };
+
+// pub const ImmediateEncoding = packed struct(u32) { _: u32 };
+pub const ImmediateEncoding = union(enum) {
+    ImmOneSource: ImmOneSourceEncoding,
+    ImmPcRel: ImmPcRelEncoding,
+    ImmAddSub: ImmAddSubEncoding,
+    ImmAddSubTags: ImmAddSubTagsEncoding,
+    ImmMinMax: ImmMinMaxEncoding,
+    ImmLogical: ImmLogicalEncoding,
+    ImmMovWide: ImmMovWideEncoding,
+    ImmBitfield: ImmBitfieldEncoding,
+    ImmExtract: ImmExtractEncoding,
+};
+
+pub const ImmOneSourceEncoding = packed struct(u32) {
+    // Depends on FEAT_PAuth_LR feature.
+    rd: Reg,
+    imm16: u16,
+    opc: OpCode,
+    _: u8 = 0b11_100_111,
+    sf: u1 = 1,
+
+    pub const OpCode = enum(u2) { AUTIASPPC = 0b00, AUTIBSPPC = 0b01 };
+};
+
+pub const ImmPcRelEncoding = packed struct(u32) {
+    rd: Reg,
+    immhi: u19,
+    _: 0b100_00,
+    immlo: u2,
+    op: OpCode,
+
+    pub const OpCode = enum(u1) { ADR = 0, ADRP = 1 };
+};
+
+pub const ImmAddSubEncoding = packed struct(u32) {
+    // Add / Sub
+    rd: Reg,
+    rn: Reg,
+    imm12: u12,
+    shift: u1 = 0, // 1 = LSL #12
+    _: u8 = 0b100_010,
+    set_flags: u1 = 0,
+    op: OpCode,
+    mode: u1 = SFMode.A64, //
+
+    pub const OpCode = enum(u1) {
+        ADD = 0,
+        SUB = 1,
+    };
+};
+
+pub const ImmAddSubTagsEncoding = packed struct(u32) {
+    // Used for adding to memory with memory tagging for protection checks.
+    // Depends on FEAT_MTE Feature.
+    rd: Reg,
+    rn: Reg,
+    imm4: u4,
+    op3: u2,
+    imm6: u6,
+    _: u7 = 0b100_0110,
+    s: u1,
+    op: OpCode,
+    sf: u1 = 1,
+
+    pub const OpCode = enum(u1) {
+        ADDG = 0,
+        SUBG = 1,
+    };
+};
+pub const ImmMinMaxEncoding = packed struct(u32) { _: u32 };
+pub const ImmLogicalEncoding = packed struct(u32) { _: u32 };
+pub const ImmMovWideEncoding = packed struct(u32) { _: u32 };
+pub const ImmBitfieldEncoding = packed struct(u32) { _: u32 };
+pub const ImmExtractEncoding = packed struct(u32) { _: u32 };
+
+pub const BranchEncoding = packed struct(u32) { _: u32 };
+pub const RegisterEncoding = packed struct(u32) { _: u32 };
+pub const FloatEncoding = packed struct(u32) { _: u32 };
+pub const LoadStoreEncoding = packed struct(u32) { _: u32 };
 
 pub const MOVW_IMM = packed struct(u32) {
     rd: Reg,
