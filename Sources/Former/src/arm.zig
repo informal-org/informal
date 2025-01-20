@@ -57,6 +57,10 @@ pub const ArmInstruction = union(enum) {
 pub const MatrixEncoding = packed struct(u32) { _: u32 };
 pub const VectorEncoding = packed struct(u32) { _: u32 };
 
+////////////////////////////////////////////////////////////////////////////////
+//                   Data Processing - Immediate
+////////////////////////////////////////////////////////////////////////////////
+
 // pub const ImmediateEncoding = packed struct(u32) { _: u32 };
 pub const ImmediateEncoding = union(enum) {
     ImmOneSource: ImmOneSourceEncoding,
@@ -133,8 +137,8 @@ pub const ImmMinMaxEncoding = packed struct(u32) {
     imm8: u8,
     opc: u4,
     _: 0b100_0111,
-    s: u1 = 0, // Fixed to 0.
-    op: u1 = 0, // Fixed to 0
+    s: 0, // Fixed to 0.
+    op: 0, // Fixed to 0
     sf: u1 = MODE_A64,
 
     pub const OpCode = enum(u4) {
@@ -238,7 +242,121 @@ pub const ImmExtractEncoding = packed struct(u32) {
     sf: u1 = MODE_A64,
 };
 
-pub const BranchEncoding = packed struct(u32) { _: u32 };
+////////////////////////////////////////////////////////////////////////////////
+//           Branch, Exception Generating and System Instructions
+////////////////////////////////////////////////////////////////////////////////
+
+pub const BranchEncoding = union(enum) {
+    BrConditionalEncoding: BrConditional,
+};
+
+pub const Cond = enum(u4) {
+    EQ = 0b0000, // Equal. Z == 1
+    NE = 0b0001, // Not equal. Z==0
+    CS = 0b0010, // Carry Set. C==1 (Or HS - Unsigned Higher or same)
+    CC = 0b0011, // Carry Clear. C==0 (Unsigned lower)
+    MI = 0b0100, // Minus. N==1
+    PL = 0b0101, // Plus. N==0
+    VS = 0b0110, // Signed Overflow. V==1
+    VC = 0b0111, // No signed overflow. V==0
+    HI = 0b1000, // Unsigned Higher. C==1 && Z==0
+    LS = 0b1001, // Unsigned Lower or Same. C==0 || Z==0
+    GE = 0b1010, // Signed Greater than or Equal. N==V
+    LT = 0b1011, // Signed Less Than. N!=V
+    GT = 0b1100, // Signed Greater Than. Z==0 && N==V.
+    LE = 0b1101, // Signed Less than or Equal. Z==1 || N!=V
+    AL = 0b1110, // Always
+    NV = 0b1111, // Never
+};
+
+pub const BrConditional = packed struct(u32) {
+    //
+    cond: Cond,
+    op: OpCode,
+    offset: u19, // PC Relative offset.
+    _: 0b010_101_00,
+
+    pub const OpCode = enum(u1) {
+        B = 0, // Conditional branch to label at PC relative offset. hint that it's not a subroutine call or ret.
+        BC = 1, // Feature - FEAT_HBC. Branch consistent conditionally. Hint that it's likely to branch consistently and is very unlikely to change direction.
+    };
+};
+
+pub const MiscBranchImm = packed struct(u32) {
+    // Return from subroutine with enhanced pointer auth using an immediate offset.
+    // Authenticates the address in LR
+    // SP - first modifier.
+    // Imm value subtracted from SP as second mod.
+    // and specified key (A or B based on instruction) and branches to the authenticated address.
+    // With hint that it's a subroutine return.
+    op2: 0b11111,
+    offset: u16,
+    opc: OpCode,
+    _: 0b010_101_01,
+
+    // Depends on FEAT_PAuth_LR
+    pub const OpCode = enum(u3) {
+        RETAASPPC = 0b000,
+        RETABSPPC = 0b001,
+    };
+};
+
+// Compare bytes/halfwords in registers and branch.
+// Feature - FEAT_CMPBR
+pub const CompareAndBranch = packed struct(u32) {
+    // Hints that not a subroutine call or ret.
+    // Doesn't affect the condition flags.
+
+    rt: Reg, // Test register.
+    label: u9, // Label to branch to. Offset from PC, -1024 to 1020, as imm9 * 4.
+    halfword: u1 = 0, // 0 = byte, 1 = halfword,
+    _: 1,
+    rm: Reg,
+    cc: OpCode,
+    __: 0b011_101_00,
+
+    pub const OpCode = enum(u3) {
+        GT = 0b000, // Greater than. ([N]eg and o[V]erflow flags)
+        GE = 0b001, // Greater than or equal.
+        HI = 0b010, // Unsigned higher. (CZ flags)
+        HS = 0b011, // Unsigned Higher or same
+        EQ = 0b110,
+        NE = 0b111,
+    };
+};
+
+// Exception Generation
+pub const ExceptionCall = packed struct(u32) {
+    ll: OpCode.LL,
+    _: 0b000,
+    imm16: u16,
+    opc: OpCode.OPC,
+    __: 0b110_101_00,
+
+    pub const OpCode = packed struct(u5) {
+        opc: OPC,
+        ll: LL,
+
+        pub const OPC = enum(u3) {
+            SVC_HVC_SMC = 0b000,
+            BRK = 0b001,
+            HLT = 0b010,
+            TCANCEL = 0b11,
+            DCPS = 0b101,
+        };
+
+        pub const LL = enum(u2) {
+            SVC = 0b01,
+            HVC = 0b10,
+            SMC = 0b11,
+            BRK_HLT_TCANCEL = 0b00,
+            DCPS1 = 0b01,
+            DCPS2 = 0b10,
+            DCPS3 = 0b11,
+        };
+    };
+};
+
 pub const RegisterEncoding = packed struct(u32) { _: u32 };
 pub const FloatEncoding = packed struct(u32) { _: u32 };
 pub const LoadStoreEncoding = packed struct(u32) { _: u32 };
