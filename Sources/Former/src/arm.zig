@@ -127,9 +127,65 @@ pub const ImmAddSubTagsEncoding = packed struct(u32) {
         SUBG = 1,
     };
 };
-pub const ImmMinMaxEncoding = packed struct(u32) { _: u32 };
-pub const ImmLogicalEncoding = packed struct(u32) { _: u32 };
-pub const ImmMovWideEncoding = packed struct(u32) { _: u32 };
+pub const ImmMinMaxEncoding = packed struct(u32) {
+    // Depends on FEAT_CSSC Feature.
+    rd: Reg,
+    rn: Reg,
+    imm8: u8,
+    opc: u4,
+    _: 0b100_0111,
+    s: u1 = 0, // Fixed to 0.
+    op: u1 = 0, // Fixed to 0
+    sf: u1 = SFMode.A64,
+
+    pub const OpCode = enum(u4) {
+        SMAX = 0b0000, // Signed maximum of source reg and immediate, written to destination reg.
+        UMAX = 0b0001, // Unsigned max
+        SMIN = 0b0010, // Signed min
+        UMIN = 0b0011, // Unsigned min
+    };
+};
+
+pub const ImmLogicalEncoding = packed struct(u32) {
+    rd: Reg,
+    rn: Reg,
+    imms: u6,
+    immr: u6,
+    N: u1 = 0, // An extra bit of immediate only used in 64 bit mode.
+    _: 0b100_100,
+    op: OpCode,
+    sf: u1 = SFMode.A64,
+
+    pub const OpCode = enum(u1) {
+        AND = 0b00, // AND register and immediate. Write to destination register.
+        ORR = 0b01, // Bitwise OR. Alias of MOV (bitmask immediate).
+        EOR = 0b10, // Exclusive OR.
+        ANDS = 0b11, // Bitwise AND, updates condition flags. Alias of TST immediate.
+    };
+};
+pub const ImmMovWideEncoding = packed struct(u32) {
+    rd: Reg,
+    imm16: u16,
+    hw: ShiftAmount = ShiftAmount.LSL_0,
+    // Shift amount. 0X pattern for 32 bit mode, and 2 bits for 64 bit mode.
+    // 0, 16, 32 or 48.
+    _: 0b100_101,
+    opc: OpCode,
+    sf: u1 = SFMode.A64,
+
+    pub const OpCode = enum(u2) {
+        MOVN = 0b00, // Move wide with NOT. Moves the inverse of the optionally-shifted 16 bit imm.
+        MOVZ = 0b10, // Move wide with zero.
+        MOVK = 0b11, // Move wide with keep. Keeps other bits unchanged in the register.
+    };
+
+    pub const ShiftAmount = enum(u2) {
+        LSL_0 = 0b00,
+        LSL_16 = 0b01,
+        LSL_32 = 0b10, // 64 bit mode only.
+        LSL_48 = 0b11, // 64 bit mode only
+    };
+};
 pub const ImmBitfieldEncoding = packed struct(u32) { _: u32 };
 pub const ImmExtractEncoding = packed struct(u32) { _: u32 };
 
