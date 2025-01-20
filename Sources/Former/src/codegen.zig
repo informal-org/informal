@@ -89,6 +89,15 @@ pub const Codegen = struct {
         // };
         // try self.objCode.append(@as(u32, @bitCast(verify_addimm)));
 
+        const verify_addimm = arm.ImmAddSubEncoding{
+            .rd = arm.Reg.x0,
+            .rn = arm.Reg.x0,
+            .imm12 = 10,
+            .shift = 0,
+            .op = arm.ImmAddSubEncoding.OpCode.ADD,
+        };
+        try self.objCode.append(@as(u32, @bitCast(verify_addimm)));
+
         // const verify_and_imm = arm.AND_IMM{
         //     .rd = arm.Reg.x0,
         //     .rn = arm.Reg.x0,

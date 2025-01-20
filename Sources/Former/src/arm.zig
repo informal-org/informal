@@ -40,10 +40,9 @@ pub const Reg = enum(u5) {
     x31 = 31,
 };
 
-pub const SFMode = enum(u1) {
-    A32 = 0, // 32-bit architecture.
-    A64 = 1, // 64-bit architecture.
-};
+// SF bit.
+pub const MODE_A32: u1 = 0;
+pub const MODE_A64: u1 = 1;
 
 pub const ArmInstruction = union(enum) {
     SME: MatrixEncoding,
@@ -77,7 +76,7 @@ pub const ImmOneSourceEncoding = packed struct(u32) {
     imm16: u16,
     opc: OpCode,
     _: u8 = 0b11_100_111,
-    sf: u1 = 1,
+    sf: u1 = MODE_A64,
 
     pub const OpCode = enum(u2) { AUTIASPPC = 0b00, AUTIBSPPC = 0b01 };
 };
@@ -98,10 +97,10 @@ pub const ImmAddSubEncoding = packed struct(u32) {
     rn: Reg,
     imm12: u12,
     shift: u1 = 0, // 1 = LSL #12
-    _: u8 = 0b100_010,
+    _: u6 = 0b100_010,
     set_flags: u1 = 0,
     op: OpCode,
-    mode: u1 = SFMode.A64, //
+    mode: u1 = MODE_A64, //
 
     pub const OpCode = enum(u1) {
         ADD = 0,
@@ -120,7 +119,7 @@ pub const ImmAddSubTagsEncoding = packed struct(u32) {
     _: u7 = 0b100_0110,
     s: u1,
     op: OpCode,
-    sf: u1 = 1,
+    sf: u1 = MODE_A64,
 
     pub const OpCode = enum(u1) {
         ADDG = 0,
@@ -136,7 +135,7 @@ pub const ImmMinMaxEncoding = packed struct(u32) {
     _: 0b100_0111,
     s: u1 = 0, // Fixed to 0.
     op: u1 = 0, // Fixed to 0
-    sf: u1 = SFMode.A64,
+    sf: u1 = MODE_A64,
 
     pub const OpCode = enum(u4) {
         SMAX = 0b0000, // Signed maximum of source reg and immediate, written to destination reg.
@@ -154,7 +153,7 @@ pub const ImmLogicalEncoding = packed struct(u32) {
     N: u1 = 0, // An extra bit of immediate only used in 64 bit mode.
     _: 0b100_100,
     op: OpCode,
-    sf: u1 = SFMode.A64,
+    sf: u1 = MODE_A64,
 
     pub const OpCode = enum(u1) {
         AND = 0b00, // AND register and immediate. Write to destination register.
@@ -171,7 +170,7 @@ pub const ImmMovWideEncoding = packed struct(u32) {
     // 0, 16, 32 or 48.
     _: 0b100_101,
     opc: OpCode,
-    sf: u1 = SFMode.A64,
+    sf: u1 = MODE_A64,
 
     pub const OpCode = enum(u2) {
         MOVN = 0b00, // Move wide with NOT. Moves the inverse of the optionally-shifted 16 bit imm.
@@ -214,7 +213,7 @@ pub const ImmBitfieldEncoding = packed struct(u32) {
     N: u1 = 1, // 0 in 32 bit mode. 1 in 64 bit mode.
     _: 0b100_110,
     opc: OpCode,
-    sf: u1 = SFMode.A64,
+    sf: u1 = MODE_A64,
 
     pub const OpCode = enum(u2) {
         SBFM = 0b00,
@@ -236,7 +235,7 @@ pub const ImmExtractEncoding = packed struct(u32) {
     o0: u1 = 0,
     N: u1 = 1, // 0 in 32 bit mode. 1 in 64 bit mode.
     op21: u2 = 0b00,
-    sf: u1 = SFMode.A64,
+    sf: u1 = MODE_A64,
 };
 
 pub const BranchEncoding = packed struct(u32) { _: u32 };
@@ -250,7 +249,7 @@ pub const MOVW_IMM = packed struct(u32) {
     hw: u2 = 0b00,
     _movw_imm: u6 = 0b100_101,
     opc: OpCode,
-    sf: u1 = 1,
+    sf: u1 = MODE_A64,
 
     pub const OpCode = enum(u2) {
         MOVN = 0b00, // Move wide with NOT. Moves the inverse of the optionally-shifted 16 bit imm.
@@ -267,7 +266,7 @@ pub const ADD_XREG = packed struct(u32) {
     option: Option64 = Option64.UXTX_LSL, // UXTX_LSL?
     rm: Reg, // Second source register
     _: u10 = 0b00_0101_1001, // Fixed opcode for ADD (register)
-    sf: u1 = 1, // 1 = 64-bit operation, 0 = 32-bit operation
+    sf: u1 = MODE_A64, // 1 = 64-bit operation, 0 = 32-bit operation
 
     pub const Option64 = enum(u3) {
         UXTB = 0b000, // Unsigned zero-extend byte.
@@ -287,7 +286,7 @@ pub const ADD_IMM = packed struct(u32) {
     imm12: u12,
     sh: u1 = 0, // 1 = LSL 12.
     _: u8 = 0b00100010,
-    sf: u1 = 1, // 64-bit mode
+    sf: u1 = MODE_A64, // 64-bit mode
 };
 
 pub const AND_IMM = packed struct(u32) {
