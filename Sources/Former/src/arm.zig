@@ -366,7 +366,7 @@ pub const ImmExtract = packed struct(u32) {
 pub const BranchEncoding = union(enum) {
     BrConditional: BrConditional,
     MiscBranchImm: MiscBranchImm,
-    CompareAndBranch: CompareAndBranch,
+    CompareRegAndBranch: CompareRegAndBranch,
     ExceptionCall: ExceptionCall,
 };
 
@@ -387,6 +387,15 @@ pub const Cond = enum(u4) {
     LE = 0b1101, // Signed Less than or Equal. Z==1 || N!=V
     AL = 0b1110, // Always
     NV = 0b1111, // Never
+};
+
+pub const Comparison = enum(u3) {
+    GT = 0b000, // Greater than. ([N]eg and o[V]erflow flags)
+    GE = 0b001, // Greater than or equal.
+    HI = 0b010, // Unsigned higher. (CZ flags)
+    HS = 0b011, // Unsigned Higher or same
+    EQ = 0b110,
+    NE = 0b111,
 };
 
 pub const BrConditional = packed struct(u32) {
@@ -410,11 +419,12 @@ pub const BrConditional = packed struct(u32) {
     }
 };
 
-pub fn b(cond: Cond, offset: u19) u32 {
+// ie beq, bne, etc.
+pub fn b_cond(cond: Cond, offset: u19) u32 {
     return BrConditional.init(cond, offset, BrConditional.Op.B);
 }
 
-pub fn bc(cond: Cond, offset: u19) u32 {
+pub fn bc_cond(cond: Cond, offset: u19) u32 {
     return BrConditional.init(cond, offset, BrConditional.Op.BC);
 }
 
@@ -439,7 +449,7 @@ pub const MiscBranchImm = packed struct(u32) {
 
 // Compare bytes/halfwords in registers and branch.
 // Feature - FEAT_CMPBR
-pub const CompareAndBranch = packed struct(u32) {
+pub const CompareBytesAndBranch = packed struct(u32) {
     const Self = @This();
     // Hints that not a subroutine call or ret.
     // Doesn't affect the condition flags.
@@ -449,33 +459,24 @@ pub const CompareAndBranch = packed struct(u32) {
     halfword: u1 = 0, // 0 = byte, 1 = halfword,
     _: u1 = 1,
     rm: Reg,
-    cc: Op,
+    cc: Comparison,
     __: u8 = 0b011_101_00,
-
-    pub const Op = enum(u3) {
-        GT = 0b000, // Greater than. ([N]eg and o[V]erflow flags)
-        GE = 0b001, // Greater than or equal.
-        HI = 0b010, // Unsigned higher. (CZ flags)
-        HS = 0b011, // Unsigned Higher or same
-        EQ = 0b110,
-        NE = 0b111,
-    };
 
     pub fn encode(self: Self) u32 {
         return @as(u32, @bitCast(self));
     }
 
-    pub fn init(rt: Reg, rm: Reg, label: u9, halfword: u1, cc: Op) u32 {
+    pub fn init(rt: Reg, rm: Reg, label: u9, halfword: u1, cc: Comparison) u32 {
         return (Self{ .rt = rt, .label = label, .halfword = halfword, .rm = rm, .cc = cc }).encode();
     }
 };
 
-pub fn cbb(rt: Reg, rm: Reg, label: u9, cc: CompareAndBranch.Op) u32 {
-    return CompareAndBranch.init(rt, rm, label, 0, cc);
+pub fn cbb(rt: Reg, rm: Reg, label: u9, cc: Comparison) u32 {
+    return CompareBytesAndBranch.init(rt, rm, label, 0, cc);
 }
 
-pub fn cbh(rt: Reg, rm: Reg, label: u9, cc: CompareAndBranch.Op) u32 {
-    return CompareAndBranch.init(rt, rm, label, 1, cc);
+pub fn cbh(rt: Reg, rm: Reg, label: u9, cc: Comparison) u32 {
+    return CompareBytesAndBranch.init(rt, rm, label, 1, cc);
 }
 
 // Exception Generation
@@ -539,26 +540,478 @@ pub fn hlt(imm: u16) u32 {
     return ExceptionCall.encode(ExceptionCall.Op.HLT, imm);
 }
 
+// System instructions with register argument.
+pub const SysRegCalls = packed struct(u32) {
+    const Self = @This();
+    rt: Reg,
+    op: Op,
+    crm: u4 = 0b0000, // Fixed constant for current instructions.
+    _: 0b110_101_01_0000_0011_0001,
+
+    // Feature - FEAT_WFxT
+    pub const Op = enum(u3) {
+        WFET = 0b000, // Wait for event with timeout.
+        WFIT = 0b001, // Wait for interrupt with timeout.
+    };
+
+    pub fn encode(self: Self) u32 {
+        return @as(u32, @bitCast(self));
+    }
+
+    pub fn init(rt: Reg, op: Op) u32 {
+        return (Self{ .rt = rt, .op = op }).encode();
+    }
+};
+
+pub fn wfet(rt: Reg) u32 {
+    return SysRegCalls.init(rt, SysRegCalls.Op.WFET);
+}
+
+pub fn wfit(rt: Reg) u32 {
+    return SysRegCalls.init(rt, SysRegCalls.Op.WFIT);
+}
+
+// Hints
+pub const SystemHint = packed struct(u32) {
+    const Self = @This();
+    _: 0b11111,
+    op2: u3,
+    CRm: u4,
+    __: u20 = 0b110_101_01_0000_0011_0010,
+
+    pub const Op = enum {
+        NOP, // No-Op.
+        YIELD, // Yield processor.
+        WFE, // Wait for event.
+        WFI, // Wait for interrupt.
+        SEV, // Send Event.
+        SEVL, // Send Event Local.
+        DGH, // Data Gathering Hint. FEAT_DGH
+        // XPAC,
+        // PACIA, // Skipped.
+        // PACIB,
+        // AUTIA,
+        // AUTIB,
+        ESB, // Error Synchronization Barrier. FEAT_RAS
+        PSB, // Profile Synchronization Barrier. FEAT_SPE
+        TSB, // Trace Synchronization Barrier. FEAT_TRF
+        GCSB, // Guarded Control Stack barrier. FEAT_GCS
+        CSDB, // Consumption of speculative data barrier.
+        CLRBHB, // Clear Branch History. Feature - FEAT_CLRBHB
+        // BTI, // Handled separately.
+        PACM, // Pointer Auth Modifier - Feature - FEAT_PAuth_LR
+        CHKFEAT, // Check Feature Status. Feature - FEAT_CHK
+        // STSHH, // Handled separately.
+        // PACIA,
+
+        pub fn encode(self: Op) struct { crm: u4, op2: u3 } {
+            switch (self) {
+                .NOP => .{
+                    .crm = 0b0000,
+                    .op2 = 0b000,
+                },
+                .YIELD => .{
+                    .crm = 0b0000,
+                    .op2 = 0b001,
+                },
+                .WFE => .{
+                    .crm = 0b0000,
+                    .op2 = 0b010,
+                },
+                .WFI => .{
+                    .crm = 0b0000,
+                    .op2 = 0b011,
+                },
+                .SEV => .{
+                    .crm = 0b0000,
+                    .op2 = 0b100,
+                },
+                .SEVL => .{
+                    .crm = 0b0000,
+                    .op2 = 0b101,
+                },
+                .DGH => .{
+                    .crm = 0b0000,
+                    .op2 = 0b110,
+                },
+                .XPAC => .{
+                    .crm = 0b0000,
+                    .op2 = 0b111,
+                },
+                // Skipping over PACIA, PACIB, AUTIA, AUTIB, ones. Not sure how those hints are meant to work.
+                .ESB => .{
+                    .crm = 0b0010,
+                    .op2 = 0b000,
+                },
+                .PSB => .{
+                    .crm = 0b0010,
+                    .op2 = 0b001,
+                },
+                .TSB => .{
+                    .crm = 0b0010,
+                    .op2 = 0b010,
+                },
+                .GCSB => .{
+                    .crm = 0b0010,
+                    .op2 = 0b011,
+                },
+                .CSDB => .{
+                    .crm = 0b0010,
+                    .op2 = 0b100,
+                },
+                .CLRBHB => .{
+                    .crm = 0b0010,
+                    .op2 = 0b110,
+                },
+                .PACM => .{
+                    .crm = 0b0100,
+                    .op2 = 0b111,
+                },
+                .CHKFEAT => .{
+                    .crm = 0b0101,
+                    .op2 = 0b000,
+                },
+            }
+        }
+    };
+
+    pub fn encode(op: Op) u32 {
+        const opcode = op.encode();
+        return @as(u32, @bitCast(SystemHint{
+            .crm = opcode.crm,
+            .op2 = opcode.op2,
+        }));
+    }
+};
+
+pub fn nop() u32 {
+    return SystemHint.encode(SystemHint.Op.NOP);
+}
+
+pub fn yield() u32 {
+    return SystemHint.encode(SystemHint.Op.YIELD);
+}
+
+pub fn wfe() u32 {
+    return SystemHint.encode(SystemHint.Op.WFE);
+}
+
+pub fn wfi() u32 {
+    return SystemHint.encode(SystemHint.Op.WFI);
+}
+
+pub fn chkfeat() u32 {
+    return SystemHint.encode(SystemHint.Op.CHKFEAT);
+}
+
+pub const BTITarget = enum(u3) {
+    // Test
+    absent = 0b000,
+    c = 0b010,
+    j = 0b100,
+    jc = 0b110,
+};
+
+// Feature - FEAT_BTI
+// Branch Target Identification for indirect branch targets.
+pub fn bti(target: BTITarget) u32 {
+    return @as(u32, @bitCast(SystemHint{
+        .crm = 0b0100,
+        .op2 = @intFromEnum(target),
+    }));
+}
+
+pub const StoreSharedHint = enum(u3) {
+    KEEP = 0b000,
+    STRM = 0b001,
+};
+
+// Feature - FEAT_PCDPHINT
+pub fn stshh(hint: StoreSharedHint) u32 {
+    return @as(u32, @bitCast(SystemHint{
+        .crm = 0b0110,
+        .op2 = @intFromEnum(hint),
+    }));
+}
+
+// Barrier Instructions
+pub const Barrier = packed struct(u32) {
+    const Self = @This();
+    rt: u5 = 0b11111,
+    op2: u3,
+    crm: u4,
+    _: 0b110_101_01_0000_0011_0011,
+
+    pub const Op = enum {
+        CLREX,
+        // https://developer.arm.com/documentation/ddi0602/2024-12/Base-Instructions/DSB--Data-synchronization-barrier-?lang=en#DSB_BOn_barriers
+        // DSB, // TODO: There's a lot of details to this
+        // DMB,
+        ISB, // Instruction Synchronization Barrier.
+        SB, // Speculation Barrier. FEAT_SB
+        // DSB,
+        // TCOMMIT,
+
+        pub fn encode(self: Op) struct { crm: u4, op2: u3 } {
+            switch (self) {
+                .CLREX => .{ .crm = 0b0000, .op2 = 0b010 }, // CRm ignored.
+                .ISB => .{ .crm = 0b1111, .op2 = 0b110 }, // CRm = 1111 for SY - full system barrier op.
+                .SB => .{ .crm = 0b0000, .op2 = 0b111 },
+            }
+        }
+    };
+};
+
+pub const PState = packed struct(u32) {
+    const Self = @This();
+    rt: u5 = 0b11111,
+    op2: u3,
+    CRm: u4,
+    __: 0b0100,
+    op1: u3,
+    _: u13 = 0b110_101_01_00000,
+
+    pub const Op = enum {
+        CFINV, // FEAT_FlagM. Invert carry flag.
+        XAFLAG, // FEAT_FlagM2. Convert float condition flags from external to arm format.
+        AXFLAG, // FEAT_FlagM2. Convert float condition flags from arm to external format.
+
+        pub fn encode(self: Op) struct { op1: u3, op2: u3 } {
+            switch (self) {
+                .CFINV => .{ .op1 = 0b000, .op2 = 0b000 },
+                .XAFLAG => .{ .op1 = 0b000, .op2 = 0b001 },
+                .AXFLAG => .{ .op1 = 0b000, .op2 = 0b010 },
+            }
+        }
+    };
+
+    pub fn encode(op: Op) u32 {
+        const opcode = op.encode();
+        return @as(u32, @bitCast(PState{
+            .op1 = opcode.op1,
+            .op2 = opcode.op2,
+        }));
+    }
+};
+
+// pub fn msr() u32 {
+//     // TODO: Implement this.
+//     // https://developer.arm.com/documentation/ddi0602/2024-12/Base-Instructions/MSR--immediate---Move-immediate-value-to-special-register-?lang=en
+//     return 0;
+// }
+
+pub fn cfinv() u32 {
+    return PState.encode(PState.Op.CFINV);
+}
+
+pub fn xaflag() u32 {
+    return PState.encode(PState.Op.XAFLAG);
+}
+
+pub fn axflag() u32 {
+    return PState.encode(PState.Op.AXFLAG);
+}
+
+// Skipping over System instructions.
+// TODO: MSR
+
+// Unconditional branch (register).
+pub const BranchRegister = packed struct(u32) {
+    //
+    const Self = @This();
+    op4: u4 = 0b0000,
+    Rn: u5,
+    op3: u6 = 0b000000,
+    op2: u5 = 0b11111,
+    opc: u4,
+    _: u7 = 0b110_101_1,
+
+    pub const Op = enum(u4) {
+        BR = 0b0000, // Branch to register.
+        BLR = 0b0001, // Branch with link to register. Sets X30 to PC+4
+        RET = 0b0010, // Subroutine return. Defaults to X30.
+        ERET = 0b0100, // Exception return
+        DRPS = 0b0101, // Debug Restore PE state.
+    };
+
+    pub fn encode(op: Op, rn: u5) u32 {
+        const opcode = op.encode();
+        return @as(u32, @bitCast(BranchRegister{
+            .op4 = opcode.op4,
+            .Rn = rn,
+            .op3 = opcode.op3,
+            .op2 = 0b11111,
+            .opc = opcode.opc,
+        }));
+    }
+};
+
+pub fn br(rn: Reg) u32 {
+    return BranchRegister.encode(BranchRegister.Op.BR, @intFromEnum(rn));
+}
+
+pub fn blr(rn: Reg) u32 {
+    return BranchRegister.encode(BranchRegister.Op.BLR, @intFromEnum(rn));
+}
+
+pub fn ret(rn: Reg) u32 {
+    return BranchRegister.encode(BranchRegister.Op.RET, @intFromEnum(rn));
+}
+
+pub fn eret() u32 {
+    return BranchRegister.encode(BranchRegister.Op.ERET, 0b11111);
+}
+
+pub fn drps() u32 {
+    return BranchRegister.encode(BranchRegister.Op.DRPS, 0b11111);
+}
+
+pub const UnconditionalBranchImm = packed struct(u32) {
+    const Self = @This();
+    imm26: u26,
+    _: 0b00101,
+    op: Op,
+
+    pub const Op = enum(u1) {
+        B = 0, // Branch to PC relative offset, hint not subroutine.
+        BL = 1, // Branch with link to PC-relative offset, setting X30 to PC+4. Hint subroutine.
+    };
+};
+
+pub fn b(imm26: u26) u32 {
+    return @as(u32, @bitCast(UnconditionalBranchImm{
+        .imm26 = imm26,
+        .op = UnconditionalBranchImm.Op.B,
+    }));
+}
+
+pub fn bl(imm26: u26) u32 {
+    return @as(u32, @bitCast(UnconditionalBranchImm{
+        .imm26 = imm26,
+        .op = UnconditionalBranchImm.Op.BL,
+    }));
+}
+
+pub const CompareBranchImm = packed struct(u32) {
+    const Self = @This();
+    rt: Reg,
+    imm19: u19,
+    op: Op,
+    _: u6 = 0b011_010,
+    sf: u1 = MODE_A64,
+
+    pub const Op = enum(u1) {
+        CBZ = 0, // Branch if reg = 0.
+        CBNZ = 1,
+    };
+
+    pub fn encode(self: Self) u32 {
+        return @as(u32, @bitCast(self));
+    }
+
+    pub fn init(rt: Reg, imm19: u19, op: Op) u32 {
+        return @as(u32, @bitCast(CompareBranchImm{
+            .rt = @intFromEnum(rt),
+            .imm19 = imm19,
+            .op = op,
+        }));
+    }
+};
+
+pub fn cbz(rt: Reg, imm19: u19) u32 {
+    return CompareBranchImm.init(rt, imm19, CompareBranchImm.Op.CBZ);
+}
+
+pub fn cbnz(rt: Reg, imm19: u19) u32 {
+    return CompareBranchImm.init(rt, imm19, CompareBranchImm.Op.CBNZ);
+}
+
+pub const TestAndBranchImm = packed struct(u32) {
+    const Self = @This();
+    rt: u5,
+    imm14: u14, // PC relative offset. +/- 32KB. IMM14*4
+    b40: u5,
+    op: u1,
+    _: u6 = 0b011_011,
+    b5: u1 = 0, // 0-W, 1-X, Only permitted when bit-number is less than 32.
+
+    // Doesn't set condition flags. Hints not subroutine.
+    pub const Op = enum(u1) {
+        TBZ = 0, // Test bit and branch PC-rel offset if zero.
+        TBNZ = 1,
+    };
+
+    pub fn init(rt: Reg, bitnum: u6, label: u14, op: Op) u32 {
+        // bitnum = b5:b40
+        const b40 = bitnum & 0b11111;
+        const b5 = (bitnum & 0b100000) >> 5;
+
+        return @as(u32, @bitCast(TestAndBranchImm{
+            .rt = @intFromEnum(rt),
+            .imm14 = label,
+            .b40 = b40,
+            .op = @intFromEnum(op),
+            .b5 = b5,
+        }));
+    }
+};
+
+pub fn tbz(rt: Reg, bitnum: u6, label: u14) u32 {
+    return TestAndBranchImm.init(rt, bitnum, label, TestAndBranchImm.Op.TBZ);
+}
+
+pub fn tbnz(rt: Reg, bitnum: u6, label: u14) u32 {
+    return TestAndBranchImm.init(rt, bitnum, label, TestAndBranchImm.Op.TBNZ);
+}
+
+pub const CompareRegAndBranch = packed struct(u32) {
+    const Self = @This();
+    rt: Reg,
+    imm9: u9,
+    _: u2 = 0b00,
+    rm: Reg,
+    cc: Comparison,
+    __: u7 = 0b111_0100,
+    sf: u1 = MODE_A64,
+
+    pub fn encode(self: Self) u32 {
+        return @as(u32, @bitCast(self));
+    }
+
+    pub fn init(rt: Reg, cc: Comparison, rm: Reg, offset: u9) u32 {
+        return @as(u32, @bitCast(CompareRegAndBranch{
+            .rt = rt,
+            .imm9 = offset,
+            .rm = rm,
+            .cc = cc,
+        }));
+    }
+};
+
+pub fn cb(rt: Reg, cc: Comparison, rm: Reg, offset: u9) u32 {
+    return CompareRegAndBranch.init(rt, cc, rm, offset);
+}
+
 pub const RegisterEncoding = packed struct(u32) { _: u32 };
 pub const FloatEncoding = packed struct(u32) { _: u32 };
 pub const LoadStoreEncoding = packed struct(u32) { _: u32 };
 
-pub const MOVW_IMM = packed struct(u32) {
-    rd: Reg,
-    imm16: u16,
-    hw: u2 = 0b00,
-    _movw_imm: u6 = 0b100_101,
-    opc: OpCode,
-    sf: u1 = MODE_A64,
+// pub const MOVW_IMM = packed struct(u32) {
+//     rd: Reg,
+//     imm16: u16,
+//     hw: u2 = 0b00,
+//     _movw_imm: u6 = 0b100_101,
+//     opc: OpCode,
+//     sf: u1 = MODE_A64,
 
-    pub const OpCode = enum(u2) {
-        MOVN = 0b00, // Move wide with NOT. Moves the inverse of the optionally-shifted 16 bit imm.
-        MOVZ = 0b10, // Move wide with zero.
-        MOVK = 0b11, // Move wide with keep. Keeps other bits unchanged in the register.
-    };
-};
+//     pub const OpCode = enum(u2) {
+//         MOVN = 0b00, // Move wide with NOT. Moves the inverse of the optionally-shifted 16 bit imm.
+//         MOVZ = 0b10, // Move wide with zero.
+//         MOVK = 0b11, // Move wide with keep. Keeps other bits unchanged in the register.
+//     };
+// };
 
-// // Add extended register
+// // // Add extended register
 pub const ADD_XREG = packed struct(u32) {
     rd: Reg, // Destination register
     rn: Reg, // First source register
@@ -601,13 +1054,13 @@ pub const ADD_XREG = packed struct(u32) {
 // };
 
 // // Supervisor Call - Syscalls, traps, etc.
-pub const SVC = packed struct(u32) {
-    pub const SYSCALL = 0x80;
+// pub const SVC = packed struct(u32) {
+//     pub const SYSCALL = 0x80;
 
-    _base: u5 = 0b00001,
-    imm16: u16,
-    _svc: u11 = 0b11010100_000,
-};
+//     _base: u5 = 0b00001,
+//     imm16: u16,
+//     _svc: u11 = 0b11010100_000,
+// };
 
 // const expect = std.testing.expect;
 
