@@ -524,8 +524,9 @@ pub const ExceptionCall = packed struct(u32) {
     }
 };
 
-pub fn svc(imm: platform.Syscall) u32 {
-    return ExceptionCall.encode(ExceptionCall.Op.SVC, @intFromEnum(imm));
+pub fn svc(imm: u16) u32 {
+    // Verify what should be in IMM. Some places reference 0x80? Other tables mention 0.
+    return ExceptionCall.encode(ExceptionCall.Op.SVC, imm);
 }
 
 pub fn hvc(imm: u16) u32 {
@@ -992,6 +993,35 @@ pub fn cb(rt: Reg, cc: Comparison, rm: Reg, offset: u9) u32 {
     return CompareRegAndBranch.init(rt, cc, rm, offset);
 }
 
+// Feature - FEAT_CMPBR
+pub const CompareImmediate = packed struct(u32) {
+    const Self = @This();
+    rt: Reg, // Test
+    offset: u9, // Offset relative to this instruction. -1024 to 1020. imm9 * 4
+    _: u1 = 0,
+    imm: u6, // Unsigned immediate 0-63.
+    cc: Comparison,
+    __: u7 = 0b1110_101,
+    sf: u1 = MODE_A64,
+
+    pub fn encode(self: Self) u32 {
+        return @as(u32, @bitCast(self));
+    }
+
+    pub fn init(rt: Reg, imm: u6, cc: Comparison, offset: u9) u32 {
+        return @as(u32, @bitCast(CompareImmediate{
+            .rt = rt,
+            .offset = offset,
+            .imm = imm,
+            .cc = cc,
+        }));
+    }
+};
+
+pub fn cmi(rt: Reg, imm: u6, cc: Comparison, offset: u9) u32 {
+    return CompareImmediate.init(rt, imm, cc, offset);
+}
+
 pub const RegisterEncoding = packed struct(u32) { _: u32 };
 pub const FloatEncoding = packed struct(u32) { _: u32 };
 pub const LoadStoreEncoding = packed struct(u32) { _: u32 };
@@ -1092,3 +1122,59 @@ pub const ADD_XREG = packed struct(u32) {
 //     // IMM16 = 0000000000101010 = 42!
 //     // Rd = x0
 // }
+const test_allocator = std.testing.allocator;
+const expect = std.testing.expect;
+const expectEqual = std.testing.expectEqual;
+const macho = @import("macho.zig");
+const print = std.debug.print;
+
+const exitSeq = &[_]u32{ movz(Reg.x16, 1), svc(0) };
+
+fn exitCodeTest(code: []const u32) !u32 {
+    // Create an executable with the given assembly code.
+    // Execute it and check the exit code.
+
+    var linker = macho.MachOLinker.init(test_allocator);
+    defer linker.deinit();
+    try linker.emitBinary(code, "test.bin");
+
+    // Execute the binary file
+    const cwd = std.fs.cwd();
+    var out_buffer: [1024]u8 = undefined;
+    const path = try cwd.realpath("test.bin", &out_buffer);
+    print("CWD: {s}\n", .{path});
+
+    var process = std.process.Child.init(&[_][]const u8{path}, test_allocator);
+
+    const termination = try process.spawnAndWait();
+    print("Terminated with : {any}\n", .{termination});
+
+    defer {
+        // std.fs.cwd().deleteFile("test.bin");
+        // Free the memory for cwd
+        // test_allocator.free(cwd);
+        // if (process.stdout) |stdout| {
+        //     test_allocator.free(stdout);
+        // }
+        // if (process.stderr) |stderr| {
+        //     test_allocator.free(stderr);
+        // }
+    }
+
+    switch (termination) {
+        .Exited => |exitcode| return exitcode,
+        .Signal => |sig| return sig,
+        .Stopped => |_| return 999,
+        .Unknown => |_| return 999,
+    }
+}
+
+test "exit code test" {
+    const exitCode = exitCodeTest(&[_]u32{
+        movz(Reg.x0, 42),
+        movz(Reg.x16, 1),
+        svc(0),
+    });
+
+    try expectEqual(exitCode, 42);
+}

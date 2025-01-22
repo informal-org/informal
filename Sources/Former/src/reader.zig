@@ -29,7 +29,7 @@ pub fn process_chunk(chunk: []u8, syntaxQ: *lex.TokenQueue, auxQ: *lex.TokenQueu
 
     var linker = macho.MachOLinker.init(allocator);
     defer linker.deinit();
-    try linker.emitBinary(c.objCode.items);
+    try linker.emitBinary(c.objCode.items, "out.bin");
 }
 
 pub fn compile_file(filename: []u8) !void {

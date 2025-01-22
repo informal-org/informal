@@ -707,10 +707,10 @@ pub const MachOLinker = struct {
         self.headerBuffer.clearAndFree();
     }
 
-    pub fn emitBinary(self: *Self, code: []u32) !void {
+    pub fn emitBinary(self: *Self, code: []const u32, outfile: []const u8) !void {
         const file = try std.fs.cwd().createFile(
-            "out.bin",
-            .{ .read = true },
+            outfile,
+            .{ .read = true, .mode = 0o755 },
         );
 
         defer file.close();

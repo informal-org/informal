@@ -102,7 +102,8 @@ pub const Codegen = struct {
         try self.objCode.append(arm.movz(arm.Reg.x16, @intFromEnum(syscall)));
 
         // Syscall - exit 42 (so we can read the code out from bash).
-        try self.objCode.append(arm.svc(syscall));
+        // try self.objCode.append(arm.svc(syscall));
+        try self.objCode.append(arm.svc(0));
     }
 
     pub fn emitAll(self: *Self, tokenQueue: []Token) !void {
