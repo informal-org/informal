@@ -29,13 +29,14 @@ Comments and Documentation
 
 Variables and Types
 ```
-String hello = "Hello, World!"
+// Variable names can contain spaces. Yes, really.
+String hello world = "Hello, World!"
 
 // Types can be inferred.
-is_spring = true
+is spring = True
 
 // Types can depend on other types (Generic Types) or on values (Dependent Types).
-Int(32) power_level = 9000
+Int(32) power level = 9000
 
 fun slice(Array arr, Int index < arr.length) Array(size=index):
 // Or more explicitly as slice(Array arr, Int index if index < arr.length)    
@@ -55,15 +56,15 @@ Conditions
 ```
 // Informal has just a single conditional operator - the pattern-matching "if".
 if sunny:
-    go_outside()
+    go outside()
 else if rainy:
-    go_outside_with_umbrella()
+    go outside with umbrella()
 else:
 
 
 // You can use it as a switch case. 
 // Conditions are expressions, so you can capture their result and store it as a variable.
-char_type = if ch:
+char type = if ch:
     ' ': "ch is a Space"
     'a'..'z' | 'A'..'Z': "ch is a Letter"
     '0'..'9': "ch is a Digit"
@@ -87,9 +88,9 @@ if (n % 5, n % 3):
 // Or specify each branch separately
 if:
     user.email:
-        send_confirmation_email(user.email)
-    user.phone or user.messenger_id:
-        send_confirmation_text(user)
+        send confirmation email(user.email)
+    user.phone OR user.messenger_id:
+        send confirmation text(user)
 ```
 
 Array operators and functional constructs replace the need for most loops, but Informal still comes with a flexible for loop to process any kind of data.
@@ -110,19 +111,19 @@ months: {"January": 1, "February": 2, "March": 3, "April": 4,
         "May": 5, "June": 6, "July": 7, "August": 8, 
         "September": 9, "October": 10, "November": 11, "December": 12}
 
-invert_months = for month_str, month_num in months:
-    { month_num : month_str }
+invert months = for month str, month num IN months:
+    { month num : month str }
 
 // You can iterate over multiple data streams at once. 
 // This often comes in useful for "zipping" values together.
 brr = [10, 20, 30, 40, 50]
-for x in arr, y in brr:
+for x IN arr, y IN brr:
     x + y
 
 // [11, 22, 33, 44, 55]
 
 // You can specify guard clauses to break out of loops early.
-for x in [1..10] if x < 4:
+for x IN [1..10]: if x < 4
     x + 10
 
 // Or leave out the conditional clause, to loop "while" the guard-clause is true.
@@ -206,13 +207,9 @@ d.year == "2023"
 d2 = DateString(year="2023", month="03", day="05")
 d == d2
 
-// Functional primitives.
-// Use "each" to map over each element of an array. 
-double_array = double(each array)
-
 
 // Anonymous functions
-x: x + 1
+(x): x + 1
 // You can avoid naming x in these cases.
 array.map(_ + 1)
 
