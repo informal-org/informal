@@ -89,7 +89,7 @@ if (n % 5, n % 3):
 if:
     user.email:
         send confirmation email(user.email)
-    user.phone OR user.messenger_id:
+    user.phone OR user.messenger id:
         send confirmation text(user)
 ```
 
@@ -129,7 +129,7 @@ for x IN [1..10]: if x < 4
 // Or leave out the conditional clause, to loop "while" the guard-clause is true.
 
 n = 12
-for if n != 1:
+for: if n != 1
     if n % 2:
         n = n / 2
     else:
@@ -175,7 +175,7 @@ Functions, Types and the patterns beneath it all
 
 fun concat([], []): []
 fun concat([], [a]): a
-fun concat([a, ...restA], b: Array): [a, ...concat(restA, b)]
+fun concat([a, ...restA], Array b): [a, ...concat(restA, b)]
 
 // We can then use this function backwards, to query the language for all pair of lists which concat to give a given result.
 
