@@ -526,6 +526,7 @@ pub const ExceptionCall = packed struct(u32) {
 
 pub fn svc(imm: u16) u32 {
     // Verify what should be in IMM. Some places reference 0x80? Other tables mention 0.
+    // https://github.com/darlinghq/darling/discussions/1376
     return ExceptionCall.encode(ExceptionCall.Op.SVC, imm);
 }
 
