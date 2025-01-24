@@ -39,8 +39,9 @@ pub const Reg = enum(u5) {
     x28 = 28,
     x29 = 29,
     x30 = 30,
-    x31 = 31,
+    x31 = 31, // WZR
 };
+const WZR = Reg.x31;
 
 // SF bit.
 pub const MODE_A32: u1 = 0;
@@ -111,6 +112,11 @@ pub const ImmPcRel = packed struct(u32) {
     }
 };
 
+pub const AddSubOp = enum(u1) {
+    ADD = 0,
+    SUB = 1,
+};
+
 pub const ImmAddSub = packed struct(u32) {
     const Self = @This();
     // Add / Sub
@@ -120,29 +126,24 @@ pub const ImmAddSub = packed struct(u32) {
     shift: u1 = 0, // 1 = LSL #12
     _: u6 = 0b100_010,
     set_flags: u1 = 0,
-    op: Op,
+    op: AddSubOp,
     mode: u1 = MODE_A64, //
-
-    pub const Op = enum(u1) {
-        ADD = 0,
-        SUB = 1,
-    };
 
     pub fn encode(self: Self) u32 {
         return @as(u32, @bitCast(self));
     }
 
-    pub fn init(rd: Reg, rn: Reg, imm12: u12, op: Op) u32 {
+    pub fn init(rd: Reg, rn: Reg, imm12: u12, op: AddSubOp) u32 {
         return (Self{ .rd = rd, .rn = rn, .imm12 = imm12, .op = op }).encode();
     }
 };
 
 pub fn addi(rd: Reg, rn: Reg, imm12: u12) u32 {
-    return ImmAddSub.init(rd, rn, imm12, ImmAddSub.Op.ADD);
+    return ImmAddSub.init(rd, rn, imm12, AddSubOp.ADD);
 }
 
 pub fn subi(rd: Reg, rn: Reg, imm12: u12) u32 {
-    return ImmAddSub.init(rd, rn, imm12, ImmAddSub.Op.SUB);
+    return ImmAddSub.init(rd, rn, imm12, AddSubOp.SUB);
 }
 
 pub const ImmAddSubTags = packed struct(u32) {
@@ -1215,15 +1216,10 @@ pub const AddSubShiftedReg = packed struct(u32) {
     shift: ShiftType = ShiftType.LSL, // ROR is not available.
     _: u5 = 0b01011,
     S: u1, // Set flats
-    op: u1,
+    op: AddSubOp,
     sf: u1 = MODE_A64,
 
-    pub const Op = enum(u1) {
-        ADD = 0,
-        SUB = 1,
-    };
-
-    pub fn init(op: Op, rd: Reg, rn: Reg, rm: Reg, shift: ShiftType, amt: u6, setFlags: u1) u32 {
+    pub fn init(op: AddSubOp, rd: Reg, rn: Reg, rm: Reg, shift: ShiftType, amt: u6, setFlags: u1) u32 {
         return @as(u32, @bitCast(AddSubShiftedReg{
             .rd = rd,
             .rn = rn,
@@ -1231,25 +1227,172 @@ pub const AddSubShiftedReg = packed struct(u32) {
             .rm = rm,
             .S = setFlags,
             .shift = shift,
-            .op = @intFromEnum(op),
+            .op = op,
         }));
     }
 };
 
 pub fn add(rd: Reg, rn: Reg, rm: Reg) u32 {
-    return AddSubShiftedReg.init(AddSubShiftedReg.Op.ADD, rd, rn, rm, ShiftType.LSL, 0, 0);
+    return AddSubShiftedReg.init(AddSubOp.ADD, rd, rn, rm, ShiftType.LSL, 0, 0);
 }
 
 pub fn adds(rd: Reg, rn: Reg, rm: Reg) u32 {
-    return AddSubShiftedReg.init(AddSubShiftedReg.Op.ADD, rd, rn, rm, ShiftType.LSL, 0, 1);
+    return AddSubShiftedReg.init(AddSubOp.ADD, rd, rn, rm, ShiftType.LSL, 0, 1);
 }
 
 pub fn sub(rd: Reg, rn: Reg, rm: Reg) u32 {
-    return AddSubShiftedReg.init(AddSubShiftedReg.Op.SUB, rd, rn, rm, ShiftType.LSL, 0, 0);
+    return AddSubShiftedReg.init(AddSubOp.SUB, rd, rn, rm, ShiftType.LSL, 0, 0);
 }
 
 pub fn subs(rd: Reg, rn: Reg, rm: Reg) u32 {
-    return AddSubShiftedReg.init(AddSubShiftedReg.Op.SUB, rd, rn, rm, ShiftType.LSL, 0, 1);
+    return AddSubShiftedReg.init(AddSubOp.SUB, rd, rn, rm, ShiftType.LSL, 0, 1);
+}
+
+pub const AddSubExtendedReg = packed struct(u32) {
+    rd: Reg,
+    rn: Reg,
+    imm3: u3,
+    option: u3,
+    rm: Reg,
+    __: u1 = 1,
+    opt: u2,
+    _: u5 = 0b01011,
+    S: u1,
+    op: AddSubOp,
+    sf: u1 = MODE_A64,
+
+    pub const Op = enum(u1) {
+        ADD = 0,
+        SUB = 1,
+    };
+};
+
+pub const AddSubWithCarry = packed struct(u32) {
+    rd: Reg,
+    rn: Reg,
+    _: u6 = 0, // Fixed
+    rm: Reg,
+    __: u8 = 0b11010000,
+    S: u1 = 0,
+    op: AddSubOp,
+    sf: u1 = MODE_A64,
+};
+
+// Conditional compare register
+
+pub const CondCompareReg = packed struct(u32) {
+    nzcv: u4,
+    o3: u1 = 0,
+    rn: Reg,
+    o2: u1 = 0,
+    __: u1 = 0,
+    cond: Cond,
+    rm: Reg,
+    _: u8 = 0b1101_0010,
+    S: u1 = 1,
+    op: Op,
+    sf: u1 = MODE_A64,
+
+    pub const Op = enum(u1) {
+        CCMN = 0,
+        CCMP = 1,
+    };
+};
+
+pub const CondCompareImm = packed struct(u32) {
+    // Basically the same as above just with immediate value in imm5 rather than reg,
+    // and the flag right before set to 1
+    nzcv: u4,
+    o3: u1 = 0,
+    rn: Reg,
+    o2: u1 = 0,
+    __: u1 = 1, // immediate flag.
+    cond: Cond,
+    imm5: u5,
+    _: u8 = 0b1101_0010,
+    S: u1 = 1,
+    sf: u1 = MODE_A64,
+};
+
+pub const ConditionalSelect = packed struct(u32) {
+    //
+    rd: Reg,
+    rn: Reg,
+    op2: u2,
+    cond: Cond,
+    rm: Reg,
+    _: u8 = 0b1101_0100,
+    S: u1 = 1,
+    op: u1,
+    sf: u1 = MODE_A64,
+
+    pub const Op = enum {
+        CSEL,
+        CSINC,
+        CSINV,
+        CSNEG,
+
+        pub fn encode(self: Op) struct { op: u1, op2: u2 } {
+            return switch (self) {
+                .CSEL => .{ .op = 0, .op2 = 0b00 },
+                .CSINC => .{ .op = 0, .op2 = 0b01 },
+                .CSINV => .{ .op = 1, .op2 = 0b00 },
+                .CSNEG => .{ .op = 1, .op2 = 0b01 },
+            };
+        }
+    };
+};
+
+pub const ProcessThreeSource = packed struct(u32) {
+    const Self = @This();
+    rd: Reg,
+    rn: Reg,
+    ra: Reg,
+    o0: u1,
+    rm: Reg,
+    op31: u3,
+    _: u5 = 0b00_11011, // Unused op54 bits combined into this.
+    sf: u1 = MODE_A64,
+
+    pub const Op = enum {
+        MADD,
+        MSUB,
+        SMADDL, // Signed multiply add long
+        SMSUBL,
+        SMULH, // Signed multiply high
+        UMADDL,
+        UMSUBL,
+        UMULH,
+
+        pub fn encode(self: Op) struct { op31: u3, op0: u1 } {
+            return switch (self) {
+                .MADD => .{ .op31 = 0b000, .op0 = 0 },
+                .MSUB => .{ .op31 = 0b000, .op0 = 1 },
+                .SMADDL => .{ .op31 = 0b001, .op0 = 0 },
+                .SMSUBL => .{ .op31 = 0b001, .op0 = 1 },
+                .SMULH => .{ .op31 = 0b010, .op0 = 0 },
+                .UMADDL => .{ .op31 = 0b101, .op0 = 0 },
+                .UMSUBL => .{ .op31 = 0b101, .op0 = 1 },
+                .UMULH => .{ .op31 = 0b110, .op0 = 0 },
+            };
+        }
+    };
+
+    pub fn init(op: Op, rd: Reg, rn: Reg, rm: Reg, ra: Reg) Self {
+        const opcode = op.encode();
+        return Self{
+            .rd = rd,
+            .rn = rn,
+            .ra = ra,
+            .o0 = opcode.op0,
+            .rm = rm,
+            .op31 = opcode.op31,
+        };
+    }
+};
+
+pub fn mul(rd: Reg, rn: Reg, rm: Reg) u32 {
+    return ProcessThreeSource.init(ProcessThreeSource.Op.MADD, rd, rn, rm, WZR);
 }
 
 pub const RegisterEncoding = packed struct(u32) { _: u32 };
