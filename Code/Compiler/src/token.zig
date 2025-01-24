@@ -112,17 +112,17 @@ pub const TokenWriter = struct {
 
         const value = wrapper.token;
         const buffer = wrapper.buffer;
-        const alt = if (value.alternate) "A" else "";
+        const alt = if (value.alternate) "ALT" else "";
 
         switch (value.kind) {
             TK.lit_number, TK.lit_string, TK.identifier => {
-                try std.fmt.format(writer, "{s} {any} {any} {s}", .{ alt, value.kind, value.data.range, buffer[value.data.range.offset .. value.data.range.offset + value.data.range.length] });
+                try std.fmt.format(writer, "{s} {s} {s}", .{ buffer[value.data.range.offset .. value.data.range.offset + value.data.range.length], @tagName(value.kind), alt });
             },
             TK.aux, TK.aux_comment, TK.aux_whitespace, TK.aux_newline, TK.aux_indentation, TK.aux_stream_start, TK.aux_stream_end => {
-                try std.fmt.format(writer, "{s} {any}", .{ alt, value.kind });
+                try std.fmt.format(writer, "{s} {s}", .{ @tagName(value.kind), alt });
             },
             else => {
-                try std.fmt.format(writer, "{s} {any}", .{ alt, value.kind });
+                try std.fmt.format(writer, "{s} {s}", .{ @tagName(value.kind), alt });
             },
         }
     }
@@ -218,9 +218,14 @@ pub const AUX_STREAM_START = createToken(Token.Kind.aux_stream_start);
 pub const AUX_STREAM_END = createToken(Token.Kind.aux_stream_end);
 
 pub fn print_token_queue(queue: []Token, buffer: []const u8) void {
+    print("Tokens: {d}\n", .{queue.len});
     for (queue) |token| {
-        print("{any}\n", .{TokenWriter{ .token = token, .buffer = buffer }});
+        print_token("{any}\n", token, buffer);
     }
+}
+
+pub fn print_token(comptime fmt: []const u8, token: Token, buffer: []const u8) void {
+    print(fmt, .{TokenWriter{ .token = token, .buffer = buffer }});
 }
 
 pub const Assoc = enum(u1) { left, right };

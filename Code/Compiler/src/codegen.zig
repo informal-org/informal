@@ -61,8 +61,9 @@ pub const Codegen = struct {
                 }));
                 try self.objCode.append(instr);
             },
+
             else => {
-                print("unhandled token {any}\n", .{token});
+                tok.print_token("Unhandled token in Codegen: {any}\n", token, self.buffer);
             },
         }
     }

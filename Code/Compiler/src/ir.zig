@@ -21,11 +21,11 @@ pub const IR = struct {
     dataQ: *TokenQueue, // Contains data and operations. Aux-bit to switch to effects queue. Essentially basic-block like operations.
     effectsQ: *TokenQueue, // Contains effects - control-flow, IO, observable state mutations, etc. Maintains soft-dependencies / ordering.
 
-    pub fn init(allocator: Allocator, parsedQ: *TokenQueue, irQ: *TokenQueue) Self {
-        return Self{ .allocator = allocator, .parsedQ = parsedQ, .irQ = irQ };
+    pub fn init(allocator: Allocator, parsedQ: *TokenQueue, irQ: *TokenQueue, buffer: []const u8) Self {
+        return Self{ .allocator = allocator, .parsedQ = parsedQ, .irQ = irQ, .buffer = buffer };
     }
 
-    pub fn build(_: *Self) !void {
+    pub fn build(self: *Self) !void {
         // Build the IR Queue from the parsed queue.
         // Variable / constant definitions -> DEFVAR instructions.
         // Constants inline.
@@ -35,5 +35,29 @@ pub const IR = struct {
         // Code locations for branch / jumps become DEFLOC instructions.
         // Branch - REFVAR to reference the target locations.
 
+        // Indicates if the current token is in the alternate queue instead.
+        // Different pattern than what we use in the lexer where it indicated if the 'next' token is in the other queue
+        // which required keeping the previous token and flushing it. This seems simpler.
+        // TODO: Should refactor the lexer to this alternate convention if it works better.
+        var alternate = false;
+        // var prevToken
+
+        for (self.parsedQ.list.items) |t| {
+            // Clear the aux-bit from previous contexts.
+            const token = Token{ .kind = t.kind, .data = t.data, .alternate = alternate };
+            alternate = false;
+
+            switch (token.kind) {
+                tok.TK.kw_if, tok.TK.kw_else_if, tok.TK.kw_else => {
+                    // Add control-flow constructs to a separate queue.
+                    try self.controlQ.push(token);
+                    alternate = true; // Set the alternate bit on the next
+                },
+                else => {
+                    // Most things are data operations.
+                    try self.dataQ.push(token);
+                },
+            }
+        }
     }
 };

@@ -6,7 +6,7 @@ const tok = @import("token.zig");
 const codegen = @import("codegen.zig");
 const macho = @import("macho.zig");
 const Allocator = std.mem.Allocator;
-const DEBUG = false;
+const DEBUG = true;
 
 pub fn process_chunk(chunk: []u8, syntaxQ: *lex.TokenQueue, auxQ: *lex.TokenQueue, parsedQ: *parser.TokenQueue, offsetQ: *parser.OffsetQueue, allocator: Allocator) !void {
 
