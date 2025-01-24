@@ -59,8 +59,12 @@ pub const ArmInstruction = union(enum) {
 pub const MatrixEncoding = packed struct(u32) { _: u32 };
 pub const VectorEncoding = packed struct(u32) { _: u32 };
 
-////////////////////////////////////////////////////////////////////////////////
-//                   Data Processing - Immediate
+///////////////////////////////////////////////////////////////////////////////
+///
+///
+///                     Data Processing - Immediate
+///
+///
 ////////////////////////////////////////////////////////////////////////////////
 
 // pub const ImmediateEncoding = packed struct(u32) { _: u32 };
@@ -143,7 +147,7 @@ pub fn subi(rd: Reg, rn: Reg, imm12: u12) u32 {
 
 pub const ImmAddSubTags = packed struct(u32) {
     // Used for adding to memory with memory tagging for protection checks.
-    // Depends on FEAT_MTE Feature.
+    // Depends on FEAT_MTE Feature. Optional 8.4+. 64 bit only.
     rd: Reg,
     rn: Reg,
     imm4: u4,
@@ -161,7 +165,7 @@ pub const ImmAddSubTags = packed struct(u32) {
 };
 pub const ImmMinMax = packed struct(u32) {
     const Self = @This();
-    // Depends on FEAT_CSSC Feature.
+    // Depends on FEAT_CSSC Feature. Optional in 8.7. Mandatory from 8.9
     rd: Reg,
     rn: Reg,
     imm8: u8,
@@ -255,7 +259,7 @@ pub const ImmMovWide = packed struct(u32) {
     const Self = @This();
     rd: Reg,
     imm16: u16,
-    hw: Shift = Shift.LSL_0,
+    hw: ShiftAmt = ShiftAmt.LSL_0,
     // Shift amount. 0X pattern for 32 bit mode, and 2 bits for 64 bit mode.
     // 0, 16, 32 or 48.
     _: u6 = 0b100_101,
@@ -268,7 +272,7 @@ pub const ImmMovWide = packed struct(u32) {
         MOVK = 0b11, // Move wide with keep. Keeps other bits unchanged in the register.
     };
 
-    pub const Shift = enum(u2) {
+    pub const ShiftAmt = enum(u2) {
         LSL_0 = 0b00,
         LSL_16 = 0b01,
         LSL_32 = 0b10, // 64 bit mode only.
@@ -279,21 +283,21 @@ pub const ImmMovWide = packed struct(u32) {
         return @as(u32, @bitCast(self));
     }
 
-    pub fn init(rd: Reg, imm16: u16, hw: Shift, op: Op) u32 {
+    pub fn init(rd: Reg, imm16: u16, hw: ShiftAmt, op: Op) u32 {
         return (Self{ .rd = rd, .imm16 = imm16, .hw = hw, .opc = op }).encode();
     }
 };
 
 pub fn movn(rd: Reg, imm16: u16) u32 {
-    return ImmMovWide.init(rd, imm16, ImmMovWide.Shift.LSL_0, ImmMovWide.Op.MOVN);
+    return ImmMovWide.init(rd, imm16, ImmMovWide.ShiftAmt.LSL_0, ImmMovWide.Op.MOVN);
 }
 
 pub fn movz(rd: Reg, imm16: u16) u32 {
-    return ImmMovWide.init(rd, imm16, ImmMovWide.Shift.LSL_0, ImmMovWide.Op.MOVZ);
+    return ImmMovWide.init(rd, imm16, ImmMovWide.ShiftAmt.LSL_0, ImmMovWide.Op.MOVZ);
 }
 
 pub fn movk(rd: Reg, imm16: u16) u32 {
-    return ImmMovWide.init(rd, imm16, ImmMovWide.Shift.LSL_0, ImmMovWide.Op.MOVK);
+    return ImmMovWide.init(rd, imm16, ImmMovWide.ShiftAmt.LSL_0, ImmMovWide.Op.MOVK);
 }
 
 pub const ImmBitfield = packed struct(u32) {
@@ -360,7 +364,11 @@ pub const ImmExtract = packed struct(u32) {
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-//           Branch, Exception Generating and System Instructions
+///
+///
+///           Branch, Exception Generating and System Instructions
+///
+///
 ////////////////////////////////////////////////////////////////////////////////
 
 pub const BranchEncoding = union(enum) {
@@ -1023,78 +1031,232 @@ pub fn cmi(rt: Reg, imm: u6, cc: Comparison, offset: u9) u32 {
     return CompareImmediate.init(rt, imm, cc, offset);
 }
 
+///////////////////////////////////////////////////////////////////////////////
+///
+///                         Data Processing - Register
+///                     [op0 2][op1 2]101[op2 9][op3 16]
+///
+///////////////////////////////////////////////////////////////////////////////
+
+// Data Processing - 2 Sources
+pub const ProcessTwoSource = packed struct(u32) {
+    const Self = @This();
+    rd: Reg,
+    rn: Reg,
+    opcode: Op,
+    rm: Reg,
+    _: u8 = 0b1101_0110,
+    s: u1 = 0, // 1 only for SUBPS
+    sf: u1 = MODE_A64,
+
+    pub const Op = enum(u6) {
+        UDIV = 0b000010,
+        SDIV = 0b000011,
+        LSLV = 0b001000, // Logical shift left variable by number of bits, shifting in zeroes.
+        LSRV = 0b001001,
+        ASRV = 0b001010, // Arithmetic shift. Copy sign bit.
+        RORV = 0b001011, // Rotate right variable off right end and insert to left end.
+        // CRC32 - Optional instruction in arm v8. Skipped.
+        // SMAX, UMAX, SMIN, UMIN          // Signed maximum. FEAT_CSSC. Optional from 8.7.
+        // SUBP - Skip - FEAT_MTE
+    };
+
+    pub fn encode(self: Self) u32 {
+        return @as(u32, @bitCast(self));
+    }
+
+    pub fn init(opcode: Op, rd: Reg, rn: Reg, rm: Reg) Self {
+        return ProcessTwoSource{
+            .rd = rd,
+            .rn = rn,
+            .opcode = opcode,
+            .rm = rm,
+        };
+    }
+};
+
+pub fn udiv(rd: Reg, rn: Reg, rm: Reg) u32 {
+    return ProcessTwoSource.init(ProcessTwoSource.Op.UDIV, rd, rn, rm).encode();
+}
+
+pub fn sdiv(rd: Reg, rn: Reg, rm: Reg) u32 {
+    return ProcessTwoSource.init(ProcessTwoSource.Op.SDIV, rd, rn, rm).encode();
+}
+
+pub fn lslv(rd: Reg, rn: Reg, rm: Reg) u32 {
+    return ProcessTwoSource.init(ProcessTwoSource.Op.LSLV, rd, rn, rm).encode();
+}
+
+pub fn lsrv(rd: Reg, rn: Reg, rm: Reg) u32 {
+    return ProcessTwoSource.init(ProcessTwoSource.Op.LSRV, rd, rn, rm).encode();
+}
+
+pub fn asrv(rd: Reg, rn: Reg, rm: Reg) u32 {
+    return ProcessTwoSource.init(ProcessTwoSource.Op.ASRV, rd, rn, rm).encode();
+}
+
+pub fn rorv(rd: Reg, rn: Reg, rm: Reg) u32 {
+    return ProcessTwoSource.init(ProcessTwoSource.Op.RORV, rd, rn, rm).encode();
+}
+
+pub const ProcessOneSource = packed struct(u32) {
+    rd: Reg,
+    rn: Reg,
+    opcode: Op,
+    // op2, S fields are Baked into the constant below. Doesn't vary for the instructions we use.
+    _: u15 = 0b10_1101_0110_00000,
+    sf: u1 = MODE_A64,
+
+    pub const Op = enum(u6) {
+        RBIT = 0, // Reverse bit order in a register.
+        REV16 = 0b000001, // Reverse bytes in each 16-bit halfwords of a reg.
+        REV = 0b00010, // Reverse bytes.
+        CLZ = 0b000100, // Count leading zeroes, starting from MSB.
+        CLS = 0b000101, // Count leading sign bits (same value as MSB). Count doesn't include the MSB.
+        // CTZ, CNT, ABS - FEAT_CSSC
+    };
+};
+
+pub const ShiftType = enum(u2) {
+    LSL = 0,
+    LSR = 1,
+    ASR = 2,
+    ROR = 3,
+};
+
+pub const LogicalShiftedRegister = packed struct(u32) {
+    rd: Reg,
+    rn: Reg,
+    imm6: u6,
+    rm: Reg,
+    N: u1, // Negate.
+    shift: ShiftType,
+    _: u5 = 0b01010,
+    opc: u2,
+    sf: u1 = MODE_A64,
+
+    pub const Op = enum {
+        AND,
+        BIC, // Bitwise clear. AND with complement of optionally shifted rM
+        ORR, // Bitwise or. OR with optionally shifted rM. MOV alias.
+        ORN, // OR with complement of optionally shifted rM. MVN alias.
+        EOR, // Exclusive OR.
+        EON,
+        ANDS, // And shifted, setting flags. alias TST.
+        BICS, // Bitwise clear (AND w/ NOT of shifted rM ), setting condition flags.
+
+        pub fn encode(self: Op) struct { opc: u2, N: u1 } {
+            switch (self) {
+                .AND => .{ .opc = 0b00, .N = 0 },
+                .BIC => .{ .opc = 0b00, .N = 1 },
+                .ORR => .{ .opc = 0b01, .N = 0 },
+                .ORN => .{ .opc = 0b01, .N = 1 },
+                .EOR => .{ .opc = 0b10, .N = 0 },
+                .EON => .{ .opc = 0b10, .N = 1 },
+                .ANDS => .{ .opc = 0b11, .N = 0 },
+                .BICS => .{ .opc = 0b11, .N = 1 },
+            }
+        }
+    };
+
+    pub fn init(op: Op, rd: Reg, rn: Reg, rm: Reg, shift: ShiftType, amt: u6) u32 {
+        const opcode = op.encode();
+        return @as(u32, @bitCast(LogicalShiftedRegister{
+            .rd = rd,
+            .rn = rn,
+            .imm6 = amt,
+            .rm = rm,
+            .N = opcode.N,
+            .shift = shift,
+            .opc = opcode.opc,
+        }));
+    }
+};
+
+// 'andd' since and is a reserved keyword.
+pub fn andd(rd: Reg, rn: Reg, rm: Reg) u32 {
+    return LogicalShiftedRegister.init(LogicalShiftedRegister.Op.AND, rd, rn, rm, ShiftType.LSL, 0);
+}
+
+pub fn bic(rd: Reg, rn: Reg, rm: Reg) u32 {
+    return LogicalShiftedRegister.init(LogicalShiftedRegister.Op.BIC, rd, rn, rm, ShiftType.LSL, 0);
+}
+
+pub fn orr(rd: Reg, rn: Reg, rm: Reg) u32 {
+    return LogicalShiftedRegister.init(LogicalShiftedRegister.Op.ORR, rd, rn, rm, ShiftType.LSL, 0);
+}
+
+pub fn orn(rd: Reg, rn: Reg, rm: Reg) u32 {
+    return LogicalShiftedRegister.init(LogicalShiftedRegister.Op.ORN, rd, rn, rm, ShiftType.LSL, 0);
+}
+
+pub fn eor(rd: Reg, rn: Reg, rm: Reg) u32 {
+    return LogicalShiftedRegister.init(LogicalShiftedRegister.Op.EOR, rd, rn, rm, ShiftType.LSL, 0);
+}
+
+pub fn eon(rd: Reg, rn: Reg, rm: Reg) u32 {
+    return LogicalShiftedRegister.init(LogicalShiftedRegister.Op.EON, rd, rn, rm, ShiftType.LSL, 0);
+}
+
+pub fn ands(rd: Reg, rn: Reg, rm: Reg) u32 {
+    return LogicalShiftedRegister.init(LogicalShiftedRegister.Op.ANDS, rd, rn, rm, ShiftType.LSL, 0);
+}
+
+pub fn bics(rd: Reg, rn: Reg, rm: Reg) u32 {
+    return LogicalShiftedRegister.init(LogicalShiftedRegister.Op.BICS, rd, rn, rm, ShiftType.LSL, 0);
+}
+
+pub const AddSubShiftedReg = packed struct(u32) {
+    rd: Reg,
+    rn: Reg,
+    imm6: u6,
+    rm: Reg,
+    __: u1 = 0,
+    shift: ShiftType = ShiftType.LSL, // ROR is not available.
+    _: u5 = 0b01011,
+    S: u1, // Set flats
+    op: u1,
+    sf: u1 = MODE_A64,
+
+    pub const Op = enum(u1) {
+        ADD = 0,
+        SUB = 1,
+    };
+
+    pub fn init(op: Op, rd: Reg, rn: Reg, rm: Reg, shift: ShiftType, amt: u6, setFlags: u1) u32 {
+        return @as(u32, @bitCast(AddSubShiftedReg{
+            .rd = rd,
+            .rn = rn,
+            .imm6 = amt,
+            .rm = rm,
+            .S = setFlags,
+            .shift = shift,
+            .op = @intFromEnum(op),
+        }));
+    }
+};
+
+pub fn add(rd: Reg, rn: Reg, rm: Reg) u32 {
+    return AddSubShiftedReg.init(AddSubShiftedReg.Op.ADD, rd, rn, rm, ShiftType.LSL, 0, 0);
+}
+
+pub fn adds(rd: Reg, rn: Reg, rm: Reg) u32 {
+    return AddSubShiftedReg.init(AddSubShiftedReg.Op.ADD, rd, rn, rm, ShiftType.LSL, 0, 1);
+}
+
+pub fn sub(rd: Reg, rn: Reg, rm: Reg) u32 {
+    return AddSubShiftedReg.init(AddSubShiftedReg.Op.SUB, rd, rn, rm, ShiftType.LSL, 0, 0);
+}
+
+pub fn subs(rd: Reg, rn: Reg, rm: Reg) u32 {
+    return AddSubShiftedReg.init(AddSubShiftedReg.Op.SUB, rd, rn, rm, ShiftType.LSL, 0, 1);
+}
+
 pub const RegisterEncoding = packed struct(u32) { _: u32 };
 pub const FloatEncoding = packed struct(u32) { _: u32 };
 pub const LoadStoreEncoding = packed struct(u32) { _: u32 };
 
-// pub const MOVW_IMM = packed struct(u32) {
-//     rd: Reg,
-//     imm16: u16,
-//     hw: u2 = 0b00,
-//     _movw_imm: u6 = 0b100_101,
-//     opc: OpCode,
-//     sf: u1 = MODE_A64,
-
-//     pub const OpCode = enum(u2) {
-//         MOVN = 0b00, // Move wide with NOT. Moves the inverse of the optionally-shifted 16 bit imm.
-//         MOVZ = 0b10, // Move wide with zero.
-//         MOVK = 0b11, // Move wide with keep. Keeps other bits unchanged in the register.
-//     };
-// };
-
-// // // Add extended register
-pub const ADD_XREG = packed struct(u32) {
-    rd: Reg, // Destination register
-    rn: Reg, // First source register
-    shift: u3 = 0b000, // Cannot be 101, 110 or 111,
-    option: Option64 = Option64.UXTX_LSL, // UXTX_LSL?
-    rm: Reg, // Second source register
-    _: u10 = 0b00_0101_1001, // Fixed opcode for ADD (register)
-    sf: u1 = MODE_A64, // 1 = 64-bit operation, 0 = 32-bit operation
-
-    pub const Option64 = enum(u3) {
-        UXTB = 0b000, // Unsigned zero-extend byte.
-        UXTH = 0b001, // Unsigned zero-extend halfword.
-        UXTW = 0b010, // Unsigned zero-extend word.
-        UXTX_LSL = 0b011, // Unsigned zero-extend / logical shift left.
-        SXTB = 0b100, // Signed extend byte.
-        SXTH = 0b101, // Signed extend halfword.
-        SXTW = 0b110, // Signed extend word.
-        SXTX = 0b111,
-    };
-};
-
-// pub const ADD_IMM = packed struct(u32) {
-//     rd: Reg,
-//     rn: Reg,
-//     imm12: u12,
-//     sh: u1 = 0, // 1 = LSL 12.
-//     _: u8 = 0b00100010,
-//     sf: u1 = MODE_A64, // 64-bit mode
-// };
-
-// pub const AND_IMM = packed struct(u32) {
-//     rd: Reg,
-//     rn: Reg,
-//     // imms: u6,
-//     // immr: u6,
-//     // n: u1,
-//     mask: u13, // 13 bits in 64 bit mode.
-//     _: u8 = 0b0010_0100,
-//     sf: u1 = 1,
-// };
-
-// // Supervisor Call - Syscalls, traps, etc.
-// pub const SVC = packed struct(u32) {
-//     pub const SYSCALL = 0x80;
-
-//     _base: u5 = 0b00001,
-//     imm16: u16,
-//     _svc: u11 = 0b11010100_000,
-// };
-
 // const expect = std.testing.expect;
-
 // test "Test MOV" {
 //     const instr = MOVW_IMM{
 //         .opc = MOVW_IMM.OpCode.MOVZ,

@@ -53,12 +53,14 @@ pub const Codegen = struct {
                 const rn: arm.Reg = @enumFromInt(self.registerMap.count() - 1);
                 const rm: arm.Reg = @enumFromInt(self.registerMap.count() - 2);
 
-                const instr: u32 = @as(u32, @bitCast(arm.ADD_XREG{
-                    .rd = rd,
-                    .rn = rn,
-                    // .option = arm.ADD_XREG.Option64.UXTB,
-                    .rm = rm,
-                }));
+                const instr = arm.add(rd, rn, rm);
+
+                // const instr: u32 = @as(u32, @bitCast(arm.ADD_XREG{
+                //     .rd = rd,
+                //     .rn = rn,
+                //     // .option = arm.ADD_XREG.Option64.UXTB,
+                //     .rm = rm,
+                // }));
                 try self.objCode.append(instr);
             },
 
