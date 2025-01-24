@@ -6,6 +6,7 @@ const tok = @import("token.zig");
 const codegen = @import("codegen.zig");
 const macho = @import("macho.zig");
 const Allocator = std.mem.Allocator;
+const DEBUG = false;
 
 pub fn process_chunk(chunk: []u8, syntaxQ: *lex.TokenQueue, auxQ: *lex.TokenQueue, parsedQ: *parser.TokenQueue, offsetQ: *parser.OffsetQueue, allocator: Allocator) !void {
 
@@ -20,7 +21,9 @@ pub fn process_chunk(chunk: []u8, syntaxQ: *lex.TokenQueue, auxQ: *lex.TokenQueu
     defer p.deinit();
 
     try p.parse();
-    tok.print_token_queue(parsedQ.list.items, chunk);
+    if (DEBUG) {
+        tok.print_token_queue(parsedQ.list.items, chunk);
+    }
 
     var c = codegen.Codegen.init(allocator, chunk);
     defer c.deinit();

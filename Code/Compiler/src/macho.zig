@@ -31,6 +31,7 @@ const mem = std.mem;
 const codesig = @import("CodeSignature.zig");
 const print = std.debug.print;
 const Allocator = std.mem.Allocator;
+const DEBUG = false;
 
 // 32bit = 0xfeedface :)
 const MH_MAGIC = 0xfeedfacf;
@@ -605,7 +606,9 @@ pub const MachOLinker = struct {
         try self.bufferHeaderCmd(std.mem.asBytes(&cmd));
         self.vmAddr = cmd.vmaddr + cmd.vmsize;
         self.fileOff = cmd.fileoff + cmd.filesize;
-        print("Total size {d} - vmAddr {x} - Command: {any}\n", .{ self.headerBuffer.items.len, self.vmAddr, cmd.cmd });
+        if (DEBUG) {
+            print("Total size {d} - vmAddr {x} - Command: {any}\n", .{ self.headerBuffer.items.len, self.vmAddr, cmd.cmd });
+        }
     }
 
     fn emitSection(self: *Self, writer: anytype, section: Section64) !void {
@@ -616,7 +619,9 @@ pub const MachOLinker = struct {
         self.numSections += 1;
         self.sectionAddr = section.addr + section.size;
         self.sectionOffset = @truncate(section.offset + section.size);
-        print("Total size {d} - Addr {x} - Section: {s}\n", .{ self.headerBuffer.items.len, self.sectionAddr, section.sectname });
+        if (DEBUG) {
+            print("Total size {d} - Addr {x} - Section: {s}\n", .{ self.headerBuffer.items.len, self.sectionAddr, section.sectname });
+        }
     }
 
     fn flushSegment(self: *Self, writer: anytype) !void {
@@ -650,7 +655,9 @@ pub const MachOLinker = struct {
         try self.bufferHeaderCmd(std.mem.asBytes(&link_edit));
         self.linkOffset = link_edit.dataoff + link_edit.datasize;
         self.totalLinkEditSize += link_edit.datasize;
-        print("Total size {d} - Link Command: {any}\n", .{ self.headerBuffer.items.len, cmd });
+        if (DEBUG) {
+            print("Total size {d} - Link Command: {any}\n", .{ self.headerBuffer.items.len, cmd });
+        }
     }
 
     fn flushLinkEditSegment(self: *Self, writer: anytype, fileOff: u32, vmAddr: u64) !void {
@@ -691,7 +698,9 @@ pub const MachOLinker = struct {
     fn flushHeader(self: *Self, writer: anytype) !void {
         // Flush the header after all header sections have been buffered up.
         // Total header size and number of commands are known at this point.
-        print("Total header size: {x}  Commands {d} \n", .{ self.headerBuffer.items.len, self.numCommands });
+        if (DEBUG) {
+            print("Total header size: {x}  Commands {d} \n", .{ self.headerBuffer.items.len, self.numCommands });
+        }
 
         // Header size. +8 for self magic header size.
         const header = MachHeader64{
@@ -732,7 +741,9 @@ pub const MachOLinker = struct {
         // If we have unwind info, do 0x4000 - unwind_size - assembly_code_size - 16
         const text_offset = mem.alignBackward(u64, 0x4000 - assembly_code_size - 16, 16);
 
-        print("Text offset: {x} \n", .{text_offset});
+        if (DEBUG) {
+            print("Text offset: {x} \n", .{text_offset});
+        }
         const text_addr = VM_BASE_ADDR + text_offset;
         self.sectionText = Section64{
             .sectname = padName("__text"),
@@ -825,7 +836,9 @@ pub const MachOLinker = struct {
         // Pad zeros from end of header to beginning of text section.
         const paddingSize: u64 = text_offset - self.headerSize;
 
-        print("paddingSize {d} {d} {d} \n", .{ self.headerSize, self.headerBuffer.items.len, paddingSize });
+        if (DEBUG) {
+            print("paddingSize {d} {d} {d} \n", .{ self.headerSize, self.headerBuffer.items.len, paddingSize });
+        }
         try writer.writeByteNTimes(0, paddingSize);
 
         // // -------------------- Assembly --------------------

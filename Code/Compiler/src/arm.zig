@@ -1143,12 +1143,11 @@ fn exitCodeTest(code: []const u32) !u32 {
     const cwd = std.fs.cwd();
     var out_buffer: [1024]u8 = undefined;
     const path = try cwd.realpath("test.bin", &out_buffer);
-    print("CWD: {s}\n", .{path});
 
     var process = std.process.Child.init(&[_][]const u8{path}, test_allocator);
 
     const termination = try process.spawnAndWait();
-    print("Terminated with : {any}\n", .{termination});
+    // print("Terminated with : {any}\n", .{termination});
 
     defer {
         // std.fs.cwd().deleteFile("test.bin");

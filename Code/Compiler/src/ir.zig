@@ -8,7 +8,9 @@ const Token = tok.Token;
 pub const TokenQueue = q.Queue(Token, tok.AUX_STREAM_END);
 
 pub const IR = struct {
-    // The IR is composed of tokens, with additional synthetic tokens to make expressions more explicit.
+    // The Intermediate Representation (IR) begins the mididdle-end of the compiler.
+    // The frontend is language-specific, while the IR and subsequent layers should ideally be treated as largely language-agnostic.
+    // Informal's IR is composed of tokens, with additional synthetic tokens to make expressions more explicit.
     // There's two queues, with the alternate bit switching between the data and effects queues.
     // The order remains the same, and filtering out the synthetic ops allow us to link to earlier layers by the token index.
     // It is closest to ANF, but has elements of SSA and CFG.

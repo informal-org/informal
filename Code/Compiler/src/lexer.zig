@@ -21,6 +21,8 @@ const MULTICHAR_BITSET = bitset.character_bitset(MULTICHAR_SYMBOLS); // All of t
 const MULTICHAR_KEYWORD_COUNT = MULTICHAR_SYMBOLS.len; // 7
 const SYMBOLS = bitset.character_bitset("%()*+,-./:<=>[]^{|}"); // "%()*+,-./:;<=>?[]^{|}"
 
+const DEBUG = false;
+
 /// The lexer splits up an input buffer into tokens.
 /// The input buffer are smaller chunks of a source file.
 /// Lines are never split across chunks. The lexer yields after each line.
@@ -384,7 +386,9 @@ pub const Lexer = struct {
                     // const chBit: u128 = one << chByte;
                     if (MULTICHAR_BITSET.isSet(ch)) {
                         const peekCh = self.peek_ch();
-                        print("Multichar: {c} {c}\n", .{ ch, peekCh });
+                        if (DEBUG) {
+                            print("Multichar: {c} {c}\n", .{ ch, peekCh });
+                        }
                         // All of the current multi-char symbols have = as the followup char.
                         // If that changes in the future, use a lookup string indexed by chBit popcnt index.
                         if (peekCh == '=') {
@@ -406,7 +410,9 @@ pub const Lexer = struct {
 
                     // Single-character symbols.
                     if (SYMBOLS.isSet(ch)) {
-                        print("CH {d} index {d} enum val {d}\n", .{ ch, bitset.index128(SYMBOLS, ch), @intFromEnum(tok.Token.Kind.grp_close_brace) });
+                        if (DEBUG) {
+                            print("CH {d} index {d} enum val {d}\n", .{ ch, bitset.index128(SYMBOLS, ch), @intFromEnum(tok.Token.Kind.grp_close_brace) });
+                        }
                         const tokKind = bitset.chToKind(SYMBOLS, ch, MULTICHAR_KEYWORD_COUNT);
                         try self.emitToken(tok.createToken(tokKind));
                         // Index updated outside.

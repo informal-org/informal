@@ -15,6 +15,7 @@ const TokBitset = bitset.BitSet64;
 
 const isKind = bitset.isKind;
 
+const DEBUG = false;
 // The parser takes a token stream from the lexer and converts it into a valid structure.
 // It's only concerned with the grammatic structure of the code - not the meaning.
 // It's a hybrid state-machine / recursive descent parser with state tables.
@@ -112,7 +113,9 @@ pub const Parser = struct {
         }
         const kind = token.kind;
         if (isKind(tok.LITERALS, kind)) {
-            print("Initial state Literal: {any}\n", .{token});
+            if (DEBUG) {
+                print("Initial state Literal: {any}\n", .{token});
+            }
             try self.emitParsed(token);
             try self.expect_binary();
         } else if (isKind(tok.IDENTIFIER, kind)) {
@@ -166,7 +169,9 @@ pub const Parser = struct {
         if (isKind(tok.SEPARATORS, kind)) {
             print("Separators: {any}\n", .{token});
         } else if (isKind(tok.BINARY_OPS, kind)) {
-            print("Binary op: {any}\n", .{token});
+            if (DEBUG) {
+                print("Expect binary - Binary op: {any}\n", .{token});
+            }
             try self.pushOp(token);
             try self.expect_unary();
         } else {
@@ -193,7 +198,9 @@ pub const Parser = struct {
 
         // Pretty similar to the initial state.
         if (isKind(tok.LITERALS, kind)) {
-            print("Initial state Literal: {any}\n", .{token});
+            if (DEBUG) {
+                print("Expect unary - Literal: {any}\n", .{token});
+            }
             try self.emitParsed(token);
             try self.expect_binary();
         } else if (isKind(tok.IDENTIFIER, kind)) {
