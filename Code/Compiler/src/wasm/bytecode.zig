@@ -1,12 +1,17 @@
-/****
- * Web Assembly byte-code format and utilities
- ****/
+// Instructions and encoding for the WASM backend.
 
-/**** 
- * Types 
- * https://webassembly.github.io/spec/core/appendix/index-types.html
- * https://webassembly.github.io/spec/core/binary/types.html#function-types
- * ****/
+// https://webassembly.github.io/spec/core/binary/modules.html#binary-module
+//
+// Types
+// https://webassembly.github.io/spec/core/appendix/index-types.html
+// https://webassembly.github.io/spec/core/binary/types.html#function-types
+//
+// Ported from my earlier implementation in Rust
+// https://github.com/informal-org/informal/blob/e7cff76bb730902a986a9383a1164b7374ab2059/Code/Prototypes/rust/avgen/src/bytecode.rs#L1
+
+const magic: u32 = 0x00_61_73_6D;
+const version: u32 = 0x01_00_00_00;
+
 pub const VAL_I32: u8 = 0x7f;
 pub const VAL_I64: u8 = 0x7e;
 pub const VAL_F32: u8 = 0x7d;
@@ -24,13 +29,10 @@ pub const ELEM_FUNCREF: u8 = 0x70;
 pub const GLOBAL_CONST: u8 = 0x00;
 pub const GLOBAL_VAR: u8 = 0x01;
 
-/***
- * Modules
- * https://webassembly.github.io/spec/core/binary/modules.html
- ***/
-pub const MODULE_MAGIC: [u8; 4] = [0x00, 0x61, 0x73, 0x6d];
-pub const MODULE_VERSION: [u8; 4] = [0x01, 0x00, 0x00, 0x00];
-
+//
+// Modules
+// https://webassembly.github.io/spec/core/binary/modules.html
+//
 pub const SECTION_CUSTOM: u8 = 0;
 pub const SECTION_TYPE: u8 = 1;
 pub const SECTION_IMPORT: u8 = 2;
@@ -54,13 +56,11 @@ pub const EXPORT_TABLE: u8 = 0x01;
 pub const EXPORT_MEM: u8 = 0x02;
 pub const EXPORT_GLOBAL: u8 = 0x03;
 
+// Instructions
+// https://webassembly.github.io/spec/core/binary/instructions.html
+// https://webassembly.github.io/spec/core/appendix/index-instructions.html
 
-/***
- * Instructions
- * https://webassembly.github.io/spec/core/binary/instructions.html
- * https://webassembly.github.io/spec/core/appendix/index-instructions.html
- ***/
-pub const BLOCK_VOID: u8 = 0x40;    // Other block types are the value type equivalent
+pub const BLOCK_VOID: u8 = 0x40; // Other block types are the value type equivalent
 pub const BLOCK_I32: u8 = 0x7F;
 pub const BLOCK_I64: u8 = 0x7E;
 pub const BLOCK_F32: u8 = 0x7D;
@@ -268,14 +268,12 @@ pub const OP_I64_EXTEND8_S: u8 = 0xC2;
 pub const OP_I64_EXTEND16_S: u8 = 0xC3;
 pub const OP_I64_EXTEND32_S: u8 = 0xC4;
 
+pub const OP_I32_TRUNC_SAT_F32_S: u16 = 0xFC_00;
+pub const OP_I32_TRUNC_SAT_F32_U: u16 = 0xFC_01;
+pub const OP_I32_TRUNC_SAT_F64_S: u16 = 0xFC_02;
+pub const OP_I32_TRUNC_SAT_F64_U: u16 = 0xFC_03;
 
-pub const OP_I32_TRUNC_SAT_F32_S: [u8; 2] = [0xFC, 0x00];
-pub const OP_I32_TRUNC_SAT_F32_U: [u8; 2] = [0xFC, 0x01];
-pub const OP_I32_TRUNC_SAT_F64_S: [u8; 2] = [0xFC, 0x02];
-pub const OP_I32_TRUNC_SAT_F64_U: [u8; 2] = [0xFC, 0x03];
-
-pub const OP_I64_TRUNC_SAT_F32_S: [u8; 2] = [0xFC, 0x04];
-pub const OP_I64_TRUNC_SAT_F32_U: [u8; 2] = [0xFC, 0x05];
-pub const OP_I64_TRUNC_SAT_F64_S: [u8; 2] = [0xFC, 0x06];
-pub const OP_I64_TRUNC_SAT_F64_U: [u8; 2] = [0xFC, 0x07];
-
+pub const OP_I64_TRUNC_SAT_F32_S: u16 = 0xFC_04;
+pub const OP_I64_TRUNC_SAT_F32_U: u16 = 0xFC_05;
+pub const OP_I64_TRUNC_SAT_F64_S: u16 = 0xFC_06;
+pub const OP_I64_TRUNC_SAT_F64_U: u16 = 0xFC_07;

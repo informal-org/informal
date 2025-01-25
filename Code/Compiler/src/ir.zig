@@ -7,6 +7,17 @@ const Token = tok.Token;
 
 pub const TokenQueue = q.Queue(Token, tok.AUX_STREAM_END);
 
+pub const IrTokenKind = enum(u6) {
+    // Register operations
+    defvar, // Define a new variable as a result of an operation. Exists in a register.
+    refvar, // Reference an existing variable or constant which may exist in a register or memory.
+    refimm, // Specialize refvar for small immediate values.
+    refreg, // Reference a variable in a register.
+    load, // Load a variable from memory into a register.
+    store, // Save register contents to memory.
+    drop, // Mark a register as free - no need so save its contents.
+};
+
 pub const IR = struct {
     // The Intermediate Representation (IR) begins the mididdle-end of the compiler.
     // The frontend is language-specific, while the IR and subsequent layers should ideally be treated as largely language-agnostic.

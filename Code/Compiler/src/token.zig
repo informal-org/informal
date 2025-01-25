@@ -78,6 +78,7 @@ pub const Token = packed struct(u64) {
         lit_number,
         lit_null,
 
+        ir, // Intermediate Representation Tokens.
         // All aux tokens go at the end - denoted by the AUX_KIND_START constant.
         // Used to detect what's aux.
         aux = 57,

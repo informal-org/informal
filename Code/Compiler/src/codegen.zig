@@ -19,9 +19,10 @@ pub const Codegen = struct {
     objCode: std.ArrayList(u32),
     registerMap: bitset.BitSet32 = bitset.BitSet32.initEmpty(), // Bitmap of which registers are in use.
     buffer: []const u8,
+    regStack: u64 = 0,
 
     pub fn init(allocator: Allocator, buffer: []const u8) Self {
-        return Self{ .objCode = std.ArrayList(u32).init(allocator), .buffer = buffer };
+        return Self{ .objCode = std.ArrayList(u32).init(allocator), .buffer = buffer, .regStack = 0 };
     }
 
     pub fn deinit(self: *Self) void {
@@ -52,31 +53,42 @@ pub const Codegen = struct {
         try self.objCode.append(arm.svc(0));
     }
 
-    pub fn emitAll(self: *Self, tokenQueue: []Token) !void {
-        var regStack: u64 = 0;
+    pub fn pushReg(self: *Self, reg: arm.Reg) void {
+        self.regStack = (self.regStack << 5) | @intFromEnum(reg);
+    }
 
+    pub fn popReg(self: *Self) arm.Reg {
+        const reg: arm.Reg = @enumFromInt(self.regStack & 0b11111);
+        self.regStack = (self.regStack >> 5);
+        return reg;
+    }
+
+    pub fn emitAll(self: *Self, tokenQueue: []Token) !void {
         var reg = arm.Reg.x0;
         for (tokenQueue) |token| {
             // try self.emit(token);
             switch (token.kind) {
                 TK.lit_number => {
-                    regStack = (regStack << 5) | @intFromEnum(reg); // Push the current register.
+                    // regStack = (regStack << 5) | @intFromEnum(reg); // Push the current register.
                     reg = self.getFreeReg();
+                    self.pushReg(reg);
                     const value = self.buffer[token.data.range.offset .. token.data.range.offset + token.data.range.length];
                     const imm16 = std.fmt.parseInt(u16, value, 10) catch unreachable;
                     try self.objCode.append(arm.movz(reg, imm16));
                 },
                 TK.op_add => {
-                    const rd = reg; // arm.Reg.x0;
-                    const rn: arm.Reg = @enumFromInt(regStack & 0b11111);
-                    const rm: arm.Reg = reg; // @enumFromInt(reg);
+                    const rd = self.popReg(); // arm.Reg.x0;
+                    const rn = self.popReg();
+                    const rm = rd; // @enumFromInt(reg);
+                    self.pushReg(rd);
                     const instr = arm.add(rd, rn, rm);
                     try self.objCode.append(instr);
                 },
                 TK.op_mul => {
-                    const rd = reg;
-                    const rn: arm.Reg = @enumFromInt(regStack & 0b11111);
-                    const rm: arm.Reg = reg; //  @enumFromInt(reg);
+                    const rd = self.popReg();
+                    const rn = self.popReg();
+                    const rm = rd;
+                    self.pushReg(rd);
                     const instr = arm.mul(rd, rn, rm);
 
                     try self.objCode.append(instr);
