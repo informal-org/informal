@@ -38,90 +38,55 @@ pub const Codegen = struct {
         self.registerMap.clear(@intFromEnum(reg));
     }
 
-    pub fn emit(self: *Self, token: Token) !void {
-        // try self.objCode.append(token);
-        switch (token.kind) {
-            TK.lit_number => {
-                const reg = self.getFreeReg();
-                const value = self.buffer[token.data.range.offset .. token.data.range.offset + token.data.range.length];
-                const imm16 = std.fmt.parseInt(u16, value, 10) catch unreachable;
-                // print("emitting {any} to reg {any}\n", .{ imm16, reg });
-                try self.objCode.append(arm.movz(reg, imm16));
-            },
-            TK.op_add => {
-                const rd = arm.Reg.x0;
-                const rn: arm.Reg = @enumFromInt(self.registerMap.count() - 1);
-                const rm: arm.Reg = @enumFromInt(self.registerMap.count() - 2);
-
-                const instr = arm.add(rd, rn, rm);
-
-                // const instr: u32 = @as(u32, @bitCast(arm.ADD_XREG{
-                //     .rd = rd,
-                //     .rn = rn,
-                //     // .option = arm.ADD_XREG.Option64.UXTB,
-                //     .rm = rm,
-                // }));
-                try self.objCode.append(instr);
-            },
-            TK.op_mul => {
-                const rd = arm.Reg.x0;
-                const rn: arm.Reg = @enumFromInt(self.registerMap.count() - 1);
-                const rm: arm.Reg = @enumFromInt(self.registerMap.count() - 2);
-
-                const instr = arm.mul(rd, rn, rm);
-
-                try self.objCode.append(instr);
-            },
-            else => {
-                tok.print_token("Unhandled token in Codegen: {any}\n", token, self.buffer);
-            },
-        }
-    }
-
-    pub fn emit_syscall(self: *Self, syscall: Syscall) !void {
+    pub fn emit_syscall(self: *Self, syscall: Syscall, arg: arm.Reg) !void {
         // Load syscall #1 - exit - to ABI syscall register.
         // assert the syscall register is free.
         if (self.registerMap.isSet(16)) {
             return error.SyscallRegisterAlreadyInUse;
         }
 
-        // const verify_addimm = arm.ADD_IMM{
-        //     .rd = arm.Reg.x0,
-        //     .rn = arm.Reg.x0,
-        //     .imm12 = 10,
-        //     .sh = 0,
-        // };
-        // try self.objCode.append(@as(u32, @bitCast(verify_addimm)));
-
-        // const verify_addimm = arm.ImmAddSub{
-        //     .rd = arm.Reg.x0,
-        //     .rn = arm.Reg.x0,
-        //     .imm12 = 10,
-        //     .op = arm.ImmAddSub.Op.ADD,
-        // };
-        // try self.objCode.append(verify_addimm.encode());
-
-        // try self.objCode.append(arm.addi(arm.Reg.x0, arm.Reg.x0, 10));
-
-        // const verify_and_imm = arm.AND_IMM{
-        //     .rd = arm.Reg.x0,
-        //     .rn = arm.Reg.x0,
-        //     .mask = 0b01,
-        // };
-        // try self.objCode.append(@as(u32, @bitCast(verify_and_imm)));
-
+        try self.objCode.append(arm.orr(arm.Reg.x0, arg, arm.WZR));
         try self.objCode.append(arm.movz(arm.Reg.x16, @intFromEnum(syscall)));
 
-        // Syscall - exit 42 (so we can read the code out from bash).
-        // try self.objCode.append(arm.svc(syscall));
+        // Syscall - with an exit code we can read from bash.
         try self.objCode.append(arm.svc(0));
     }
 
     pub fn emitAll(self: *Self, tokenQueue: []Token) !void {
+        var regStack: u64 = 0;
+
+        var reg = arm.Reg.x0;
         for (tokenQueue) |token| {
-            try self.emit(token);
+            // try self.emit(token);
+            switch (token.kind) {
+                TK.lit_number => {
+                    regStack = (regStack << 5) | @intFromEnum(reg); // Push the current register.
+                    reg = self.getFreeReg();
+                    const value = self.buffer[token.data.range.offset .. token.data.range.offset + token.data.range.length];
+                    const imm16 = std.fmt.parseInt(u16, value, 10) catch unreachable;
+                    try self.objCode.append(arm.movz(reg, imm16));
+                },
+                TK.op_add => {
+                    const rd = reg; // arm.Reg.x0;
+                    const rn: arm.Reg = @enumFromInt(regStack & 0b11111);
+                    const rm: arm.Reg = reg; // @enumFromInt(reg);
+                    const instr = arm.add(rd, rn, rm);
+                    try self.objCode.append(instr);
+                },
+                TK.op_mul => {
+                    const rd = reg;
+                    const rn: arm.Reg = @enumFromInt(regStack & 0b11111);
+                    const rm: arm.Reg = reg; //  @enumFromInt(reg);
+                    const instr = arm.mul(rd, rn, rm);
+
+                    try self.objCode.append(instr);
+                },
+                else => {
+                    tok.print_token("Unhandled token in Codegen: {any}\n", token, self.buffer);
+                },
+            }
         }
-        try self.emit_syscall(Syscall.exit);
+        try self.emit_syscall(Syscall.exit, reg);
 
         // print("Total instructions")
     }

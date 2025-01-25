@@ -41,7 +41,7 @@ pub const Reg = enum(u5) {
     x30 = 30,
     x31 = 31, // WZR
 };
-const WZR = Reg.x31;
+pub const WZR = Reg.x31;
 
 // SF bit.
 pub const MODE_A32: u1 = 0;
@@ -1126,6 +1126,7 @@ pub const ShiftType = enum(u2) {
 };
 
 pub const LogicalShiftedRegister = packed struct(u32) {
+    // const Self = @This();
     rd: Reg,
     rn: Reg,
     imm6: u6,
@@ -1137,6 +1138,7 @@ pub const LogicalShiftedRegister = packed struct(u32) {
     sf: u1 = MODE_A64,
 
     pub const Op = enum {
+        // const Self = @This();
         AND,
         BIC, // Bitwise clear. AND with complement of optionally shifted rM
         ORR, // Bitwise or. OR with optionally shifted rM. MOV alias.
@@ -1147,7 +1149,7 @@ pub const LogicalShiftedRegister = packed struct(u32) {
         BICS, // Bitwise clear (AND w/ NOT of shifted rM ), setting condition flags.
 
         pub fn encode(self: Op) struct { opc: u2, N: u1 } {
-            switch (self) {
+            return switch (self) {
                 .AND => .{ .opc = 0b00, .N = 0 },
                 .BIC => .{ .opc = 0b00, .N = 1 },
                 .ORR => .{ .opc = 0b01, .N = 0 },
@@ -1156,7 +1158,7 @@ pub const LogicalShiftedRegister = packed struct(u32) {
                 .EON => .{ .opc = 0b10, .N = 1 },
                 .ANDS => .{ .opc = 0b11, .N = 0 },
                 .BICS => .{ .opc = 0b11, .N = 1 },
-            }
+            };
         }
     };
 
@@ -1351,7 +1353,7 @@ pub const ProcessThreeSource = packed struct(u32) {
     o0: u1,
     rm: Reg,
     op31: u3,
-    _: u5 = 0b00_11011, // Unused op54 bits combined into this.
+    _: u7 = 0b00_11011, // Unused op54 bits combined into this.
     sf: u1 = MODE_A64,
 
     pub const Op = enum {
@@ -1378,16 +1380,16 @@ pub const ProcessThreeSource = packed struct(u32) {
         }
     };
 
-    pub fn init(op: Op, rd: Reg, rn: Reg, rm: Reg, ra: Reg) Self {
+    pub fn init(op: Op, rd: Reg, rn: Reg, rm: Reg, ra: Reg) u32 {
         const opcode = op.encode();
-        return Self{
+        return @as(u32, @bitCast(Self{
             .rd = rd,
             .rn = rn,
             .ra = ra,
             .o0 = opcode.op0,
             .rm = rm,
             .op31 = opcode.op31,
-        };
+        }));
     }
 };
 
