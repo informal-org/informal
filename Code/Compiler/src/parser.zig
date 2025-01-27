@@ -205,15 +205,15 @@ pub const Parser = struct {
             try self.emitParsed(token);
             try self.expect_binary();
         } else if (isKind(tok.IDENTIFIER, kind)) {
-            print("Identifier: {any}\n", .{token});
+            print("Parser - unhandled unary - Identifier: {any}\n", .{token});
         } else if (isKind(tok.PAREN_START, kind)) {
-            print("Paren Start: {any}\n", .{token});
+            print("Parser - unhandled unary - Paren Start: {any}\n", .{token});
         } else if (isKind(tok.KEYWORD_START, kind)) {
-            print("Keyword Start: {any}\n", .{token});
+            print("Parser - unhandled unary - Keyword Start: {any}\n", .{token});
         } else if (isKind(tok.UNARY_OPS, kind)) {
-            print("UNARY Op: {any}\n", .{token});
+            print("Parser - unhandled unary - UNARY Op: {any}\n", .{token});
         } else {
-            print("Invalid token: {any}\n", .{token});
+            print("Parser - unhandled unary - Invalid token: {any}\n", .{token});
         }
     }
 
@@ -246,6 +246,21 @@ pub const Parser = struct {
     // Mark the currently open line or group as containing an assignment.
     // This allows the symbol-resolution to recognize declaration vs reference without lookahead.
     // That'll also support de-structuring like [a, b, c] = ...
+    /////////////////////////////////////////////
+
+    /////////////////////////////////////////////
+    // Symbol Resolution
+    // The lexer normalizes string symbols to a numeric index.
+    // But not all who go by the same name are the same thing.
+    // The parser is responsible for contexualizing the symbol in terms of declaration vs reference per scope.
+    // We can do symbol-resolution without a second pass with some bookkeeping.
+    // As you encounter symbols, maintain a stack of declarations.
+    // It's straightforward to match up references to those declarations, and create an SSA-like indexed versions for assignments.
+    // The tricky part is forward references. When you encounter a reference to an as-yet undefined symbol,
+    // add its token location to a list of undefined refs at that symbol and leave a blank spot for it in the parsed queue.
+    // When you encounter a declaration, check which of those are "within scope" by looking at the current active scope's start index
+    // If token index > start index (and we know it's less than end index by iteration order)
+    // AND if current scope is one that supports forward declarations (objects, global support it. A function / condition block doens't).
     /////////////////////////////////////////////
 
     // Initialize the parser state.

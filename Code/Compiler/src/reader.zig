@@ -18,7 +18,7 @@ pub const Reader = struct {
     internedStrings: *std.StringHashMap(u64),
     internedNumbers: *std.AutoHashMap(u64, u64),
     internedFloats: *std.AutoHashMap(f64, u64),
-    internedSymbols: *std.StringHashMap(tok.Symbol),
+    internedSymbols: *std.StringHashMap(u64),
 };
 
 pub fn process_chunk(chunk: []u8, reader: *Reader, allocator: Allocator) !void {
@@ -58,7 +58,7 @@ pub fn compile_file(filename: []u8) !void {
     var internedStrings = std.StringHashMap(u64).init(gpa.allocator());
     var internedNumbers = std.AutoHashMap(u64, u64).init(gpa.allocator());
     var internedFloats = std.AutoHashMap(f64, u64).init(gpa.allocator());
-    var internedSymbols = std.StringHashMap(tok.Symbol).init(gpa.allocator());
+    var internedSymbols = std.StringHashMap(u64).init(gpa.allocator());
 
     // var reader = Reader.init(gpa.allocator(), &syntaxQ, &auxQ, &parsedQ, &offsetQ);
     var reader = Reader{

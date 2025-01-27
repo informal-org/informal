@@ -57,7 +57,7 @@ pub const Lexer = struct {
     internedStrings: *std.StringHashMap(u64),
     internedNumbers: *std.AutoHashMap(u64, u64), // Key is the const. Val = the index.
     internedFloats: *std.AutoHashMap(f64, u64),
-    internedSymbols: *std.StringHashMap(tok.Symbol),
+    internedSymbols: *std.StringHashMap(u64),
 
     indentStack: u64, // A tiny little stack to contain up to 21 levels of indentation. (3 bits per indent offset).
     // kind: TokenKind,
@@ -71,7 +71,7 @@ pub const Lexer = struct {
         internedStrings: *std.StringHashMap(u64),
         internedNumbers: *std.AutoHashMap(u64, u64),
         internedFloats: *std.AutoHashMap(f64, u64),
-        internedSymbols: *std.StringHashMap(tok.Symbol),
+        internedSymbols: *std.StringHashMap(u64),
     ) Self {
         const QIdx = [_]u32{ 0, 0 };
         // Initialize prev to stream start to avoid needing a null-check in every emit.
@@ -263,7 +263,7 @@ pub const Lexer = struct {
         while (self.index < self.buffer.len and !is_identifier_delimiter(self.buffer[self.index])) : (self.index += 1) {}
     }
 
-    fn token_identifier(self: *Lexer) !u64 {
+    fn token_identifier(self: *Lexer) !void {
         // TODO: Validate characters.
         // First char is known to not be a number.
         const start = self.index;
@@ -286,19 +286,10 @@ pub const Lexer = struct {
         // try self.emitToken(tok.identifier(start, @truncate(self.index - start)));
         const name = self.buffer[start..self.index];
         const len: u24 = @truncate(self.index - start);
-        // const currentSymbol =  catch null;
-        if (self.internedSymbols.get(name)) |symbol| {
-            try self.emitToken(tok.identifier(symbol.ref, len));
-        } else {
-            const owned_name = try self.allocator.dupe(u8, name);
-            const symbolIdx = self.internedSymbols.count();
-            const symbolName = tok.Symbol{
-                .name = owned_name,
-                .ref = symbolIdx,
-            };
-            self.internedSymbols.put(name, symbolName) catch unreachable;
-            try self.emitToken(tok.identifier(symbolIdx, len));
-        }
+
+        const constIdxEntry = self.internedSymbols.getOrPutValue(name, self.internedStrings.count()) catch unreachable;
+        const constIdx: u64 = constIdxEntry.value_ptr.*;
+        try self.emitToken(tok.identifier(@truncate(constIdx), @truncate(len)));
     }
 
     // fn skip(self: *Lexer) void {
@@ -477,6 +468,9 @@ pub const Lexer = struct {
                     // TODO: Parse alphabetic keywords like if, for.
                     // self.token_symbol();
                     // handle cases where it's not a valid identifier and none of the recognized tokens.
+
+                    // Support unicode identifiers.
+                    try self.token_identifier();
                 },
             }
         }
