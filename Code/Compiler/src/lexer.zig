@@ -53,15 +53,45 @@ pub const Lexer = struct {
     lineChStart: u32, // Character index where this line started. For ch offset calculations.
     lineNo: u16, // Line number within this chunk. Chunks are sized so this shouldn't overflow.
 
+    // Interned constants.
+    internedStrings: *std.StringHashMap(u64),
+    internedNumbers: *std.AutoHashMap(u64, u64), // Key is the const. Val = the index.
+    internedFloats: *std.AutoHashMap(f64, u64),
+    internedSymbols: *std.StringHashMap(tok.Symbol),
+
     // indentStack: u64, // A tiny little stack to contain up to 21 levels of indentation. (3 bits per indent offset).
     // kind: TokenKind,
     // pub const TokenKind = enum { number, string, symbol, keyword, identifier, indent, dedent, newline, eof };
 
-    pub fn init(buffer: []const u8, syntaxQ: *TokenQueue, auxQ: *TokenQueue) Self {
+    pub fn init(
+        //
+        buffer: []const u8,
+        syntaxQ: *TokenQueue,
+        auxQ: *TokenQueue,
+        internedStrings: *std.StringHashMap(u64),
+        internedNumbers: *std.AutoHashMap(u64, u64),
+        internedFloats: *std.AutoHashMap(f64, u64),
+        internedSymbols: *std.StringHashMap(tok.Symbol),
+    ) Self {
         const QIdx = [_]u32{ 0, 0 };
         // Initialize prev to stream start to avoid needing a null-check in every emit.
         // const initialPrev = @as(u64, @bitCast(tok.auxKindToken(tok.AuxKind.sep_stream_start, 0)));
-        return Self{ .buffer = buffer, .index = 0, .QIdx = QIdx, .lineQIndex = 0, .lineChStart = 0, .lineNo = 0, .prevToken = tok.AUX_STREAM_START, .syntaxQ = syntaxQ, .auxQ = auxQ };
+        return Self{
+            //
+            .buffer = buffer,
+            .index = 0,
+            .QIdx = QIdx,
+            .lineQIndex = 0,
+            .lineChStart = 0,
+            .lineNo = 0,
+            .prevToken = tok.AUX_STREAM_START,
+            .syntaxQ = syntaxQ,
+            .auxQ = auxQ,
+            .internedStrings = internedStrings,
+            .internedNumbers = internedNumbers,
+            .internedFloats = internedFloats,
+            .internedSymbols = internedSymbols,
+        };
     }
 
     fn gobble_digits(self: *Lexer) void {

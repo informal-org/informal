@@ -103,6 +103,11 @@ pub const Token = packed struct(u64) {
     };
 };
 
+pub const Symbol = struct {
+    name: []const u8, // Copy of the name, so that later stages don't need to index into the file buffer and polluate the cache again.
+    lastref: u32, // Used by the parser to build the doubly-linked list of references.
+};
+
 pub const TokenWriter = struct {
     token: Token,
     buffer: []const u8,
