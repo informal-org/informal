@@ -59,7 +59,7 @@ pub const Lexer = struct {
     internedFloats: *std.AutoHashMap(f64, u64),
     internedSymbols: *std.StringHashMap(tok.Symbol),
 
-    // indentStack: u64, // A tiny little stack to contain up to 21 levels of indentation. (3 bits per indent offset).
+    indentStack: u64, // A tiny little stack to contain up to 21 levels of indentation. (3 bits per indent offset).
     // kind: TokenKind,
     // pub const TokenKind = enum { number, string, symbol, keyword, identifier, indent, dedent, newline, eof };
 
@@ -91,6 +91,7 @@ pub const Lexer = struct {
             .internedNumbers = internedNumbers,
             .internedFloats = internedFloats,
             .internedSymbols = internedSymbols,
+            .indentStack = 0,
         };
     }
 
@@ -190,10 +191,17 @@ pub const Lexer = struct {
         self.gobble_digits();
         const len = self.index - start;
 
-        // const value: u64 = std.fmt.parseInt(u32, self.buffer[start..self.index], 10) catch 0;
-        // const auxTok = tok.auxKindToken(tok.AuxKind.number, @truncate(len));
-        // try self.emitNumber(value, auxTok);
-        try self.emitToken(tok.numberLiteral(start, @truncate(len)));
+        const value: u64 = std.fmt.parseInt(u64, self.buffer[start..self.index], 10) catch 0;
+        // Predicate: Unary minus is handled separately. So value is always implicitly > 0.
+        if (value > 2 ^ 16) {
+            // Add it to the numeric constant pool
+            const constIdxEntry = self.internedNumbers.getOrPutValue(value, self.internedNumbers.count()) catch unreachable;
+            const constIdx: u64 = constIdxEntry.value_ptr.*;
+            try self.emitToken(tok.numberLiteral(@truncate(constIdx), 0));
+        } else {
+            // Emit it as an immediate value.
+            try self.emitToken(tok.numberLiteral(@truncate(value), @truncate(len)));
+        }
     }
 
     fn token_string(self: *Lexer) !void {
@@ -215,14 +223,16 @@ pub const Lexer = struct {
             // Error: String too long.
             unreachable;
         }
-
-        try self.emitToken(tok.stringLiteral(tokenStart, @truncate(tokenLen)));
+        const constIdxEntry = self.internedStrings.getOrPutValue(self.buffer[tokenStart..self.index], self.internedStrings.count()) catch unreachable;
+        const constIdx: u64 = constIdxEntry.value_ptr.*;
+        try self.emitToken(tok.stringLiteral(@truncate(constIdx), @truncate(tokenLen)));
+        // try self.emitToken(tok.stringLiteral(tokenStart, @truncate(tokenLen)));
     }
 
-    fn is_delimiter(ch: u8) bool {
+    fn is_identifier_delimiter(ch: u8) bool {
         // No mathematical operators in MVL.
         return switch (ch) {
-            '(', ')', '[', ']', '{', '}', '"', '\'', '.', ',', ':', ';', ' ', '\t', '\n' => true,
+            '(', ')', '[', ']', '{', '}', '"', '\'', '.', ',', ':', ';', '\t', '\n' => true,
             else => false,
         };
     }
@@ -249,8 +259,8 @@ pub const Lexer = struct {
         while (self.index < self.buffer.len and self.buffer[self.index] != ch[0]) : (self.index += 1) {}
     }
 
-    fn seek_till_delimiter(self: *Lexer) void {
-        while (self.index < self.buffer.len and !is_delimiter(self.buffer[self.index])) : (self.index += 1) {}
+    fn seek_till_identifier_delimiter(self: *Lexer) void {
+        while (self.index < self.buffer.len and !is_identifier_delimiter(self.buffer[self.index])) : (self.index += 1) {}
     }
 
     fn token_identifier(self: *Lexer) !u64 {
@@ -266,14 +276,29 @@ pub const Lexer = struct {
         // }
 
         // Non digit or symbol start, so interpret as an identifier.
-        _ = self.seek_till_delimiter();
+        _ = self.seek_till_identifier_delimiter();
 
         // Max identifier length.
         if (self.index - start > 255) {
             unreachable;
         }
 
-        try self.emitToken(tok.identifier(start, @truncate(self.index - start)));
+        // try self.emitToken(tok.identifier(start, @truncate(self.index - start)));
+        const name = self.buffer[start..self.index];
+        const len: u24 = @truncate(self.index - start);
+        // const currentSymbol =  catch null;
+        if (self.internedSymbols.get(name)) |symbol| {
+            try self.emitToken(tok.identifier(symbol.ref, len));
+        } else {
+            const owned_name = try self.allocator.dupe(u8, name);
+            const symbolIdx = self.internedSymbols.count();
+            const symbolName = tok.Symbol{
+                .name = owned_name,
+                .ref = symbolIdx,
+            };
+            self.internedSymbols.put(name, symbolName) catch unreachable;
+            try self.emitToken(tok.identifier(symbolIdx, len));
+        }
     }
 
     // fn skip(self: *Lexer) void {

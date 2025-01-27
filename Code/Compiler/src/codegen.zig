@@ -72,8 +72,9 @@ pub const Codegen = struct {
                     // regStack = (regStack << 5) | @intFromEnum(reg); // Push the current register.
                     reg = self.getFreeReg();
                     self.pushReg(reg);
-                    const value = self.buffer[token.data.range.offset .. token.data.range.offset + token.data.range.length];
-                    const imm16 = std.fmt.parseInt(u16, value, 10) catch unreachable;
+                    // const value = self.buffer[token.data.range.offset .. token.data.range.offset + token.data.range.length];
+                    const imm16: u16 = @truncate(token.data.range.offset);
+                    // const imm16 = std.fmt.parseInt(u16, value, 10) catch unreachable;
                     try self.objCode.append(arm.movz(reg, imm16));
                 },
                 TK.op_add => {

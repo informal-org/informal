@@ -105,7 +105,7 @@ pub const Token = packed struct(u64) {
 
 pub const Symbol = struct {
     name: []const u8, // Copy of the name, so that later stages don't need to index into the file buffer and polluate the cache again.
-    lastref: u32, // Used by the parser to build the doubly-linked list of references.
+    ref: u32, // In Lexer, store this symbol's ID. In parser, reference the previous parsedQ index of this symbol for a doubly-linked list of refs.
 };
 
 pub const TokenWriter = struct {
@@ -117,12 +117,14 @@ pub const TokenWriter = struct {
         _ = options;
 
         const value = wrapper.token;
-        const buffer = wrapper.buffer;
+        // const buffer = wrapper.buffer;
         const alt = if (value.alternate) "ALT" else "";
 
         switch (value.kind) {
             TK.lit_number, TK.lit_string, TK.identifier => {
-                try std.fmt.format(writer, "{s} {s} {s}", .{ buffer[value.data.range.offset .. value.data.range.offset + value.data.range.length], @tagName(value.kind), alt });
+                // Previous format where it referenced the buffer...
+                // try std.fmt.format(writer, "{s} {s} {s}", .{ buffer[value.data.range.offset .. value.data.range.offset + value.data.range.length], @tagName(value.kind), alt });
+                try std.fmt.format(writer, "{d} {s} {s}", .{ value.data.range.offset, @tagName(value.kind), alt });
             },
             TK.aux, TK.aux_comment, TK.aux_whitespace, TK.aux_newline, TK.aux_indentation, TK.aux_stream_start, TK.aux_stream_end => {
                 try std.fmt.format(writer, "{s} {s}", .{ @tagName(value.kind), alt });

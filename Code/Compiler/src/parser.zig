@@ -85,6 +85,7 @@ pub const Parser = struct {
     }
 
     fn popOp(self: *Self) !void {
+        // TODO: We can do const-folding here by looking at the operands. If they're literals, emit the result instead of the op.
         const opNode = self.opStack.pop();
         try self.parsedQ.push(opNode.token);
         try self.pushOffset(opNode.index);
