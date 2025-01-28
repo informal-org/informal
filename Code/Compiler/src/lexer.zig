@@ -54,10 +54,10 @@ pub const Lexer = struct {
     lineNo: u16, // Line number within this chunk. Chunks are sized so this shouldn't overflow.
 
     // Interned constants.
+    symbolTable: *std.StringHashMap(u64),
     internedStrings: *std.StringHashMap(u64),
     internedNumbers: *std.AutoHashMap(u64, u64), // Key is the const. Val = the index.
     internedFloats: *std.AutoHashMap(f64, u64),
-    internedSymbols: *std.StringHashMap(u64),
 
     indentStack: u64, // A tiny little stack to contain up to 21 levels of indentation. (3 bits per indent offset).
     // kind: TokenKind,
@@ -71,7 +71,7 @@ pub const Lexer = struct {
         internedStrings: *std.StringHashMap(u64),
         internedNumbers: *std.AutoHashMap(u64, u64),
         internedFloats: *std.AutoHashMap(f64, u64),
-        internedSymbols: *std.StringHashMap(u64),
+        symbolTable: *std.StringHashMap(u64),
     ) Self {
         const QIdx = [_]u32{ 0, 0 };
         // Initialize prev to stream start to avoid needing a null-check in every emit.
@@ -90,7 +90,7 @@ pub const Lexer = struct {
             .internedStrings = internedStrings,
             .internedNumbers = internedNumbers,
             .internedFloats = internedFloats,
-            .internedSymbols = internedSymbols,
+            .symbolTable = symbolTable,
             .indentStack = 0,
         };
     }
@@ -190,7 +190,6 @@ pub const Lexer = struct {
         self.index += 1; // First char is already recognized as a digit or dot.
         self.gobble_digits();
         const len = self.index - start;
-
         const value: u64 = std.fmt.parseInt(u64, self.buffer[start..self.index], 10) catch 0;
         // Predicate: Unary minus is handled separately. So value is always implicitly > 0.
         if (value > 2 ^ 16) {
@@ -282,15 +281,17 @@ pub const Lexer = struct {
         if (self.index - start > 255) {
             unreachable;
         }
-
-        // try self.emitToken(tok.identifier(start, @truncate(self.index - start)));
         const name = self.buffer[start..self.index];
         const len: u24 = @truncate(self.index - start);
 
-        const constIdxEntry = self.internedSymbols.getOrPutValue(name, self.internedStrings.count()) catch unreachable;
+        const constIdxEntry = self.symbolTable.getOrPutValue(name, self.symbolTable.count()) catch unreachable;
         const constIdx: u64 = constIdxEntry.value_ptr.*;
         try self.emitToken(tok.identifier(@truncate(constIdx), @truncate(len)));
     }
+
+    // fn deinit(self: *Lexer) void {
+    //     // Free all allocated identifiers.
+    // }
 
     // fn skip(self: *Lexer) void {
     //     self.index += 1;
@@ -425,12 +426,12 @@ pub const Lexer = struct {
                     try self.token_string();
                 },
                 else => {
-                    self.index += 1;
 
                     // const chByte: u7 = @truncate(@as(u8, ch));
                     // const one: u128 = 1;
                     // const chBit: u128 = one << chByte;
                     if (MULTICHAR_BITSET.isSet(ch)) {
+                        self.index += 1;
                         const peekCh = self.peek_ch();
                         if (DEBUG) {
                             print("Multichar: {c} {c}\n", .{ ch, peekCh });
@@ -451,11 +452,14 @@ pub const Lexer = struct {
                             self.seek_till("\n");
                             // self.emitAux()
                             // TODO: Emit comments.
+                            continue;
                         }
+                        self.index -= 1;
                     }
 
                     // Single-character symbols.
                     if (SYMBOLS.isSet(ch)) {
+                        self.index += 1;
                         if (DEBUG) {
                             print("CH {d} index {d} enum val {d}\n", .{ ch, bitset.index128(SYMBOLS, ch), @intFromEnum(tok.Token.Kind.grp_close_brace) });
                         }
@@ -490,20 +494,32 @@ const testutils = @import("testutils.zig");
 const testTokenEquals = testutils.testTokenEquals;
 const testQueueEquals = testutils.testQueueEquals;
 
-pub fn testLexToken(buffer: []const u8, expected: []const Token, aux: []const Token) !void {
-    print("\nTest Lex Token: {s}\n", .{buffer});
-    defer print("\n--------------------------------------------------------------\n", .{});
+pub fn testLexToken(buffer: []const u8, expected: []const Token, aux: ?[]const Token) !void {
+    // print("\nTest Lex Token: {s}\n", .{buffer});
+    // defer print("\n--------------------------------------------------------------\n", .{});
 
     var syntaxQ = TokenQueue.init(test_allocator);
     var auxQ = TokenQueue.init(test_allocator);
-    var lexer = Lexer.init(buffer, &syntaxQ, &auxQ);
+    var internedStrings = std.StringHashMap(u64).init(test_allocator);
+    var internedNumbers = std.AutoHashMap(u64, u64).init(test_allocator);
+    var internedFloats = std.AutoHashMap(f64, u64).init(test_allocator);
+    var symbolTable = std.StringHashMap(u64).init(test_allocator);
+
+    var lexer = Lexer.init(buffer, &syntaxQ, &auxQ, &internedStrings, &internedNumbers, &internedFloats, &symbolTable);
+
     // defer lexer.deinit();
     defer syntaxQ.deinit();
     defer auxQ.deinit();
+    defer internedStrings.deinit();
+    defer internedNumbers.deinit();
+    defer internedFloats.deinit();
+    defer symbolTable.deinit();
     try lexer.lex();
 
     try testQueueEquals(buffer, &syntaxQ, expected);
-    try testQueueEquals(buffer, &auxQ, aux);
+    if (aux) |auxExpected| {
+        try testQueueEquals(buffer, &auxQ, auxExpected);
+    }
 }
 
 test "Token equality" {
@@ -522,11 +538,15 @@ test "Token equality" {
 }
 
 test "Lex digits" {
-    try testLexToken("1 2 3", &[_]Token{ tok.nextAlt(tok.numberLiteral(0, 1)), tok.nextAlt(tok.numberLiteral(2, 1)), tok.nextAlt(tok.numberLiteral(4, 1)) }, &[_]Token{ tok.nextAlt(tok.AUX_STREAM_START), tok.nextAlt(tok.range(Token.Kind.aux_whitespace, 1, 1)), tok.nextAlt(tok.range(Token.Kind.aux_whitespace, 3, 1)), tok.AUX_STREAM_END });
+    try testLexToken("1 2 3", &[_]Token{
+        tok.nextAlt(tok.numberLiteral(1, 1)),
+        tok.nextAlt(tok.numberLiteral(2, 1)),
+        tok.nextAlt(tok.numberLiteral(3, 1)),
+    }, &[_]Token{ tok.nextAlt(tok.AUX_STREAM_START), tok.nextAlt(tok.range(Token.Kind.aux_whitespace, 1, 1)), tok.nextAlt(tok.range(Token.Kind.aux_whitespace, 3, 1)), tok.AUX_STREAM_END });
 }
 
 test "Lex operator" {
-    try testLexToken("1+3", &[_]Token{ tok.numberLiteral(0, 1), tok.OP_ADD, tok.nextAlt(tok.numberLiteral(2, 1)) }, &[_]Token{ tok.nextAlt(tok.AUX_STREAM_START), tok.AUX_STREAM_END });
+    try testLexToken("1+3", &[_]Token{ tok.numberLiteral(1, 1), tok.OP_ADD, tok.nextAlt(tok.numberLiteral(3, 1)) }, &[_]Token{ tok.nextAlt(tok.AUX_STREAM_START), tok.AUX_STREAM_END });
 }
 
 fn testSymbol(buf: []const u8, kind: Token.Kind) !void {
@@ -566,18 +586,26 @@ test "Lex symbols" {
 //     // try testLexToken("1 2 3", &[_]u64{ 1, 2, 3 });
 // }
 
-// test "Lex delimiters and identifiers" {
-//     // Delimiters , . = : and identifiers.
-//     // (a, bb):"
-//     // 01234567
-//     try testLexToken("(a, bb):", &[_]u64{
-//         tok.SYMBOL_OPEN_PAREN,
-//         val.createObject(tok.T_IDENTIFIER, 1, 1),
-//         tok.SYMBOL_COMMA,
-//         val.createObject(tok.T_IDENTIFIER, 4, 2),
-//         tok.SYMBOL_CLOSE_PAREN,
-//         tok.SYMBOL_COLON,
-//     });
+test "Lex delimiters and identifiers" {
+    // Delimiters , . = : and identifiers.
+    // (a, bb):"
+    // 01234567
+    try testLexToken("(a, bb):", &[_]Token{
+        tok.GRP_OPEN_PAREN,
+        tok.identifier(0, 1),
+        tok.nextAlt(tok.SEP_COMMA),
+        tok.identifier(1, 2),
+        tok.GRP_CLOSE_PAREN,
+        tok.nextAlt(tok.OP_COLON_ASSOC),
+    }, null);
+}
+
+// test "Lex assignment" {
+//     try testLexToken("a = 1", &[_]Token{
+//         tok.identifier(0, 1),
+//         tok.OP_ASSIGN_EQ,
+//         tok.numberLiteral(2, 1),
+//     }, null);
 // }
 
 // test "Lex string" {
