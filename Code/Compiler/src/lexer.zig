@@ -20,6 +20,8 @@ const MULTICHAR_SYMBOLS = "!*+-/<=>";
 const MULTICHAR_BITSET = bitset.character_bitset(MULTICHAR_SYMBOLS); // All of these chars are < 64, so truncate. TODO: Verify shift.
 const MULTICHAR_KEYWORD_COUNT = MULTICHAR_SYMBOLS.len; // 7
 const SYMBOLS = bitset.character_bitset("%()*+,-./:<=>[]^{|}"); // "%()*+,-./:;<=>?[]^{|}"
+const IDENTIFIER_DELIIMITERS = bitset.character_bitset("()[]{}\"'.,:;\t\n%*+-/^<=>");
+const IDENTIFIER_DELIIMITERS_WITH_SPACE = bitset.character_bitset("()[]{}\"'.,:;\t\n%*+-/^<=> ");
 
 const DEBUG = false;
 
@@ -259,7 +261,23 @@ pub const Lexer = struct {
     }
 
     fn seek_till_identifier_delimiter(self: *Lexer) void {
-        while (self.index < self.buffer.len and !is_identifier_delimiter(self.buffer[self.index])) : (self.index += 1) {}
+        while (self.index < self.buffer.len) {
+            const ch = self.buffer[self.index];
+            if (IDENTIFIER_DELIIMITERS.isSet(ch)) {
+                break;
+            } else if (ch == ' ') {
+                self.index += 1; // Single space is allowed as a separator in identifiers.
+                const peekCh = self.peek_ch();
+                // Double-space is not allowed.
+                // Trailing spaces before other separators/end of buffer are ignored as well.
+                if (peekCh == 0 or IDENTIFIER_DELIIMITERS_WITH_SPACE.isSet(peekCh)) {
+                    self.index -= 1; // Rewind and ignore this space.
+                    break;
+                }
+            } else {
+                self.index += 1;
+            }
+        }
     }
 
     fn token_identifier(self: *Lexer) !void {
@@ -600,13 +618,37 @@ test "Lex delimiters and identifiers" {
     }, null);
 }
 
-// test "Lex assignment" {
-//     try testLexToken("a = 1", &[_]Token{
-//         tok.identifier(0, 1),
-//         tok.OP_ASSIGN_EQ,
-//         tok.numberLiteral(2, 1),
-//     }, null);
-// }
+test "Lex assignment" {
+    try testLexToken("a = 1", &[_]Token{
+        tok.nextAlt(tok.identifier(0, 1)),
+        tok.nextAlt(tok.OP_ASSIGN_EQ),
+        tok.nextAlt(tok.numberLiteral(1, 1)),
+    }, null);
+}
+
+test "Identifier with space" {
+    // Should get lexed as a single token
+    try testLexToken("hello world", &[_]Token{
+        tok.nextAlt(tok.identifier(0, 11)),
+    }, null);
+}
+
+test "Identifier with trailing space" {
+    // Should get lexed as a single token
+    try testLexToken("hello world ", &[_]Token{
+        tok.nextAlt(tok.identifier(0, 11)),
+    }, null);
+}
+
+test "Multiple multipart identifiers" {
+    // Should get lexed as a single token
+    // Should get parsed as identifier "a b c" + "+" + identifier "cd ef"
+    try testLexToken("a b c + cd efg", &[_]Token{
+        tok.nextAlt(tok.identifier(0, 5)),
+        tok.nextAlt(tok.OP_ADD),
+        tok.nextAlt(tok.identifier(1, 6)),
+    }, null);
+}
 
 // test "Lex string" {
 //     // "Hello"
