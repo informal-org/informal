@@ -260,6 +260,17 @@ pub const Lexer = struct {
         while (self.index < self.buffer.len and self.buffer[self.index] != ch[0]) : (self.index += 1) {}
     }
 
+    fn push_identifier(self: *Lexer, start: u32) u64 {
+        // Max identifier length.
+        if (self.index - start > 255) {
+            unreachable;
+        }
+        const name = self.buffer[start..self.index];
+        const constIdxEntry = self.symbolTable.getOrPutValue(name, self.symbolTable.count()) catch unreachable;
+        const constIdx: u64 = constIdxEntry.value_ptr.*;
+        return constIdx;
+    }
+
     fn seek_till_identifier_delimiter(self: *Lexer) void {
         while (self.index < self.buffer.len) {
             const ch = self.buffer[self.index];
@@ -268,10 +279,22 @@ pub const Lexer = struct {
             } else if (ch == ' ') {
                 self.index += 1; // Single space is allowed as a separator in identifiers.
                 const peekCh = self.peek_ch();
-                // Double-space is not allowed.
-                // Trailing spaces before other separators/end of buffer are ignored as well.
+                // Check to prevent double-space in identifiers (not allowed)
+                // Trailing spaces before other separators/end of buffer are disallowed as well.
                 if (peekCh == 0 or IDENTIFIER_DELIIMITERS_WITH_SPACE.isSet(peekCh)) {
                     self.index -= 1; // Rewind and ignore this space.
+                    break; // Break to main loop.
+                }
+
+                // Space followed by TWO or more uppercase characters is an operator.
+                if (peekCh >= 'A' and peekCh <= 'Z') {
+                    self.index += 1;
+                    const peekCh2 = self.peek_ch();
+                    // Multiple uppercase characters denote an operator.
+                    if (peekCh2 >= 'A' and peekCh2 <= 'Z') {
+                        // This is an operator. Rewind to before the space.
+                        self.index -= 2;
+                    }
                     break;
                 }
             } else {
@@ -281,30 +304,126 @@ pub const Lexer = struct {
     }
 
     fn token_identifier(self: *Lexer) !void {
-        // TODO: Validate characters.
         // First char is known to not be a number.
-        const start = self.index;
-        const ch = self.buffer[self.index];
-        _ = ch;
-        // // Capture single-character delimiters or symbols.
-        // if (Lexer.is_delimiter(ch)) {
-        //     self.index += 1;
-        //     return val.createSymbol(ch);
-        // }
-
         // Non digit or symbol start, so interpret as an identifier.
+        const start = self.index;
         _ = self.seek_till_identifier_delimiter();
-
-        // Max identifier length.
-        if (self.index - start > 255) {
-            unreachable;
-        }
-        const name = self.buffer[start..self.index];
-        const len: u24 = @truncate(self.index - start);
-
-        const constIdxEntry = self.symbolTable.getOrPutValue(name, self.symbolTable.count()) catch unreachable;
-        const constIdx: u64 = constIdxEntry.value_ptr.*;
+        const len = self.index - start;
+        const constIdx = self.push_identifier(start);
         try self.emitToken(tok.identifier(@truncate(constIdx), @truncate(len)));
+        try self.maybe_user_op_after_identifier();
+    }
+
+    fn seek_upperend(self: *Lexer) bool {
+        var containsLowercase = false;
+        while (self.index < self.buffer.len) {
+            const ch = self.buffer[self.index];
+            switch (ch) {
+                ' ' => {
+                    break;
+                },
+                'A'...'Z', '_' => {},
+                else => {
+                    containsLowercase = true;
+                },
+            }
+            self.index += 1;
+        }
+        return containsLowercase;
+    }
+
+    // Tokens which may start with an uppercase letter.
+    // CONSTANTS - Uppercase with no spaces.
+    // Operators - like AND, OR, NOT, etc. No spaces. Must be a unary op or previous token is an identifier.
+    // Types - like Int, Float, String, CamelCase etc. No spaces.
+    fn token_upperstart(self: *Lexer, prevIdentifier: bool) !void {
+        const start = self.index;
+
+        // To distinguish the three cases.
+        // If the entire token is uppercase AND the previous token is an identifier, it's an operator.
+        // Emit special tokens for AND, OR, NOT by explicitly checking for those cases.
+        // Else, all uppercase tokens are constants.
+        // Tokens that start with an uppercase and have atleast one lowercase letter are types.
+        // Treat single uppercase characters as constants. TBD...
+        const containsLowercase = self.seek_upperend();
+        const value = self.buffer[start..self.index];
+        const len = self.index - start;
+        if (len == 2) {
+            // Possibilities: AS, IN, IS, OR,
+            switch (value[0]) {
+                'A' => {
+                    if (value[1] == 'S') {
+                        try self.emitToken(tok.OP_AS);
+                        return;
+                    }
+                },
+                'I' => {
+                    if (value[1] == 'N') {
+                        try self.emitToken(tok.OP_IN);
+                        return;
+                    }
+                    if (value[1] == 'S') {
+                        try self.emitToken(tok.OP_IS);
+                        return;
+                    }
+                },
+                'O' => {
+                    if (value[1] == 'R') {
+                        try self.emitToken(tok.OP_OR);
+                        return;
+                    }
+                },
+                else => {
+                    // Not a built-in special case op. Handle below.
+                },
+            }
+        } else if (len == 3) {
+            if (std.mem.eql(u8, value, "AND")) {
+                try self.emitToken(tok.OP_AND);
+                return;
+            } else if (std.mem.eql(u8, value, "NOT")) {
+                try self.emitToken(tok.OP_NOT);
+                return;
+            }
+        }
+        // Not a built-in special-case operator.
+        if (containsLowercase) {
+            // Types contain atleast one lowercase letter.
+            const constIdx = self.push_identifier(start);
+            try self.emitToken(tok.type_identifier(@truncate(constIdx), @truncate(len)));
+        } else {
+            // Constant or operator, depending on previous token.
+            if (prevIdentifier) {
+                const constIdx = self.push_identifier(start);
+                try self.emitToken(tok.op_identifier(@truncate(constIdx), @truncate(len)));
+            } else {
+                const constIdx = self.push_identifier(start);
+                try self.emitToken(tok.const_identifier(@truncate(constIdx), @truncate(len)));
+            }
+        }
+    }
+
+    // Uppercase operators immediately after an identifier have special meaning as user-defined operators.
+    // It is a contextual rule, but provides flexibility for user-defined operators.
+    fn maybe_user_op_after_identifier(self: *Lexer) !void {
+        if (self.index < self.buffer.len) {
+            const ch = self.buffer[self.index];
+            if (ch == ' ') {
+                const start = self.index;
+                self.gobble_ch(' ');
+                const len = self.index - start;
+                try self.emitAux(tok.range(Token.Kind.aux_whitespace, start, @truncate(len)));
+            }
+        }
+        if (self.index < self.buffer.len) {
+            const ch = self.buffer[self.index];
+            switch (ch) {
+                'A'...'Z' => {
+                    try self.token_upperstart(true);
+                },
+                else => {}, // Handle everything else in the main switch.
+            }
+        }
     }
 
     // fn deinit(self: *Lexer) void {
@@ -439,6 +558,9 @@ pub const Lexer = struct {
                 },
                 '0'...'9' => {
                     try self.token_number();
+                },
+                'A'...'Z' => {
+                    try self.token_upperstart(false);
                 },
                 '"' => {
                     try self.token_string();
@@ -647,6 +769,43 @@ test "Multiple multipart identifiers" {
         tok.nextAlt(tok.identifier(0, 5)),
         tok.nextAlt(tok.OP_ADD),
         tok.nextAlt(tok.identifier(1, 6)),
+    }, null);
+}
+
+// Another option is for us to just treat multiple spaces the same as a single space, but this is stricter.
+test "Multiple consecutive spaces in identifier" {
+    // Should treat multiple spaces as a delimiter
+    try testLexToken("hello  world", &[_]Token{
+        tok.nextAlt(tok.identifier(0, 5)), // Should only capture "hello"
+        tok.nextAlt(tok.identifier(1, 5)), // Should capture "world" separately
+    }, null);
+}
+
+test "Identifiers with operator separators" {
+    try testLexToken("aa OR bb", &[_]Token{
+        tok.nextAlt(tok.identifier(0, 2)),
+        tok.nextAlt(tok.OP_OR),
+        tok.nextAlt(tok.identifier(1, 2)),
+    }, null);
+}
+
+test "Lex type" {
+    try testLexToken("HelloWorld", &[_]Token{
+        tok.nextAlt(tok.type_identifier(0, 10)),
+    }, null);
+}
+
+test "Lex constant" {
+    try testLexToken("HELLO_WORLD", &[_]Token{
+        tok.nextAlt(tok.const_identifier(0, 11)),
+    }, null);
+}
+
+test "Lex non-builtin operator" {
+    try testLexToken("aa SOME_OP bbb", &[_]Token{
+        tok.nextAlt(tok.identifier(0, 2)),
+        tok.nextAlt(tok.op_identifier(1, 7)),
+        tok.nextAlt(tok.identifier(2, 3)),
     }, null);
 }
 

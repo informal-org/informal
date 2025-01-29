@@ -73,6 +73,9 @@ pub const Token = packed struct(u64) {
         sep_newline,
 
         identifier,
+        op_identifier,
+        const_identifier,
+        type_identifier,
         lit_string,
         lit_bool,
         lit_number,
@@ -158,6 +161,18 @@ pub fn identifier(offset: u32, len: u24) Token {
     return Token{ .kind = Token.Kind.identifier, .data = Token.Data{ .range = Token.Range{ .length = len, .offset = offset } } };
 }
 
+pub fn op_identifier(offset: u32, len: u24) Token {
+    return Token{ .kind = Token.Kind.op_identifier, .data = Token.Data{ .range = Token.Range{ .length = len, .offset = offset } } };
+}
+
+pub fn const_identifier(offset: u32, len: u24) Token {
+    return Token{ .kind = Token.Kind.const_identifier, .data = Token.Data{ .range = Token.Range{ .length = len, .offset = offset } } };
+}
+
+pub fn type_identifier(offset: u32, len: u24) Token {
+    return Token{ .kind = Token.Kind.type_identifier, .data = Token.Data{ .range = Token.Range{ .length = len, .offset = offset } } };
+}
+
 // auxToken -> rangeToken
 pub fn range(kind: Token.Kind, offset: u32, len: u24) Token {
     return Token{ .kind = kind, .data = Token.Data{ .range = Token.Range{ .length = len, .offset = offset } } };
@@ -199,6 +214,7 @@ pub const OP_GT = createToken(Token.Kind.op_gt);
 pub const OP_LTE = createToken(Token.Kind.op_lte);
 pub const OP_GTE = createToken(Token.Kind.op_gte);
 pub const OP_ASSIGN_EQ = createToken(Token.Kind.op_assign_eq);
+pub const OP_AS = createToken(Token.Kind.op_as);
 pub const OP_IN = createToken(Token.Kind.op_in);
 pub const OP_IS = createToken(Token.Kind.op_is);
 pub const OP_IS_NOT = createToken(Token.Kind.op_is_not);
