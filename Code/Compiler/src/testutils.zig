@@ -3,7 +3,7 @@ const std = @import("std");
 const q = @import("queue.zig");
 
 // const Token = tok.Token;
-const LexToken = tok.LexToken;
+const LexToken = tok.Token;
 const TokenWriter = tok.TokenWriter;
 pub const TokenQueue = q.Queue(LexToken, tok.AUX_STREAM_END);
 const print = std.debug.print;

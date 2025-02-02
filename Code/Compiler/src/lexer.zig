@@ -6,9 +6,9 @@ const bitset = @import("bitset.zig");
 
 const print = std.debug.print;
 
-const LexToken = tok.LexToken;
+const Token = tok.Token;
 const TK = tok.Kind;
-pub const TokenQueue = q.Queue(LexToken, tok.AUX_STREAM_END);
+pub const TokenQueue = q.Queue(Token, tok.AUX_STREAM_END);
 
 const SYNTAX_Q: u1 = 0;
 const AUX_Q: u1 = 1;
@@ -52,7 +52,7 @@ pub const Lexer = struct {
     auxQ: *TokenQueue,
     QIdx: [2]u32, // How many tokens we've emitted to each queue for cross-references.
 
-    prevToken: LexToken,
+    prevToken: Token,
     index: u32, // Char scan index into this chunk.
     lineQIndex: u32, // syntaxIndex of the previous newline. Newlines have an offset index to the previous.
     lineChStart: u32, // Character index where this line started. For ch offset calculations.
@@ -129,14 +129,14 @@ pub const Lexer = struct {
     }
 
     // Newlines and numbers have some special behavior.
-    fn emitAux(self: *Lexer, v: LexToken) !void {
+    fn emitAux(self: *Lexer, v: Token) !void {
         // Emit the previous token and then queue up this one.
         try self.flushPrev(false);
         self.prevToken = v;
         self.QIdx[AUX_Q] += 1;
     }
 
-    fn emitToken(self: *Lexer, v: LexToken) !void {
+    fn emitToken(self: *Lexer, v: Token) !void {
         try self.flushPrev(true);
         self.prevToken = v;
         self.QIdx[SYNTAX_Q] += 1;
@@ -164,10 +164,10 @@ pub const Lexer = struct {
         const prevOffset = self.QIdx[SYNTAX_Q] - self.lineQIndex; // Soft assumption - max 65k tokens per line.
         const auxIndex = self.QIdx[AUX_Q] + 1;
 
-        const syntaxNewLine = LexToken.build(tok.Kind.sep_newline, auxIndex, @truncate(prevOffset));
+        const syntaxNewLine = Token.lex(tok.Kind.sep_newline, auxIndex, @truncate(prevOffset));
         try self.emitToken(syntaxNewLine);
 
-        try self.emitAux(LexToken.build(TK.aux_newline, self.index, self.lineNo));
+        try self.emitAux(Token.lex(TK.aux_newline, self.index, self.lineNo));
         self.lineQIndex = self.QIdx[SYNTAX_Q];
         self.lineNo += 1;
         self.index += 1;
@@ -201,10 +201,10 @@ pub const Lexer = struct {
             // Add it to the numeric constant pool
             const constIdxEntry = self.internedNumbers.getOrPutValue(value, self.internedNumbers.count()) catch unreachable;
             const constIdx: u64 = constIdxEntry.value_ptr.*;
-            try self.emitToken(LexToken.build(TK.lit_number, @truncate(constIdx), 0));
+            try self.emitToken(Token.lex(TK.lit_number, @truncate(constIdx), 0));
         } else {
             // Emit it as an immediate value.
-            try self.emitToken(LexToken.build(TK.lit_number, @truncate(value), @truncate(len)));
+            try self.emitToken(Token.lex(TK.lit_number, @truncate(value), @truncate(len)));
         }
     }
 
@@ -229,7 +229,7 @@ pub const Lexer = struct {
         }
         const constIdxEntry = self.internedStrings.getOrPutValue(self.buffer[tokenStart..self.index], self.internedStrings.count()) catch unreachable;
         const constIdx: u64 = constIdxEntry.value_ptr.*;
-        try self.emitToken(LexToken.build(TK.lit_string, @truncate(constIdx), @truncate(tokenLen)));
+        try self.emitToken(Token.lex(TK.lit_string, @truncate(constIdx), @truncate(tokenLen)));
         // try self.emitToken(tok.stringLiteral(tokenStart, @truncate(tokenLen)));
     }
 
@@ -313,7 +313,7 @@ pub const Lexer = struct {
         _ = self.seek_till_identifier_delimiter();
         const len = self.index - start;
         const constIdx = self.push_identifier(start);
-        try self.emitToken(LexToken.build(TK.identifier, @truncate(constIdx), @truncate(len)));
+        try self.emitToken(Token.lex(TK.identifier, @truncate(constIdx), @truncate(len)));
         try self.maybe_user_op_after_identifier();
     }
 
@@ -354,7 +354,7 @@ pub const Lexer = struct {
         if (containsLowercase) {
             // Types contain atleast one lowercase letter.
             const constIdx = self.push_identifier(start);
-            try self.emitToken(LexToken.build(TK.type_identifier, @truncate(constIdx), @truncate(len)));
+            try self.emitToken(Token.lex(TK.type_identifier, @truncate(constIdx), @truncate(len)));
         } else {
             // None of the built-in infix-operators contain lowercase letters.
             // StaticStringMap is another option for doing this if the number of keywords grows large.
@@ -400,10 +400,10 @@ pub const Lexer = struct {
             // Constant or operator, depending on previous token.
             if (prevIdentifier) {
                 const constIdx = self.push_identifier(start);
-                try self.emitToken(LexToken.build(TK.op_identifier, @truncate(constIdx), @truncate(len)));
+                try self.emitToken(Token.lex(TK.op_identifier, @truncate(constIdx), @truncate(len)));
             } else {
                 const constIdx = self.push_identifier(start);
-                try self.emitToken(LexToken.build(TK.const_identifier, @truncate(constIdx), @truncate(len)));
+                try self.emitToken(Token.lex(TK.const_identifier, @truncate(constIdx), @truncate(len)));
             }
         }
     }
@@ -417,7 +417,7 @@ pub const Lexer = struct {
                 const start = self.index;
                 self.gobble_ch(' ');
                 const len = self.index - start;
-                try self.emitAux(LexToken.build(TK.aux_whitespace, start, @truncate(len)));
+                try self.emitAux(Token.lex(TK.aux_whitespace, start, @truncate(len)));
             }
         }
         if (self.index < self.buffer.len) {
@@ -547,12 +547,12 @@ pub const Lexer = struct {
                         const start = self.index;
                         self.gobble_ch(' ');
                         const len = self.index - start;
-                        try self.emitAux(LexToken.build(TK.aux_whitespace, start, @truncate(len)));
+                        try self.emitAux(Token.lex(TK.aux_whitespace, start, @truncate(len)));
                     }
                 },
                 '\t' => {
                     // Tabs have no power here! We use spaces exclusively.
-                    try self.emitAux(LexToken.build(TK.aux_indentation, self.index, 1));
+                    try self.emitAux(Token.lex(TK.aux_indentation, self.index, 1));
                     self.index += 1;
                 },
                 '\n' => {
@@ -642,7 +642,7 @@ const testutils = @import("testutils.zig");
 const testTokenEquals = testutils.testTokenEquals;
 const testQueueEquals = testutils.testQueueEquals;
 
-pub fn testLexToken(buffer: []const u8, expected: []const LexToken, aux: ?[]const LexToken) !void {
+pub fn testToken(buffer: []const u8, expected: []const Token, aux: ?[]const Token) !void {
     // print("\nTest Lex Token: {s}\n", .{buffer});
     // defer print("\n--------------------------------------------------------------\n", .{});
 
@@ -671,32 +671,32 @@ pub fn testLexToken(buffer: []const u8, expected: []const LexToken, aux: ?[]cons
 }
 
 test "Token equality" {
-    const auxtok_bits: u64 = @bitCast(LexToken.build(TK.aux_stream_end, 3, 5));
+    const auxtok_bits: u64 = @bitCast(Token.lex(TK.aux_stream_end, 3, 5));
     const le_expected_bits: u64 = 0x000005_00000003_ff_00;
     try expect(auxtok_bits == le_expected_bits);
 
-    const other_bits: u64 = @bitCast(LexToken.build(TK.aux, 10, 20));
+    const other_bits: u64 = @bitCast(Token.lex(TK.aux, 10, 20));
     try expect(other_bits != le_expected_bits);
 
-    const numtok: u64 = @bitCast(LexToken.build(TK.lit_number, 0, 1));
-    const numother: u64 = @bitCast(LexToken.build(TK.lit_number, 5, 10));
+    const numtok: u64 = @bitCast(Token.lex(TK.lit_number, 0, 1));
+    const numother: u64 = @bitCast(Token.lex(TK.lit_number, 5, 10));
     try expect(numtok != numother);
 }
 
 test "Lex digits" {
-    try testLexToken("1 2 3", &[_]LexToken{
-        LexToken.build(TK.lit_number, 1, 1).nextAlt(),
-        LexToken.build(TK.lit_number, 2, 1).nextAlt(),
-        LexToken.build(TK.lit_number, 3, 1).nextAlt(),
-    }, &[_]LexToken{ tok.AUX_STREAM_START.nextAlt(), LexToken.build(TK.aux_whitespace, 1, 1).nextAlt(), LexToken.build(TK.aux_whitespace, 3, 1).nextAlt(), tok.AUX_STREAM_END });
+    try testToken("1 2 3", &[_]Token{
+        Token.lex(TK.lit_number, 1, 1).nextAlt(),
+        Token.lex(TK.lit_number, 2, 1).nextAlt(),
+        Token.lex(TK.lit_number, 3, 1).nextAlt(),
+    }, &[_]Token{ tok.AUX_STREAM_START.nextAlt(), Token.lex(TK.aux_whitespace, 1, 1).nextAlt(), Token.lex(TK.aux_whitespace, 3, 1).nextAlt(), tok.AUX_STREAM_END });
 }
 
 // test "Lex operator" {
-//     try testLexToken("1+3", &[_]LexToken{ LexToken.build(TK.lit_number, 1, 1), tok.OP_ADD, tok.nextAlt(LexToken.build(TK.lit_number, 3, 1)) }, &[_]LexToken{ tok.nextAlt(tok.AUX_STREAM_START), tok.AUX_STREAM_END });
+//     try testToken("1+3", &[_]Token{ Token.lex(TK.lit_number, 1, 1), tok.OP_ADD, tok.nextAlt(Token.lex(TK.lit_number, 3, 1)) }, &[_]Token{ tok.nextAlt(tok.AUX_STREAM_START), tok.AUX_STREAM_END });
 // }
 
 fn testSymbol(buf: []const u8, kind: TK) !void {
-    try testLexToken(buf, &[_]LexToken{tok.createToken(kind).nextAlt()}, &[_]LexToken{ tok.AUX_STREAM_START.nextAlt(), tok.AUX_STREAM_END });
+    try testToken(buf, &[_]Token{tok.createToken(kind).nextAlt()}, &[_]Token{ tok.AUX_STREAM_START.nextAlt(), tok.AUX_STREAM_END });
 }
 
 test "Lex symbols" {
@@ -729,89 +729,89 @@ test "Lex symbols" {
 // //     var lexer = Lexer.init("1 2 3", syntaxQ, auxQ);
 // //     //try expect(lexer.lex() == 1);
 // //     //  01234
-// //     // try testLexToken("1 2 3", &[_]u64{ 1, 2, 3 });
+// //     // try testToken("1 2 3", &[_]u64{ 1, 2, 3 });
 // // }
 
 test "Lex delimiters and identifiers" {
     // Delimiters , . = : and identifiers.
     // (a, bb):"
     // 01234567
-    try testLexToken("(a, bb):", &[_]LexToken{
+    try testToken("(a, bb):", &[_]Token{
         tok.createToken(TK.grp_open_paren),
-        LexToken.build(TK.identifier, 0, 1),
+        Token.lex(TK.identifier, 0, 1),
         tok.createToken(TK.sep_comma).nextAlt(),
-        LexToken.build(TK.identifier, 1, 2),
+        Token.lex(TK.identifier, 1, 2),
         tok.createToken(TK.grp_close_paren),
         tok.createToken(TK.op_colon_assoc).nextAlt(),
     }, null);
 }
 
 test "Lex assignment" {
-    try testLexToken("a = 1", &[_]LexToken{
-        LexToken.build(TK.identifier, 0, 1).nextAlt(),
+    try testToken("a = 1", &[_]Token{
+        Token.lex(TK.identifier, 0, 1).nextAlt(),
         tok.createToken(TK.op_assign_eq).nextAlt(),
-        LexToken.build(TK.lit_number, 1, 1).nextAlt(),
+        Token.lex(TK.lit_number, 1, 1).nextAlt(),
     }, null);
 }
 
 test "Identifier with space" {
     // Should get lexed as a single token
-    try testLexToken("hello world", &[_]LexToken{
-        LexToken.build(TK.identifier, 0, 11).nextAlt(),
+    try testToken("hello world", &[_]Token{
+        Token.lex(TK.identifier, 0, 11).nextAlt(),
     }, null);
 }
 
 test "Identifier with trailing space" {
     // Should get lexed as a single token
-    try testLexToken("hello world ", &[_]LexToken{
-        LexToken.build(TK.identifier, 0, 11).nextAlt(),
+    try testToken("hello world ", &[_]Token{
+        Token.lex(TK.identifier, 0, 11).nextAlt(),
     }, null);
 }
 
 test "Multiple multipart identifiers" {
     // Should get lexed as a single token
     // Should get parsed as identifier "a b c" + "+" + identifier "cd ef"
-    try testLexToken("a b c + cd efg", &[_]LexToken{
-        LexToken.build(TK.identifier, 0, 5).nextAlt(),
+    try testToken("a b c + cd efg", &[_]Token{
+        Token.lex(TK.identifier, 0, 5).nextAlt(),
         tok.createToken(TK.op_add).nextAlt(),
-        LexToken.build(TK.identifier, 1, 6).nextAlt(),
+        Token.lex(TK.identifier, 1, 6).nextAlt(),
     }, null);
 }
 
 // Another option is for us to just treat multiple spaces the same as a single space, but this is stricter.
 test "Multiple consecutive spaces in identifier" {
     // Should treat multiple spaces as a delimiter
-    try testLexToken("hello  world", &[_]LexToken{
-        LexToken.build(TK.identifier, 0, 5).nextAlt(), // Should only capture "hello"
-        LexToken.build(TK.identifier, 1, 5).nextAlt(), // Should capture "world" separately
+    try testToken("hello  world", &[_]Token{
+        Token.lex(TK.identifier, 0, 5).nextAlt(), // Should only capture "hello"
+        Token.lex(TK.identifier, 1, 5).nextAlt(), // Should capture "world" separately
     }, null);
 }
 
 test "Identifiers with operator separators" {
-    try testLexToken("aa OR bb", &[_]LexToken{
-        LexToken.build(TK.identifier, 0, 2).nextAlt(),
+    try testToken("aa OR bb", &[_]Token{
+        Token.lex(TK.identifier, 0, 2).nextAlt(),
         tok.createToken(TK.op_or).nextAlt(),
-        LexToken.build(TK.identifier, 1, 2).nextAlt(),
+        Token.lex(TK.identifier, 1, 2).nextAlt(),
     }, null);
 }
 
 test "Lex type" {
-    try testLexToken("HelloWorld", &[_]LexToken{
-        LexToken.build(TK.type_identifier, 0, 10).nextAlt(),
+    try testToken("HelloWorld", &[_]Token{
+        Token.lex(TK.type_identifier, 0, 10).nextAlt(),
     }, null);
 }
 
 test "Lex constant" {
-    try testLexToken("HELLO_WORLD", &[_]LexToken{
-        LexToken.build(TK.const_identifier, 0, 11).nextAlt(),
+    try testToken("HELLO_WORLD", &[_]Token{
+        Token.lex(TK.const_identifier, 0, 11).nextAlt(),
     }, null);
 }
 
 test "Lex non-builtin operator" {
-    try testLexToken("aa SOME_OP bbb", &[_]LexToken{
-        LexToken.build(TK.identifier, 0, 2).nextAlt(),
-        LexToken.build(TK.op_identifier, 1, 7).nextAlt(),
-        LexToken.build(TK.identifier, 2, 3).nextAlt(),
+    try testToken("aa SOME_OP bbb", &[_]Token{
+        Token.lex(TK.identifier, 0, 2).nextAlt(),
+        Token.lex(TK.op_identifier, 1, 7).nextAlt(),
+        Token.lex(TK.identifier, 2, 3).nextAlt(),
     }, null);
 }
 
@@ -820,7 +820,7 @@ test "Lex non-builtin operator" {
 // test "Lex string" {
 //     // "Hello"
 //     // 0123456
-//     try testLexToken("\"Hello\"", &[_]u64{
+//     try testToken("\"Hello\"", &[_]u64{
 //         val.createStringPtr(1, 5), // Doesn't include quotes.
 //     });
 // }
@@ -836,7 +836,7 @@ test "Lex non-builtin operator" {
 //         \\       d
 //         \\  b3
 //     ;
-//     try testLexToken(source, &[_]u64{
+//     try testToken(source, &[_]u64{
 //         val.createObject(tok.T_IDENTIFIER, 0, 1), // a
 //         tok.SYMBOL_NEWLINE,
 //         tok.SYMBOL_INDENT,

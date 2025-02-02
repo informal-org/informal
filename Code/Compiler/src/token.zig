@@ -119,15 +119,6 @@ pub const Data = packed union {
     triple: Triple,
 };
 
-pub const AuxData = packed struct(u56) {
-    index: u32,
-    range: u24,
-
-    pub fn build(index: u32, range: u24) AuxData {
-        return AuxData{ .index = index, .range = range };
-    }
-};
-
 pub const Flags = packed struct(u8) {
     alt: bool = false, // Indicates the next token is in the other queue.
     _reserved: u7 = 0,
@@ -138,38 +129,22 @@ pub const Flags = packed struct(u8) {
         };
     }
 };
-// pub const Aux = packed union { raw: u8, flags: Flags };
 
-// Basic token type used through most layers.
 pub const Token = packed struct(u64) {
-    data: Data,
-    op: Kind,
-    aux: u8,
-
-    pub fn build(kind: Kind, data: Data) Token {
-        return Token{
-            .op = kind,
-            .data = data,
-            .aux = Flags{ .alt = false },
-        };
-    }
-};
-
-pub const LexToken = packed struct(u64) {
     aux: Flags,
     kind: Kind,
-    data: Data.Value,
+    data: Data,
 
-    pub fn build(kind: Kind, value: u32, offset: u16) LexToken {
-        return LexToken{
+    pub fn lex(kind: Kind, value: u32, offset: u16) Token {
+        return Token{
             .kind = kind,
-            .data = Data.Value{ .arg0 = value, .arg1 = offset },
+            .data = Data{ .value = .{ .arg0 = value, .arg1 = offset } },
             .aux = Flags.empty(),
         };
     }
 
-    pub fn nextAlt(self: LexToken) LexToken {
-        return LexToken{
+    pub fn nextAlt(self: Token) Token {
+        return Token{
             .kind = self.kind,
             .data = self.data,
             .aux = Flags{ .alt = true },
@@ -178,7 +153,7 @@ pub const LexToken = packed struct(u64) {
 };
 
 pub const TokenWriter = struct {
-    token: LexToken,
+    token: Token,
     buffer: []const u8,
 
     pub fn format(wrapper: TokenWriter, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
@@ -193,7 +168,7 @@ pub const TokenWriter = struct {
             TK.lit_number, TK.lit_string, TK.identifier => {
                 // Previous format where it referenced the buffer...
                 // try std.fmt.format(writer, "{s} {s} {s}", .{ buffer[value.data.range.offset .. value.data.range.offset + value.data.range.length], @tagName(value.kind), alt });
-                try std.fmt.format(writer, "{d} {s} {s}", .{ value.data.arg0, @tagName(value.kind), alt });
+                try std.fmt.format(writer, "{d} {s} {s}", .{ value.data.value.arg0, @tagName(value.kind), alt });
             },
             TK.aux, TK.aux_comment, TK.aux_whitespace, TK.aux_newline, TK.aux_indentation, TK.aux_stream_start, TK.aux_stream_end => {
                 try std.fmt.format(writer, "{s} {s}", .{ @tagName(value.kind), alt });
@@ -208,8 +183,8 @@ pub const TokenWriter = struct {
 pub const AUX_KIND_START: u6 = @intFromEnum(Kind.aux);
 pub const GROUPING_KIND_START: u6 = @intFromEnum(Kind.grp_close_brace); // First grouping token, reverse ascii.
 
-pub fn createToken(kind: Kind) LexToken {
-    return LexToken.build(kind, 0, 0);
+pub fn createToken(kind: Kind) Token {
+    return Token.lex(kind, 0, 0);
 }
 
 pub const OP_AND = createToken(Kind.op_and);
@@ -222,14 +197,14 @@ pub const OP_DOT_MEMBER = createToken(Kind.op_dot_member);
 pub const AUX_STREAM_START = createToken(Kind.aux_stream_start);
 pub const AUX_STREAM_END = createToken(Kind.aux_stream_end);
 
-pub fn print_token_queue(queue: []LexToken, buffer: []const u8) void {
+pub fn print_token_queue(queue: []Token, buffer: []const u8) void {
     print("Tokens: {d}\n", .{queue.len});
     for (queue) |token| {
         print_token("{any}\n", token, buffer);
     }
 }
 
-pub fn print_token(comptime fmt: []const u8, token: LexToken, buffer: []const u8) void {
+pub fn print_token(comptime fmt: []const u8, token: Token, buffer: []const u8) void {
     print(fmt, .{TokenWriter{ .token = token, .buffer = buffer }});
 }
 
@@ -359,7 +334,7 @@ const expectEqual = std.testing.expectEqual;
 
 test "Test token sizes" {
     try expect(@bitSizeOf(Token) == 64);
-    try expect(@bitSizeOf(LexToken) == 64);
+    try expect(@bitSizeOf(Token) == 64);
     // try expect(@bitSizeOf(Aux) == 64);
     // try expect(@bitSizeOf(AuxOrToken) == 128);
 }
