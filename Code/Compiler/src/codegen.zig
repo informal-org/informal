@@ -5,8 +5,9 @@ const parser = @import("parser.zig");
 const bitset = @import("bitset.zig");
 
 const Allocator = std.mem.Allocator;
-const Token = tok.Token;
-const TK = Token.Kind;
+// const Token = tok.Token;
+const LexToken = tok.LexToken;
+const TK = tok.Kind;
 const print = std.debug.print;
 const platform = @import("platform.zig");
 
@@ -63,7 +64,7 @@ pub const Codegen = struct {
         return reg;
     }
 
-    pub fn emitAll(self: *Self, tokenQueue: []Token) !void {
+    pub fn emitAll(self: *Self, tokenQueue: []LexToken) !void {
         var reg = arm.Reg.x0;
         for (tokenQueue) |token| {
             // try self.emit(token);
@@ -73,7 +74,7 @@ pub const Codegen = struct {
                     reg = self.getFreeReg();
                     self.pushReg(reg);
                     // const value = self.buffer[token.data.range.offset .. token.data.range.offset + token.data.range.length];
-                    const imm16: u16 = @truncate(token.data.range.offset);
+                    const imm16: u16 = @truncate(token.data.arg0);
                     // const imm16 = std.fmt.parseInt(u16, value, 10) catch unreachable;
                     try self.objCode.append(arm.movz(reg, imm16));
                 },

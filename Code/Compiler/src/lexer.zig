@@ -14,12 +14,15 @@ const SYNTAX_Q: u1 = 0;
 const AUX_Q: u1 = 1;
 
 const DELIMITERS = bitset.character_bitset("()[]{}\"'.,:; \t\n");
-const MULTICHAR_SYMBOLS = "!*+-/<=>";
+const MULTICHAR_SYMBOL_CHARS = "!*+-/<=>";
 // Microoptimization - the multichar bitset can fit in u64 since all of these are < 64.
 // Unclear if it's worth it without tests.
-const MULTICHAR_BITSET = bitset.character_bitset(MULTICHAR_SYMBOLS); // All of these chars are < 64, so truncate. TODO: Verify shift.
-const MULTICHAR_KEYWORD_COUNT = MULTICHAR_SYMBOLS.len; // 7
-const SYMBOLS = bitset.character_bitset("%()*+,-./:<=>[]^{|}"); // "%()*+,-./:;<=>?[]^{|}"
+const MULTICHAR_BITSET = bitset.character_bitset(MULTICHAR_SYMBOL_CHARS); // All of these chars are < 64, so truncate. TODO: Verify shift.
+const MULTICHAR_KEYWORD_COUNT = MULTICHAR_SYMBOL_CHARS.len; // 7
+const SYMBOL_CHARS = "%*+,-./:<=>^|";
+const SYMBOLS = bitset.character_bitset(SYMBOL_CHARS); // "%()*+,-./:;<=>?[]^{|}"
+const SYMBOL_KEYWORD_COUNT = SYMBOL_CHARS.len; // 8
+const GROUPING = bitset.character_bitset("()[]{}");
 const IDENTIFIER_DELIIMITERS = bitset.character_bitset("()[]{}\"'.,:;\t\n%*+-/^<=>");
 const IDENTIFIER_DELIIMITERS_WITH_SPACE = bitset.character_bitset("()[]{}\"'.,:;\t\n%*+-/^<=> ");
 
@@ -610,6 +613,10 @@ pub const Lexer = struct {
                         try self.emitToken(tok.createToken(tokKind));
                         // Index updated outside.
                         continue;
+                    } else if (GROUPING.isSet(ch)) {
+                        try self.emitToken(tok.createToken(bitset.chToKind(GROUPING, ch, tok.GROUPING_KIND_START)));
+                        self.index += 1;
+                        continue;
                     }
 
                     // TODO: Parse alphabetic keywords like if, for.
@@ -688,36 +695,36 @@ test "Lex digits" {
 //     try testLexToken("1+3", &[_]LexToken{ LexToken.build(TK.lit_number, 1, 1), tok.OP_ADD, tok.nextAlt(LexToken.build(TK.lit_number, 3, 1)) }, &[_]LexToken{ tok.nextAlt(tok.AUX_STREAM_START), tok.AUX_STREAM_END });
 // }
 
-// fn testSymbol(buf: []const u8, kind: TK) !void {
-//     try testLexToken(buf, &[_]LexToken{tok.nextAlt(tok.createToken(kind))}, &[_]LexToken{ tok.nextAlt(tok.AUX_STREAM_START), tok.AUX_STREAM_END });
-// }
+fn testSymbol(buf: []const u8, kind: TK) !void {
+    try testLexToken(buf, &[_]LexToken{tok.createToken(kind).nextAlt()}, &[_]LexToken{ tok.AUX_STREAM_START.nextAlt(), tok.AUX_STREAM_END });
+}
 
-// test "Lex symbols" {
-//     // These are mapped by ascii-order, so sensitive to adding new tokens in between.
-//     // If you add or remove a symbol, ensure the lexer.SYMBOLS constant is also updated
-//     // "%()*+,-./:<=>[]^{|}"
-//     // const TK = TK;
+test "Lex symbols" {
+    // These are mapped by ascii-order, so sensitive to adding new tokens in between.
+    // If you add or remove a symbol, ensure the lexer.SYMBOLS constant is also updated
+    // "%()*+,-./:<=>[]^{|}"
+    // const TK = TK;
 
-//     try testSymbol("%", TK.op_mod);
-//     try testSymbol("(", TK.grp_open_paren);
-//     try testSymbol(")", TK.grp_close_paren);
-//     try testSymbol("*", TK.op_mul);
-//     try testSymbol("+", TK.op_add);
-//     try testSymbol(",", TK.sep_comma);
-//     try testSymbol("-", TK.op_sub);
-//     try testSymbol(".", TK.op_dot_member);
-//     try testSymbol("/", TK.op_div);
-//     try testSymbol(":", TK.op_colon_assoc);
-//     try testSymbol("<", TK.op_lt);
-//     try testSymbol("=", TK.op_assign_eq);
-//     try testSymbol(">", TK.op_gt);
-//     try testSymbol("[", TK.grp_open_bracket);
-//     try testSymbol("]", TK.grp_close_bracket);
-//     try testSymbol("^", TK.op_pow);
-//     try testSymbol("{", TK.grp_open_brace);
-//     try testSymbol("|", TK.op_choice);
-//     try testSymbol("}", TK.grp_close_brace);
-// }
+    try testSymbol("%", TK.op_mod);
+    try testSymbol("(", TK.grp_open_paren);
+    try testSymbol(")", TK.grp_close_paren);
+    try testSymbol("*", TK.op_mul);
+    try testSymbol("+", TK.op_add);
+    try testSymbol(",", TK.sep_comma);
+    try testSymbol("-", TK.op_sub);
+    try testSymbol(".", TK.op_dot_member);
+    try testSymbol("/", TK.op_div);
+    try testSymbol(":", TK.op_colon_assoc);
+    try testSymbol("<", TK.op_lt);
+    try testSymbol("=", TK.op_assign_eq);
+    try testSymbol(">", TK.op_gt);
+    try testSymbol("[", TK.grp_open_bracket);
+    try testSymbol("]", TK.grp_close_bracket);
+    try testSymbol("^", TK.op_pow);
+    try testSymbol("{", TK.grp_open_brace);
+    try testSymbol("|", TK.op_choice);
+    try testSymbol("}", TK.grp_close_brace);
+}
 
 // //     var lexer = Lexer.init("1 2 3", syntaxQ, auxQ);
 // //     //try expect(lexer.lex() == 1);
@@ -725,88 +732,88 @@ test "Lex digits" {
 // //     // try testLexToken("1 2 3", &[_]u64{ 1, 2, 3 });
 // // }
 
-// test "Lex delimiters and identifiers" {
-//     // Delimiters , . = : and identifiers.
-//     // (a, bb):"
-//     // 01234567
-//     try testLexToken("(a, bb):", &[_]LexToken{
-//         tok.GRP_OPEN_PAREN,
-//         tok.identifier(0, 1),
-//         tok.nextAlt(tok.SEP_COMMA),
-//         tok.identifier(1, 2),
-//         tok.GRP_CLOSE_PAREN,
-//         tok.nextAlt(tok.OP_COLON_ASSOC),
-//     }, null);
-// }
+test "Lex delimiters and identifiers" {
+    // Delimiters , . = : and identifiers.
+    // (a, bb):"
+    // 01234567
+    try testLexToken("(a, bb):", &[_]LexToken{
+        tok.createToken(TK.grp_open_paren),
+        LexToken.build(TK.identifier, 0, 1),
+        tok.createToken(TK.sep_comma).nextAlt(),
+        LexToken.build(TK.identifier, 1, 2),
+        tok.createToken(TK.grp_close_paren),
+        tok.createToken(TK.op_colon_assoc).nextAlt(),
+    }, null);
+}
 
-// test "Lex assignment" {
-//     try testLexToken("a = 1", &[_]LexToken{
-//         tok.nextAlt(tok.identifier(0, 1)),
-//         tok.nextAlt(tok.OP_ASSIGN_EQ),
-//         tok.nextAlt(LexToken.build(TK.lit_number, 1, 1)),
-//     }, null);
-// }
+test "Lex assignment" {
+    try testLexToken("a = 1", &[_]LexToken{
+        LexToken.build(TK.identifier, 0, 1).nextAlt(),
+        tok.createToken(TK.op_assign_eq).nextAlt(),
+        LexToken.build(TK.lit_number, 1, 1).nextAlt(),
+    }, null);
+}
 
-// test "Identifier with space" {
-//     // Should get lexed as a single token
-//     try testLexToken("hello world", &[_]LexToken{
-//         tok.nextAlt(tok.identifier(0, 11)),
-//     }, null);
-// }
+test "Identifier with space" {
+    // Should get lexed as a single token
+    try testLexToken("hello world", &[_]LexToken{
+        LexToken.build(TK.identifier, 0, 11).nextAlt(),
+    }, null);
+}
 
-// test "Identifier with trailing space" {
-//     // Should get lexed as a single token
-//     try testLexToken("hello world ", &[_]LexToken{
-//         tok.nextAlt(tok.identifier(0, 11)),
-//     }, null);
-// }
+test "Identifier with trailing space" {
+    // Should get lexed as a single token
+    try testLexToken("hello world ", &[_]LexToken{
+        LexToken.build(TK.identifier, 0, 11).nextAlt(),
+    }, null);
+}
 
-// test "Multiple multipart identifiers" {
-//     // Should get lexed as a single token
-//     // Should get parsed as identifier "a b c" + "+" + identifier "cd ef"
-//     try testLexToken("a b c + cd efg", &[_]LexToken{
-//         tok.nextAlt(tok.identifier(0, 5)),
-//         tok.nextAlt(tok.OP_ADD),
-//         tok.nextAlt(tok.identifier(1, 6)),
-//     }, null);
-// }
+test "Multiple multipart identifiers" {
+    // Should get lexed as a single token
+    // Should get parsed as identifier "a b c" + "+" + identifier "cd ef"
+    try testLexToken("a b c + cd efg", &[_]LexToken{
+        LexToken.build(TK.identifier, 0, 5).nextAlt(),
+        tok.createToken(TK.op_add).nextAlt(),
+        LexToken.build(TK.identifier, 1, 6).nextAlt(),
+    }, null);
+}
 
-// // Another option is for us to just treat multiple spaces the same as a single space, but this is stricter.
-// test "Multiple consecutive spaces in identifier" {
-//     // Should treat multiple spaces as a delimiter
-//     try testLexToken("hello  world", &[_]LexToken{
-//         tok.nextAlt(tok.identifier(0, 5)), // Should only capture "hello"
-//         tok.nextAlt(tok.identifier(1, 5)), // Should capture "world" separately
-//     }, null);
-// }
+// Another option is for us to just treat multiple spaces the same as a single space, but this is stricter.
+test "Multiple consecutive spaces in identifier" {
+    // Should treat multiple spaces as a delimiter
+    try testLexToken("hello  world", &[_]LexToken{
+        LexToken.build(TK.identifier, 0, 5).nextAlt(), // Should only capture "hello"
+        LexToken.build(TK.identifier, 1, 5).nextAlt(), // Should capture "world" separately
+    }, null);
+}
 
-// test "Identifiers with operator separators" {
-//     try testLexToken("aa OR bb", &[_]LexToken{
-//         tok.nextAlt(tok.identifier(0, 2)),
-//         tok.nextAlt(tok.OP_OR),
-//         tok.nextAlt(tok.identifier(1, 2)),
-//     }, null);
-// }
+test "Identifiers with operator separators" {
+    try testLexToken("aa OR bb", &[_]LexToken{
+        LexToken.build(TK.identifier, 0, 2).nextAlt(),
+        tok.createToken(TK.op_or).nextAlt(),
+        LexToken.build(TK.identifier, 1, 2).nextAlt(),
+    }, null);
+}
 
-// test "Lex type" {
-//     try testLexToken("HelloWorld", &[_]LexToken{
-//         tok.nextAlt(tok.type_identifier(0, 10)),
-//     }, null);
-// }
+test "Lex type" {
+    try testLexToken("HelloWorld", &[_]LexToken{
+        LexToken.build(TK.type_identifier, 0, 10).nextAlt(),
+    }, null);
+}
 
-// test "Lex constant" {
-//     try testLexToken("HELLO_WORLD", &[_]LexToken{
-//         tok.nextAlt(tok.const_identifier(0, 11)),
-//     }, null);
-// }
+test "Lex constant" {
+    try testLexToken("HELLO_WORLD", &[_]LexToken{
+        LexToken.build(TK.const_identifier, 0, 11).nextAlt(),
+    }, null);
+}
 
-// test "Lex non-builtin operator" {
-//     try testLexToken("aa SOME_OP bbb", &[_]LexToken{
-//         tok.nextAlt(tok.identifier(0, 2)),
-//         tok.nextAlt(tok.op_identifier(1, 7)),
-//         tok.nextAlt(tok.identifier(2, 3)),
-//     }, null);
-// }
+test "Lex non-builtin operator" {
+    try testLexToken("aa SOME_OP bbb", &[_]LexToken{
+        LexToken.build(TK.identifier, 0, 2).nextAlt(),
+        LexToken.build(TK.op_identifier, 1, 7).nextAlt(),
+        LexToken.build(TK.identifier, 2, 3).nextAlt(),
+    }, null);
+}
 
 // ================== end
 

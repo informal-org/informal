@@ -5,8 +5,10 @@ const q = @import("queue.zig");
 const bitset = @import("bitset.zig");
 
 const print = std.debug.print;
-const Token = tok.Token;
-pub const TokenQueue = q.Queue(Token, tok.AUX_STREAM_END);
+// const Token = tok.Token;
+const LexToken = tok.LexToken;
+const TK = tok.Kind;
+pub const TokenQueue = q.Queue(LexToken, tok.AUX_STREAM_END);
 pub const OffsetQueue = q.Queue(u16, 0);
 const Allocator = std.mem.Allocator;
 
@@ -39,7 +41,7 @@ pub const Parser = struct {
     index: u32,
 
     const ParseNode = struct {
-        token: Token,
+        token: LexToken,
         index: usize,
     };
 
@@ -53,7 +55,7 @@ pub const Parser = struct {
         self.opStack.deinit();
     }
 
-    fn emitParsed(self: *Self, token: Token) !void {
+    fn emitParsed(self: *Self, token: LexToken) !void {
         try self.parsedQ.push(token);
         try self.pushOffset(self.index);
     }
@@ -63,7 +65,7 @@ pub const Parser = struct {
         try self.offsetQ.push(@truncate(self.offsetQ.list.items.len - index));
     }
 
-    fn flushOpStack(self: *Self, token: Token) !void {
+    fn flushOpStack(self: *Self, token: LexToken) !void {
         // Indicates which tokens have higher-precedence and associativity.
         // Those operations must be emitted/done first before the current token.
         const flushBitset = tok.TBL_PRECEDENCE_FLUSH[@intFromEnum(token.kind)];
@@ -78,7 +80,7 @@ pub const Parser = struct {
         }
     }
 
-    fn pushOp(self: *Self, token: Token) !void {
+    fn pushOp(self: *Self, token: LexToken) !void {
         try self.flushOpStack(token);
         try self.opStack.append(ParseNode{ .token = token, .index = self.index });
     }
@@ -285,7 +287,7 @@ const testutils = @import("testutils.zig");
 //     print("\nTest Parse: {s}\n", .{buffer});
 // }
 
-pub fn testParse(buffer: []const u8, tokens: []const Token, aux: []const Token, expected: []const Token) !void {
+pub fn testParse(buffer: []const u8, tokens: []const LexToken, aux: []const LexToken, expected: []const LexToken) !void {
     var syntaxQ = TokenQueue.init(test_allocator);
     try testutils.pushAll(&syntaxQ, tokens);
 
@@ -312,15 +314,15 @@ pub fn testParse(buffer: []const u8, tokens: []const Token, aux: []const Token, 
 
 test "Parse basic add" {
     const buffer = "1+3";
-    const tokens = &[_]Token{ tok.numberLiteral(0, 1), tok.OP_ADD, tok.nextAlt(tok.numberLiteral(2, 1)) };
+    const tokens = &[_]LexToken{ LexToken.build(TK.lit_number, 0, 1), tok.createToken(TK.op_add), LexToken.build(TK.lit_number, 2, 1).nextAlt() };
 
-    const aux = &[_]Token{};
+    const aux = &[_]LexToken{};
 
-    const expected = &[_]Token{
-        tok.numberLiteral(0, 1),
+    const expected = &[_]LexToken{
+        LexToken.build(TK.lit_number, 0, 1),
         // next-alt bit doesn't have much meaning in the parsed expr...
-        tok.nextAlt(tok.numberLiteral(2, 1)),
-        tok.OP_ADD,
+        LexToken.build(TK.lit_number, 2, 1).nextAlt(),
+        tok.createToken(TK.op_add),
     };
 
     try testParse(buffer, tokens, aux, expected);
@@ -328,17 +330,17 @@ test "Parse basic add" {
 
 test "Parse math op precedence" {
     const buffer = "1+2*3";
-    const tokens = &[_]Token{
-        tok.numberLiteral(0, 1),
-        tok.OP_ADD,
-        tok.numberLiteral(2, 1),
-        tok.OP_MUL,
-        tok.numberLiteral(4, 1),
+    const tokens = &[_]LexToken{
+        LexToken.build(TK.lit_number, 0, 1),
+        tok.createToken(TK.op_add),
+        LexToken.build(TK.lit_number, 2, 1),
+        tok.createToken(TK.op_mul),
+        LexToken.build(TK.lit_number, 4, 1),
     };
 
-    const aux = &[_]Token{};
+    const aux = &[_]LexToken{};
     // Ensure multiply before add.
-    const expected = &[_]Token{ tok.numberLiteral(0, 1), tok.numberLiteral(2, 1), tok.numberLiteral(4, 1), tok.OP_MUL, tok.OP_ADD };
+    const expected = &[_]LexToken{ LexToken.build(TK.lit_number, 0, 1), LexToken.build(TK.lit_number, 2, 1), LexToken.build(TK.lit_number, 4, 1), tok.createToken(TK.op_mul), tok.createToken(TK.op_add) };
 
     try testParse(buffer, tokens, aux, expected);
 }

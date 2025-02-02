@@ -3,114 +3,10 @@ const std = @import("std");
 const print = std.debug.print;
 const bitset = @import("bitset.zig");
 
-// pub const Token = packed struct(u64) {
-//     alternate: bool = false,
-
-//     _reserved: u1 = 0, // Reserved for future expansion of kind.
-//     kind: Kind, // 6,
-//     data: Data, // 56
-
-//     pub const Kind = enum(u6) {
-//         // The order here should match bitset lookups in the lexer.
-//         // Multi-character symbolic operators come first. >=, ==, etc.
-//         // In reverse ascii-order of first-character to avoid an extra subtract.
-//         op_gte, // >=
-//         op_dbl_eq, // ==
-//         op_lte, // <=
-//         op_div_eq, // /=
-//         op_minus_eq, // -=
-//         op_plus_eq, // +=
-//         op_mul_eq, // *=
-//         op_not_eq, // !=
-
-//         // All single-character operators come next, in reverse ascii-order.
-//         grp_close_brace,
-//         op_choice, // |
-//         grp_open_brace,
-//         op_pow, // ^
-//         grp_close_bracket,
-//         grp_open_bracket,
-//         // op_at,
-//         // op_question,
-//         op_gt,
-//         op_assign_eq, // =
-//         op_lt,
-//         // op_semicolon,
-//         op_colon_assoc, // :
-//         op_div,
-//         op_dot_member, // .
-//         op_sub,
-//         sep_comma,
-//         op_add,
-//         op_mul,
-//         grp_close_paren,
-//         grp_open_paren,
-//         op_mod,
-
-//         // Alphabetical keywords and special-cases come last in any order.
-
-//         op_unary_minus,
-
-//         op_and,
-//         op_or,
-//         op_not,
-
-//         op_in,
-//         op_is,
-//         op_as,
-//         // op_is_not,
-//         // op_not_in,
-
-//         grp_indent,
-//         grp_dedent,
-
-//         kw_if,
-//         kw_else,
-//         kw_else_if,
-//         kw_for,
-//         kw_def,
-
-//         sep_newline,
-
-//         identifier,
-//         op_identifier,
-//         const_identifier,
-//         type_identifier,
-//         lit_string,
-//         lit_bool,
-//         lit_number,
-//         lit_null,
-
-//         ir, // Intermediate Representation Tokens.
-//         // All aux tokens go at the end - denoted by the AUX_KIND_START constant.
-//         // Used to detect what's aux.
-//         aux = 57,
-//         aux_comment = 58,
-//         aux_whitespace = 59,
-//         aux_newline = 60,
-//         aux_indentation = 61,
-//         aux_stream_start = 62,
-//         aux_stream_end = 63,
-//     };
-
-//     const Value = packed struct { value: u56 };
-//     const Range = packed struct { offset: u32, length: u24 };
-//     // Offset to previous newline in syntaxQueue and index of current newline in auxQueue.
-//     const Index = packed struct { offset: u24, index: u32 };
-
-//     // 56 bits for data.
-//     const Data = packed union {
-//         range: Range,
-//         index: Index,
-//         value: Value,
-//     };
-// };
-
 pub const Kind = enum(u8) {
     // Operators identified by the lexer.
 
     // TODO: Flip the order of multi-char vs single-char after I finish porting the existing schema over.
-
     // In reverse ASCII order of the first character (to avoid an extra subtract)
     // This allows us to use a bitset to map a character to its opcode in the lexer.
     // All tokens that are precedence-sensitive should appear in the first 32 values (to limit the precedence lookup table size).
@@ -281,40 +177,6 @@ pub const LexToken = packed struct(u64) {
     }
 };
 
-// pub const AuxKind = enum(u7) {};
-
-// pub const AuxToken = packed struct(u64) {
-//     data: AuxData,
-//     op: AuxKind,
-//     aux: bool = false,
-
-//     pub fn build(kind: AuxKind, index: u32, offset: u16) AuxToken {
-//         return AuxToken{ .op = kind, .data = AuxData.build(index, offset) };
-//     }
-// };
-
-// pub const InternedValueKind = enum(u3) {
-//     // Types of values stored in dedicated interned tables. Will be combined into a single constant pool at later stages.
-//     identifier,
-//     type,
-//     int,
-//     uint,
-//     float,
-//     string,
-// };
-
-// pub const InternedRef = packed struct(u64) {
-//     // Reference to a value in one of the interned tables.
-//     kind: InternedValueKind,
-//     ref: u32,
-//     _: u29,
-// };
-
-// pub const Symbol = struct {
-//     name: []const u8, // Copy of the name, so that later stages don't need to index into the file buffer and polluate the cache again.
-//     ref: u32, // In Lexer, store this symbol's ID. In parser, reference the previous parsedQ index of this symbol for a doubly-linked list of refs.
-// };
-
 pub const TokenWriter = struct {
     token: LexToken,
     buffer: []const u8,
@@ -344,131 +206,32 @@ pub const TokenWriter = struct {
 };
 
 pub const AUX_KIND_START: u6 = @intFromEnum(Kind.aux);
-
-// pub fn createToken(kind: Kind, value: u32, offset: u16) LexToken {
-//     return LexToken{ .kind = kind, .data = Data{ .raw = 0 } };
-// }
-
-// pub fn createNewLine(auxIndex: u32, prevOffset: u16) Token {
-//     return Token{ .kind = Kind.sep_newline, .data = Data{ .value = Data.Value{ .index = auxIndex, .offset = prevOffset } } };
-// }
-
-// pub fn stringLiteral(offset: u32, len: u24) Token {
-//     return Token{ .kind = Kind.lit_string, .data = Token.Data{ .range = Token.Range{ .length = len, .offset = offset } } };
-// }
-
-// pub fn numberLiteral(offset: u32, len: u24) Token {
-//     return Token{ .kind = Kind.lit_number, .data = Token.Data{ .range = Token.Range{ .length = len, .offset = offset } } };
-// }
-
-// pub fn identifier(offset: u32, len: u24) Token {
-//     return Token{ .kind = Kind.identifier, .data = Token.Data{ .range = Token.Range{ .length = len, .offset = offset } } };
-// }
-
-// pub fn op_identifier(offset: u32, len: u24) Token {
-//     return Token{ .kind = Kind.op_identifier, .data = Token.Data{ .range = Token.Range{ .length = len, .offset = offset } } };
-// }
-
-// pub fn const_identifier(offset: u32, len: u24) Token {
-//     return Token{ .kind = Kind.const_identifier, .data = Token.Data{ .range = Token.Range{ .length = len, .offset = offset } } };
-// }
-
-// pub fn type_identifier(offset: u32, len: u24) Token {
-//     return Token{ .kind = Kind.type_identifier, .data = Token.Data{ .range = Token.Range{ .length = len, .offset = offset } } };
-// }
-
-// // auxToken -> rangeToken
-// pub fn range(kind: Kind, offset: u32, len: u24) Token {
-//     return Token{ .kind = kind, .data = Token.Data{ .range = Token.Range{ .length = len, .offset = offset } } };
-// }
-
-// pub fn nextAlt(token: Token) Token {
-//     return Token{ .alternate = true, .kind = Kind, .data = token.data };
-// }
-
-// pub fn auxKindToken(kind: Kind, value: u32) Token {
-//     // const aTok = AuxToken{ .tag = AuxTag.token, .data = @as(u48, @bitCast(DataKindValue{ .kind = @as(u16, @intFromEnum(kind)), .value = value })) };
-//     // const aTok = Aux{ .tag = AuxTag.token, .data = AuxData{ .kind = kind, .value = value } };
-//     // print("auxKindToken: {any}\n", .{aTok});
-//     // return aTok;
-//     return Token{ .kind = kind, .data = Token.Data{ .kind = KindData{ .kind = @as(u16, @intFromEnum(kind)), .value = value } } };
-// }
-
-// pub fn valFromToken(token: Token) u64 {
-//     return @as(u64, @bitCast(token));
-// }
-
-// pub fn valFromAux(token: AuxToken) u64 {
-//     return @as(u64, @bitCast(token));
-// }
+pub const GROUPING_KIND_START: u6 = @intFromEnum(Kind.grp_close_brace); // First grouping token, reverse ascii.
 
 pub fn createToken(kind: Kind) LexToken {
     return LexToken.build(kind, 0, 0);
 }
 
-// pub const OP_ADD = createToken(Kind.op_add);
-// pub const OP_SUB = createToken(Kind.op_sub);
-// pub const OP_MUL = createToken(Kind.op_mul);
-// pub const OP_DIV = createToken(Kind.op_div);
-// pub const OP_MOD = createToken(Kind.op_mod);
-// pub const OP_POW = createToken(Kind.op_pow);
 pub const OP_AND = createToken(Kind.op_and);
 pub const OP_OR = createToken(Kind.op_or);
 pub const OP_NOT = createToken(Kind.op_not);
-// pub const OP_DBL_EQ = createToken(Kind.op_dbl_eq);
-// pub const OP_NE = createToken(Kind.op_ne);
-// pub const OP_LT = createToken(Kind.op_lt);
-// pub const OP_GT = createToken(Kind.op_gt);
-// pub const OP_LTE = createToken(Kind.op_lte);
-// pub const OP_GTE = createToken(Kind.op_gte);
-// pub const OP_ASSIGN_EQ = createToken(Kind.op_assign_eq);
 pub const OP_AS = createToken(TK.op_as);
 pub const OP_IN = createToken(TK.op_in);
 pub const OP_IS = createToken(TK.op_is);
-// pub const OP_IS_NOT = createToken(Kind.op_is_not);
-// pub const OP_NOT_IN = createToken(Kind.op_not_in);
-// pub const OP_COLON_ASSOC = createToken(Kind.op_colon_assoc);
 pub const OP_DOT_MEMBER = createToken(Kind.op_dot_member);
-
-// pub const GRP_OPEN_PAREN = createToken(Kind.grp_open_paren);
-// pub const GRP_CLOSE_PAREN = createToken(Kind.grp_close_paren);
-// pub const grp_open_bracket = createToken(Kind.grp_open_bracket);
-// pub const grp_close_bracket = createToken(Kind.grp_close_bracket);
-// pub const GRP_OPEN_BRACE = createToken(Kind.grp_open_brace);
-// pub const GRP_CLOSE_BRACE = createToken(Kind.grp_close_brace);
-// pub const GRP_INDENT = createToken(Kind.grp_indent);
-// pub const GRP_DEDENT = createToken(Kind.grp_dedent);
-
-// pub const KW_IF = createToken(Kind.kw_if);
-// pub const KW_ELSE = createToken(Kind.kw_else);
-// pub const KW_ELSE_IF = createToken(Kind.kw_else_if);
-// pub const KW_FOR = createToken(Kind.kw_for);
-
-// pub const SEP_COMMA = createToken(Kind.sep_comma);
-// pub const SEP_NEWLINE = createToken(Kind.sep_newline);
 pub const AUX_STREAM_START = createToken(Kind.aux_stream_start);
 pub const AUX_STREAM_END = createToken(Kind.aux_stream_end);
 
-pub fn print_token_queue(queue: []Token, buffer: []const u8) void {
+pub fn print_token_queue(queue: []LexToken, buffer: []const u8) void {
     print("Tokens: {d}\n", .{queue.len});
     for (queue) |token| {
         print_token("{any}\n", token, buffer);
     }
 }
 
-pub fn print_token(comptime fmt: []const u8, token: Token, buffer: []const u8) void {
+pub fn print_token(comptime fmt: []const u8, token: LexToken, buffer: []const u8) void {
     print(fmt, .{TokenWriter{ .token = token, .buffer = buffer }});
 }
-
-// pub const Assoc = enum(u1) { left, right };
-
-// pub const Arity = enum(u1) { unary, binary };
-
-// pub const ParserMeta = packed struct(u6) {
-//     precedence: u4,
-//     assoc: Assoc,
-//     arity: Arity,
-// };
 
 const TK = Kind;
 
