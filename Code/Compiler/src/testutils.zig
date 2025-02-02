@@ -2,9 +2,10 @@ const tok = @import("token.zig");
 const std = @import("std");
 const q = @import("queue.zig");
 
-const Token = tok.Token;
+// const Token = tok.Token;
+const LexToken = tok.LexToken;
 const TokenWriter = tok.TokenWriter;
-pub const TokenQueue = q.Queue(Token, tok.AUX_STREAM_END);
+pub const TokenQueue = q.Queue(LexToken, tok.AUX_STREAM_END);
 const print = std.debug.print;
 
 const test_allocator = std.testing.allocator;
@@ -12,13 +13,13 @@ const arena_allocator = std.heap.ArenaAllocator;
 const expect = std.testing.expect;
 const expectEqual = std.testing.expectEqual;
 
-pub fn testTokenEquals(lexed: Token, expected: Token) !void {
+pub fn testTokenEquals(lexed: LexToken, expected: LexToken) !void {
     const lexBits: u64 = @bitCast(lexed);
     const expectedBits: u64 = @bitCast(expected);
     try expectEqual(expectedBits, lexBits);
 }
 
-pub fn testQueueEquals(buffer: []const u8, resultQ: *TokenQueue, expected: []const Token) !void {
+pub fn testQueueEquals(buffer: []const u8, resultQ: *TokenQueue, expected: []const LexToken) !void {
     if (resultQ.list.items.len != expected.len) {
         print("\nSyntax Queue - Length mismatch {d} vs {d}\n", .{ resultQ.list.items.len, expected.len });
         for (resultQ.list.items) |lexedToken| {
@@ -40,7 +41,7 @@ pub fn testQueueEquals(buffer: []const u8, resultQ: *TokenQueue, expected: []con
     }
 }
 
-pub fn pushAll(queue: *TokenQueue, tokens: []const Token) !void {
+pub fn pushAll(queue: *TokenQueue, tokens: []const LexToken) !void {
     for (tokens) |token| {
         try queue.push(token);
     }

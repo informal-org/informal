@@ -17,7 +17,7 @@ pub fn character_bitset(pattern: []const u8) BitSet128 {
     return bs;
 }
 
-pub fn token_bitset(tokens: []const tok.Token.Kind) BitSet64 {
+pub fn token_bitset(tokens: []const tok.Kind) BitSet64 {
     var bs = BitSet64.initEmpty();
     for (tokens) |token| {
         bs.set(@intFromEnum(token));
@@ -34,12 +34,12 @@ pub fn index128(bitset: BitSet128, val: u8) u7 {
     return index - 1;
 }
 
-pub fn chToKind(bitset: BitSet128, ch: u8, offset: u7) tok.Token.Kind {
+pub fn chToKind(bitset: BitSet128, ch: u8, offset: u7) tok.Kind {
     // Return the token kind for a given character already known to be in this bitset.
     const chIndex: u7 = index128(bitset, ch);
     return @enumFromInt(chIndex + offset);
 }
 
-pub fn isKind(bitset: BitSet64, kind: tok.Token.Kind) bool {
+pub fn isKind(bitset: BitSet64, kind: tok.Kind) bool {
     return bitset.isSet(@intFromEnum(kind));
 }
