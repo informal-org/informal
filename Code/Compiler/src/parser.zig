@@ -249,21 +249,6 @@ pub const Parser = struct {
     // That'll also support de-structuring like [a, b, c] = ...
     /////////////////////////////////////////////
 
-    /////////////////////////////////////////////
-    // Symbol Resolution
-    // The lexer normalizes string symbols to a numeric index.
-    // But not all who go by the same name are the same thing.
-    // The parser is responsible for contexualizing the symbol in terms of declaration vs reference per scope.
-    // We can do symbol-resolution without a second pass with some bookkeeping.
-    // As you encounter symbols, maintain a stack of declarations.
-    // It's straightforward to match up references to those declarations, and create an SSA-like indexed versions for assignments.
-    // The tricky part is forward references. When you encounter a reference to an as-yet undefined symbol,
-    // add its token location to a list of undefined refs at that symbol and leave a blank spot for it in the parsed queue.
-    // When you encounter a declaration, check which of those are "within scope" by looking at the current active scope's start index
-    // If token index > start index (and we know it's less than end index by iteration order)
-    // AND if current scope is one that supports forward declarations (objects, global support it. A function / condition block doens't).
-    /////////////////////////////////////////////
-
     // Initialize the parser state.
     // Note: All sub-parse functions MUST be tail-recursive, in a direct-threaded style.
     // Each state function should process a token at a time, with no lookahead or backtracking.
