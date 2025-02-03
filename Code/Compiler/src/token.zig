@@ -208,7 +208,7 @@ pub fn print_token(comptime fmt: []const u8, token: Token, buffer: []const u8) v
     print(fmt, .{TokenWriter{ .token = token, .buffer = buffer }});
 }
 
-const TK = Kind;
+pub const TK = Kind;
 
 pub const LITERALS = bitset.token_bitset(&[_]TK{ TK.lit_string, TK.lit_number, TK.lit_bool, TK.lit_null });
 pub const UNARY_OPS = bitset.token_bitset(&[_]TK{ TK.op_not, TK.op_unary_minus });
