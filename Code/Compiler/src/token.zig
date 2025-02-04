@@ -185,7 +185,8 @@ pub const TokenWriter = struct {
             TK.lit_number, TK.lit_string, TK.identifier => {
                 // Previous format where it referenced the buffer...
                 // try std.fmt.format(writer, "{s} {s} {s}", .{ buffer[value.data.range.offset .. value.data.range.offset + value.data.range.length], @tagName(value.kind), alt });
-                try std.fmt.format(writer, "{d} {s} {s}", .{ value.data.value.arg0, @tagName(value.kind), alt });
+                const signedOffset: i16 = @bitCast(value.data.value.arg1);
+                try std.fmt.format(writer, "{d} {s} {s} [{d}]", .{ value.data.value.arg0, @tagName(value.kind), alt, signedOffset });
             },
             TK.aux, TK.aux_comment, TK.aux_whitespace, TK.aux_newline, TK.aux_indentation, TK.aux_stream_start, TK.aux_stream_end => {
                 try std.fmt.format(writer, "{s} {s}", .{ @tagName(value.kind), alt });

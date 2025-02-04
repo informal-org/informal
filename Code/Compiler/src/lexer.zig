@@ -529,7 +529,6 @@ pub const Lexer = struct {
 
         //     return tok.SYMBOL_STREAM_END;
         // }
-
         while (self.index < self.buffer.len) {
             const ch = self.buffer[self.index];
             // print("Char: {c} {d}\n", .{ch, self.index});

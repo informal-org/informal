@@ -102,9 +102,6 @@ pub const Namespace = struct {
 
     fn chainTokenDeclaration(self: *Self, index: u32, token: tok.Token) tok.Token {
         // Internal helper to add a new declaration for a given symbol
-        if (DEBUG) {
-            print("Declaring token: {any} at index {d}\n", .{ token, index });
-        }
         const symbol = token.data.value.arg0;
         const prevDeclaration = self.declarations[symbol];
         // Index - Current parser index where this variable is being declared.
@@ -173,6 +170,11 @@ pub const Namespace = struct {
     ) tok.Token {
         const result = self.chainTokenDeclaration(index, token);
         self.declarations[token.data.value.arg0] = index;
+        if (DEBUG) {
+            tok.print_token("Declared [{any}] at", token, "");
+            print(" {any}\n", .{index});
+        }
+
         // Resolve any previously unresolved refs for this given symbol.
         self.forwardDeclare(index, result);
         return result;
@@ -189,7 +191,10 @@ pub const Namespace = struct {
             self.unresolved[symbol] = index;
         }
         if (DEBUG) {
-            print("Resolved {any} to {any} at offset {any}\n", .{ token, self.declarations[symbol], offset });
+            // print("Resolved {any} to {any} at offset {any}\n", .{ token, self.declarations[symbol], offset });
+            tok.print_token("Resolved [{any}] to offset", token, "");
+            const signedOffset: i16 = @bitCast(offset);
+            print(" {any}\n", .{signedOffset});
         }
         return tok.Token{
             .kind = token.kind,

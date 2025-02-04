@@ -11,6 +11,8 @@ const TK = tok.Kind;
 const print = std.debug.print;
 const platform = @import("platform.zig");
 
+const DEBUG = true;
+
 pub const Syscall = platform.Syscall;
 
 pub const Codegen = struct {
@@ -84,11 +86,17 @@ pub const Codegen = struct {
                         self.pushReg(reg);
                         // Save which register this identifier is associated with to the parsed queue so future refs can look it up.
                         tokenQueue[index] = token.assignReg(@intFromEnum(reg));
+                        if (DEBUG) {
+                            print("DECL {any}, x{any}\n", .{ index, reg });
+                        }
                     } else {
                         // Find what register this identifier is at by following the usage chain.
                         const offset = token.data.value.arg1;
                         const prevRefDecIndex = ns.applyOffset(@truncate(index), offset);
                         const register = tokenQueue[prevRefDecIndex].data.value.arg0;
+                        if (DEBUG) {
+                            print("REF {any}, x{any} offset {any}\n", .{ prevRefDecIndex, register, offset });
+                        }
                         reg = @enumFromInt(register);
                         self.pushReg(reg);
 
@@ -120,6 +128,7 @@ pub const Codegen = struct {
 
                     try self.objCode.append(instr);
                 },
+                TK.aux_stream_start => {},
                 else => {
                     tok.print_token("Unhandled token in Codegen: {any}\n", token, self.buffer);
                 },

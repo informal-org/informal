@@ -230,7 +230,9 @@ pub const Parser = struct {
             if (DEBUG) {
                 print("Expect unary - Identifier: {any}\n", .{token});
             }
-            try self.emitParsed(token);
+
+            const ident = self.namespace.resolve(@truncate(self.parsedQ.list.items.len), token);
+            try self.emitParsed(ident);
             try self.expect_binary();
         } else if (isKind(tok.PAREN_START, kind)) {
             print("Parser - unhandled unary - Paren Start: {any}\n", .{token});
@@ -278,6 +280,7 @@ pub const Parser = struct {
     // Note: All sub-parse functions MUST be tail-recursive, in a direct-threaded style.
     // Each state function should process a token at a time, with no lookahead or backtracking.
     pub fn parse(self: *Self) !void {
+        try self.parsedQ.push(tok.AUX_STREAM_START); // Hack - to make sure zero index is always occupied.
         try self.initial_state();
 
         // At the end - flush the operator stack.
