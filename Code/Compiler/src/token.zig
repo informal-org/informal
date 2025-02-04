@@ -159,6 +159,14 @@ pub const Token = packed struct(u64) {
             .aux = Flags{ .declaration = true },
         };
     }
+
+    pub fn assignReg(self: Token, reg: u16) Token {
+        return Token{
+            .kind = self.kind,
+            .data = .{ .value = .{ .arg0 = reg, .arg1 = self.data.value.arg1 } },
+            .aux = self.aux,
+        };
+    }
 };
 
 pub const TokenWriter = struct {

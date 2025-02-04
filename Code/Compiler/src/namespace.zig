@@ -188,6 +188,9 @@ pub const Namespace = struct {
             // No declarations found, add to unresolved list.
             self.unresolved[symbol] = index;
         }
+        if (DEBUG) {
+            print("Resolved {any} to {any} at offset {any}\n", .{ token, self.declarations[symbol], offset });
+        }
         return tok.Token{
             .kind = token.kind,
             .data = .{ .value = .{ .arg0 = symbol, .arg1 = offset } },

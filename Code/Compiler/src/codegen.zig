@@ -3,6 +3,7 @@ const arm = @import("arm.zig");
 const tok = @import("token.zig");
 const parser = @import("parser.zig");
 const bitset = @import("bitset.zig");
+const ns = @import("namespace.zig");
 
 const Allocator = std.mem.Allocator;
 const Token = tok.Token;
@@ -82,9 +83,17 @@ pub const Codegen = struct {
                         reg = self.getFreeReg();
                         self.pushReg(reg);
                         // Save which register this identifier is associated with to the parsed queue so future refs can look it up.
-                        tokenQueue[index] = token.newDeclaration(@intFromEnum(reg));
+                        tokenQueue[index] = token.assignReg(@intFromEnum(reg));
                     } else {
-                        print("Unhandled identifier reference: {any}\n", .{token});
+                        // Find what register this identifier is at by following the usage chain.
+                        const offset = token.data.value.arg1;
+                        const prevRefDecIndex = ns.applyOffset(@truncate(index), offset);
+                        const register = tokenQueue[prevRefDecIndex].data.value.arg0;
+                        reg = @enumFromInt(register);
+                        self.pushReg(reg);
+
+                        // Save that register to this identifier's location.
+                        tokenQueue[index] = token.assignReg(@intFromEnum(reg));
                     }
                 },
                 TK.op_assign_eq => {
@@ -92,6 +101,7 @@ pub const Codegen = struct {
                     const identifier = self.popReg();
                     const instr = arm.mov(identifier, value);
                     try self.objCode.append(instr);
+                    self.pushReg(identifier);
                 },
                 TK.op_add => {
                     const rd = self.popReg(); // arm.Reg.x0;

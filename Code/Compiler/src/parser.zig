@@ -126,7 +126,8 @@ pub const Parser = struct {
             if (DEBUG) {
                 print("Initial state - Identifier: {any}\n", .{token});
             }
-            try self.emitParsed(token);
+            const ident = self.namespace.resolve(@truncate(self.parsedQ.list.items.len), token);
+            try self.emitParsed(ident);
             try self.expect_binary();
         } else if (isKind(tok.PAREN_START, kind)) {
             print("Paren Start: {any}\n", .{token});
@@ -176,6 +177,9 @@ pub const Parser = struct {
         const kind = token.kind;
         if (isKind(tok.SEPARATORS, kind)) {
             print("Separators: {any}\n", .{token});
+            try self.flushOpStack(token);
+            // Flush any operators.
+            try self.initial_state();
         } else if (isKind(tok.BINARY_OPS, kind)) {
             if (DEBUG) {
                 print("Expect binary - Binary op: {any}\n", .{token});
@@ -184,7 +188,7 @@ pub const Parser = struct {
             if (kind == TK.op_assign_eq) {
                 // Assume - the token to the left was the identifier.
                 // When we add destructuring in the future, this will need to change.
-                const ident = self.namespace.declare(@truncate(self.parsedQ.list.items.len), self.parsedQ.list.getLast());
+                const ident = self.namespace.declare(@truncate(self.parsedQ.list.items.len - 1), self.parsedQ.list.getLast());
                 self.parsedQ.list.items[self.parsedQ.list.items.len - 1] = ident;
 
                 try self.pushOp(token);
