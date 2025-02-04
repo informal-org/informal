@@ -219,7 +219,7 @@ pub const ImmLogical = packed struct(u32) {
     op: Op,
     sf: u1 = MODE_A64,
 
-    pub const Op = enum(u1) {
+    pub const Op = enum(u2) {
         AND = 0b00, // AND register and immediate. Write to destination register.
         ORR = 0b01, // Bitwise OR. Alias of MOV (bitmask immediate).
         EOR = 0b10, // Exclusive OR.
@@ -232,9 +232,9 @@ pub const ImmLogical = packed struct(u32) {
 
     pub fn init(rd: Reg, rn: Reg, bitmask: u13, op: Op) u32 {
         // bitmask = N:imms:immr
-        const imms: u6 = bitmask & 0b111111;
-        const immr: u6 = (bitmask >> 6) & 0b111111;
-        const N: u1 = (bitmask >> 12) & 0b1;
+        const imms: u6 = @truncate(bitmask & 0b111111);
+        const immr: u6 = @truncate((bitmask >> 6) & 0b111111);
+        const N: u1 = @truncate((bitmask >> 12) & 0b1);
 
         return (Self{ .rd = rd, .rn = rn, .imms = imms, .immr = immr, .N = N, .op = op }).encode();
     }
@@ -246,6 +246,10 @@ pub fn andi(rd: Reg, rn: Reg, bitmask: u13) u32 {
 
 pub fn orri(rd: Reg, rn: Reg, bitmask: u13) u32 {
     return ImmLogical.init(rd, rn, bitmask, ImmLogical.Op.ORR);
+}
+
+pub fn mov(rd: Reg, rn: Reg) u32 {
+    return orri(rd, rn, 0);
 }
 
 pub fn eori(rd: Reg, rn: Reg, bitmask: u13) u32 {

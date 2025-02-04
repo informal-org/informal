@@ -65,7 +65,7 @@ pub const Codegen = struct {
 
     pub fn emitAll(self: *Self, tokenQueue: []Token) !void {
         var reg = arm.Reg.x0;
-        for (tokenQueue) |token| {
+        for (tokenQueue, 0..) |token, index| {
             // try self.emit(token);
             switch (token.kind) {
                 TK.lit_number => {
@@ -76,6 +76,22 @@ pub const Codegen = struct {
                     const imm16: u16 = @truncate(token.data.value.arg0);
                     // const imm16 = std.fmt.parseInt(u16, value, 10) catch unreachable;
                     try self.objCode.append(arm.movz(reg, imm16));
+                },
+                TK.identifier => {
+                    if (token.aux.declaration) {
+                        reg = self.getFreeReg();
+                        self.pushReg(reg);
+                        // Save which register this identifier is associated with to the parsed queue so future refs can look it up.
+                        tokenQueue[index] = token.newDeclaration(@intFromEnum(reg));
+                    } else {
+                        print("Unhandled identifier reference: {any}\n", .{token});
+                    }
+                },
+                TK.op_assign_eq => {
+                    const value = self.popReg();
+                    const identifier = self.popReg();
+                    const instr = arm.mov(identifier, value);
+                    try self.objCode.append(instr);
                 },
                 TK.op_add => {
                     const rd = self.popReg(); // arm.Reg.x0;

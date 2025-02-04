@@ -121,7 +121,8 @@ pub const Data = packed union {
 
 pub const Flags = packed struct(u8) {
     alt: bool = false, // Indicates the next token is in the other queue.
-    _reserved: u7 = 0,
+    declaration: bool = false,
+    _reserved: u6 = 0,
 
     pub fn empty() Flags {
         return Flags{
@@ -148,6 +149,14 @@ pub const Token = packed struct(u64) {
             .kind = self.kind,
             .data = self.data,
             .aux = Flags{ .alt = true },
+        };
+    }
+
+    pub fn newDeclaration(self: Token, offset: u16) Token {
+        return Token{
+            .kind = self.kind,
+            .data = .{ .value = .{ .arg0 = self.data.value.arg0, .arg1 = offset } },
+            .aux = Flags{ .declaration = true },
         };
     }
 };

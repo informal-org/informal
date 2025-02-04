@@ -4,6 +4,7 @@ const parser = @import("parser.zig");
 const queue = @import("queue.zig");
 const tok = @import("token.zig");
 const codegen = @import("codegen.zig");
+const ns = @import("namespace.zig");
 const macho = @import("macho.zig");
 const Allocator = std.mem.Allocator;
 const DEBUG = true;
@@ -30,7 +31,10 @@ pub fn process_chunk(chunk: []u8, reader: *Reader, allocator: Allocator) !void {
     var lexer = lex.Lexer.init(chunk, reader.syntaxQ, reader.auxQ, reader.internedStrings, reader.internedNumbers, reader.internedFloats, reader.internedSymbols);
     try lexer.lex();
 
-    var p = parser.Parser.init(chunk, reader.syntaxQ, reader.auxQ, reader.parsedQ, reader.offsetQ, allocator);
+    var namespace = try ns.Namespace.init(allocator, reader.internedSymbols.count(), reader.parsedQ);
+    defer namespace.deinit();
+
+    var p = parser.Parser.init(chunk, reader.syntaxQ, reader.auxQ, reader.parsedQ, reader.offsetQ, allocator, &namespace);
     defer p.deinit();
 
     try p.parse();

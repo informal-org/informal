@@ -19,6 +19,8 @@ const parser = @import("parser.zig");
 const tok = @import("token.zig");
 const Token = tok.Token;
 
+const DEBUG = true;
+
 const ScopeType = enum {
     base,
     module,
@@ -51,7 +53,7 @@ pub fn applyOffset(index: u32, offset: u16) u32 {
     return @bitCast(signedIndex + signedOffset); // Assert - this should always be positive.
 }
 
-const Namespace = struct {
+pub const Namespace = struct {
     // Optimization thoughts:
     // We're currently using fixed sized arrays, which will grow by the number of defined names.
     // The alternative is a a hash-map, which compromises some lookup/bookkeeping performance for space
@@ -98,7 +100,11 @@ const Namespace = struct {
         self.scopeStack.deinit();
     }
 
-    fn declareToken(self: *Self, index: u32, token: tok.Token) tok.Token {
+    fn chainTokenDeclaration(self: *Self, index: u32, token: tok.Token) tok.Token {
+        // Internal helper to add a new declaration for a given symbol
+        if (DEBUG) {
+            print("Declaring token: {any} at index {d}\n", .{ token, index });
+        }
         const symbol = token.data.value.arg0;
         const prevDeclaration = self.declarations[symbol];
         // Index - Current parser index where this variable is being declared.
@@ -107,19 +113,11 @@ const Namespace = struct {
             // First seen declaration for this symbol.
             // We could give it an SSA ID here if we wanted.
             // First is the some combo of symbol + 0, second dec looks up previous ID + 1.
-            return tok.Token{
-                .kind = token.kind,
-                .data = .{ .value = .{ .arg0 = symbol, .arg1 = UNDECLARED_SENTINEL } },
-                .aux = token.aux,
-            };
+            return token.newDeclaration(UNDECLARED_SENTINEL);
         } else {
-            // Declare this as the latest declaration, and chain a reference to the previous declaration.
+            // Declare this as the latest declaration, and chain a reference to the previous declaration.x
             const offset = calcOffset(prevDeclaration, index); // Negative offset, since index is always greater than prev.
-            return tok.Token{
-                .kind = token.kind,
-                .data = .{ .value = .{ .arg0 = symbol, .arg1 = @truncate(offset) } },
-                .aux = token.aux, // TODO: Likely need to reset the "aux" flag here.
-            };
+            return token.newDeclaration(@truncate(offset));
         }
     }
 
@@ -136,11 +134,9 @@ const Namespace = struct {
             var unresolvedRefIdx = self.unresolved[symbol];
 
             while (unresolvedRefIdx != UNDECLARED_SENTINEL) {
-                print("Found unresolved ref idx {d} for symbol {d}\n", .{ unresolvedRefIdx, symbol });
 
                 // This reference is within this current scope (or one of its child scopes - which can still access this forward ref)
                 if (unresolvedRefIdx >= currentScope.start) {
-                    print("Resolving forward ref {d} for symbol {d}\n", .{ unresolvedRefIdx, symbol });
                     const ref = self.parsedQ.list.items[unresolvedRefIdx];
                     const offset = calcOffset(declarationIndex, unresolvedRefIdx); // Should be positive, since this is a forward ref.
                     // TODO: Overflow checks.
@@ -157,7 +153,6 @@ const Namespace = struct {
                         unresolvedRefIdx = ref.data.value.arg1;
                         break;
                     } else {
-                        print("Next offset for {d} is {d}\n", .{ unresolvedRefIdx, ref.data.value.arg1 });
                         // Assume - arg1 offset is going to be negative here.
                         unresolvedRefIdx = applyOffset(unresolvedRefIdx, ref.data.value.arg1);
                     }
@@ -176,7 +171,7 @@ const Namespace = struct {
         index: u32,
         token: tok.Token,
     ) tok.Token {
-        const result = self.declareToken(index, token);
+        const result = self.chainTokenDeclaration(index, token);
         self.declarations[token.data.value.arg0] = index;
         // Resolve any previously unresolved refs for this given symbol.
         self.forwardDeclare(index, result);

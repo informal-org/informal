@@ -3,6 +3,7 @@ const val = @import("value.zig");
 const tok = @import("token.zig");
 const q = @import("queue.zig");
 const bitset = @import("bitset.zig");
+const ns = @import("namespace.zig");
 
 const print = std.debug.print;
 // const Token = tok.Token;
@@ -37,6 +38,8 @@ pub const Parser = struct {
     // Multi will be more compact without the padding, but we push/pop them in pairs anyway.
     opStack: std.ArrayList(ParseNode),
 
+    namespace: *ns.Namespace,
+
     allocator: Allocator,
     index: u32,
 
@@ -45,10 +48,9 @@ pub const Parser = struct {
         index: usize,
     };
 
-    pub fn init(buffer: []const u8, syntaxQ: *TokenQueue, auxQ: *TokenQueue, parsedQ: *TokenQueue, offsetQ: *OffsetQueue, allocator: Allocator) Self {
+    pub fn init(buffer: []const u8, syntaxQ: *TokenQueue, auxQ: *TokenQueue, parsedQ: *TokenQueue, offsetQ: *OffsetQueue, allocator: Allocator, namespace: *ns.Namespace) Self {
         const opStack = std.ArrayList(ParseNode).init(allocator);
-
-        return Self{ .buffer = buffer, .syntaxQ = syntaxQ, .auxQ = auxQ, .parsedQ = parsedQ, .offsetQ = offsetQ, .allocator = allocator, .index = 0, .opStack = opStack };
+        return Self{ .buffer = buffer, .syntaxQ = syntaxQ, .auxQ = auxQ, .parsedQ = parsedQ, .offsetQ = offsetQ, .allocator = allocator, .index = 0, .opStack = opStack, .namespace = namespace };
     }
 
     pub fn deinit(self: *Self) void {
@@ -121,7 +123,11 @@ pub const Parser = struct {
             try self.emitParsed(token);
             try self.expect_binary();
         } else if (isKind(tok.IDENTIFIER, kind)) {
-            print("Identifier: {any}\n", .{token});
+            if (DEBUG) {
+                print("Initial state - Identifier: {any}\n", .{token});
+            }
+            try self.emitParsed(token);
+            try self.expect_binary();
         } else if (isKind(tok.PAREN_START, kind)) {
             print("Paren Start: {any}\n", .{token});
         } else if (isKind(tok.KEYWORD_START, kind)) {
@@ -174,8 +180,19 @@ pub const Parser = struct {
             if (DEBUG) {
                 print("Expect binary - Binary op: {any}\n", .{token});
             }
-            try self.pushOp(token);
-            try self.expect_unary();
+
+            if (kind == TK.op_assign_eq) {
+                // Assume - the token to the left was the identifier.
+                // When we add destructuring in the future, this will need to change.
+                const ident = self.namespace.declare(@truncate(self.parsedQ.list.items.len), self.parsedQ.list.getLast());
+                self.parsedQ.list.items[self.parsedQ.list.items.len - 1] = ident;
+
+                try self.pushOp(token);
+                try self.expect_unary();
+            } else {
+                try self.pushOp(token);
+                try self.expect_unary();
+            }
         } else {
             print("Invalid token: {any}\n", .{token});
         }
@@ -206,7 +223,11 @@ pub const Parser = struct {
             try self.emitParsed(token);
             try self.expect_binary();
         } else if (isKind(tok.IDENTIFIER, kind)) {
-            print("Parser - unhandled unary - Identifier: {any}\n", .{token});
+            if (DEBUG) {
+                print("Expect unary - Identifier: {any}\n", .{token});
+            }
+            try self.emitParsed(token);
+            try self.expect_binary();
         } else if (isKind(tok.PAREN_START, kind)) {
             print("Parser - unhandled unary - Paren Start: {any}\n", .{token});
         } else if (isKind(tok.KEYWORD_START, kind)) {
