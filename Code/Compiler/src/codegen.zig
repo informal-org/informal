@@ -39,7 +39,7 @@ pub const Codegen = struct {
     }
 
     pub fn freeReg(self: *Self, reg: arm.Reg) void {
-        self.registerMap.clear(@intFromEnum(reg));
+        self.registerMap.unset(@intFromEnum(reg));
     }
 
     pub fn emit_syscall(self: *Self, syscall: Syscall, arg: arm.Reg) !void {

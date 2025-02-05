@@ -62,7 +62,7 @@ pub const Reader = struct {
         return reader;
     }
 
-    fn deinit(self: *Self) void {
+    pub fn deinit(self: *Self) void {
         self.syntaxQ.deinit();
         self.auxQ.deinit();
         self.parsedQ.deinit();
@@ -86,7 +86,7 @@ pub const Reader = struct {
     }
 };
 
-pub fn process_chunk(chunk: []u8, reader: *Reader, allocator: Allocator) !void {
+pub fn process_chunk(chunk: []u8, reader: *Reader, allocator: Allocator, out_filename: []u8) !void {
 
     // std.debug.print("Processing next chunk\n", .{});
     reader.syntaxQ.reset();
@@ -114,7 +114,7 @@ pub fn process_chunk(chunk: []u8, reader: *Reader, allocator: Allocator) !void {
 
     var linker = macho.MachOLinker.init(allocator);
     defer linker.deinit();
-    try linker.emitBinary(c.objCode.items, "out.bin");
+    try linker.emitBinary(c.objCode.items, out_filename);
 }
 
 pub fn compile_file(filename: []u8) !void {
@@ -129,16 +129,15 @@ pub fn compile_file(filename: []u8) !void {
     const r = file.reader();
     var buffer: [16384]u8 = undefined; // 16kb - sysctl vm.pagesize
 
+    // Create a mutable slice for the output filename
+    var out_name = "out.bin".*;
+
     while (true) {
         const readResult = try r.read(&buffer);
         if (readResult == 0) {
             break;
         }
-        // std.debug.print("Read: {s}\n", .{buffer[0..readResult]});
-
-        // try process_chunk(buffer[0..readResult], &syntaxQ, &auxQ, &parsedQ, &offsetQ, gpa.allocator());
-        try process_chunk(buffer[0..readResult], reader, gpa.allocator());
-
+        try process_chunk(buffer[0..readResult], reader, gpa.allocator(), &out_name);
         buffer = undefined;
     }
 }

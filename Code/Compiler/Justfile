@@ -4,17 +4,20 @@ build:
 add:
     zig build && ./zig-out/bin/Former test/data/add.ifi
 
+test:
+	zig test src/doctest.zig
+
 release:
     zig build -Doptimize=ReleaseFast
 
 bench-build: release
-    hyperfine "./zig-out/bin/Former test/data/add.ifi"
+    hyperfine "./zig-out/bin/Former test/data/run.ifi"
 
 run:
 	#!/usr/bin/env sh
 	rm out.bin || true
 	# zig run src/macho.zig
-	zig build && ./zig-out/bin/Former test/data/add.ifi
+	zig build && ./zig-out/bin/Former test/data/run.ifi
 	chmod +x out.bin
 	./out.bin
 	echo "\nRan with code: $?"
