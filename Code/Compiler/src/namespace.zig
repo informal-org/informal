@@ -220,6 +220,10 @@ const expect = std.testing.expect;
 const expectEqual = std.testing.expectEqual;
 const TK = tok.TK;
 
+test {
+    @import("std").testing.refAllDecls(@This());
+}
+
 // Situations:
 // Same scope:
 // declaration

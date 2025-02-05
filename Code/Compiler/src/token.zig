@@ -349,6 +349,9 @@ fn getFlushBitset(kind: TK) bitset.BitSet64 {
 // @bitSizeOf
 const expect = std.testing.expect;
 const expectEqual = std.testing.expectEqual;
+test {
+    @import("std").testing.refAllDecls(@This());
+}
 
 test "Test token sizes" {
     try expect(@bitSizeOf(Token) == 64);

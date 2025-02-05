@@ -139,3 +139,7 @@ pub const Codegen = struct {
         // print("Total instructions")
     }
 };
+
+test {
+    @import("std").testing.refAllDecls(Codegen);
+}

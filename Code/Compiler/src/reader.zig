@@ -103,3 +103,7 @@ pub fn compile_file(filename: []u8) !void {
         buffer = undefined;
     }
 }
+
+test {
+    @import("std").testing.refAllDecls(@This());
+}

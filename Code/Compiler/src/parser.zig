@@ -307,11 +307,13 @@ pub fn testParse(buffer: []const u8, tokens: []const Token, aux: []const Token, 
     var auxQ = TokenQueue.init(test_allocator);
     var parsedQ = TokenQueue.init(test_allocator);
     var offsetQ = OffsetQueue.init(test_allocator);
+    var namespace = try ns.Namespace.init(test_allocator, 0, &parsedQ);
     defer syntaxQ.deinit();
     defer auxQ.deinit();
     defer parsedQ.deinit();
     defer offsetQ.deinit();
-    var parser = Parser.init(buffer, &syntaxQ, &auxQ, &parsedQ, &offsetQ, test_allocator);
+    defer namespace.deinit();
+    var parser = Parser.init(buffer, &syntaxQ, &auxQ, &parsedQ, &offsetQ, test_allocator, &namespace);
     defer parser.deinit();
 
     try parser.parse();
@@ -325,6 +327,10 @@ pub fn testParse(buffer: []const u8, tokens: []const Token, aux: []const Token, 
     try expect(aux.len == 0);
 }
 
+test {
+    std.testing.refAllDecls(Parser);
+}
+
 test "Parse basic add" {
     const buffer = "1+3";
     const tokens = &[_]Token{ Token.lex(TK.lit_number, 0, 1), tok.createToken(TK.op_add), Token.lex(TK.lit_number, 2, 1).nextAlt() };
@@ -332,6 +338,7 @@ test "Parse basic add" {
     const aux = &[_]Token{};
 
     const expected = &[_]Token{
+        tok.AUX_STREAM_START,
         Token.lex(TK.lit_number, 0, 1),
         // next-alt bit doesn't have much meaning in the parsed expr...
         Token.lex(TK.lit_number, 2, 1).nextAlt(),
@@ -353,7 +360,7 @@ test "Parse math op precedence" {
 
     const aux = &[_]Token{};
     // Ensure multiply before add.
-    const expected = &[_]Token{ Token.lex(TK.lit_number, 0, 1), Token.lex(TK.lit_number, 2, 1), Token.lex(TK.lit_number, 4, 1), tok.createToken(TK.op_mul), tok.createToken(TK.op_add) };
+    const expected = &[_]Token{ tok.AUX_STREAM_START, Token.lex(TK.lit_number, 0, 1), Token.lex(TK.lit_number, 2, 1), Token.lex(TK.lit_number, 4, 1), tok.createToken(TK.op_mul), tok.createToken(TK.op_add) };
 
     try testParse(buffer, tokens, aux, expected);
 }

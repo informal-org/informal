@@ -72,3 +72,7 @@ pub const IR = struct {
         }
     }
 };
+
+test {
+    @import("std").testing.refAllDecls(@This());
+}

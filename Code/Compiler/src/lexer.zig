@@ -641,6 +641,10 @@ const testutils = @import("testutils.zig");
 const testTokenEquals = testutils.testTokenEquals;
 const testQueueEquals = testutils.testQueueEquals;
 
+test {
+    std.testing.refAllDecls(Lexer);
+}
+
 pub fn testToken(buffer: []const u8, expected: []const Token, aux: ?[]const Token) !void {
     // print("\nTest Lex Token: {s}\n", .{buffer});
     // defer print("\n--------------------------------------------------------------\n", .{});
