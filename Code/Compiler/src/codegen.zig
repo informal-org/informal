@@ -67,6 +67,10 @@ pub const Codegen = struct {
     }
 
     pub fn emitAll(self: *Self, tokenQueue: []Token) !void {
+        if (DEBUG) {
+            print("\n------------- Codegen --------------- \n", .{});
+        }
+
         var reg = arm.Reg.x0;
         for (tokenQueue, 0..) |token, index| {
             // try self.emit(token);

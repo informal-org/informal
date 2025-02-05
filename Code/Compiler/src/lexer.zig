@@ -521,6 +521,9 @@ pub const Lexer = struct {
     }
 
     pub fn lex(self: *Lexer) !void {
+        if (DEBUG) {
+            print("\n------------- Lexer --------------- \n", .{});
+        }
         // if (self.index >= self.buffer.len) {
         //     if (self.depth > 0) {
         //         // Flush any remaining open blocks.

@@ -280,6 +280,9 @@ pub const Parser = struct {
     // Note: All sub-parse functions MUST be tail-recursive, in a direct-threaded style.
     // Each state function should process a token at a time, with no lookahead or backtracking.
     pub fn parse(self: *Self) !void {
+        if (DEBUG) {
+            print("\n------------- Parser --------------- \n", .{});
+        }
         try self.parsedQ.push(tok.AUX_STREAM_START); // Hack - to make sure zero index is always occupied.
         try self.initial_state();
 

@@ -20,6 +20,70 @@ pub const Reader = struct {
     internedNumbers: *std.AutoHashMap(u64, u64),
     internedFloats: *std.AutoHashMap(f64, u64),
     internedSymbols: *std.StringHashMap(u64),
+
+    pub fn init(allocator: Allocator) !*Self {
+        // Allocate all queue/hashmap pointers on heap
+        const syntaxQ = try allocator.create(lex.TokenQueue);
+        syntaxQ.* = lex.TokenQueue.init(allocator);
+
+        const auxQ = try allocator.create(lex.TokenQueue);
+        auxQ.* = lex.TokenQueue.init(allocator);
+
+        const parsedQ = try allocator.create(parser.TokenQueue);
+        parsedQ.* = parser.TokenQueue.init(allocator);
+
+        const offsetQ = try allocator.create(parser.OffsetQueue);
+        offsetQ.* = parser.OffsetQueue.init(allocator);
+
+        const internedStrings = try allocator.create(std.StringHashMap(u64));
+        internedStrings.* = std.StringHashMap(u64).init(allocator);
+
+        const internedNumbers = try allocator.create(std.AutoHashMap(u64, u64));
+        internedNumbers.* = std.AutoHashMap(u64, u64).init(allocator);
+
+        const internedFloats = try allocator.create(std.AutoHashMap(f64, u64));
+        internedFloats.* = std.AutoHashMap(f64, u64).init(allocator);
+
+        const internedSymbols = try allocator.create(std.StringHashMap(u64));
+        internedSymbols.* = std.StringHashMap(u64).init(allocator);
+
+        const reader = try allocator.create(Self);
+        reader.* = .{
+            .allocator = allocator,
+            .syntaxQ = syntaxQ,
+            .auxQ = auxQ,
+            .parsedQ = parsedQ,
+            .offsetQ = offsetQ,
+            .internedStrings = internedStrings,
+            .internedNumbers = internedNumbers,
+            .internedFloats = internedFloats,
+            .internedSymbols = internedSymbols,
+        };
+        return reader;
+    }
+
+    fn deinit(self: *Self) void {
+        self.syntaxQ.deinit();
+        self.auxQ.deinit();
+        self.parsedQ.deinit();
+        self.offsetQ.deinit();
+        self.internedStrings.deinit();
+        self.internedNumbers.deinit();
+        self.internedFloats.deinit();
+        self.internedSymbols.deinit();
+
+        // Free the allocated structs themselves
+        self.allocator.destroy(self.syntaxQ);
+        self.allocator.destroy(self.auxQ);
+        self.allocator.destroy(self.parsedQ);
+        self.allocator.destroy(self.offsetQ);
+        self.allocator.destroy(self.internedStrings);
+        self.allocator.destroy(self.internedNumbers);
+        self.allocator.destroy(self.internedFloats);
+        self.allocator.destroy(self.internedSymbols);
+
+        self.allocator.destroy(self);
+    }
 };
 
 pub fn process_chunk(chunk: []u8, reader: *Reader, allocator: Allocator) !void {
@@ -39,6 +103,7 @@ pub fn process_chunk(chunk: []u8, reader: *Reader, allocator: Allocator) !void {
 
     try p.parse();
     if (DEBUG) {
+        std.debug.print("\n------------- Parsed Queue --------------- \n", .{});
         tok.print_token_queue(reader.parsedQ.list.items, chunk);
     }
 
@@ -55,35 +120,9 @@ pub fn process_chunk(chunk: []u8, reader: *Reader, allocator: Allocator) !void {
 pub fn compile_file(filename: []u8) !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 
-    var syntaxQ = lex.TokenQueue.init(gpa.allocator());
-    var auxQ = lex.TokenQueue.init(gpa.allocator());
-    var parsedQ = parser.TokenQueue.init(gpa.allocator());
-    var offsetQ = parser.OffsetQueue.init(gpa.allocator());
-    var internedStrings = std.StringHashMap(u64).init(gpa.allocator());
-    var internedNumbers = std.AutoHashMap(u64, u64).init(gpa.allocator());
-    var internedFloats = std.AutoHashMap(f64, u64).init(gpa.allocator());
-    var internedSymbols = std.StringHashMap(u64).init(gpa.allocator());
+    var reader = try Reader.init(gpa.allocator());
+    defer reader.deinit();
 
-    // var reader = Reader.init(gpa.allocator(), &syntaxQ, &auxQ, &parsedQ, &offsetQ);
-    var reader = Reader{
-        .allocator = gpa.allocator(),
-        .syntaxQ = &syntaxQ,
-        .auxQ = &auxQ,
-        .parsedQ = &parsedQ,
-        .offsetQ = &offsetQ,
-        .internedStrings = &internedStrings,
-        .internedNumbers = &internedNumbers,
-        .internedFloats = &internedFloats,
-        .internedSymbols = &internedSymbols,
-    };
-
-    defer syntaxQ.deinit();
-    defer auxQ.deinit();
-    defer parsedQ.deinit();
-    defer internedStrings.deinit();
-    defer internedNumbers.deinit();
-    defer internedFloats.deinit();
-    defer internedSymbols.deinit();
     const file = try std.fs.cwd().openFile(filename, .{});
     defer file.close();
 
@@ -98,7 +137,7 @@ pub fn compile_file(filename: []u8) !void {
         // std.debug.print("Read: {s}\n", .{buffer[0..readResult]});
 
         // try process_chunk(buffer[0..readResult], &syntaxQ, &auxQ, &parsedQ, &offsetQ, gpa.allocator());
-        try process_chunk(buffer[0..readResult], &reader, gpa.allocator());
+        try process_chunk(buffer[0..readResult], reader, gpa.allocator());
 
         buffer = undefined;
     }
