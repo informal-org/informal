@@ -88,6 +88,7 @@ pub const Kind = enum(u8) {
     // They can be split up into a separate namespace, but having it combined simplifies the lexer.
     // We can move this out if we run out of opspace.
     aux,
+    aux_skip,
     aux_comment,
     aux_whitespace,
     aux_newline,
@@ -211,7 +212,11 @@ pub const OP_NOT = createToken(Kind.op_not);
 pub const OP_AS = createToken(TK.op_as);
 pub const OP_IN = createToken(TK.op_in);
 pub const OP_IS = createToken(TK.op_is);
+pub const KW_IF = createToken(TK.kw_if);
+pub const GRP_INDENT = createToken(Kind.grp_indent);
+pub const GRP_DEDENT = createToken(Kind.grp_dedent);
 pub const OP_DOT_MEMBER = createToken(Kind.op_dot_member);
+pub const AUX_SKIP = createToken(Kind.aux_skip);
 pub const AUX_STREAM_START = createToken(Kind.aux_stream_start);
 pub const AUX_STREAM_END = createToken(Kind.aux_stream_end);
 

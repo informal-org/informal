@@ -24,9 +24,9 @@ const SYMBOLS = bitset.character_bitset(SYMBOL_CHARS); // "%()*+,-./:;<=>?[]^{|}
 const SYMBOL_KEYWORD_COUNT = SYMBOL_CHARS.len; // 8
 const GROUPING = bitset.character_bitset("()[]{}");
 const IDENTIFIER_DELIIMITERS = bitset.character_bitset("()[]{}\"'.,:;\t\n%*+-/^<=>");
-const IDENTIFIER_DELIIMITERS_WITH_SPACE = bitset.character_bitset("()[]{}\"'.,:;\t\n%*+-/^<=> ");
+const IDENTIFIER_DELIIMITERS_WITH_SPACE = bitset.character_bitset("()[]{}\"'.,:;\t\n%*+-/^<=> 0123456789");
 
-const DEBUG = false;
+const DEBUG = true;
 
 /// The lexer splits up an input buffer into tokens.
 /// The input buffer are smaller chunks of a source file.
@@ -65,6 +65,7 @@ pub const Lexer = struct {
     internedFloats: *std.AutoHashMap(f64, u64),
 
     indentStack: u64, // A tiny little stack to contain up to 21 levels of indentation. (3 bits per indent offset).
+    depth: u16,
     // kind: TokenKind,
     // pub const TokenKind = enum { number, string, symbol, keyword, identifier, indent, dedent, newline, eof };
 
@@ -97,6 +98,7 @@ pub const Lexer = struct {
             .internedFloats = internedFloats,
             .symbolTable = symbolTable,
             .indentStack = 0,
+            .depth = 0,
         };
     }
 
@@ -269,6 +271,14 @@ pub const Lexer = struct {
             unreachable;
         }
         const name = self.buffer[start..self.index];
+        if (DEBUG) {
+            if (self.symbolTable.get(name)) |constIdx| {
+                print("REF {s} => Symbol {d}\n", .{ name, constIdx });
+            } else {
+                print("DEF {s} => Symbol {d}\n", .{ name, self.symbolTable.count() });
+            }
+        }
+
         const constIdxEntry = self.symbolTable.getOrPutValue(name, self.symbolTable.count()) catch unreachable;
         const constIdx: u64 = constIdxEntry.value_ptr.*;
         return constIdx;
@@ -312,6 +322,14 @@ pub const Lexer = struct {
         const start = self.index;
         _ = self.seek_till_identifier_delimiter();
         const len = self.index - start;
+        if (len == 2) {
+            const name = self.buffer[start..self.index];
+            if (std.mem.eql(u8, name, "if")) {
+                try self.emitToken(tok.KW_IF);
+                return;
+            }
+        }
+
         const constIdx = self.push_identifier(start);
         try self.emitToken(Token.lex(TK.identifier, @truncate(constIdx), @truncate(len)));
         try self.maybe_user_op_after_identifier();
@@ -456,54 +474,59 @@ pub const Lexer = struct {
     fn tiny_stack_pop(self: *Lexer) u3 {
         const indentLvl = self.indentStack & 0b111;
         self.indentStack >>= 3;
-        return indentLvl;
+        return @truncate(indentLvl);
     }
 
-    fn token_indentation(self: *Lexer) u64 {
+    fn token_indentation(self: *Lexer) !Token {
         // TODO: This needs revision
 
         const indent: u16 = self.countIndentation();
         const ch = self.peek_ch();
         if (ch == '\n') {
             // Skip emitting anything when the entire line is empty.
-            return tok.SKIP_TOKEN; // TODO: Return a special token to skip
+            return tok.AUX_SKIP; // TODO: Return a special token to skip
         } else if (ch == '\t') {
             // Error on tabs - because it'll look like indentation visually, but don't have semantic meaning.
             // So either we have to raise an error error or accept tabs.
             print("Error: Mixed indentation. Use 4 spaces to align.", .{});
-            return tok.LEX_ERROR; // TODO
+            // return tok.LEX_ERROR; // TODO
+            return tok.AUX_SKIP;
         } else {
+            print("Indent: {d} Depth: {d}\n", .{ indent, self.depth });
             // Count and determine if it's an indent or dedent.
             if (indent > self.depth) {
                 const diff = indent - self.depth;
                 if (diff > 8) {
                     // You can indent pretty far, but just can't do more than 8 spaces at a time.
                     print("Indentation level too deep. Use 4 spaces to align.", .{});
-                    return tok.LEX_ERROR;
+                    // return tok.LEX_ERROR;
+                    return tok.AUX_SKIP;
                 }
                 self.tiny_stack_push(@truncate(diff));
                 self.depth = indent;
-                return tok.SYMBOL_INDENT;
+                try self.emitToken(tok.GRP_INDENT);
+                return tok.GRP_INDENT;
             } else if (indent < self.depth) {
                 return self.token_dedent(indent);
             }
             // No special token if you're on the same indentation level.
         }
 
-        return tok.SKIP_TOKEN;
+        return tok.AUX_SKIP;
     }
 
-    fn token_dedent(self: *Lexer, indent: u16) u64 {
+    fn token_dedent(self: *Lexer, indent: u16) !Token {
         var diff = self.depth - indent;
         var expectedDiff = self.tiny_stack_pop();
         if (expectedDiff == 0) {
             // If the tiny stack overflows, we'd get here.
             print("Indentation level too deep.", .{});
-            return tok.LEX_ERROR;
+            // return tok.LEX_ERROR;
+            return tok.AUX_SKIP;
         }
         var dedentCount: u8 = 0;
         // Loop to pop multiple indentation levels.
-        while (diff > expectedDiff) {
+        while (diff >= expectedDiff) {
             diff -= expectedDiff;
             dedentCount += 1;
             if (diff != 0) {
@@ -512,12 +535,16 @@ pub const Lexer = struct {
         }
         if (diff != 0) {
             print("Unaligned indentation. Use 4 spaces to align.", .{});
-            return tok.LEX_ERROR;
+            // return tok.LEX_ERROR;
+            return tok.AUX_SKIP;
         }
 
         self.depth = indent;
-        // TODO: Return dedent count in the token context somehow since we can't emit multiple tokens at once.
-        return tok.SYMBOL_DEDENT;
+        while (dedentCount > 0) {
+            try self.emitToken(tok.GRP_DEDENT);
+            dedentCount -= 1;
+        }
+        return tok.GRP_DEDENT;
     }
 
     pub fn lex(self: *Lexer) !void {
@@ -540,11 +567,8 @@ pub const Lexer = struct {
                 ' ' => {
                     if (self.lineChStart == self.index) {
                         // Indentation at the start of a line is significant.
-                        // const indent = self.token_indentation();
-                        // if (indent != tok.SKIP_TOKEN) {
-                        //     return indent;
-                        // }
-                        self.index += 1; // TODO: Not implemented. Temporary skip.
+                        _ = try self.token_indentation();
+                        // self.index += 1; // TODO: Not implemented. Temporary skip.
                     } else {
                         const start = self.index;
                         self.gobble_ch(' ');
@@ -559,6 +583,7 @@ pub const Lexer = struct {
                 },
                 '\n' => {
                     try self.emitNewLine();
+                    _ = try self.token_indentation();
                 },
                 '.' => {
                     try self.token_dot();
@@ -608,9 +633,9 @@ pub const Lexer = struct {
 
                         // Single-character symbols.
 
-                        if (DEBUG) {
-                            print("CH {d} index {d} enum val {d}\n", .{ ch, bitset.index128(SYMBOLS, ch), @intFromEnum(tok.TK.grp_close_brace) });
-                        }
+                        // if (DEBUG) {
+                        //     print("CH {d} index {d} enum val {d}\n", .{ ch, bitset.index128(SYMBOLS, ch), @intFromEnum(tok.TK.grp_close_brace) });
+                        // }
                         const tokKind = bitset.chToKind(SYMBOLS, ch, MULTICHAR_KEYWORD_COUNT);
                         try self.emitToken(tok.createToken(tokKind));
                         // Index updated outside.
@@ -845,20 +870,20 @@ test "Lex non-builtin operator" {
 //     try testToken(source, &[_]u64{
 //         val.createObject(tok.T_IDENTIFIER, 0, 1), // a
 //         tok.SYMBOL_NEWLINE,
-//         tok.SYMBOL_INDENT,
+//         tok.GRP_INDENT,
 //         val.createObject(tok.T_IDENTIFIER, 4, 1), // b
 //         tok.SYMBOL_NEWLINE,
 //         val.createObject(tok.T_IDENTIFIER, 8, 2), // b2
 //         tok.SYMBOL_NEWLINE,
-//         tok.SYMBOL_INDENT,
+//         tok.GRP_INDENT,
 //         val.createObject(tok.T_IDENTIFIER, 16, 1), // c
 //         tok.SYMBOL_NEWLINE,
-//         tok.SYMBOL_INDENT,
+//         tok.GRP_INDENT,
 //         val.createObject(tok.T_IDENTIFIER, 25, 1), // d
 //         tok.SYMBOL_NEWLINE,
-//         tok.SYMBOL_DEDENT,
-//         tok.SYMBOL_DEDENT,
+//         tok.GRP_DEDENT,
+//         tok.GRP_DEDENT,
 //         val.createObject(tok.T_IDENTIFIER, 29, 2), // b3
-//         tok.SYMBOL_DEDENT,
+//         tok.GRP_DEDENT,
 //     });
 // }

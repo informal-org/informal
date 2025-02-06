@@ -62,3 +62,15 @@ test "identifiers.ifi" {
     const exitCode = try exitCodeTest("test/data/add.ifi");
     try expectEqual(exitCode, 13);
 }
+
+test "assign.ifi" {
+    print("Running assign.ifi\n", .{});
+    const exitCode = try exitCodeTest("test/data/assign.ifi");
+    try expectEqual(exitCode, 2);
+}
+
+test "if.ifi" {
+    print("Running if.ifi\n", .{});
+    const exitCode = try exitCodeTest("test/data/if.ifi");
+    try expectEqual(exitCode, 1);
+}

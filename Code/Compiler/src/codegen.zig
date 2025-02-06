@@ -91,7 +91,7 @@ pub const Codegen = struct {
                         // Save which register this identifier is associated with to the parsed queue so future refs can look it up.
                         tokenQueue[index] = token.assignReg(@intFromEnum(reg));
                         if (DEBUG) {
-                            print("DECL {any}, x{any}\n", .{ index, reg });
+                            print("DECL @{any}, {s}\n", .{ index, @tagName(reg) });
                         }
                     } else {
                         // Find what register this identifier is at by following the usage chain.
@@ -99,7 +99,8 @@ pub const Codegen = struct {
                         const prevRefDecIndex = ns.applyOffset(@truncate(index), offset);
                         const register = tokenQueue[prevRefDecIndex].data.value.arg0;
                         if (DEBUG) {
-                            print("REF {any}, x{any} offset {any}\n", .{ prevRefDecIndex, register, offset });
+                            const signedOffset: i16 = @bitCast(offset);
+                            print("REF @{any}, x{any} offset {any}\n", .{ prevRefDecIndex, register, signedOffset });
                         }
                         reg = @enumFromInt(register);
                         self.pushReg(reg);

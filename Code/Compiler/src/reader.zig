@@ -95,6 +95,11 @@ pub fn process_chunk(chunk: []u8, reader: *Reader, allocator: Allocator, out_fil
     var lexer = lex.Lexer.init(chunk, reader.syntaxQ, reader.auxQ, reader.internedStrings, reader.internedNumbers, reader.internedFloats, reader.internedSymbols);
     try lexer.lex();
 
+    if (DEBUG) {
+        std.debug.print("\n------------- Lexer Queue --------------- \n", .{});
+        tok.print_token_queue(reader.syntaxQ.list.items, chunk);
+    }
+
     var namespace = try ns.Namespace.init(allocator, reader.internedSymbols.count(), reader.parsedQ);
     defer namespace.deinit();
 
