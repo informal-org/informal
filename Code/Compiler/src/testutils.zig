@@ -33,8 +33,9 @@ pub fn testQueueEquals(buffer: []const u8, resultQ: *TokenQueue, expected: []con
         const lexBits: u64 = @bitCast(lexedToken);
         const expectedBits: u64 = @bitCast(expected[i]);
         if (lexBits != expectedBits) {
-            print("\nLexed: {any}", .{TokenWriter{ .token = lexedToken, .buffer = buffer }});
-            print("\nExpected: {any}\n", .{TokenWriter{ .token = expected[i], .buffer = buffer }});
+            print("\nMismatch at index {d}", .{i});
+            print("\n    Lexed: {any}", .{TokenWriter{ .token = lexedToken, .buffer = buffer }});
+            print("\n    Expected: {any}\n", .{TokenWriter{ .token = expected[i], .buffer = buffer }});
         }
         // tok.print_token(lexedToken, buffer);
         try testTokenEquals(lexedToken, expected[i]);

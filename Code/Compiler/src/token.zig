@@ -192,6 +192,9 @@ pub const TokenWriter = struct {
             TK.aux, TK.aux_comment, TK.aux_whitespace, TK.aux_newline, TK.aux_indentation, TK.aux_stream_start, TK.aux_stream_end => {
                 try std.fmt.format(writer, "{s} {s}", .{ @tagName(value.kind), alt });
             },
+            TK.sep_newline => {
+                try std.fmt.format(writer, "{s} {d}, {d} {s}", .{ @tagName(value.kind), value.data.value.arg0, value.data.value.arg1, alt });
+            },
             else => {
                 try std.fmt.format(writer, "{s} {s}", .{ @tagName(value.kind), alt });
             },

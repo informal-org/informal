@@ -655,7 +655,7 @@ pub const Lexer = struct {
                 },
             }
         }
-
+        _ = try self.token_indentation();
         try self.emitAux(tok.AUX_STREAM_END);
         try self.flushPrev(false);
     }
@@ -856,34 +856,34 @@ test "Lex non-builtin operator" {
 //     });
 // }
 
-// test "Test indentation" {
-//     // "Hello"
-//     // 0123456
-//     var source =
-//         \\a
-//         \\  b
-//         \\  b2
-//         \\     c
-//         \\       d
-//         \\  b3
-//     ;
-//     try testToken(source, &[_]u64{
-//         val.createObject(tok.T_IDENTIFIER, 0, 1), // a
-//         tok.SYMBOL_NEWLINE,
-//         tok.GRP_INDENT,
-//         val.createObject(tok.T_IDENTIFIER, 4, 1), // b
-//         tok.SYMBOL_NEWLINE,
-//         val.createObject(tok.T_IDENTIFIER, 8, 2), // b2
-//         tok.SYMBOL_NEWLINE,
-//         tok.GRP_INDENT,
-//         val.createObject(tok.T_IDENTIFIER, 16, 1), // c
-//         tok.SYMBOL_NEWLINE,
-//         tok.GRP_INDENT,
-//         val.createObject(tok.T_IDENTIFIER, 25, 1), // d
-//         tok.SYMBOL_NEWLINE,
-//         tok.GRP_DEDENT,
-//         tok.GRP_DEDENT,
-//         val.createObject(tok.T_IDENTIFIER, 29, 2), // b3
-//         tok.GRP_DEDENT,
-//     });
-// }
+test "Test indentation" {
+    // "Hello"
+    // 0123456
+    const source =
+        \\a
+        \\  b
+        \\  b2
+        \\     c
+        \\       d
+        \\  b3
+    ;
+    try testToken(source, &[_]Token{
+        Token.lex(TK.identifier, 0, 1), // a
+        Token.lex(TK.sep_newline, 1, 1).nextAlt(),
+        tok.GRP_INDENT,
+        Token.lex(TK.identifier, 1, 1), // b
+        Token.lex(TK.sep_newline, 2, 2).nextAlt(),
+        Token.lex(TK.identifier, 2, 2), // b2
+        Token.lex(TK.sep_newline, 3, 1).nextAlt(),
+        tok.GRP_INDENT,
+        Token.lex(TK.identifier, 3, 1), // c
+        Token.lex(TK.sep_newline, 4, 2).nextAlt(),
+        tok.GRP_INDENT,
+        Token.lex(TK.identifier, 4, 1), // d
+        Token.lex(TK.sep_newline, 5, 2).nextAlt(),
+        tok.GRP_DEDENT,
+        tok.GRP_DEDENT,
+        Token.lex(TK.identifier, 5, 2), // b3
+        tok.GRP_DEDENT.nextAlt(),
+    }, null);
+}
