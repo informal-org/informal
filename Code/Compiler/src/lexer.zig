@@ -24,7 +24,8 @@ const SYMBOLS = bitset.character_bitset(SYMBOL_CHARS); // "%()*+,-./:;<=>?[]^{|}
 const SYMBOL_KEYWORD_COUNT = SYMBOL_CHARS.len; // 8
 const GROUPING = bitset.character_bitset("()[]{}");
 const IDENTIFIER_DELIIMITERS = bitset.character_bitset("()[]{}\"'.,:;\t\n%*+-/^<=>");
-const IDENTIFIER_DELIIMITERS_WITH_SPACE = bitset.character_bitset("()[]{}\"'.,:;\t\n%*+-/^<=> 0123456789");
+const IDENTIFIER_DELIIMITERS_WITH_SPACE = bitset.extend_bitset(IDENTIFIER_DELIIMITERS, " 0123456789");
+const KEYWORD_DELIMITERS = bitset.extend_bitset(IDENTIFIER_DELIIMITERS, " "); // Don't add numbers here. Better to be stricter about space / symbol separated keywords.
 
 const DEBUG = true;
 
@@ -316,11 +317,29 @@ pub const Lexer = struct {
         }
     }
 
-    fn token_identifier(self: *Lexer) !void {
+    fn token_identifier(self: *Lexer, start: u32) !void {
         // First char is known to not be a number.
         // Non digit or symbol start, so interpret as an identifier.
-        const start = self.index;
+        // First part of the identifier may have been parsed when attempting to tokenize a keyword.
         _ = self.seek_till_identifier_delimiter();
+        const len = self.index - start;
+        const constIdx = self.push_identifier(start);
+        try self.emitToken(Token.lex(TK.identifier, @truncate(constIdx), @truncate(len)));
+        try self.maybe_user_op_after_identifier();
+    }
+
+    fn seek_till_keyword_delimiter(self: *Lexer) void {
+        while (self.index < self.buffer.len) {
+            const ch = self.buffer[self.index];
+            if (KEYWORD_DELIMITERS.isSet(ch)) {
+                break;
+            }
+            self.index += 1;
+        }
+    }
+    fn token_keyword_or_identifier(self: *Lexer) !void {
+        const start = self.index;
+        _ = self.seek_till_keyword_delimiter();
         const len = self.index - start;
         if (len == 2) {
             const name = self.buffer[start..self.index];
@@ -329,10 +348,8 @@ pub const Lexer = struct {
                 return;
             }
         }
-
-        const constIdx = self.push_identifier(start);
-        try self.emitToken(Token.lex(TK.identifier, @truncate(constIdx), @truncate(len)));
-        try self.maybe_user_op_after_identifier();
+        // Not a keyword - resume where we left off as if it's an identifier.
+        try self.token_identifier(start);
     }
 
     fn seek_upperend(self: *Lexer) bool {
@@ -650,12 +667,7 @@ pub const Lexer = struct {
                         continue;
                     }
 
-                    // TODO: Parse alphabetic keywords like if, for.
-                    // self.token_symbol();
-                    // handle cases where it's not a valid identifier and none of the recognized tokens.
-
-                    // Support unicode identifiers.
-                    try self.token_identifier();
+                    try self.token_keyword_or_identifier();
                 },
             }
         }
@@ -819,6 +831,13 @@ test "Multiple consecutive spaces in identifier" {
     try testToken("hello  world", &[_]Token{
         Token.lex(TK.identifier, 0, 5).nextAlt(), // Should only capture "hello"
         Token.lex(TK.identifier, 1, 5).nextAlt(), // Should capture "world" separately
+    }, null);
+}
+
+test "Keyword as identifier" {
+    try testToken("if x", &[_]Token{
+        tok.KW_IF.nextAlt(),
+        Token.lex(TK.identifier, 0, 1).nextAlt(),
     }, null);
 }
 

@@ -241,7 +241,7 @@ pub const Parser = struct {
         } else if (isKind(tok.UNARY_OPS, kind)) {
             print("Parser - unhandled unary - UNARY Op: {any}\n", .{token});
         } else {
-            print("Parser - unhandled unary - Invalid token: {any}\n", .{token});
+            print("Parser - unhandled unary at {d} - Invalid token: {any}\n", .{ self.index, token });
         }
     }
 

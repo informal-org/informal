@@ -39,7 +39,7 @@ pub const Reg = enum(u5) {
     x28 = 28,
     x29 = 29,
     x30 = 30,
-    x31 = 31, // WZR
+    x31 = 31, // WZR - Pseudo register. Zero register or stack pointer.
 };
 pub const WZR = Reg.x31;
 
@@ -144,6 +144,17 @@ pub fn addi(rd: Reg, rn: Reg, imm12: u12) u32 {
 
 pub fn subi(rd: Reg, rn: Reg, imm12: u12) u32 {
     return ImmAddSub.init(rd, rn, imm12, AddSubOp.SUB);
+}
+
+// Alias of sub-set flags
+pub fn cmp(rd: Reg, rn: Reg) u32 {
+    return (ImmAddSub{
+        .rd = WZR,
+        .rn = rd,
+        .imm12 = rn,
+        .set_flags = 1,
+        .op = AddSubOp.SUB,
+    }).encode();
 }
 
 pub const ImmAddSubTags = packed struct(u32) {

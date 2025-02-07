@@ -17,6 +17,12 @@ pub fn character_bitset(pattern: []const u8) BitSet128 {
     return bs;
 }
 
+pub fn extend_bitset(base: BitSet128, pattern: []const u8) BitSet128 {
+    var patternBs = character_bitset(pattern);
+    patternBs.setUnion(base);
+    return patternBs;
+}
+
 pub fn token_bitset(tokens: []const tok.Kind) BitSet64 {
     var bs = BitSet64.initEmpty();
     for (tokens) |token| {
