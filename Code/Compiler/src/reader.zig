@@ -4,7 +4,7 @@ const parser = @import("parser.zig");
 const queue = @import("queue.zig");
 const tok = @import("token.zig");
 const codegen = @import("codegen.zig");
-const ns = @import("namespace.zig");
+const rs = @import("resolution.zig");
 const macho = @import("macho.zig");
 const Allocator = std.mem.Allocator;
 const DEBUG = true;
@@ -100,10 +100,10 @@ pub fn process_chunk(chunk: []u8, reader: *Reader, allocator: Allocator, out_fil
         tok.print_token_queue(reader.syntaxQ.list.items, chunk);
     }
 
-    var namespace = try ns.Namespace.init(allocator, reader.internedSymbols.count(), reader.parsedQ);
-    defer namespace.deinit();
+    var resolution = try rs.Resolution.init(allocator, reader.internedSymbols.count(), reader.parsedQ);
+    defer resolution.deinit();
 
-    var p = parser.Parser.init(chunk, reader.syntaxQ, reader.auxQ, reader.parsedQ, reader.offsetQ, allocator, &namespace);
+    var p = parser.Parser.init(chunk, reader.syntaxQ, reader.auxQ, reader.parsedQ, reader.offsetQ, allocator, &resolution);
     defer p.deinit();
 
     try p.parse();

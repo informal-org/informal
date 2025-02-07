@@ -3,7 +3,7 @@ const arm = @import("arm.zig");
 const tok = @import("token.zig");
 const parser = @import("parser.zig");
 const bitset = @import("bitset.zig");
-const ns = @import("namespace.zig");
+const resolution = @import("resolution.zig");
 
 const Allocator = std.mem.Allocator;
 const Token = tok.Token;
@@ -96,7 +96,7 @@ pub const Codegen = struct {
                     } else {
                         // Find what register this identifier is at by following the usage chain.
                         const offset = token.data.value.arg1;
-                        const prevRefDecIndex = ns.applyOffset(@truncate(index), offset);
+                        const prevRefDecIndex = resolution.applyOffset(@truncate(index), offset);
                         const register = tokenQueue[prevRefDecIndex].data.value.arg0;
                         if (DEBUG) {
                             const signedOffset: i16 = @bitCast(offset);

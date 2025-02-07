@@ -3,7 +3,7 @@ const val = @import("value.zig");
 const tok = @import("token.zig");
 const q = @import("queue.zig");
 const bitset = @import("bitset.zig");
-const ns = @import("namespace.zig");
+const rs = @import("resolution.zig");
 
 const print = std.debug.print;
 // const Token = tok.Token;
@@ -38,7 +38,7 @@ pub const Parser = struct {
     // Multi will be more compact without the padding, but we push/pop them in pairs anyway.
     opStack: std.ArrayList(ParseNode),
 
-    namespace: *ns.Namespace,
+    resolution: *rs.Resolution,
 
     allocator: Allocator,
     index: u32,
@@ -48,9 +48,9 @@ pub const Parser = struct {
         index: usize,
     };
 
-    pub fn init(buffer: []const u8, syntaxQ: *TokenQueue, auxQ: *TokenQueue, parsedQ: *TokenQueue, offsetQ: *OffsetQueue, allocator: Allocator, namespace: *ns.Namespace) Self {
+    pub fn init(buffer: []const u8, syntaxQ: *TokenQueue, auxQ: *TokenQueue, parsedQ: *TokenQueue, offsetQ: *OffsetQueue, allocator: Allocator, resolution: *rs.Resolution) Self {
         const opStack = std.ArrayList(ParseNode).init(allocator);
-        return Self{ .buffer = buffer, .syntaxQ = syntaxQ, .auxQ = auxQ, .parsedQ = parsedQ, .offsetQ = offsetQ, .allocator = allocator, .index = 0, .opStack = opStack, .namespace = namespace };
+        return Self{ .buffer = buffer, .syntaxQ = syntaxQ, .auxQ = auxQ, .parsedQ = parsedQ, .offsetQ = offsetQ, .allocator = allocator, .index = 0, .opStack = opStack, .resolution = resolution };
     }
 
     pub fn deinit(self: *Self) void {
@@ -126,7 +126,7 @@ pub const Parser = struct {
             if (DEBUG) {
                 print("Initial state - Identifier: {any}\n", .{token});
             }
-            const ident = self.namespace.resolve(@truncate(self.parsedQ.list.items.len), token);
+            const ident = self.resolution.resolve(@truncate(self.parsedQ.list.items.len), token);
             try self.emitParsed(ident);
             try self.expect_binary();
         } else if (isKind(tok.PAREN_START, kind)) {
@@ -188,7 +188,7 @@ pub const Parser = struct {
             if (kind == TK.op_assign_eq) {
                 // Assume - the token to the left was the identifier.
                 // When we add destructuring in the future, this will need to change.
-                const ident = self.namespace.declare(@truncate(self.parsedQ.list.items.len - 1), self.parsedQ.list.getLast());
+                const ident = self.resolution.declare(@truncate(self.parsedQ.list.items.len - 1), self.parsedQ.list.getLast());
                 self.parsedQ.list.items[self.parsedQ.list.items.len - 1] = ident;
 
                 try self.pushOp(token);
@@ -231,7 +231,7 @@ pub const Parser = struct {
                 print("Expect unary - Identifier: {any}\n", .{token});
             }
 
-            const ident = self.namespace.resolve(@truncate(self.parsedQ.list.items.len), token);
+            const ident = self.resolution.resolve(@truncate(self.parsedQ.list.items.len), token);
             try self.emitParsed(ident);
             try self.expect_binary();
         } else if (isKind(tok.PAREN_START, kind)) {
@@ -310,13 +310,13 @@ pub fn testParse(buffer: []const u8, tokens: []const Token, aux: []const Token, 
     var auxQ = TokenQueue.init(test_allocator);
     var parsedQ = TokenQueue.init(test_allocator);
     var offsetQ = OffsetQueue.init(test_allocator);
-    var namespace = try ns.Namespace.init(test_allocator, 0, &parsedQ);
+    var resolution = try rs.Resolution.init(test_allocator, 0, &parsedQ);
     defer syntaxQ.deinit();
     defer auxQ.deinit();
     defer parsedQ.deinit();
     defer offsetQ.deinit();
-    defer namespace.deinit();
-    var parser = Parser.init(buffer, &syntaxQ, &auxQ, &parsedQ, &offsetQ, test_allocator, &namespace);
+    defer resolution.deinit();
+    var parser = Parser.init(buffer, &syntaxQ, &auxQ, &parsedQ, &offsetQ, test_allocator, &resolution);
     defer parser.deinit();
 
     try parser.parse();

@@ -520,6 +520,10 @@ pub const Lexer = struct {
         var expectedDiff = self.tiny_stack_pop();
         if (expectedDiff == 0) {
             // If the tiny stack overflows, we'd get here.
+            // FUTURE OPTIMIZATION IDEA: The tiny stack is sufficient for most normal cases.
+            // As a fallback path, we can link up the indent/dedent tokens to the previous indentation
+            // and track levels. You can then follow that in the slow-path after overflow to refill the tiny-stack
+            // treating the stack as a cache and the linked list as the source of truth.
             print("Indentation level too deep.", .{});
             // return tok.LEX_ERROR;
             return tok.AUX_SKIP;
