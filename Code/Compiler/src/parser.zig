@@ -17,7 +17,7 @@ const TokBitset = bitset.BitSet64;
 
 const isKind = bitset.isKind;
 
-const DEBUG = false;
+const DEBUG = true;
 // The parser takes a token stream from the lexer and converts it into a valid structure.
 // It's only concerned with the grammatic structure of the code - not the meaning.
 // It's a hybrid state-machine / recursive descent parser with state tables.
@@ -70,26 +70,67 @@ pub const Parser = struct {
     fn flushOpStack(self: *Self, token: Token) !void {
         // Indicates which tokens have higher-precedence and associativity.
         // Those operations must be emitted/done first before the current token.
-        const flushBitset = tok.TBL_PRECEDENCE_FLUSH[@intFromEnum(token.kind)];
-        while (self.opStack.items.len > 0) {
-            const top = self.opStack.items[self.opStack.items.len - 1];
-            const topKind = top.token.kind;
-            if (flushBitset.isSet(@intFromEnum(topKind))) {
-                try self.popOp();
-            } else {
-                break;
+        const tokValue = @intFromEnum(token.kind);
+        if (tokValue < tok.TBL_PRECEDENCE_FLUSH.len) {
+            const flushBitset = tok.TBL_PRECEDENCE_FLUSH[tokValue];
+            while (self.opStack.items.len > 0) {
+                const top = self.opStack.items[self.opStack.items.len - 1];
+                const topKind = top.token.kind;
+                if (flushBitset.isSet(@intFromEnum(topKind))) {
+                    try self.popOp();
+                } else {
+                    break;
+                }
             }
         }
     }
 
+    fn flushUntil(self: *Self, set: bitset.BitSet64) !void {
+        // Flush while will keep flushing as long as the bitset pattern is met.
+        // Flush until will keep flushing until the bitset pattern is met. Then flush that and stop.
+        while (self.opStack.items.len > 0) {
+            const tokNode = self.opStack.items[self.opStack.items.len - 1];
+            const tokKind = tokNode.token.kind;
+            if (isKind(set, tokKind)) { // tok.KEYWORD_START
+                try self.popOp();
+
+                // TODO: Multi-keyword?
+                break;
+            }
+            try self.popOp();
+        }
+    }
+
+    fn flushUntilToken(self: *Self, kind: tok.Kind) !void {
+        if (DEBUG) {
+            print("Flush until token: {any}\n", .{kind});
+        }
+        // You could write a specialized version of this without the bitset, but this is cleaner.
+        try self.flushUntil(bitset.token_bitset(&[_]tok.Kind{kind}));
+    }
+
     fn pushOp(self: *Self, token: Token) !void {
+        if (DEBUG) {
+            tok.print_token("    PUSH: {any}\n", token, self.buffer);
+        }
         try self.flushOpStack(token);
+        try self.opStack.append(ParseNode{ .token = token, .index = self.index });
+    }
+
+    fn push(self: *Self, token: Token) !void {
+        // Push without flushing
+        if (DEBUG) {
+            tok.print_token("    PUSH: {any}\n", token, self.buffer);
+        }
         try self.opStack.append(ParseNode{ .token = token, .index = self.index });
     }
 
     fn popOp(self: *Self) !void {
         // TODO: We can do const-folding here by looking at the operands. If they're literals, emit the result instead of the op.
         const opNode = self.opStack.pop();
+        if (DEBUG) {
+            tok.print_token("    POP: {any}\n", opNode.token, self.buffer);
+        }
         try self.parsedQ.push(opNode.token);
         try self.pushOffset(opNode.index);
     }
@@ -118,25 +159,56 @@ pub const Parser = struct {
         const kind = token.kind;
         if (isKind(tok.LITERALS, kind)) {
             if (DEBUG) {
-                print("Initial state Literal: {any}\n", .{token});
+                tok.print_token("Initial state - Literal: {any}\n", token, self.buffer);
             }
             try self.emitParsed(token);
             try self.expect_binary();
         } else if (isKind(tok.IDENTIFIER, kind)) {
             if (DEBUG) {
-                print("Initial state - Identifier: {any}\n", .{token});
+                tok.print_token("Initial state - Identifier: {any}\n", token, self.buffer);
             }
             const ident = self.resolution.resolve(@truncate(self.parsedQ.list.items.len), token);
             try self.emitParsed(ident);
             try self.expect_binary();
         } else if (isKind(tok.PAREN_START, kind)) {
-            print("Paren Start: {any}\n", .{token});
+            tok.print_token("Initial state - Paren Start: {any}\n", token, self.buffer);
         } else if (isKind(tok.KEYWORD_START, kind)) {
-            print("Keyword Start: {any}\n", .{token});
+            switch (kind) {
+                .kw_if => {
+                    if (DEBUG) {
+                        tok.print_token("Initial state - Keyword Start: {any}\n", token, self.buffer);
+                    }
+                    try self.push(token);
+                    // TODO: Going to initial here would mean multiple successive keywords are allowed... TBD whether we want that...
+                    try self.initial_state();
+                },
+                else => {
+                    tok.print_token("Initial state - UNHANDLED - Keyword Start: {any}\n", token, self.buffer);
+                },
+            }
+            // print("Keyword Start: {any}\n", .{token});
         } else if (isKind(tok.UNARY_OPS, kind)) {
-            print("UNARY Op: {any}\n", .{token});
+            tok.print_token("Initial state - UNARY Op: {any}\n", token, self.buffer);
+        } else if (kind == TK.sep_newline) {
+            tok.print_token("Initial state - Skipping Newline: {any}\n", token, self.buffer);
+            try self.initial_state();
+        } else if (kind == TK.grp_indent) {
+            tok.print_token("Initial state - Indent: {any}\n", token, self.buffer);
+            const scopeId = self.resolution.scopeId;
+            const startIdx = self.parsedQ.list.items.len;
+            try self.emitParsed(tok.Token.lex(TK.grp_indent, 0, scopeId)); // We emit the indentation start right away to denote blocks.
+            try self.resolution.startScope(rs.Scope{ .start = @truncate(startIdx), .scopeType = .block }); // TODO: Scope type
+            // try self.pushOp(token);
+            // We actually push the `dedent` token onto the stack instead, since that's the marker we want at the end.
+            try self.pushOp(Token.lex(TK.grp_dedent, @truncate(startIdx), scopeId));
+            try self.initial_state();
+        } else if (kind == TK.grp_dedent) {
+            tok.print_token("Initial state - Dedent: {any}\n", token, self.buffer);
+            try self.flushUntilToken(TK.grp_dedent);
+            try self.resolution.endScope(@truncate(self.parsedQ.list.items.len));
+            try self.initial_state();
         } else {
-            print("Invalid token: {any}\n", .{token});
+            tok.print_token("Initial state - Invalid token: {any}\n", token, self.buffer);
         }
 
         // switch (token.kind) {
@@ -176,13 +248,13 @@ pub const Parser = struct {
 
         const kind = token.kind;
         if (isKind(tok.SEPARATORS, kind)) {
-            print("Separators: {any}\n", .{token});
+            tok.print_token("Separators: {any}\n", token, self.buffer);
             try self.flushOpStack(token);
             // Flush any operators.
             try self.initial_state();
         } else if (isKind(tok.BINARY_OPS, kind)) {
             if (DEBUG) {
-                print("Expect binary - Binary op: {any}\n", .{token});
+                tok.print_token("Expect binary - Binary op: {any}\n", token, self.buffer);
             }
 
             if (kind == TK.op_assign_eq) {
@@ -193,12 +265,17 @@ pub const Parser = struct {
 
                 try self.pushOp(token);
                 try self.expect_unary();
+            } else if (kind == TK.op_colon_assoc) {
+                // Pop whatever keyword was on the stack.
+                // try self.pushOp(token);
+                try self.flushUntil(tok.KEYWORD_START);
+                try self.initial_state();
             } else {
                 try self.pushOp(token);
                 try self.expect_unary();
             }
         } else {
-            print("Invalid token: {any}\n", .{token});
+            tok.print_token("Invalid token: {any}\n", token, self.buffer);
         }
     }
 
@@ -222,24 +299,24 @@ pub const Parser = struct {
         // Pretty similar to the initial state.
         if (isKind(tok.LITERALS, kind)) {
             if (DEBUG) {
-                print("Expect unary - Literal: {any}\n", .{token});
+                tok.print_token("Expect unary - Literal: {any}\n", token, self.buffer);
             }
             try self.emitParsed(token);
             try self.expect_binary();
         } else if (isKind(tok.IDENTIFIER, kind)) {
             if (DEBUG) {
-                print("Expect unary - Identifier: {any}\n", .{token});
+                tok.print_token("Expect unary - Identifier: {any}\n", token, self.buffer);
             }
 
             const ident = self.resolution.resolve(@truncate(self.parsedQ.list.items.len), token);
             try self.emitParsed(ident);
             try self.expect_binary();
         } else if (isKind(tok.PAREN_START, kind)) {
-            print("Parser - unhandled unary - Paren Start: {any}\n", .{token});
+            tok.print_token("Parser - unhandled unary - Paren Start: {any}\n", token, self.buffer);
         } else if (isKind(tok.KEYWORD_START, kind)) {
-            print("Parser - unhandled unary - Keyword Start: {any}\n", .{token});
+            tok.print_token("Parser - unhandled unary - Keyword Start: {any}\n", token, self.buffer);
         } else if (isKind(tok.UNARY_OPS, kind)) {
-            print("Parser - unhandled unary - UNARY Op: {any}\n", .{token});
+            tok.print_token("Parser - unhandled unary - UNARY Op: {any}\n", token, self.buffer);
         } else {
             print("Parser - unhandled unary at {d} - Invalid token: {any}\n", .{ self.index, token });
         }
@@ -285,6 +362,7 @@ pub const Parser = struct {
         }
         try self.parsedQ.push(tok.AUX_STREAM_START); // Hack - to make sure zero index is always occupied.
         try self.initial_state();
+        print("-- End flush --\n", .{});
 
         // At the end - flush the operator stack.
         // TODO: Validate that it contains no brackets (indicates open without close), etc.

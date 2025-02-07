@@ -298,7 +298,7 @@ const PRECEDENCE_LEVELS = [_]bitset.BitSet64{
     bitset.token_bitset(&[_]TK{ TK.op_assign_eq, TK.op_div_eq, TK.op_minus_eq, TK.op_plus_eq, TK.op_mul_eq }),
 
     // Separators
-    bitset.token_bitset(&[_]TK{ TK.sep_comma, TK.sep_newline }),
+    bitset.token_bitset(&[_]TK{ TK.sep_comma, TK.sep_newline, TK.op_colon_assoc }),
 };
 
 // The following operators are right associative. Everything else is left-associative.

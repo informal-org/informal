@@ -151,7 +151,7 @@ pub fn cmp(rd: Reg, rn: Reg) u32 {
     return (ImmAddSub{
         .rd = WZR,
         .rn = rd,
-        .imm12 = rn,
+        .imm12 = @intFromEnum(rn),
         .set_flags = 1,
         .op = AddSubOp.SUB,
     }).encode();
@@ -260,7 +260,8 @@ pub fn orri(rd: Reg, rn: Reg, bitmask: u13) u32 {
 }
 
 pub fn mov(rd: Reg, rn: Reg) u32 {
-    return orri(rd, rn, 0);
+    // return orri(rd, rn, 0);
+    return orr(rd, WZR, rn);
 }
 
 pub fn eori(rd: Reg, rn: Reg, bitmask: u13) u32 {

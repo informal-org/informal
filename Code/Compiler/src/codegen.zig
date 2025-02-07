@@ -139,6 +139,7 @@ pub const Codegen = struct {
                 },
             }
         }
+        print("Final register {any}\n", .{reg});
         try self.emit_syscall(Syscall.exit, reg);
 
         // print("Total instructions")

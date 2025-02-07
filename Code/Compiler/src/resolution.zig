@@ -29,7 +29,7 @@ const ScopeType = enum {
     block,
 };
 
-const Scope = struct {
+pub const Scope = struct {
     start: u32,
     // We could look this up in the parser queue by start index, but given how frequently we have to look it up as part of resolution
     // it's beneficial to keep it easily available.
@@ -77,6 +77,7 @@ pub const Resolution = struct {
 
     // Start index of the each scope and its scope type.
     scopeStack: std.ArrayList(Scope),
+    scopeId: u16,
 
     parsedQ: *parser.TokenQueue,
 
@@ -91,7 +92,7 @@ pub const Resolution = struct {
         // Initialize with a base module scope.
         try scopeStack.append(Scope{ .start = 0, .scopeType = .base });
 
-        return Self{ .allocator = allocator, .declarations = declarations, .unresolved = unresolved, .scopeStack = scopeStack, .parsedQ = parsedQ };
+        return Self{ .allocator = allocator, .declarations = declarations, .unresolved = unresolved, .scopeStack = scopeStack, .parsedQ = parsedQ, .scopeId = 0 };
     }
 
     pub fn deinit(self: *Self) void {
@@ -208,10 +209,15 @@ pub const Resolution = struct {
         scope: Scope,
     ) !void {
         try self.scopeStack.append(scope);
+        self.scopeId += 1;
     }
 
-    pub fn endScope(self: *Self) !void {
-        _ = self.scopeStack.pop();
+    pub fn endScope(self: *Self, index: u32) !void {
+        const scope = self.scopeStack.pop();
+        // Go and patch the start in the parsed queue to point to the end.
+        // Return back the token which should be inserted.
+        const startNode = self.parsedQ.list.items[scope.start];
+        self.parsedQ.list.items[scope.start] = tok.Token.lex(startNode.kind, index, startNode.data.value.arg1);
     }
 };
 
@@ -301,7 +307,7 @@ test "Forward reference from child scope" {
 
     // End function scope and declare the ref at the base module scope. Expect it to resolve.
     try parsedQ.push(Token.lex(TK.grp_dedent, 0, 0));
-    try resolution.endScope();
+    try resolution.endScope(0);
     try parsedQ.push(Token.lex(TK.identifier, 0, 5));
 
     try expectEqual(UNDECLARED_SENTINEL, parsedQ.list.items[2].data.value.arg1);
