@@ -7,6 +7,7 @@ const codegen = @import("codegen.zig");
 const rs = @import("resolution.zig");
 const macho = @import("macho.zig");
 const Allocator = std.mem.Allocator;
+const StringArrayHashMap = std.array_hash_map.StringArrayHashMap;
 const DEBUG = true;
 
 pub const Reader = struct {
@@ -16,7 +17,7 @@ pub const Reader = struct {
     auxQ: *lex.TokenQueue,
     parsedQ: *parser.TokenQueue,
     offsetQ: *parser.OffsetQueue,
-    internedStrings: *std.StringHashMap(u64),
+    internedStrings: *StringArrayHashMap(u64),
     internedNumbers: *std.AutoHashMap(u64, u64),
     internedFloats: *std.AutoHashMap(f64, u64),
     internedSymbols: *std.StringHashMap(u64),
@@ -35,8 +36,8 @@ pub const Reader = struct {
         const offsetQ = try allocator.create(parser.OffsetQueue);
         offsetQ.* = parser.OffsetQueue.init(allocator);
 
-        const internedStrings = try allocator.create(std.StringHashMap(u64));
-        internedStrings.* = std.StringHashMap(u64).init(allocator);
+        const internedStrings = try allocator.create(StringArrayHashMap(u64));
+        internedStrings.* = StringArrayHashMap(u64).init(allocator);
 
         const internedNumbers = try allocator.create(std.AutoHashMap(u64, u64));
         internedNumbers.* = std.AutoHashMap(u64, u64).init(allocator);
@@ -119,7 +120,7 @@ pub fn process_chunk(chunk: []u8, reader: *Reader, allocator: Allocator, out_fil
 
     var linker = macho.MachOLinker.init(allocator);
     defer linker.deinit();
-    try linker.emitBinary(c.objCode.items, out_filename);
+    try linker.emitBinary(c.objCode.items, reader.internedStrings, out_filename);
 }
 
 pub fn compile_file(filename: []u8) !void {

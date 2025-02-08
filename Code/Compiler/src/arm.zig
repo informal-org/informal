@@ -252,9 +252,9 @@ pub const ImmLogical = packed struct(u32) {
 
     pub fn init(rd: Reg, rn: Reg, bitmask: u13, op: Op) u32 {
         // bitmask = N:imms:immr
-        const imms: u6 = @truncate(bitmask & 0b111111);
-        const immr: u6 = @truncate((bitmask >> 6) & 0b111111);
-        const N: u1 = @truncate((bitmask >> 12) & 0b1);
+        const immr: u6 = @truncate(bitmask & 0b0111111);
+        const imms: u6 = @truncate((bitmask >> 6) & 0b0111111);
+        const N: u1 = @truncate((bitmask >> 12) & 0b01);
 
         return (Self{ .rd = rd, .rn = rn, .imms = imms, .immr = immr, .N = N, .op = op }).encode();
     }
@@ -271,6 +271,11 @@ pub fn orri(rd: Reg, rn: Reg, bitmask: u13) u32 {
 pub fn mov(rd: Reg, rn: Reg) u32 {
     // return orri(rd, rn, 0);
     return orr(rd, WZR, rn);
+}
+
+pub fn movi(rd: Reg, imm: u13) u32 {
+    // Note: Excludes things which can be expressed with MOVZ and MOVN
+    return orri(rd, WZR, imm);
 }
 
 pub fn eori(rd: Reg, rn: Reg, bitmask: u13) u32 {
@@ -1778,7 +1783,7 @@ const expectEqual = std.testing.expectEqual;
 const macho = @import("macho.zig");
 const print = std.debug.print;
 const constants = @import("constants.zig");
-
+const StringArrayHashMap = std.array_hash_map.StringArrayHashMap;
 test {
     if (constants.DISABLE_ZIG_LAZY) {
         @import("std").testing.refAllDecls(@This());
@@ -1792,8 +1797,12 @@ fn exitCodeTest(code: []const u32) !u32 {
     // Execute it and check the exit code.
 
     var linker = macho.MachOLinker.init(test_allocator);
+    var internedStrings = StringArrayHashMap(u64).init(test_allocator);
+    try internedStrings.put("Hello, World!", 0);
+    defer internedStrings.deinit();
+
     defer linker.deinit();
-    try linker.emitBinary(code, "test.bin");
+    try linker.emitBinary(code, &internedStrings, "test.bin");
 
     // Execute the binary file
     const cwd = std.fs.cwd();
@@ -1825,23 +1834,30 @@ fn exitCodeTest(code: []const u32) !u32 {
     }
 }
 
-test "exit code test" {
-    const exitCode = exitCodeTest(&[_]u32{
-        movz(Reg.x0, 42),
+// test "exit code test" {
+//     const exitCode = exitCodeTest(&[_]u32{
+//         movz(Reg.x0, 42),
+//         movz(Reg.x16, 1),
+//         svc(0),
+//     });
+//     try expectEqual(exitCode, 42);
+// }
+
+test "print" {
+    const printAsm = exitCodeTest(&[_]u32{
+        // mov(Reg.x0, 1),  // File descriptor
+        movz(Reg.x0, 1), // File descriptor - stdout
+        // adrp(Reg.x1, 0),
+        adrp(Reg.x1, 0), // TODO: What should be this address? 0x1000_03000
+        // TODO: LDR x1, [x1, hello_world]
+        addi(Reg.x1, Reg.x1, 0xfd4), // 0xf84 -> my version
+        movz(Reg.x2, 15), // String length
+        movz(Reg.x16, 4),
+        svc(0x80),
+        movz(Reg.x0, 0x2a),
         movz(Reg.x16, 1),
-        svc(0),
+        svc(0x80),
     });
 
-    try expectEqual(exitCode, 42);
+    try expectEqual(42, printAsm);
 }
-
-// test "print" {
-//     const printAsm = exitCodeTest(&[_]u32{
-//         // mov(Reg.x0, 1),  // File descriptor
-//         addi(Reg.x0, WZR, 1), // File descriptor - stdout
-//         adrp(Reg.x1, 0),
-//         // TODO: LDR
-//     });
-
-//     try expectEqual(printAsm, 1);
-// }

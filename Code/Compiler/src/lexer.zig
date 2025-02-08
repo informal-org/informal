@@ -5,6 +5,7 @@ const q = @import("queue.zig");
 const bitset = @import("bitset.zig");
 
 const print = std.debug.print;
+const StringArrayHashMap = std.array_hash_map.StringArrayHashMap;
 
 const Token = tok.Token;
 const TK = tok.Kind;
@@ -61,7 +62,8 @@ pub const Lexer = struct {
 
     // Interned constants.
     symbolTable: *std.StringHashMap(u64),
-    internedStrings: *std.StringHashMap(u64),
+    // internedStrings: *std.StringHashMap(u64),
+    internedStrings: *StringArrayHashMap(u64),
     internedNumbers: *std.AutoHashMap(u64, u64), // Key is the const. Val = the index.
     internedFloats: *std.AutoHashMap(f64, u64),
 
@@ -75,7 +77,7 @@ pub const Lexer = struct {
         buffer: []const u8,
         syntaxQ: *TokenQueue,
         auxQ: *TokenQueue,
-        internedStrings: *std.StringHashMap(u64),
+        internedStrings: *StringArrayHashMap(u64),
         internedNumbers: *std.AutoHashMap(u64, u64),
         internedFloats: *std.AutoHashMap(f64, u64),
         symbolTable: *std.StringHashMap(u64),

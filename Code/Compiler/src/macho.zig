@@ -32,6 +32,7 @@ const codesig = @import("CodeSignature.zig");
 const print = std.debug.print;
 const Allocator = std.mem.Allocator;
 const DEBUG = false;
+const StringArrayHashMap = std.array_hash_map.StringArrayHashMap;
 
 // 32bit = 0xfeedface :)
 const MH_MAGIC = 0xfeedfacf;
@@ -716,7 +717,7 @@ pub const MachOLinker = struct {
         self.headerBuffer.clearAndFree();
     }
 
-    pub fn emitBinary(self: *Self, code: []const u32, outfile: []const u8) !void {
+    pub fn emitBinary(self: *Self, code: []const u32, internedStrings: *StringArrayHashMap(u64), outfile: []const u8) !void {
         const file = try std.fs.cwd().createFile(
             outfile,
             .{ .read = true, .mode = 0o755 },
@@ -730,6 +731,17 @@ pub const MachOLinker = struct {
         const num_instructions = code.len;
         const assembly_code_size = 4 * num_instructions;
 
+        // We also need to emit the constant's size.
+        // We need to either maintain that upfront, calculate it here or write it and then fixup the size after.
+        // TODO: Optimization - keep a count of this in the lexer (and adjust it if we drop constants) and propagate that here.
+        // Counting it here is simpler overall for now.
+        var constant_size: usize = 0;
+        for (internedStrings.keys()) |key| {
+            constant_size += key.len;
+        }
+        const totalTextSize = assembly_code_size + constant_size;
+        print("Constant size: {d}\n", .{constant_size});
+
         // ------------------------ Commands ------------------------
         // Page zero - Size 0x48
         try self.emitCommand(writer, SEG_PAGE_ZERO);
@@ -739,7 +751,7 @@ pub const MachOLinker = struct {
 
         // Something's off with the alignment, -16 ensures text_offset + code size < 0x4000.
         // If we have unwind info, do 0x4000 - unwind_size - assembly_code_size - 16
-        const text_offset = mem.alignBackward(u64, 0x4000 - assembly_code_size - 16, 16);
+        const text_offset = mem.alignBackward(u64, 0x4000 - totalTextSize - 16, 16);
 
         if (DEBUG) {
             print("Text offset: {x} \n", .{text_offset});
@@ -749,7 +761,7 @@ pub const MachOLinker = struct {
             .sectname = padName("__text"),
             .segname = padName("__TEXT"),
             .addr = text_addr,
-            .size = assembly_code_size,
+            .size = totalTextSize,
             .offset = @truncate(text_offset),
             .section_align = 4, // 2^4 = 16 byte align.
             .reloff = 0,
@@ -874,8 +886,15 @@ pub const MachOLinker = struct {
             try writer.writeInt(u32, instr, std.builtin.Endian.little);
         }
 
+        // TODO: Alignment?
+        // Emit the constants after.
+        for (internedStrings.keys()) |key| {
+            print("String: {s}\n", .{key});
+            try writer.writeAll(key);
+        }
+
         // Zero pad for 16 byte alignment.
-        const textPadding = 0x4000 - text_offset - assembly_code_size;
+        const textPadding = 0x4000 - text_offset - totalTextSize;
         try writer.writeByteNTimes(0, textPadding);
 
         // -------------------- Symbol Table --------------------
