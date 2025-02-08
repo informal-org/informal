@@ -93,9 +93,14 @@ pub const Parser = struct {
             const tokKind = tokNode.token.kind;
             if (isKind(set, tokKind)) { // tok.KEYWORD_START
                 try self.popOp();
-
                 // TODO: Multi-keyword?
                 break;
+            }
+            if (isKind(tok.GROUP_START, tokKind)) {
+                // Compilation error - print token
+                tok.print_token("Compilation error - UNMATCHED GROUPING: {any}\n", tokNode.token, self.buffer);
+                return;
+                // return error.UnmatchedGrouping;
             }
             try self.popOp();
         }
@@ -168,8 +173,22 @@ pub const Parser = struct {
                 tok.print_token("Initial state - Identifier: {any}\n", token, self.buffer);
             }
             const ident = self.resolution.resolve(@truncate(self.parsedQ.list.items.len), token);
-            try self.emitParsed(ident);
-            try self.expect_binary();
+            if (kind == TK.call_identifier) {
+                // Next token is known to be an open-paren. But put it after the identifier.
+                const next = self.syntaxQ.pop();
+                if (next.kind != TK.aux_stream_end) {
+                    if (next.kind != TK.grp_open_paren) {
+                        tok.print_token("Compilation error - UNEXPECTED TOKEN AFTER IDENTIFIER: {any}\n", next, self.buffer);
+                        // return error.UnexpectedTokenAfterIdentifier;
+                    }
+                }
+                try self.pushOp(next);
+                try self.pushOp(token);
+                try self.initial_state();
+            } else {
+                try self.emitParsed(ident);
+                try self.expect_binary();
+            }
         } else if (isKind(tok.PAREN_START, kind)) {
             tok.print_token("Initial state - Paren Start: {any}\n", token, self.buffer);
         } else if (isKind(tok.KEYWORD_START, kind)) {
@@ -274,6 +293,36 @@ pub const Parser = struct {
                 try self.pushOp(token);
                 try self.expect_unary();
             }
+        } else if (isKind(tok.GROUP_START, kind)) {
+            tok.print_token("Expect binary - Group start: {any}\n", token, self.buffer);
+            if (kind == TK.grp_indent) {
+                tok.print_token("Expect binary - UNEXPECTED INDENT TOKEN!: {any}\n", token, self.buffer);
+            } else {
+                try self.pushOp(token);
+                try self.initial_state();
+            }
+        } else if (isKind(tok.GROUP_END, kind)) {
+            tok.print_token("Expect binary - Group end: {any}\n", token, self.buffer);
+            try self.flushUntil(tok.GROUP_START);
+            const expectedStart = switch (kind) {
+                TK.grp_close_brace => TK.grp_open_brace,
+                TK.grp_close_paren => TK.grp_open_paren,
+                TK.grp_close_bracket => TK.grp_open_bracket,
+                else => unreachable,
+            };
+
+            // Pop off the grouping tokens from the parsedQ - we don't need them anymore.
+            // Make sure the token at the end matches.
+            const top = self.parsedQ.popLast();
+            _ = self.offsetQ.popLast();
+            // TODO: Long-term, we'll want some kind of error-recovery here to keep parsing.
+            if (top.kind != expectedStart) {
+                tok.print_token("Compilation error - UNMATCHED GROUPING: {any}\n", token, self.buffer);
+                return;
+                // return error.UnmatchedGrouping;
+            }
+
+            try self.initial_state();
         } else {
             tok.print_token("Invalid token: {any}\n", token, self.buffer);
         }

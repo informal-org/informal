@@ -327,8 +327,12 @@ pub const Lexer = struct {
         _ = self.seek_till_identifier_delimiter();
         const len = self.index - start;
         const constIdx = self.push_identifier(start);
-        try self.emitToken(Token.lex(TK.identifier, @truncate(constIdx), @truncate(len)));
-        try self.maybe_user_op_after_identifier();
+        if (self.index < self.buffer.len and self.buffer[self.index] == '(') {
+            try self.emitToken(Token.lex(TK.call_identifier, @truncate(constIdx), @truncate(len)));
+        } else {
+            try self.emitToken(Token.lex(TK.identifier, @truncate(constIdx), @truncate(len)));
+            try self.maybe_user_op_after_identifier();
+        }
     }
 
     fn seek_till_keyword_delimiter(self: *Lexer) void {

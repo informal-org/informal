@@ -49,5 +49,9 @@ pub fn Queue(comptime t: type, comptime default: t) type {
             self.head += 1;
             return value;
         }
+
+        pub fn popLast(self: *Self) t {
+            return self.list.pop();
+        }
     };
 }

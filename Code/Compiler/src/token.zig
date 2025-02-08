@@ -79,6 +79,7 @@ pub const Kind = enum(u8) {
     identifier,
     const_identifier,
     type_identifier,
+    call_identifier,
     lit_string,
     lit_bool,
     lit_number,
@@ -239,7 +240,8 @@ pub const TK = Kind;
 pub const LITERALS = bitset.token_bitset(&[_]TK{ TK.lit_string, TK.lit_number, TK.lit_bool, TK.lit_null });
 pub const UNARY_OPS = bitset.token_bitset(&[_]TK{ TK.op_not, TK.op_unary_minus });
 pub const GROUP_START = bitset.token_bitset(&[_]TK{ TK.grp_indent, TK.grp_open_paren, TK.grp_open_brace, TK.grp_open_bracket });
-pub const IDENTIFIER = bitset.token_bitset(&[_]TK{ TK.identifier, TK.const_identifier });
+pub const GROUP_END = bitset.token_bitset(&[_]TK{ TK.grp_close_brace, TK.grp_close_paren, TK.grp_close_bracket });
+pub const IDENTIFIER = bitset.token_bitset(&[_]TK{ TK.identifier, TK.const_identifier, TK.call_identifier });
 pub const KEYWORD_START = bitset.token_bitset(&[_]TK{ TK.kw_if, TK.kw_for, TK.kw_def });
 pub const PAREN_START = bitset.token_bitset(&[_]TK{TK.grp_open_paren});
 pub const BINARY_OPS = bitset.token_bitset(&[_]TK{
