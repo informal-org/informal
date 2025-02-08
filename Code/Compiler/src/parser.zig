@@ -408,8 +408,11 @@ pub fn testParse(buffer: []const u8, tokens: []const Token, aux: []const Token, 
     try expect(aux.len == 0);
 }
 
+const constants = @import("constants.zig");
 test {
-    std.testing.refAllDecls(Parser);
+    if (constants.DISABLE_ZIG_LAZY) {
+        std.testing.refAllDecls(Parser);
+    }
 }
 
 test "Parse basic add" {

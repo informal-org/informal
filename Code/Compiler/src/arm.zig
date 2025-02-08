@@ -1452,9 +1452,12 @@ const expect = std.testing.expect;
 const expectEqual = std.testing.expectEqual;
 const macho = @import("macho.zig");
 const print = std.debug.print;
+const constants = @import("constants.zig");
 
 test {
-    @import("std").testing.refAllDecls(@This());
+    if (constants.DISABLE_ZIG_LAZY) {
+        @import("std").testing.refAllDecls(@This());
+    }
 }
 
 const exitSeq = &[_]u32{ movz(Reg.x16, 1), svc(0) };

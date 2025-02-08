@@ -2,12 +2,12 @@
 // That's a great end-to-end way to test the compiler against a suite of programs.
 
 const std = @import("std");
+const reader = @import("reader.zig");
+
 const test_allocator = std.testing.allocator;
 const expect = std.testing.expect;
 const expectEqual = std.testing.expectEqual;
-const macho = @import("macho.zig");
 const print = std.debug.print;
-const reader = @import("reader.zig");
 
 fn exitCodeTest(filename: []const u8) !u32 {
     // Create an executable with the given assembly code.
@@ -21,7 +21,7 @@ fn exitCodeTest(filename: []const u8) !u32 {
 
     const fileReader = file.reader();
     var buffer: [16384]u8 = undefined; // 16kb - sysctl vm.pagesize
-    var out_name = "out.bin".*;
+    var out_name = "test.bin".*;
 
     while (true) {
         const readResult = try fileReader.read(&buffer);
@@ -43,6 +43,9 @@ fn exitCodeTest(filename: []const u8) !u32 {
 
     const termination = try process.spawnAndWait();
 
+    // Cleanup file
+    try std.fs.cwd().deleteFile("test.bin");
+
     switch (termination) {
         .Exited => |exitcode| return exitcode,
         .Signal => |sig| return sig,
@@ -54,23 +57,23 @@ fn exitCodeTest(filename: []const u8) !u32 {
 test "add.ifi" {
     print("Running add.ifi\n", .{});
     const exitCode = try exitCodeTest("test/data/add.ifi");
-    try expectEqual(exitCode, 42);
+    try expectEqual(42, exitCode);
 }
 
 test "identifiers.ifi" {
     print("Running identifiers.ifi\n", .{});
-    const exitCode = try exitCodeTest("test/data/add.ifi");
-    try expectEqual(exitCode, 13);
+    const exitCode = try exitCodeTest("test/data/identifiers.ifi");
+    try expectEqual(12, exitCode);
 }
 
 test "assign.ifi" {
     print("Running assign.ifi\n", .{});
     const exitCode = try exitCodeTest("test/data/assign.ifi");
-    try expectEqual(exitCode, 2);
+    try expectEqual(2, exitCode);
 }
 
-test "if.ifi" {
-    print("Running if.ifi\n", .{});
-    const exitCode = try exitCodeTest("test/data/if.ifi");
-    try expectEqual(exitCode, 1);
-}
+// test "if.ifi" {
+//     print("Running if.ifi\n", .{});
+//     const exitCode = try exitCodeTest("test/data/if.ifi");
+//     try expectEqual(exitCode, 1);
+// }

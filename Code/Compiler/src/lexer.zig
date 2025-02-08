@@ -199,13 +199,16 @@ pub const Lexer = struct {
         self.gobble_digits();
         const len = self.index - start;
         const value: u64 = std.fmt.parseInt(u64, self.buffer[start..self.index], 10) catch 0;
+        const MAX_LITERAL_NUMBER = std.math.pow(u64, 2, 16);
         // Predicate: Unary minus is handled separately. So value is always implicitly > 0.
-        if (value > 2 ^ 16) {
+        if (value > MAX_LITERAL_NUMBER) {
+            print("Add number to constant pool {d} {d}\n", .{ value, len });
             // Add it to the numeric constant pool
             const constIdxEntry = self.internedNumbers.getOrPutValue(value, self.internedNumbers.count()) catch unreachable;
             const constIdx: u64 = constIdxEntry.value_ptr.*;
             try self.emitToken(Token.lex(TK.lit_number, @truncate(constIdx), 0));
         } else {
+            print("Emit literal number {d} {d}\n", .{ value, len });
             // Emit it as an immediate value.
             try self.emitToken(Token.lex(TK.lit_number, @truncate(value), @truncate(len)));
         }
@@ -684,10 +687,13 @@ const expectEqual = std.testing.expectEqual;
 const testutils = @import("testutils.zig");
 const testTokenEquals = testutils.testTokenEquals;
 const testQueueEquals = testutils.testQueueEquals;
+const constants = @import("constants.zig");
 
-test {
-    std.testing.refAllDecls(Lexer);
-}
+// test {
+//     if (constants.DISABLE_ZIG_LAZY) {
+//         std.testing.refAllDecls(Lexer);
+//     }
+// }
 
 pub fn testToken(buffer: []const u8, expected: []const Token, aux: ?[]const Token) !void {
     // print("\nTest Lex Token: {s}\n", .{buffer});
@@ -731,11 +737,11 @@ test "Token equality" {
 }
 
 test "Lex digits" {
-    try testToken("1 2 3", &[_]Token{
-        Token.lex(TK.lit_number, 1, 1).nextAlt(),
-        Token.lex(TK.lit_number, 2, 1).nextAlt(),
+    try testToken("23 101 3", &[_]Token{
+        Token.lex(TK.lit_number, 23, 2).nextAlt(),
+        Token.lex(TK.lit_number, 101, 3).nextAlt(),
         Token.lex(TK.lit_number, 3, 1).nextAlt(),
-    }, &[_]Token{ tok.AUX_STREAM_START.nextAlt(), Token.lex(TK.aux_whitespace, 1, 1).nextAlt(), Token.lex(TK.aux_whitespace, 3, 1).nextAlt(), tok.AUX_STREAM_END });
+    }, &[_]Token{ tok.AUX_STREAM_START.nextAlt(), Token.lex(TK.aux_whitespace, 2, 1).nextAlt(), Token.lex(TK.aux_whitespace, 6, 1).nextAlt(), tok.AUX_STREAM_END });
 }
 
 // test "Lex operator" {

@@ -225,9 +225,12 @@ const test_allocator = std.testing.allocator;
 const expect = std.testing.expect;
 const expectEqual = std.testing.expectEqual;
 const TK = tok.TK;
+const constants = @import("constants.zig");
 
 test {
-    @import("std").testing.refAllDecls(@This());
+    if (constants.DISABLE_ZIG_LAZY) {
+        @import("std").testing.refAllDecls(@This());
+    }
 }
 
 // Situations:

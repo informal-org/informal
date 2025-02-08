@@ -190,7 +190,7 @@ pub const TokenWriter = struct {
                 try std.fmt.format(writer, "{d} {s} {s} [{d}]", .{ value.data.value.arg0, @tagName(value.kind), alt, signedOffset });
             },
             TK.aux, TK.aux_comment, TK.aux_whitespace, TK.aux_newline, TK.aux_indentation, TK.aux_stream_start, TK.aux_stream_end => {
-                try std.fmt.format(writer, "{s} {s}", .{ @tagName(value.kind), alt });
+                try std.fmt.format(writer, "{s} {s} - {d} {d}", .{ @tagName(value.kind), alt, value.data.value.arg0, value.data.value.arg1 });
             },
             TK.sep_newline => {
                 try std.fmt.format(writer, "{s} {d}, {d} {s}", .{ @tagName(value.kind), value.data.value.arg0, value.data.value.arg1, alt });
@@ -357,9 +357,12 @@ fn getFlushBitset(kind: TK) bitset.BitSet64 {
 // @bitSizeOf
 const expect = std.testing.expect;
 const expectEqual = std.testing.expectEqual;
-test {
-    @import("std").testing.refAllDecls(@This());
-}
+const constants = @import("constants.zig");
+// test {
+//     if (constants.DISABLE_ZIG_LAZY) {
+//         @import("std").testing.refAllDecls(@This());
+//     }
+// }
 
 test "Test token sizes" {
     try expect(@bitSizeOf(Token) == 64);

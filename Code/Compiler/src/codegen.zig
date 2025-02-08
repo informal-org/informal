@@ -146,6 +146,9 @@ pub const Codegen = struct {
     }
 };
 
+const constants = @import("constants.zig");
 test {
-    @import("std").testing.refAllDecls(Codegen);
+    if (constants.DISABLE_ZIG_LAZY) {
+        @import("std").testing.refAllDecls(Codegen);
+    }
 }

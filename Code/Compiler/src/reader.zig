@@ -147,6 +147,9 @@ pub fn compile_file(filename: []u8) !void {
     }
 }
 
+const constants = @import("constants.zig");
 test {
-    @import("std").testing.refAllDecls(@This());
+    if (constants.DISABLE_ZIG_LAZY) {
+        @import("std").testing.refAllDecls(@This());
+    }
 }

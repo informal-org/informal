@@ -13,11 +13,11 @@ release:
 bench-build: release
     hyperfine "./zig-out/bin/Former test/data/run.ifi"
 
-run:
+run NAME='run':
 	#!/usr/bin/env sh
 	rm out.bin || true
 	# zig run src/macho.zig
-	zig build && ./zig-out/bin/Former test/data/run.ifi
+	zig build && ./zig-out/bin/Former test/data/{{NAME}}.ifi
 	chmod +x out.bin
 	./out.bin
 	echo "\nRan with code: $?"
