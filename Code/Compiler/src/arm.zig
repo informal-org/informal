@@ -107,10 +107,19 @@ pub const ImmPcRel = packed struct(u32) {
 
     pub const Op = enum(u1) { ADR = 0, ADRP = 1 };
 
+    pub fn init(rd: Reg, imm: u21, op: Op) Self {
+        return (Self{ .rd = rd, .immhi = @truncate(imm >> 2), .immlo = @truncate(imm), .op = op });
+    }
+
     pub fn encode(self: Self) u32 {
         return @as(u32, @bitCast(self));
     }
 };
+
+pub fn adrp(rd: Reg, imm: u21) u32 {
+    // Addresses immhi:immlo * 4096
+    return ImmPcRel.init(rd, imm, ImmPcRel.Op.ADRP).encode();
+}
 
 pub const AddSubOp = enum(u1) {
     ADD = 0,
@@ -1414,6 +1423,322 @@ pub fn mul(rd: Reg, rn: Reg, rm: Reg) u32 {
     return ProcessThreeSource.init(ProcessThreeSource.Op.MADD, rd, rn, rm, WZR);
 }
 
+///////////////////////////////////////////////////////////////////////////////
+///
+///                             Loads and Stores
+///                        [op0 4]1[op1 1]0[op2 25]
+///
+///////////////////////////////////////////////////////////////////////////////
+
+pub const LoadStoreExclusivePair = packed struct(u32) {
+    const Self = @This();
+    rt: Reg,
+    rn: Reg,
+    rt2: Reg,
+    o0: u1,
+    rs: Reg,
+    _: u1 = 1,
+    L: u1, // 0 for Store, 1 for load.
+    __: u7 = 0b001_0000,
+    sz: u1, // 0 for 32 bit, 1 for 64 bit.
+    ___: u1 = 1,
+
+    pub const Op = struct {
+        L: u1,
+        o0: u1,
+        sz: u1 = 1,
+    };
+
+    const STXP = Op{ .L = 0, .o0 = 0 };
+    const STLXP = Op{ .L = 0, .o0 = 1 };
+    const LDXP = Op{ .L = 1, .o0 = 0 };
+    const LDAXP = Op{ .L = 1, .o0 = 1 };
+
+    pub fn init(op: Op, rt: Reg, rn: Reg, rt2: Reg, rs: Reg) Self {
+        return Self{
+            .rt = rt,
+            .rn = rn,
+            .rt2 = rt2,
+            .rs = rs,
+            .L = op.L,
+            .o0 = op.o0,
+            .sz = op.sz, // Default to 64 bit.
+        };
+    }
+
+    pub fn encode(self: Self) u32 {
+        return @as(u32, @bitCast(self));
+    }
+};
+
+pub fn stxp(rt: Reg, rn: Reg, rt2: Reg, rs: Reg) u32 {
+    return LoadStoreExclusivePair.init(LoadStoreExclusivePair.STXP, rt, rn, rt2, rs).encode();
+}
+
+pub fn stlxp(rt: Reg, rn: Reg, rt2: Reg, rs: Reg) u32 {
+    return LoadStoreExclusivePair.init(LoadStoreExclusivePair.STLXP, rt, rn, rt2, rs).encode();
+}
+
+pub fn ldxp(rt: Reg, rn: Reg, rt2: Reg, rs: Reg) u32 {
+    return LoadStoreExclusivePair.init(LoadStoreExclusivePair.LDXP, rt, rn, rt2, rs).encode();
+}
+
+pub fn ldaxp(rt: Reg, rn: Reg, rt2: Reg, rs: Reg) u32 {
+    return LoadStoreExclusivePair.init(LoadStoreExclusivePair.LDAXP, rt, rn, rt2, rs).encode();
+}
+
+// Skip - Load store exclusive register. Will implement later when we support atomics.
+// STXRB, STLXRB, LDXRB, LDAXRB, STXRH, STLXRH, LDXRH, LDARXRH
+// Skip - Load store - ordered. (STLRB, LDARB)
+// STLRB, LDARB, STLRH, LDARH
+
+pub const LoadRegisterLiteral = packed struct(u32) {
+    // Calculates an address from PC and an immediate literal offset.
+
+    const Self = @This();
+    rt: Reg,
+    imm19: u19,
+    _: u2 = 0b00,
+    VR: u1 = 0,
+    __: u3 = 0b011,
+    opc: u2,
+
+    pub const Op = struct {
+        opc: u2,
+        VR: u1,
+    };
+
+    const LDR32 = Op{ .opc = 0, .VR = 0 };
+    const LDR = Op{ .opc = 1, .VR = 0 };
+    const LDRSW = Op{ .opc = 2, .VR = 0 };
+    const PRFM = Op{ .opc = 3, .VR = 0 };
+
+    pub fn init(op: Op, rt: Reg, imm19: u19) Self {
+        return Self{
+            .rt = rt,
+            .imm19 = imm19,
+            .opc = op.opc,
+            .VR = op.VR,
+        };
+    }
+
+    pub fn encode(self: Self) u32 {
+        return @as(u32, @bitCast(self));
+    }
+};
+
+pub fn ldr32_lit(rt: Reg, imm19: u19) u32 {
+    return LoadRegisterLiteral.init(LoadRegisterLiteral.LDR32, rt, imm19).encode();
+}
+
+pub fn ldr_lit(rt: Reg, imm19: u19) u32 {
+    return LoadRegisterLiteral.init(LoadRegisterLiteral.LDR, rt, imm19).encode();
+}
+
+pub fn ldrsw_lit(rt: Reg, imm19: u19) u32 {
+    return LoadRegisterLiteral.init(LoadRegisterLiteral.LDRSW, rt, imm19).encode();
+}
+
+pub fn prfm_lit(rt: Reg, imm19: u19) u32 {
+    // Prefetch memory - literal
+    return LoadRegisterLiteral.init(LoadRegisterLiteral.PRFM, rt, imm19).encode();
+}
+
+// SKIP - Load/store no-allocate pair offset
+// STNP, LDNP
+
+// Load store register pair post index
+pub const LoadStorePairPost = packed struct(u32) {
+    const Self = @This();
+    rt: Reg,
+    rn: Reg,
+    rt2: Reg,
+    imm7: u7,
+    L: u1,
+    _: u3 = 0b001,
+    VR: u1,
+    __: u3 = 0b101,
+    opc: u2,
+
+    pub const Op = struct { opc: u2, VR: u1, L: u1 };
+    const STP32 = Op{ .opc = 0, .VR = 0, .L = 0 };
+    const LDP32 = Op{ .opc = 0, .VR = 0, .L = 1 };
+    const LDPSW = Op{ .opc = 1, .VR = 0, .L = 1 };
+    const STP = Op{ .opc = 2, .VR = 0, .L = 0 };
+    const LDP = Op{ .opc = 2, .VR = 0, .L = 1 };
+};
+
+pub const LoadStorePairOffset = packed struct(u32) {
+    const Self = @This();
+    rt: Reg,
+    rn: Reg,
+    rt2: Reg,
+    imm7: u7,
+    L: u1,
+    _: u3 = 0b010,
+    VR: u1,
+    __: u3 = 0b101,
+    opc: u2,
+
+    pub const Op = struct { opc: u2, VR: u1, L: u1 };
+    const STP32 = Op{ .opc = 0, .VR = 0, .L = 0 };
+    const LDP32 = Op{ .opc = 0, .VR = 0, .L = 1 };
+    const LDPSW = Op{ .opc = 1, .VR = 0, .L = 1 };
+    const STP = Op{ .opc = 2, .VR = 0, .L = 0 };
+    const LDP = Op{ .opc = 2, .VR = 0, .L = 1 };
+};
+
+pub const LoadStorePairPre = packed struct(u32) {
+    const Self = @This();
+    rt: Reg,
+    rn: Reg,
+    rt2: Reg,
+    imm7: u7,
+    L: u1,
+    _: u3 = 0b011,
+    VR: u1,
+    __: u3 = 0b101,
+    opc: u2,
+
+    pub const Op = struct { opc: u2, VR: u1, L: u1 };
+    const STP32 = Op{ .opc = 0, .VR = 0, .L = 0 };
+    const LDP32 = Op{ .opc = 0, .VR = 0, .L = 1 };
+    const LDPSW = Op{ .opc = 1, .VR = 0, .L = 1 };
+    const STP = Op{ .opc = 2, .VR = 0, .L = 0 };
+    const LDP = Op{ .opc = 2, .VR = 0, .L = 1 };
+};
+
+// SKIP - Load store register pair offset. STP, LDP, LDPSW.
+// SKIP - Load store register pair pre-indexed - STP, LDP, LDPSW.
+// SKIP - Load store unscaled immediate - STURB, LDURB, LDURSB, STURH
+
+pub const LoadStoreImmediatePost = packed struct(u32) {
+    const Self = @This();
+    rt: Reg,
+    rn: Reg,
+    _: u2 = 0b01,
+    imm9: u9,
+    __: u1 = 0,
+    opc: u2,
+    ___: u2 = 0b00,
+    VR: u1,
+    ____: u3 = 0b111,
+    size: u2,
+
+    const Op = struct { size: u2, VR: u1, opc: u2 };
+    const STRB = Op{ .size = 0, .VR = 0, .opc = 0 };
+    const LDRB = Op{ .size = 0, .VR = 0, .opc = 1 };
+    const LDRSB = Op{ .size = 0, .VR = 0, .opc = 2 };
+    const LDRSB32 = Op{ .size = 0, .VR = 0, .opc = 3 };
+    const STRH = Op{ .size = 1, .VR = 0, .opc = 0 };
+    const LDRH = Op{ .size = 1, .VR = 0, .opc = 1 };
+    const LDRSH = Op{ .size = 1, .VR = 0, .opc = 2 };
+    const LDRSH32 = Op{ .size = 1, .VR = 0, .opc = 3 };
+    const STR32 = Op{ .size = 2, .VR = 0, .opc = 0 };
+    const LDR32 = Op{ .size = 2, .VR = 0, .opc = 1 };
+    const LDRSW = Op{ .size = 2, .VR = 0, .opc = 2 };
+    const STR = Op{ .size = 3, .VR = 0, .opc = 0 };
+    const LDR = Op{ .size = 3, .VR = 0, .opc = 1 };
+};
+
+// Skip - Load store register (unprivileged)
+
+pub const LoadStoreImmediatePre = packed struct(u32) {
+    const Self = @This();
+    rt: Reg,
+    rn: Reg,
+    _: u2 = 0b11,
+    imm9: u9,
+    __: u1 = 0,
+    opc: u2,
+    ___: u2 = 0,
+    VR: u1,
+    ____: u3 = 0b111,
+    size: u2,
+    const Op = struct { size: u2, VR: u1, opc: u2 };
+    const STRB = Op{ .size = 0, .VR = 0, .opc = 0 };
+    const LDRB = Op{ .size = 0, .VR = 0, .opc = 1 };
+    const LDRSB = Op{ .size = 0, .VR = 0, .opc = 2 };
+    const LDRSB32 = Op{ .size = 0, .VR = 0, .opc = 3 };
+    const STRH = Op{ .size = 1, .VR = 0, .opc = 0 };
+    const LDRH = Op{ .size = 1, .VR = 0, .opc = 1 };
+    const LDRSH = Op{ .size = 1, .VR = 0, .opc = 2 };
+    const LDRSH32 = Op{ .size = 1, .VR = 0, .opc = 3 };
+    const STR32 = Op{ .size = 2, .VR = 0, .opc = 0 };
+    const LDR32 = Op{ .size = 2, .VR = 0, .opc = 1 };
+    const LDRSW = Op{ .size = 2, .VR = 0, .opc = 2 };
+    const STR = Op{ .size = 3, .VR = 0, .opc = 0 };
+    const LDR = Op{ .size = 3, .VR = 0, .opc = 1 };
+};
+
+pub const LoadStoreRegOffset = packed struct(u32) {
+    const Self = @This();
+    rt: Reg,
+    rn: Reg,
+    _: u2 = 0b10,
+    S: u1,
+    option: u3,
+    rm: Reg,
+    __: u1 = 1,
+    opc: u2,
+    ___: u2 = 0b00,
+    VR: u1,
+    ____: u3 = 0b111,
+    size: u2,
+
+    const Option = enum(u3) {
+        SHIFT = 0b011,
+        // Extend
+        UXTW = 0b010,
+        SXTW = 0b110,
+        SXTX = 0b111,
+    };
+
+    const Op = struct { size: u2, VR: u1, opc: u2 };
+    const STRB = Op{ .size = 0, .VR = 0, .opc = 0 };
+    const LDRB = Op{ .size = 0, .VR = 0, .opc = 1 };
+    const LDRSB = Op{ .size = 0, .VR = 0, .opc = 2 };
+    const LDRSB32 = Op{ .size = 0, .VR = 0, .opc = 3 };
+    const STRH = Op{ .size = 1, .VR = 0, .opc = 0 };
+    const LDRH = Op{ .size = 1, .VR = 0, .opc = 1 };
+    const LDRSH = Op{ .size = 1, .VR = 0, .opc = 2 };
+    const LDRSH32 = Op{ .size = 1, .VR = 0, .opc = 3 };
+    const STR32 = Op{ .size = 2, .VR = 0, .opc = 0 };
+    const LDR32 = Op{ .size = 2, .VR = 0, .opc = 1 };
+    const LDRSW = Op{ .size = 2, .VR = 0, .opc = 2 };
+    const STR = Op{ .size = 3, .VR = 0, .opc = 0 };
+    const LDR = Op{ .size = 3, .VR = 0, .opc = 1 };
+    const PRFM = Op{ .size = 3, .VR = 0, .opc = 2 }; // Rt != 0x11xxx
+};
+
+pub const LoadStoreUnsignedImm = packed struct(u32) {
+    const Self = @This();
+    rt: Reg,
+    rn: Reg,
+    imm12: u12,
+    opc: u2,
+    _: u2 = 0b01,
+    VR: u1,
+    __: u3 = 0b111,
+    size: u2,
+
+    const Op = struct { size: u2, VR: u1, opc: u2 };
+    const STRB = Op{ .size = 0, .VR = 0, .opc = 0 };
+    const LDRB = Op{ .size = 0, .VR = 0, .opc = 1 };
+    const LDRSB = Op{ .size = 0, .VR = 0, .opc = 2 };
+    const LDRSB32 = Op{ .size = 0, .VR = 0, .opc = 3 };
+    const STRH = Op{ .size = 1, .VR = 0, .opc = 0 };
+    const LDRH = Op{ .size = 1, .VR = 0, .opc = 1 };
+    const LDRSH = Op{ .size = 1, .VR = 0, .opc = 2 };
+    const LDRSH32 = Op{ .size = 1, .VR = 0, .opc = 3 };
+    const STR32 = Op{ .size = 2, .VR = 0, .opc = 0 };
+    const LDR32 = Op{ .size = 2, .VR = 0, .opc = 1 };
+    const LDRSW = Op{ .size = 2, .VR = 0, .opc = 2 };
+    const STR = Op{ .size = 3, .VR = 0, .opc = 0 };
+    const LDR = Op{ .size = 3, .VR = 0, .opc = 1 };
+    const PRFM = Op{ .size = 3, .VR = 0, .opc = 2 };
+};
+
 pub const RegisterEncoding = packed struct(u32) { _: u32 };
 pub const FloatEncoding = packed struct(u32) { _: u32 };
 pub const LoadStoreEncoding = packed struct(u32) { _: u32 };
@@ -1509,3 +1834,14 @@ test "exit code test" {
 
     try expectEqual(exitCode, 42);
 }
+
+// test "print" {
+//     const printAsm = exitCodeTest(&[_]u32{
+//         // mov(Reg.x0, 1),  // File descriptor
+//         addi(Reg.x0, WZR, 1), // File descriptor - stdout
+//         adrp(Reg.x1, 0),
+//         // TODO: LDR
+//     });
+
+//     try expectEqual(printAsm, 1);
+// }

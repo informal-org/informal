@@ -759,6 +759,10 @@ pub const MachOLinker = struct {
         // Section text's size is included in the segment size.
         try self.emitSection(writer, self.sectionText);
 
+        ///////// New
+
+        //  End new
+
         try self.flushSegment(writer);
 
         // --------------------- Segment LINKEDIT ------------------------
