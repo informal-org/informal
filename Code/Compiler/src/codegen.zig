@@ -94,8 +94,8 @@ pub const Codegen = struct {
         // But it avoids needing to store the lengths separately.
         for (0.., strConsts.keys()) |index, strElem| {
             // const stringPadding = std.mem.alignForward(usize, strElem.len, 8);
-            self.totalConstSize += strElem.len; // + stringPadding;
             constOffsets[index] = @truncate(self.totalConstSize);
+            self.totalConstSize += strElem.len; // + stringPadding;
         }
 
         // Compute where the constants are supposed to start.
@@ -123,7 +123,7 @@ pub const Codegen = struct {
             // Replace it with the computed position for that constant.
             const constOffset = constOffsets[constId] + constStart;
             if (DEBUG) {
-                print("Const id {d}, offset {x}\n", .{ constId, constOffset });
+                print("Const id {d}, rel offset {d} offset {x}\n", .{ constId, constOffsets[constId], constOffset });
             }
 
             // TODO: We can stuff the proper register into the flags / kind fields.
