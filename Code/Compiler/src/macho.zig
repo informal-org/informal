@@ -717,7 +717,7 @@ pub const MachOLinker = struct {
         self.headerBuffer.clearAndFree();
     }
 
-    pub fn emitBinary(self: *Self, code: []const u32, internedStrings: *StringArrayHashMap(u64), outfile: []const u8) !void {
+    pub fn emitBinary(self: *Self, code: []const u32, internedStrings: *StringArrayHashMap(u64), constSize: usize, outfile: []const u8) !void {
         const file = try std.fs.cwd().createFile(
             outfile,
             .{ .read = true, .mode = 0o755 },
@@ -729,18 +729,9 @@ pub const MachOLinker = struct {
         // const assembly_code_size = 0xC;     // 12   - TODO: Parametrize this.
         // const num_instructions = 3;
         const num_instructions = code.len;
-        const assembly_code_size = 4 * num_instructions;
-
-        // We also need to emit the constant's size.
-        // We need to either maintain that upfront, calculate it here or write it and then fixup the size after.
-        // TODO: Optimization - keep a count of this in the lexer (and adjust it if we drop constants) and propagate that here.
-        // Counting it here is simpler overall for now.
-        var constant_size: usize = 0;
-        for (internedStrings.keys()) |key| {
-            constant_size += key.len;
-        }
-        const totalTextSize = assembly_code_size + constant_size;
-        print("Constant size: {d}\n", .{constant_size});
+        const codeSize = 4 * num_instructions;
+        const codeConstAlignmentPadding = codeSize - std.mem.alignBackward(usize, codeSize, 16);
+        const totalTextSize = codeSize + constSize + codeConstAlignmentPadding;
 
         // ------------------------ Commands ------------------------
         // Page zero - Size 0x48
@@ -886,10 +877,11 @@ pub const MachOLinker = struct {
             try writer.writeInt(u32, instr, std.builtin.Endian.little);
         }
 
-        // TODO: Alignment?
-        // Emit the constants after.
+        // Emit the constants after code with padding for alignment.
+        try writer.writeByteNTimes(0, codeConstAlignmentPadding);
         for (internedStrings.keys()) |key| {
-            print("String: {s}\n", .{key});
+            // We can add additional alignment in between constants as well here.
+            // It doesn't seem strictly necessary. Unclear if it'll be a plus or minus for performance.
             try writer.writeAll(key);
         }
 
@@ -939,9 +931,9 @@ pub const MachOLinker = struct {
     }
 };
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    var linker = MachOLinker.init(gpa.allocator());
-    defer linker.deinit();
-    try linker.emitBinary();
-}
+// pub fn main() !void {
+//     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+//     var linker = MachOLinker.init(gpa.allocator());
+//     defer linker.deinit();
+//     try linker.emitBinary();
+// }

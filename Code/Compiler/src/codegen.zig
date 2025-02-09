@@ -29,6 +29,7 @@ pub const Codegen = struct {
     // Constant references need to be resolved at the very end. This points to the last ref location in the binary.
     // Once the full binary is generated, we'll walk through and fix these. Pre-fixup, each index will reference the previous.
     strConstRefTail: usize = 0, // Last string constant reference in the parser queue (for fixup linked-list).
+    totalConstSize: usize = 0,
     // objConstRefTail: u32 = 0,
     // pqStrConstRefTail: u32 = 0, // Last constant reference in the parser queue for constant address fixup.
     // constLengthOffsets: std.ArrayList(u32), // Const ID -> Length. Later used to computed cumulative offsets.
@@ -82,28 +83,28 @@ pub const Codegen = struct {
         // So during code-generation, we emit just the constant ID to the object code locations.
         // Then reuse the token-space as linked-list links - An absolute reference to the associated object-code location
         // and a relative location to the previous constant reference.
-
         // Once the binary is fully generated, walk it and fixup references to the constant pool using these two linked
 
         // Compute the absolute position of each constant.
-        // TODO: Cumulative constant offset is useful during macho generation. We should pass it in.
-        var cumOffset: usize = 0;
+        self.totalConstSize = 0;
         var constOffsets = try self.allocator.alloc(u32, strConsts.count());
         defer self.allocator.free(constOffsets);
 
         // Using the lengths from here does pollute the cache a bit with unnecessary string data.
         // But it avoids needing to store the lengths separately.
         for (0.., strConsts.keys()) |index, strElem| {
-            cumOffset += strElem.len;
-            constOffsets[index] = @truncate(cumOffset);
+            // const stringPadding = std.mem.alignForward(usize, strElem.len, 8);
+            self.totalConstSize += strElem.len; // + stringPadding;
+            constOffsets[index] = @truncate(self.totalConstSize);
         }
 
         // Compute where the constants are supposed to start.
         // Might be possible to simplify this calculation, but this works.
         // TODO: We'll need to handle multiple-pages in the future for larger programs.
         const codeSize = self.objCode.items.len * 4;
-        const totalEnd = std.mem.alignBackward(u64, 0x4000 - codeSize - cumOffset - 16, 16);
-        const constStart: u12 = @truncate(totalEnd + codeSize - cumOffset);
+        const alignmentPadding = codeSize - std.mem.alignBackward(usize, codeSize, 16);
+        const totalEnd = std.mem.alignBackward(u64, 0x4000 - codeSize - self.totalConstSize - alignmentPadding - 16, 16);
+        const constStart: u12 = @truncate(totalEnd + codeSize + alignmentPadding - self.totalConstSize);
 
         // Index safety - since the zero index in the parser queue is always reserved for the start-node,
         // it'll never contain a constant. So we can safely use it as a sentinel value.
@@ -117,6 +118,9 @@ pub const Codegen = struct {
 
             // Replace it with the computed position for that constant.
             const constOffset = constOffsets[constId] + constStart;
+            if (DEBUG) {
+                print("Const id {d}, offset {x}\n", .{ constId, constOffset });
+            }
 
             // TODO: We can stuff the proper register into the flags / kind fields.
             const instr = arm.addi(arm.Reg.x1, arm.Reg.x1, @truncate(constOffset));

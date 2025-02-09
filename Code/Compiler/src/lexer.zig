@@ -231,7 +231,7 @@ pub const Lexer = struct {
         // Use the value-field to explicitly store the end, or a ref to the
         // string in some table. The string contains both quotes.
         // return val.createStringPtr(start, end);
-        if (tokenLen > 2 ^ 16) {
+        if (tokenLen > (2 << 16)) {
             // Error: String too long.
             unreachable;
         }
@@ -708,7 +708,7 @@ pub fn testToken(buffer: []const u8, expected: []const Token, aux: ?[]const Toke
 
     var syntaxQ = TokenQueue.init(test_allocator);
     var auxQ = TokenQueue.init(test_allocator);
-    var internedStrings = std.StringHashMap(u64).init(test_allocator);
+    var internedStrings = StringArrayHashMap(u64).init(test_allocator);
     var internedNumbers = std.AutoHashMap(u64, u64).init(test_allocator);
     var internedFloats = std.AutoHashMap(f64, u64).init(test_allocator);
     var symbolTable = std.StringHashMap(u64).init(test_allocator);

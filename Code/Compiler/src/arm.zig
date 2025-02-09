@@ -1798,11 +1798,11 @@ fn exitCodeTest(code: []const u32) !u32 {
 
     var linker = macho.MachOLinker.init(test_allocator);
     var internedStrings = StringArrayHashMap(u64).init(test_allocator);
-    try internedStrings.put("Hello, World!", 0);
+    // try internedStrings.put("Hello, World!", 0);
     defer internedStrings.deinit();
 
     defer linker.deinit();
-    try linker.emitBinary(code, &internedStrings, "test.bin");
+    try linker.emitBinary(code, &internedStrings, 0, "test.bin");
 
     // Execute the binary file
     const cwd = std.fs.cwd();

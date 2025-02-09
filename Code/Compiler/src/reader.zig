@@ -120,7 +120,7 @@ pub fn process_chunk(chunk: []u8, reader: *Reader, allocator: Allocator, out_fil
 
     var linker = macho.MachOLinker.init(allocator);
     defer linker.deinit();
-    try linker.emitBinary(c.objCode.items, reader.internedStrings, out_filename);
+    try linker.emitBinary(c.objCode.items, reader.internedStrings, c.totalConstSize, out_filename);
 }
 
 pub fn compile_file(filename: []u8) !void {
