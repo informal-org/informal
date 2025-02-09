@@ -220,7 +220,7 @@ pub const Lexer = struct {
         self.index += 1; // Omit beginning quote.
         const tokenStart = self.index;
         _ = self.seek_till("\"");
-        const tokenLen = self.index - 1 - tokenStart;
+        const tokenLen = self.index - tokenStart;
         // Expect but omit end quote.
         if (self.index < self.buffer.len and self.buffer[self.index] == '"') {
             self.index += 1;

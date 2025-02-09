@@ -7,6 +7,7 @@ const resolution = @import("resolution.zig");
 
 const Allocator = std.mem.Allocator;
 const Token = tok.Token;
+const StringArrayHashMap = std.array_hash_map.StringArrayHashMap;
 const TK = tok.Kind;
 const print = std.debug.print;
 const platform = @import("platform.zig");
@@ -19,13 +20,23 @@ pub const Codegen = struct {
     // Converts parsed token stream into assembly.
 
     const Self = @This();
+    allocator: Allocator,
     objCode: std.ArrayList(u32),
     registerMap: bitset.BitSet32 = bitset.BitSet32.initEmpty(), // Bitmap of which registers are in use.
     buffer: []const u8,
     regStack: u64 = 0,
 
+    // Constant references need to be resolved at the very end. This points to the last ref location in the binary.
+    // Once the full binary is generated, we'll walk through and fix these. Pre-fixup, each index will reference the previous.
+    strConstRefTail: usize = 0, // Last string constant reference in the parser queue (for fixup linked-list).
+    // objConstRefTail: u32 = 0,
+    // pqStrConstRefTail: u32 = 0, // Last constant reference in the parser queue for constant address fixup.
+    // constLengthOffsets: std.ArrayList(u32), // Const ID -> Length. Later used to computed cumulative offsets.
+
+    // const CONST_BASE_REG = arm.Reg.x20;
+
     pub fn init(allocator: Allocator, buffer: []const u8) Self {
-        return Self{ .objCode = std.ArrayList(u32).init(allocator), .buffer = buffer, .regStack = 0 };
+        return Self{ .objCode = std.ArrayList(u32).init(allocator), .buffer = buffer, .regStack = 0, .allocator = allocator };
     }
 
     pub fn deinit(self: *Self) void {
@@ -66,10 +77,65 @@ pub const Codegen = struct {
         return reg;
     }
 
-    pub fn emitAll(self: *Self, tokenQueue: []Token) !void {
+    pub fn fixupConstRefs(self: *Self, parsedQueue: []Token, strConsts: *StringArrayHashMap(u64)) !void {
+        // Constnat references appear after the code, so their relative address is unknown until we know the total code size.
+        // So during code-generation, we emit just the constant ID to the object code locations.
+        // Then reuse the token-space as linked-list links - An absolute reference to the associated object-code location
+        // and a relative location to the previous constant reference.
+
+        // Once the binary is fully generated, walk it and fixup references to the constant pool using these two linked
+        // TODO: We'll need to handle multiple-pages in the future for larger programs.
+        // TODO: Not sure where this +2
+        const baseOffset = 4002 + (self.objCode.items.len * 4); // 4 bytes per instruction.
+        print("Base offset {d}\n", .{baseOffset});
+
+        // Compute the absolute position of each constant.
+        // TODO: Cumulative constant offset is useful during macho generation. We should pass it in.
+        var cumOffset: usize = 0;
+        var constOffsets = try self.allocator.alloc(u32, strConsts.count());
+        defer self.allocator.free(constOffsets);
+
+        // Using the lengths from here does pollute the cache a bit with unnecessary string data.
+        // But it avoids needing to store the lengths separately.
+        for (0.., strConsts.keys()) |index, strElem| {
+            cumOffset += strElem.len;
+            constOffsets[index] = @truncate(baseOffset + cumOffset);
+            print("Final const loc for {d}, = offset {d}\n", .{ index, constOffsets[index] });
+        }
+
+        // Index safety - since the zero index in the parser queue is always reserved for the start-node,
+        // it'll never contain a constant. So we can safely use it as a sentinel value.
+        while (self.strConstRefTail != 0) {
+            // Arg0 is absolute binary location. Arg1 is relative offset to previous const in parser queue.
+            const tailNode = parsedQueue[self.strConstRefTail];
+            const objIndex = tailNode.data.value.arg0;
+            self.strConstRefTail = self.strConstRefTail - tailNode.data.value.arg1;
+            // TODO: Future - need additional bounds safety checking here.
+            print("Fixup obj index {d}\n", .{objIndex});
+
+            const constId = self.objCode.items[objIndex];
+            print("Fixup const id {d}\n", .{constId});
+
+            // Replace it with the computed position for that constant.
+            const constOffset = constOffsets[constId];
+            print("Fixup const offset {x}\n", .{constOffset});
+
+            // TODO: We can stuff the proper register into the flags / kind fields.
+            const instr = arm.addi(arm.Reg.x1, arm.Reg.x1, @truncate(constOffset));
+            self.objCode.items[objIndex] = instr;
+        }
+    }
+
+    pub fn emitAll(self: *Self, tokenQueue: []Token, strConsts: *StringArrayHashMap(u64)) !void {
         if (DEBUG) {
             print("\n------------- Codegen --------------- \n", .{});
         }
+
+        // Reserve a couple of registers.
+        self.registerMap.set(0);
+        self.registerMap.set(1);
+        self.registerMap.set(2);
+        // self.registerMap.set(@intFromEnum(CONST_BASE_REG));
 
         var reg = arm.Reg.x0;
         for (tokenQueue, 0..) |token, index| {
@@ -83,6 +149,39 @@ pub const Codegen = struct {
                     const imm16: u16 = @truncate(token.data.value.arg0);
                     // const imm16 = std.fmt.parseInt(u16, value, 10) catch unreachable;
                     try self.objCode.append(arm.movz(reg, imm16));
+                },
+                TK.lit_string => {
+                    const offsetReg = arm.Reg.x1; // self.getFreeReg(); // TODO
+                    self.pushReg(offsetReg);
+
+                    // The constant table location isn't known yet.
+                    // Instead, we save the constant ID as a placeholder into the bytecode.
+                    // In the parser queue, save the bytecode index and a relative offset to the previous string constant.
+                    // The absolute positions will be fixed up after codegen is complete.
+                    const constId = token.data.value.arg0;
+                    const constLen = token.data.value.arg1;
+                    const lenReg = self.getFreeReg();
+                    print("Const id {d}, len {d} lenreg {any}\n", .{ constId, constLen, lenReg });
+
+                    if (constLen > (2 << 13)) {
+                        print("Compiler internal error - string constant len overflows current encoding: {any}\n", .{constLen});
+                    }
+                    self.pushReg(lenReg);
+                    try self.objCode.append(arm.movz(lenReg, @truncate(constLen)));
+
+                    // Resolving the address pool requires a few instructions.
+                    // TODO: This will need to support other registers, rather than a fixed x1.
+                    try self.objCode.append(arm.adrp(arm.Reg.x1, 0));
+                    try self.objCode.append(constId);
+                    const placeholderIndex = self.objCode.items.len - 1;
+
+                    const tokenQueueOffset = index - self.strConstRefTail;
+                    if (tokenQueueOffset > (2 << 16)) {
+                        // TODO: We can handle this better in the future - use an overflow queue, and a sentinel value to indicate to look there.
+                        print("Compiler internal error - String constant offset is too large: {any}\n", .{tokenQueueOffset});
+                    }
+                    tokenQueue[index] = Token.lex(token.kind, @truncate(placeholderIndex), @truncate(tokenQueueOffset));
+                    self.strConstRefTail = index;
                 },
                 TK.identifier => {
                     if (token.aux.declaration) {
@@ -108,6 +207,18 @@ pub const Codegen = struct {
                         // Save that register to this identifier's location.
                         tokenQueue[index] = token.assignReg(@intFromEnum(reg));
                     }
+                },
+                TK.call_identifier => {
+                    // TODO: Support for our own functions.
+                    // For now, this code is just dealing with syscalls.
+                    // TODO: lookup the syscall and how many arguments it requires in a small table by syscall ID.
+                    const arg2 = self.popReg();
+                    const arg1 = self.popReg();
+                    try self.objCode.append(arm.mov(arm.Reg.x2, arg2));
+                    try self.objCode.append(arm.mov(arm.Reg.x1, arg1));
+                    try self.objCode.append(arm.movz(arm.Reg.x0, 1));
+                    try self.objCode.append(arm.movz(arm.Reg.x16, 4));
+                    try self.objCode.append(arm.svc(0x80));
                 },
                 TK.op_assign_eq => {
                     const value = self.popReg();
@@ -141,6 +252,7 @@ pub const Codegen = struct {
         }
         print("Final register {any}\n", .{reg});
         try self.emit_syscall(Syscall.exit, reg);
+        try self.fixupConstRefs(tokenQueue, strConsts);
 
         // print("Total instructions")
     }

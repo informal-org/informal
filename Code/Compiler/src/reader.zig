@@ -116,7 +116,7 @@ pub fn process_chunk(chunk: []u8, reader: *Reader, allocator: Allocator, out_fil
     var c = codegen.Codegen.init(allocator, chunk);
     defer c.deinit();
 
-    try c.emitAll(reader.parsedQ.list.items);
+    try c.emitAll(reader.parsedQ.list.items, reader.internedStrings);
 
     var linker = macho.MachOLinker.init(allocator);
     defer linker.deinit();
