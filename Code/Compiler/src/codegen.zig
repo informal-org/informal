@@ -103,8 +103,12 @@ pub const Codegen = struct {
         // TODO: We'll need to handle multiple-pages in the future for larger programs.
         const codeSize = self.objCode.items.len * 4;
         const alignmentPadding = codeSize - std.mem.alignBackward(usize, codeSize, 16);
-        const totalEnd = std.mem.alignBackward(u64, 0x4000 - codeSize - self.totalConstSize - alignmentPadding - 16, 16);
-        const constStart: u12 = @truncate(totalEnd + codeSize + alignmentPadding - self.totalConstSize);
+        const textStart = std.mem.alignBackward(u64, 0x4000 - codeSize - self.totalConstSize - alignmentPadding - 16, 16);
+        const constStart: u12 = @truncate(textStart + codeSize + alignmentPadding);
+        print("Alignment padding {x}\n", .{alignmentPadding});
+        print("Code size {x}\n", .{codeSize});
+        print("Text start {x}\n", .{textStart});
+        print("Const start {x}\n", .{constStart});
 
         // Index safety - since the zero index in the parser queue is always reserved for the start-node,
         // it'll never contain a constant. So we can safely use it as a sentinel value.

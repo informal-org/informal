@@ -49,7 +49,7 @@ const DEBUG = true;
 /// Depends on context - for IDEs and use-cases where we'll have the buffer in memory, this current approach is better.
 pub const Lexer = struct {
     const Self = @This();
-    buffer: []const u8, // Slice/chunk of the source file.
+    buffer: []u8, // Slice/chunk of the source file.
     syntaxQ: *TokenQueue,
     auxQ: *TokenQueue,
     QIdx: [2]u32, // How many tokens we've emitted to each queue for cross-references.
@@ -74,7 +74,7 @@ pub const Lexer = struct {
 
     pub fn init(
         //
-        buffer: []const u8,
+        buffer: []u8,
         syntaxQ: *TokenQueue,
         auxQ: *TokenQueue,
         internedStrings: *StringArrayHashMap(u64),
@@ -216,30 +216,73 @@ pub const Lexer = struct {
         }
     }
 
+    fn process_escape(ch: u8) u8 {
+        return switch (ch) {
+            'n' => '\n',
+            't' => '\t',
+            'r' => '\r',
+            '\\' => '\\',
+            '"' => '"',
+            else => ch, // Invalid escape sequence - could add error handling here
+        };
+    }
+
     fn token_string(self: *Lexer) !void {
-        self.index += 1; // Omit beginning quote.
+        self.index += 1; // Omit beginning quote
         const tokenStart = self.index;
-        _ = self.seek_till("\"");
-        const tokenLen = self.index - tokenStart;
-        // Expect but omit end quote.
+        var escaped = false;
+        var outIndex: usize = tokenStart;
+
+        // Process string. Replaces escape sequences in-place in the input buffer to avoid extra allocations.
+        // That operation is reversible if we need to unprocess it for error-reporting.
+        while (self.index < self.buffer.len) {
+            const ch = self.buffer[self.index];
+            if (escaped) {
+                // Replace escape sequence with actual character
+                const processed = process_escape(ch);
+                // Write back the processed character
+                self.buffer[outIndex] = processed;
+                outIndex += 1;
+                escaped = false;
+                self.index += 1;
+                continue;
+            }
+
+            if (ch == '\\') {
+                escaped = true;
+                self.index += 1;
+                continue;
+            }
+
+            if (ch == '"') {
+                break;
+            }
+
+            // For non-escaped chars, only need to copy if we've processed escapes
+            if (outIndex != self.index) {
+                self.buffer[outIndex] = ch;
+            }
+            outIndex += 1;
+            self.index += 1;
+        }
+
+        // Seek till the end-quote for cases when there was an escape sequence.
         if (self.index < self.buffer.len and self.buffer[self.index] == '"') {
             self.index += 1;
         } else {
-            // Raise error. Unterminated string. Skip for MVL.
-            unreachable;
+            unreachable; // Error: Unterminated string
         }
-        // Use the value-field to explicitly store the end, or a ref to the
-        // string in some table. The string contains both quotes.
-        // return val.createStringPtr(start, end);
+
+        const tokenLen = outIndex - tokenStart;
         if (tokenLen > (2 << 16)) {
-            // Error: String too long.
-            unreachable;
+            unreachable; // Error: String too long
         }
-        const strValue = self.buffer[tokenStart..(tokenStart + tokenLen)];
+
+        // Only slice the processed portion
+        const strValue = self.buffer[tokenStart..outIndex];
         const constIdxEntry = self.internedStrings.getOrPutValue(strValue, self.internedStrings.count()) catch unreachable;
         const constIdx: u64 = constIdxEntry.value_ptr.*;
         try self.emitToken(Token.lex(TK.lit_string, @truncate(constIdx), @truncate(tokenLen)));
-        // try self.emitToken(tok.stringLiteral(tokenStart, @truncate(tokenLen)));
     }
 
     fn is_identifier_delimiter(ch: u8) bool {
