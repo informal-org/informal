@@ -84,10 +84,6 @@ pub const Codegen = struct {
         // and a relative location to the previous constant reference.
 
         // Once the binary is fully generated, walk it and fixup references to the constant pool using these two linked
-        // TODO: We'll need to handle multiple-pages in the future for larger programs.
-        // TODO: Not sure where this +2
-        const baseOffset = 4002 + (self.objCode.items.len * 4); // 4 bytes per instruction.
-        print("Base offset {d}\n", .{baseOffset});
 
         // Compute the absolute position of each constant.
         // TODO: Cumulative constant offset is useful during macho generation. We should pass it in.
@@ -99,9 +95,15 @@ pub const Codegen = struct {
         // But it avoids needing to store the lengths separately.
         for (0.., strConsts.keys()) |index, strElem| {
             cumOffset += strElem.len;
-            constOffsets[index] = @truncate(baseOffset + cumOffset);
-            print("Final const loc for {d}, = offset {d}\n", .{ index, constOffsets[index] });
+            constOffsets[index] = @truncate(cumOffset);
         }
+
+        // Compute where the constants are supposed to start.
+        // Might be possible to simplify this calculation, but this works.
+        // TODO: We'll need to handle multiple-pages in the future for larger programs.
+        const codeSize = self.objCode.items.len * 4;
+        const totalEnd = std.mem.alignBackward(u64, 0x4000 - codeSize - cumOffset - 16, 16);
+        const constStart: u12 = @truncate(totalEnd + codeSize - cumOffset);
 
         // Index safety - since the zero index in the parser queue is always reserved for the start-node,
         // it'll never contain a constant. So we can safely use it as a sentinel value.
@@ -111,14 +113,10 @@ pub const Codegen = struct {
             const objIndex = tailNode.data.value.arg0;
             self.strConstRefTail = self.strConstRefTail - tailNode.data.value.arg1;
             // TODO: Future - need additional bounds safety checking here.
-            print("Fixup obj index {d}\n", .{objIndex});
-
             const constId = self.objCode.items[objIndex];
-            print("Fixup const id {d}\n", .{constId});
 
             // Replace it with the computed position for that constant.
-            const constOffset = constOffsets[constId];
-            print("Fixup const offset {x}\n", .{constOffset});
+            const constOffset = constOffsets[constId] + constStart;
 
             // TODO: We can stuff the proper register into the flags / kind fields.
             const instr = arm.addi(arm.Reg.x1, arm.Reg.x1, @truncate(constOffset));

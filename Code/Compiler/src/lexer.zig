@@ -235,7 +235,8 @@ pub const Lexer = struct {
             // Error: String too long.
             unreachable;
         }
-        const constIdxEntry = self.internedStrings.getOrPutValue(self.buffer[tokenStart..self.index], self.internedStrings.count()) catch unreachable;
+        const strValue = self.buffer[tokenStart..(tokenStart + tokenLen)];
+        const constIdxEntry = self.internedStrings.getOrPutValue(strValue, self.internedStrings.count()) catch unreachable;
         const constIdx: u64 = constIdxEntry.value_ptr.*;
         try self.emitToken(Token.lex(TK.lit_string, @truncate(constIdx), @truncate(tokenLen)));
         // try self.emitToken(tok.stringLiteral(tokenStart, @truncate(tokenLen)));
