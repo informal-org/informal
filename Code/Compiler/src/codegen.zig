@@ -250,6 +250,14 @@ pub const Codegen = struct {
 
                     try self.objCode.append(instr);
                 },
+                TK.op_gt => {
+                    const rd = self.popReg();
+                    const rn = self.popReg();
+                    try self.objCode.append(arm.cmp(rd, rn));
+                    self.pushReg(rd);
+
+                    // b_cond
+                },
                 TK.aux_stream_start => {},
                 else => {
                     tok.print_token("Unhandled token in Codegen: {any}\n", token, self.buffer);

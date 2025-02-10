@@ -356,6 +356,31 @@ fn getFlushBitset(kind: TK) bitset.BitSet64 {
     return bs;
 }
 
+// A fast way to go from a comparison to its inverse, which is used often when compiling conditional jumps.
+// There's several options here:
+// LuaJit lays out the IR tokens such that it can add 1 to get its inverse. We instead layout the IR kinds to optimize lexing - to go from a character to its kind with a bitset lookup.
+// You could use a standard switch table, a lookup array or a bitset lookup table (with popcount index). But we can further take advantage of the fact that all of the comparison operators are in the first 12 Kind tokens (thus, expressible with just 4 significant bits). So a lookup table for the first 12 kinds can fit in 12 * 4 = 48 bits, and lookups become just a shift+mask. You can add 4 more ops to this if you want.
+const COMPARISON_INVERSE = getInverseComparisonLookupTable();
+fn getInverseComparisonLookupTable() u64 {
+    // Compile-time table such that table at the 4bit range at an Kind's index = its inverse's kind.
+    var table: u64 = 0;
+    const comparison_ops = [_]TK{ TK.op_dbl_eq, TK.op_not_eq, TK.op_lt, TK.op_gte, TK.op_gt, TK.op_lte };
+    for (0.., comparison_ops) |i, op| {
+        // Only 4 bits are significant. Rest should be 0. Truncate to 6 bits so multiply doesn't overflow.
+        const opShift: u6 = @as(u6, @truncate(@intFromEnum(op))) * 4;
+        // XOR 1 to get the index of the reverse operation.
+        const inverseOp: u64 = @intFromEnum(comparison_ops[i ^ 1]);
+        table |= (inverseOp << opShift);
+    }
+    return table;
+}
+
+pub fn inverseComparison(tok: Kind) Kind {
+    const tokVal: u6 = @as(u6, @truncate(@intFromEnum(tok)));
+    const inverseVal = (COMPARISON_INVERSE >> (tokVal * 4)) & 0xF;
+    return @enumFromInt(inverseVal);
+}
+
 // @bitSizeOf
 const expect = std.testing.expect;
 const expectEqual = std.testing.expectEqual;
@@ -395,4 +420,15 @@ test "Test precedence table" {
     try expectEqual(powFlushExpected.mask, powFlush.mask);
 
     // print("Comma: {b}\n", .{TBL_PRECEDENCE_FLUSH[@intFromEnum(TK.sep_comma)].mask});
+}
+
+test "Test fast inverse comparison" {
+    const table = getInverseComparisonLookupTable();
+    try expectEqual(0x20010000a7c, table);
+    try expectEqual(inverseComparison(TK.op_dbl_eq), TK.op_not_eq);
+    try expectEqual(inverseComparison(TK.op_not_eq), TK.op_dbl_eq);
+    try expectEqual(inverseComparison(TK.op_lt), TK.op_gte);
+    try expectEqual(inverseComparison(TK.op_gte), TK.op_lt);
+    try expectEqual(inverseComparison(TK.op_gt), TK.op_lte);
+    try expectEqual(inverseComparison(TK.op_lte), TK.op_gt);
 }
