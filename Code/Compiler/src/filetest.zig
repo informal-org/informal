@@ -56,24 +56,24 @@ fn exitCodeTest(filename: []const u8) !u32 {
 
 test "add.ifi" {
     print("Running add.ifi\n", .{});
-    const exitCode = try exitCodeTest("test/data/add.ifi");
+    const exitCode = try exitCodeTest("../../Tests/FileTests/add.ifi");
     try expectEqual(42, exitCode);
 }
 
 test "identifiers.ifi" {
     print("Running identifiers.ifi\n", .{});
-    const exitCode = try exitCodeTest("test/data/identifiers.ifi");
+    const exitCode = try exitCodeTest("../../Tests/FileTests/identifiers.ifi");
     try expectEqual(12, exitCode);
 }
 
 test "assign.ifi" {
     print("Running assign.ifi\n", .{});
-    const exitCode = try exitCodeTest("test/data/assign.ifi");
+    const exitCode = try exitCodeTest("../../Tests/FileTests/assign.ifi");
     try expectEqual(2, exitCode);
 }
 
 // test "if.ifi" {
 //     print("Running if.ifi\n", .{});
-//     const exitCode = try exitCodeTest("test/data/if.ifi");
+//     const exitCode = try exitCodeTest("../../Tests/FileTests/if.ifi");
 //     try expectEqual(exitCode, 1);
 // }

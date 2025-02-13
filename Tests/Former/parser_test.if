@@ -1,2 +1,0 @@
-test: parse("true or false") is [true, :or, false]
-test: parse("140 + 2") is [140, :+, 2]

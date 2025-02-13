@@ -745,7 +745,7 @@ const constants = @import("constants.zig");
 //     }
 // }
 
-pub fn testToken(buffer: []const u8, expected: []const Token, aux: ?[]const Token) !void {
+pub fn testToken(buffer: []u8, expected: []const Token, aux: ?[]const Token) !void {
     // print("\nTest Lex Token: {s}\n", .{buffer});
     // defer print("\n--------------------------------------------------------------\n", .{});
 
@@ -787,7 +787,8 @@ test "Token equality" {
 }
 
 test "Lex digits" {
-    try testToken("23 101 3", &[_]Token{
+    var buffer = "23 101 3".*;
+    try testToken(&buffer, &[_]Token{
         Token.lex(TK.lit_number, 23, 2).nextAlt(),
         Token.lex(TK.lit_number, 101, 3).nextAlt(),
         Token.lex(TK.lit_number, 3, 1).nextAlt(),
@@ -799,7 +800,7 @@ test "Lex digits" {
 // }
 
 fn testSymbol(buf: []const u8, kind: TK) !void {
-    try testToken(buf, &[_]Token{tok.createToken(kind).nextAlt()}, &[_]Token{ tok.AUX_STREAM_START.nextAlt(), tok.AUX_STREAM_END });
+    try testToken(@constCast(buf), &[_]Token{tok.createToken(kind).nextAlt()}, &[_]Token{ tok.AUX_STREAM_START.nextAlt(), tok.AUX_STREAM_END });
 }
 
 test "Lex symbols" {
@@ -839,7 +840,8 @@ test "Lex delimiters and identifiers" {
     // Delimiters , . = : and identifiers.
     // (a, bb):"
     // 01234567
-    try testToken("(a, bb):", &[_]Token{
+    var buffer = "(a, bb):".*;
+    try testToken(&buffer, &[_]Token{
         tok.createToken(TK.grp_open_paren),
         Token.lex(TK.identifier, 0, 1),
         tok.createToken(TK.sep_comma).nextAlt(),
@@ -850,7 +852,8 @@ test "Lex delimiters and identifiers" {
 }
 
 test "Lex assignment" {
-    try testToken("a = 1", &[_]Token{
+    var buffer = "a = 1".*;
+    try testToken(&buffer, &[_]Token{
         Token.lex(TK.identifier, 0, 1).nextAlt(),
         tok.createToken(TK.op_assign_eq).nextAlt(),
         Token.lex(TK.lit_number, 1, 1).nextAlt(),
@@ -859,14 +862,16 @@ test "Lex assignment" {
 
 test "Identifier with space" {
     // Should get lexed as a single token
-    try testToken("hello world", &[_]Token{
+    var buffer = "hello world".*;
+    try testToken(&buffer, &[_]Token{
         Token.lex(TK.identifier, 0, 11).nextAlt(),
     }, null);
 }
 
 test "Identifier with trailing space" {
     // Should get lexed as a single token
-    try testToken("hello world ", &[_]Token{
+    var buffer = "hello world ".*;
+    try testToken(&buffer, &[_]Token{
         Token.lex(TK.identifier, 0, 11).nextAlt(),
     }, null);
 }
@@ -874,7 +879,8 @@ test "Identifier with trailing space" {
 test "Multiple multipart identifiers" {
     // Should get lexed as a single token
     // Should get parsed as identifier "a b c" + "+" + identifier "cd ef"
-    try testToken("a b c + cd efg", &[_]Token{
+    var buffer = "a b c + cd efg".*;
+    try testToken(&buffer, &[_]Token{
         Token.lex(TK.identifier, 0, 5).nextAlt(),
         tok.createToken(TK.op_add).nextAlt(),
         Token.lex(TK.identifier, 1, 6).nextAlt(),
@@ -884,21 +890,24 @@ test "Multiple multipart identifiers" {
 // Another option is for us to just treat multiple spaces the same as a single space, but this is stricter.
 test "Multiple consecutive spaces in identifier" {
     // Should treat multiple spaces as a delimiter
-    try testToken("hello  world", &[_]Token{
+    var buffer = "hello  world".*;
+    try testToken(&buffer, &[_]Token{
         Token.lex(TK.identifier, 0, 5).nextAlt(), // Should only capture "hello"
         Token.lex(TK.identifier, 1, 5).nextAlt(), // Should capture "world" separately
     }, null);
 }
 
 test "Keyword as identifier" {
-    try testToken("if x", &[_]Token{
+    var buffer = "if x".*;
+    try testToken(&buffer, &[_]Token{
         tok.KW_IF.nextAlt(),
         Token.lex(TK.identifier, 0, 1).nextAlt(),
     }, null);
 }
 
 test "Identifiers with operator separators" {
-    try testToken("aa OR bb", &[_]Token{
+    var buffer = "aa OR bb".*;
+    try testToken(&buffer, &[_]Token{
         Token.lex(TK.identifier, 0, 2).nextAlt(),
         tok.createToken(TK.op_or).nextAlt(),
         Token.lex(TK.identifier, 1, 2).nextAlt(),
@@ -906,19 +915,22 @@ test "Identifiers with operator separators" {
 }
 
 test "Lex type" {
-    try testToken("HelloWorld", &[_]Token{
+    var buffer = "HelloWorld".*;
+    try testToken(&buffer, &[_]Token{
         Token.lex(TK.type_identifier, 0, 10).nextAlt(),
     }, null);
 }
 
 test "Lex constant" {
-    try testToken("HELLO_WORLD", &[_]Token{
+    var buffer = "HELLO_WORLD".*;
+    try testToken(&buffer, &[_]Token{
         Token.lex(TK.const_identifier, 0, 11).nextAlt(),
     }, null);
 }
 
 test "Lex non-builtin operator" {
-    try testToken("aa SOME_OP bbb", &[_]Token{
+    var buffer = "aa SOME_OP bbb".*;
+    try testToken(&buffer, &[_]Token{
         Token.lex(TK.identifier, 0, 2).nextAlt(),
         Token.lex(TK.op_identifier, 1, 7).nextAlt(),
         Token.lex(TK.identifier, 2, 3).nextAlt(),
@@ -946,7 +958,7 @@ test "Test indentation" {
         \\       d
         \\  b3
     ;
-    try testToken(source, &[_]Token{
+    try testToken(@constCast(source), &[_]Token{
         Token.lex(TK.identifier, 0, 1), // a
         Token.lex(TK.sep_newline, 1, 1).nextAlt(),
         tok.GRP_INDENT,

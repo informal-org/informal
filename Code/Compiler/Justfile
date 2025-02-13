@@ -5,7 +5,7 @@ add:
     zig build && ./zig-out/bin/Former test/data/add.ifi
 
 test:
-	zig test src/doctest.zig
+	zig test src/filetest.zig
 
 release:
     zig build -Doptimize=ReleaseFast
