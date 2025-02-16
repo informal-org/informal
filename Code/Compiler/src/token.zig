@@ -217,6 +217,7 @@ pub const OP_AS = createToken(TK.op_as);
 pub const OP_IN = createToken(TK.op_in);
 pub const OP_IS = createToken(TK.op_is);
 pub const KW_IF = createToken(TK.kw_if);
+pub const KW_ELSE = createToken(TK.kw_else);
 pub const GRP_INDENT = createToken(Kind.grp_indent);
 pub const GRP_DEDENT = createToken(Kind.grp_dedent);
 pub const OP_DOT_MEMBER = createToken(Kind.op_dot_member);
@@ -242,7 +243,7 @@ pub const UNARY_OPS = bitset.token_bitset(&[_]TK{ TK.op_not, TK.op_unary_minus }
 pub const GROUP_START = bitset.token_bitset(&[_]TK{ TK.grp_indent, TK.grp_open_paren, TK.grp_open_brace, TK.grp_open_bracket });
 pub const GROUP_END = bitset.token_bitset(&[_]TK{ TK.grp_close_brace, TK.grp_close_paren, TK.grp_close_bracket });
 pub const IDENTIFIER = bitset.token_bitset(&[_]TK{ TK.identifier, TK.const_identifier, TK.call_identifier });
-pub const KEYWORD_START = bitset.token_bitset(&[_]TK{ TK.kw_if, TK.kw_for, TK.kw_def });
+pub const KEYWORD_START = bitset.token_bitset(&[_]TK{ TK.kw_if, TK.kw_for, TK.kw_def, TK.kw_else });
 pub const PAREN_START = bitset.token_bitset(&[_]TK{TK.grp_open_paren});
 pub const BINARY_OPS = bitset.token_bitset(&[_]TK{
     TK.op_gte,

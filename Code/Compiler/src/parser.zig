@@ -17,6 +17,35 @@ const TokBitset = bitset.BitSet64;
 
 const isKind = bitset.isKind;
 
+// Expresses the syntactic structures we want to match for validation and/or rewriting.
+// You can read each pattern here as if it's a token <varialbe> token <variable> sequence
+// i.e. there's an implicit variable captured in between each keyword.
+// The lexer is expected to combine multi-tokens into a single token, making these patterns easier to match.
+// Pattern should be in sorted-order, grouped by the kind (allowing later stages to optimize shared prefix matching)
+// NUD - null denotation. These are all keyword-starts.
+// Optimization: The lexer also maintains linkage for each token-type, allowing us to "seek" to the next token-type
+// without needing to individually examine each token in between.
+// Another option here is we could store bitsets if we want to match groups of things (without needing to distinguish it).
+const NUD_STRUCTURES = [_][]const TK{
+    &[_]TK{ TK.kw_if, TK.op_colon_assoc, TK.kw_else }, // if [condition]: [body] else [else_body]
+    &[_]TK{
+        // if [condition_head]:
+        //     [condition_map]
+        TK.kw_if,
+        TK.op_colon_assoc,
+        TK.grp_indent,
+        TK.grp_dedent,
+    },
+    // TODO: If: should get lexed as a bare if
+};
+
+/// Some syntax notes:
+/// We don't have the traditional "else if". That leads to an unbalanced visual structure.
+/// Instead, we use switch/match style conditional blocks, which aligns the conditions and bodies more regularly.
+
+// Infix like structures.
+const LED_STRUCTURES = [_][]const TK{};
+
 const DEBUG = true;
 // The parser takes a token stream from the lexer and converts it into a valid structure.
 // It's only concerned with the grammatic structure of the code - not the meaning.
@@ -197,9 +226,21 @@ pub const Parser = struct {
                     if (DEBUG) {
                         tok.print_token("Initial state - Keyword Start: {any}\n", token, self.buffer);
                     }
-                    try self.push(token);
+                    try self.emitParsed(token);
+                    // try self.push(token);
                     // TODO: Going to initial here would mean multiple successive keywords are allowed... TBD whether we want that...
                     try self.initial_state();
+                },
+                .kw_else => {
+                    if (DEBUG) {
+                        tok.print_token("Initial state - Keyword Start: {any}\n", token, self.buffer);
+                    }
+                    try self.emitParsed(token);
+                    // try self.push(token);
+                    // Likely need some checks to make sure it's within some condition now.
+                    // try self.initial_state();
+                    // Expect the colon afterwards. Else if should go to initial state.
+                    try self.expect_binary();
                 },
                 else => {
                     tok.print_token("Initial state - UNHANDLED - Keyword Start: {any}\n", token, self.buffer);
@@ -286,7 +327,7 @@ pub const Parser = struct {
                 try self.expect_unary();
             } else if (kind == TK.op_colon_assoc) {
                 // Pop whatever keyword was on the stack.
-                // try self.pushOp(token);
+                try self.pushOp(token);
                 try self.flushUntil(tok.KEYWORD_START);
                 try self.initial_state();
             } else {

@@ -400,6 +400,12 @@ pub const Lexer = struct {
                 try self.emitToken(tok.KW_IF);
                 return;
             }
+        } else if (len == 4) {
+            const name = self.buffer[start..self.index];
+            if (std.mem.eql(u8, name, "else")) {
+                try self.emitToken(tok.KW_ELSE);
+                return;
+            }
         }
         // Not a keyword - resume where we left off as if it's an identifier.
         try self.token_identifier(start);

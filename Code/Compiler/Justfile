@@ -17,12 +17,20 @@ run NAME='run':
 	#!/usr/bin/env sh
 	rm out.bin || true
 	# zig run src/macho.zig
-	zig build && ./zig-out/bin/Former test/data/{{NAME}}.ifi
+	zig build && ./zig-out/bin/Former ../../Tests/FileTests/{{NAME}}.ifi
 	chmod +x out.bin
 	./out.bin
 	echo "\nRan with code: $?"
 	[ $? -eq 42 ] || true
 	# echo $?
+
+informal NAME='run':
+	./zig-out/bin/Former ../../Tests/FileTests/{{NAME}}.ifi
+	chmod +x out.bin
+	./out.bin
+	echo "\nRan with code: $?"
+	[ $? -eq 13 ] || true
+
 
 bindiff:
     bash -c "diff -y <(xxd minimal) <(xxd ~/code/informal/Sources/Former/out.bin)"

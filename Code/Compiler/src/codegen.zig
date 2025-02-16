@@ -16,6 +16,24 @@ const DEBUG = true;
 
 pub const Syscall = platform.Syscall;
 
+const BranchLabel = packed struct(u32) {
+    const Self = @This();
+    cond: arm.Cond,
+    offset: u28,
+
+    fn init(cond: arm.Cond, target: u32, index: u32) BranchLabel {
+        return BranchLabel{ .cond = cond, .offset = resolution.calcOffset(u28, target, index) };
+    }
+
+    fn getTarget(self: BranchLabel, index: u32) u32 {
+        return resolution.applyOffset(i28, index, self.offset);
+    }
+
+    fn encode(self: BranchLabel) u32 {
+        return @as(u32, @bitCast(self));
+    }
+};
+
 pub const Codegen = struct {
     // Converts parsed token stream into assembly.
 
@@ -33,8 +51,17 @@ pub const Codegen = struct {
     // objConstRefTail: u32 = 0,
     // pqStrConstRefTail: u32 = 0, // Last constant reference in the parser queue for constant address fixup.
     // constLengthOffsets: std.ArrayList(u32), // Const ID -> Length. Later used to computed cumulative offsets.
-
     // const CONST_BASE_REG = arm.Reg.x20;
+
+    // Conditional fixup metadata, allowing us to link branch target labels on-the-fly.
+    // This is the binary-locations waiting for lable, each one pointing to the previous one.
+    br_unknown_tail_idx: usize = 0,
+    br_pass_tail_idx: usize = 0,
+    br_fail_tail_idx: usize = 0,
+    br_end_tail_idx: usize = 0,
+
+    ctx_current_block_kind: TK = TK.aux, // Context - sets
+    ctx_block_start: usize = 0,
 
     pub fn init(allocator: Allocator, buffer: []const u8) Self {
         return Self{ .objCode = std.ArrayList(u32).init(allocator), .buffer = buffer, .regStack = 0, .allocator = allocator };
@@ -105,10 +132,12 @@ pub const Codegen = struct {
         const alignmentPadding = codeSize - std.mem.alignBackward(usize, codeSize, 16);
         const textStart = std.mem.alignBackward(u64, 0x4000 - codeSize - self.totalConstSize - alignmentPadding - 16, 16);
         const constStart: u12 = @truncate(textStart + codeSize + alignmentPadding);
-        print("Alignment padding {x}\n", .{alignmentPadding});
-        print("Code size {x}\n", .{codeSize});
-        print("Text start {x}\n", .{textStart});
-        print("Const start {x}\n", .{constStart});
+        if (DEBUG) {
+            print("Alignment padding {x}\n", .{alignmentPadding});
+            print("Code size {x}\n", .{codeSize});
+            print("Text start {x}\n", .{textStart});
+            print("Const start {x}\n", .{constStart});
+        }
 
         // Index safety - since the zero index in the parser queue is always reserved for the start-node,
         // it'll never contain a constant. So we can safely use it as a sentinel value.
@@ -201,7 +230,7 @@ pub const Codegen = struct {
                     } else {
                         // Find what register this identifier is at by following the usage chain.
                         const offset = token.data.value.arg1;
-                        const prevRefDecIndex = resolution.applyOffset(@truncate(index), offset);
+                        const prevRefDecIndex = resolution.applyOffset(i16, @truncate(index), offset);
                         const register = tokenQueue[prevRefDecIndex].data.value.arg0;
                         if (DEBUG) {
                             const signedOffset: i16 = @bitCast(offset);
@@ -256,7 +285,64 @@ pub const Codegen = struct {
                     try self.objCode.append(arm.cmp(rd, rn));
                     self.pushReg(rd);
 
-                    // b_cond
+                    print("Compiling GT. Current index {any} unknown tail {any}\n", .{ self.objCode.items.len, self.br_unknown_tail_idx });
+
+                    // Branch condition would ultimately go here. We want the inverse condition.
+                    // TODO: Optimization: We can make this map to the same condition using the inverse condition logic.
+                    // Starts as a branch type unknown since we don't know if this is followed by an and/or, etc.
+                    const inverse_cond = arm.Cond.LE;
+                    const binaryIdx = self.objCode.items.len;
+                    const prev_index = if (self.br_unknown_tail_idx == 0) binaryIdx else self.br_unknown_tail_idx;
+                    const br_label = BranchLabel.init(inverse_cond, @truncate(prev_index), @truncate(binaryIdx));
+                    print("Compiling GT. Appending unk label {any}\n", .{br_label});
+                    try self.objCode.append(br_label.encode());
+                    self.br_unknown_tail_idx = binaryIdx;
+                },
+                TK.kw_if => {
+                    // TODO, we may want to save some reference back to whatever this was previously.
+                    self.ctx_current_block_kind = TK.kw_if;
+                    self.ctx_block_start = self.objCode.items.len;
+                },
+                TK.op_colon_assoc => {
+                    // The current block type is 'ready'.
+                    // For loops, we probably want back-refs to come back here.
+                    // Change unknown to tail.
+                    const prev_fail = self.br_fail_tail_idx;
+                    print("Colon - prev fail {any}\n", .{prev_fail});
+                    if (prev_fail != 0) {
+                        // TODO: Chain
+                        print("Unimplemented - Prev fail - TODO: Chain", .{});
+                    } else {
+                        print("Colon - setting fail to unknown {any}\n", .{self.br_unknown_tail_idx});
+                        self.br_fail_tail_idx = self.br_unknown_tail_idx;
+                        self.br_unknown_tail_idx = 0;
+                    }
+                },
+                TK.grp_indent => {
+                    // Anything which was looking for the success branch should go here - i.e. short-circuiting OR.
+                    print("Ignoring unknown indent type", .{});
+                },
+                TK.grp_dedent => {
+                    // Resolve all of the 'fail' branches. This is the index they were looking for.
+                    // We need to set the end as well here. And then peek one to see if the next thing (if it exists) is a condition-continuing thing.
+                    if (self.ctx_current_block_kind == TK.kw_if or self.ctx_current_block_kind == TK.kw_else) {
+                        const fail_idx = self.objCode.items.len;
+                        print("Resolving fail branches from {any} to {any} for block from {any}\n", .{ self.br_fail_tail_idx, fail_idx, self.ctx_block_start });
+                        while (self.br_fail_tail_idx > self.ctx_block_start) {
+                            const br_label = @as(BranchLabel, @bitCast(self.objCode.items[self.br_fail_tail_idx]));
+                            print("Resolving fail branch {any}\n", .{br_label});
+                            self.objCode.items[self.br_fail_tail_idx] = arm.b_cond(br_label.cond, @truncate(fail_idx - self.br_fail_tail_idx));
+                            const currentTail = self.br_fail_tail_idx;
+                            self.br_fail_tail_idx = if (br_label.offset == 0) 0 else br_label.getTarget(@truncate(self.br_fail_tail_idx));
+                            if (self.br_fail_tail_idx == currentTail) {
+                                // TODO
+                                print("Compiler internal error - Failed to resolve all fail branches", .{});
+                                break;
+                            }
+                        }
+                    } else {
+                        print("Ignoring unknown dedent type", .{});
+                    }
                 },
                 TK.aux_stream_start => {},
                 else => {

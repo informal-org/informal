@@ -40,16 +40,16 @@ pub const Scope = struct {
 // Zero index is assumed to always be some root node in the parser, not a declaration
 const UNDECLARED_SENTINEL = 0;
 
-pub fn calcOffset(target: u32, index: u32) u16 {
+pub fn calcOffset(comptime T: anytype, target: u32, index: u32) T {
     const signedTarget: i32 = @intCast(target);
     const signedIndex: i32 = @intCast(index);
     const offset: u32 = @bitCast(signedTarget - signedIndex);
     return @truncate(offset);
 }
 
-pub fn applyOffset(index: u32, offset: u16) u32 {
+pub fn applyOffset(comptime signedOffsetT: anytype, index: u32, offset: anytype) u32 {
     const signedIndex: i32 = @intCast(index);
-    const signedOffset: i16 = @bitCast(offset);
+    const signedOffset: signedOffsetT = @bitCast(offset); // i16
     return @bitCast(signedIndex + signedOffset); // Assert - this should always be positive.
 }
 
@@ -114,7 +114,7 @@ pub const Resolution = struct {
             return token.newDeclaration(UNDECLARED_SENTINEL);
         } else {
             // Declare this as the latest declaration, and chain a reference to the previous declaration.x
-            const offset = calcOffset(prevDeclaration, index); // Negative offset, since index is always greater than prev.
+            const offset = calcOffset(u16, prevDeclaration, index); // Negative offset, since index is always greater than prev.
             return token.newDeclaration(@truncate(offset));
         }
     }
@@ -136,7 +136,7 @@ pub const Resolution = struct {
                 // This reference is within this current scope (or one of its child scopes - which can still access this forward ref)
                 if (unresolvedRefIdx >= currentScope.start) {
                     const ref = self.parsedQ.list.items[unresolvedRefIdx];
-                    const offset = calcOffset(declarationIndex, unresolvedRefIdx); // Should be positive, since this is a forward ref.
+                    const offset = calcOffset(u16, declarationIndex, unresolvedRefIdx); // Should be positive, since this is a forward ref.
                     // TODO: Overflow checks.
 
                     // Resolve this symbol ref in the parsed queue to this current declaration.
@@ -152,7 +152,7 @@ pub const Resolution = struct {
                         break;
                     } else {
                         // Assume - arg1 offset is going to be negative here.
-                        unresolvedRefIdx = applyOffset(unresolvedRefIdx, ref.data.value.arg1);
+                        unresolvedRefIdx = applyOffset(i16, unresolvedRefIdx, ref.data.value.arg1);
                     }
                 } else {
                     // This and any priors can't see this current declaration, since it's out of scope.
@@ -186,7 +186,7 @@ pub const Resolution = struct {
         // If there are previous unresolved refs, set this symbol's offset to that in the parsed queue.
         const symbol = token.data.value.arg0;
         // Offset should be negative if there's an existing declaration.
-        const offset = if (self.declarations[symbol] != UNDECLARED_SENTINEL) calcOffset(self.declarations[symbol], index) else UNDECLARED_SENTINEL;
+        const offset = if (self.declarations[symbol] != UNDECLARED_SENTINEL) calcOffset(u16, self.declarations[symbol], index) else UNDECLARED_SENTINEL;
         if (self.declarations[symbol] == UNDECLARED_SENTINEL) {
             // No declarations found, add to unresolved list.
             self.unresolved[symbol] = index;
