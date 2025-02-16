@@ -55,10 +55,10 @@ pub const Codegen = struct {
 
     // Conditional fixup metadata, allowing us to link branch target labels on-the-fly.
     // This is the binary-locations waiting for lable, each one pointing to the previous one.
-    br_unknown_tail_idx: usize = 0,
-    br_pass_tail_idx: usize = 0,
-    br_fail_tail_idx: usize = 0,
-    br_end_tail_idx: usize = 0,
+    br_unknown_tail_idx: u32 = 0,
+    br_pass_tail_idx: u32 = 0,
+    br_fail_tail_idx: u32 = 0,
+    br_end_tail_idx: u32 = 0,
 
     ctx_current_block_kind: TK = TK.aux, // Context - sets
     ctx_block_start: usize = 0,
@@ -159,6 +159,31 @@ pub const Codegen = struct {
             const instr = arm.addi(arm.Reg.x1, arm.Reg.x1, @truncate(constOffset));
             self.objCode.items[objIndex] = instr;
         }
+    }
+
+    fn resolveBranchLabels(self: *Self, tailIdx: u32, targetIdx: usize) u32 {
+        // Patch the bytecode with resolved labels.
+        // When we need to branch to an unknown location, the codegen emits a placeholder.
+        // This placeholder forms a linked-list pointer to the previous thing waiting for resolution.
+        // When the target address is known, patch those in reverse.
+        var tail = tailIdx;
+
+        // Ignore patching things from other conditionals.
+        while (tail > self.ctx_block_start) {
+            const br_label = @as(BranchLabel, @bitCast(self.objCode.items[tail]));
+            self.objCode.items[tail] = arm.b_cond(br_label.cond, @truncate(targetIdx - tail));
+            tail = if (br_label.offset == 0) 0 else br_label.getTarget(tail);
+        }
+        return tail;
+    }
+
+    fn appendPendingBranch(self: *Self, inverse_cond: arm.Cond, tailIdx: u32) !u32 {
+        // Assume - we get the inverse conditional we actually want to store.
+        const binaryIdx = self.objCode.items.len;
+        const prevIndex = if (tailIdx == 0) binaryIdx else tailIdx;
+        const br_label = BranchLabel.init(inverse_cond, @truncate(prevIndex), @truncate(binaryIdx));
+        try self.objCode.append(br_label.encode());
+        return @truncate(binaryIdx);
     }
 
     pub fn emitAll(self: *Self, tokenQueue: []Token, strConsts: *StringArrayHashMap(u64)) !void {
@@ -290,13 +315,7 @@ pub const Codegen = struct {
                     // Branch condition would ultimately go here. We want the inverse condition.
                     // TODO: Optimization: We can make this map to the same condition using the inverse condition logic.
                     // Starts as a branch type unknown since we don't know if this is followed by an and/or, etc.
-                    const inverse_cond = arm.Cond.LE;
-                    const binaryIdx = self.objCode.items.len;
-                    const prev_index = if (self.br_unknown_tail_idx == 0) binaryIdx else self.br_unknown_tail_idx;
-                    const br_label = BranchLabel.init(inverse_cond, @truncate(prev_index), @truncate(binaryIdx));
-                    print("Compiling GT. Appending unk label {any}\n", .{br_label});
-                    try self.objCode.append(br_label.encode());
-                    self.br_unknown_tail_idx = binaryIdx;
+                    self.br_unknown_tail_idx = try self.appendPendingBranch(arm.Cond.LE, self.br_unknown_tail_idx);
                 },
                 TK.kw_if => {
                     // TODO, we may want to save some reference back to whatever this was previously.
@@ -328,18 +347,17 @@ pub const Codegen = struct {
                     if (self.ctx_current_block_kind == TK.kw_if or self.ctx_current_block_kind == TK.kw_else) {
                         const fail_idx = self.objCode.items.len;
                         print("Resolving fail branches from {any} to {any} for block from {any}\n", .{ self.br_fail_tail_idx, fail_idx, self.ctx_block_start });
-                        while (self.br_fail_tail_idx > self.ctx_block_start) {
-                            const br_label = @as(BranchLabel, @bitCast(self.objCode.items[self.br_fail_tail_idx]));
-                            print("Resolving fail branch {any}\n", .{br_label});
-                            self.objCode.items[self.br_fail_tail_idx] = arm.b_cond(br_label.cond, @truncate(fail_idx - self.br_fail_tail_idx));
-                            const currentTail = self.br_fail_tail_idx;
-                            self.br_fail_tail_idx = if (br_label.offset == 0) 0 else br_label.getTarget(@truncate(self.br_fail_tail_idx));
-                            if (self.br_fail_tail_idx == currentTail) {
-                                // TODO
-                                print("Compiler internal error - Failed to resolve all fail branches", .{});
-                                break;
-                            }
-                        }
+                        self.br_fail_tail_idx = self.resolveBranchLabels(self.br_fail_tail_idx, fail_idx);
+
+                        // Dedent while in an if-block means this conditional block is over, which means a jump to an end (unless its already the end)
+                        // const currentIndex = self.objCode.items.len;
+                        // if (index + 1 < tokenQueue.len and tokenQueue[index + 1].kind == TK.kw_else) {
+                        //     // There's more conditions after this, so reserve a placeholder end and then queue it up to be corrected.
+
+                        //     print("Unimplemented - Dedent while in an if-block, and the next token is an else", .{});
+                        // } else {
+                        //     // This is the ultimate end we've been waiting for. Resolve all of the end tokens.
+                        // }
                     } else {
                         print("Ignoring unknown dedent type", .{});
                     }

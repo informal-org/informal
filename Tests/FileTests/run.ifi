@@ -1,5 +1,5 @@
 print("Before hello\n")
-if 1 > 2:
+if 1 < 2:
     print("1 is greater than 2\n")
 else:
     print("1 is not greater than 2\n")
