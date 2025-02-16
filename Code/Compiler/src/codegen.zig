@@ -345,19 +345,20 @@ pub const Codegen = struct {
                     // Resolve all of the 'fail' branches. This is the index they were looking for.
                     // We need to set the end as well here. And then peek one to see if the next thing (if it exists) is a condition-continuing thing.
                     if (self.ctx_current_block_kind == TK.kw_if or self.ctx_current_block_kind == TK.kw_else) {
-                        const fail_idx = self.objCode.items.len;
-                        print("Resolving fail branches from {any} to {any} for block from {any}\n", .{ self.br_fail_tail_idx, fail_idx, self.ctx_block_start });
-                        self.br_fail_tail_idx = self.resolveBranchLabels(self.br_fail_tail_idx, fail_idx);
+                        const currentLoc = self.objCode.items.len;
+                        print("Resolving fail branches from {any} to {any} for block from {any}\n", .{ self.br_fail_tail_idx, currentLoc, self.ctx_block_start });
+                        self.br_fail_tail_idx = self.resolveBranchLabels(self.br_fail_tail_idx, currentLoc);
 
                         // Dedent while in an if-block means this conditional block is over, which means a jump to an end (unless its already the end)
                         // const currentIndex = self.objCode.items.len;
-                        // if (index + 1 < tokenQueue.len and tokenQueue[index + 1].kind == TK.kw_else) {
-                        //     // There's more conditions after this, so reserve a placeholder end and then queue it up to be corrected.
-
-                        //     print("Unimplemented - Dedent while in an if-block, and the next token is an else", .{});
-                        // } else {
-                        //     // This is the ultimate end we've been waiting for. Resolve all of the end tokens.
-                        // }
+                        if (index + 1 < tokenQueue.len and tokenQueue[index + 1].kind == TK.kw_else) {
+                            // There's more conditions after this, so reserve a placeholder end and then queue it up to be corrected.
+                            self.br_end_tail_idx = try self.appendPendingBranch(arm.Cond.AL, self.br_end_tail_idx);
+                            print("Unimplemented - Dedent while in an if-block, and the next token is an else", .{});
+                        } else {
+                            // This is the ultimate end we've been waiting for. Resolve all of the end tokens.
+                            self.br_end_tail_idx = self.resolveBranchLabels(self.br_end_tail_idx, currentLoc);
+                        }
                     } else {
                         print("Ignoring unknown dedent type", .{});
                     }
