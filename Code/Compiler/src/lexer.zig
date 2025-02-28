@@ -415,6 +415,9 @@ pub const Lexer = struct {
         var containsLowercase = false;
         while (self.index < self.buffer.len) {
             const ch = self.buffer[self.index];
+            if (IDENTIFIER_DELIIMITERS.isSet(ch)) {
+                break;
+            }
             switch (ch) {
                 ' ' => {
                     break;
@@ -733,6 +736,19 @@ pub const Lexer = struct {
         _ = try self.token_indentation();
         try self.emitAux(tok.AUX_STREAM_END);
         try self.flushPrev(false);
+
+        if (DEBUG) {
+            print("\n------------- Lexer End --------------- \n", .{});
+            // Print the full interned symbol table
+            print("\nInterned Symbol Table:\n", .{});
+            var symbolIter = self.symbolTable.iterator();
+            while (symbolIter.next()) |entry| {
+                print("{d: <3} {s}\n", .{
+                    entry.value_ptr.*,
+                    entry.key_ptr.*,
+                });
+            }
+        }
     }
 };
 
