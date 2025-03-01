@@ -14,6 +14,9 @@ const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
 const StringHashMap = std.StringHashMap;
 const assert = std.debug.assert;
+const constants = @import("constants.zig");
+const test_allocator = std.testing.allocator;
+const expectEqual = std.testing.expectEqual;
 
 const DB = struct {
     allocator: Allocator,
@@ -32,6 +35,14 @@ const DB = struct {
     }
 
     pub fn deinit(self: *DB) void {
+        var terms_iterator = self.terms.iterator();
+        while (terms_iterator.next()) |entry| {
+            var term = entry.value_ptr;
+            term.deinit();
+        }
+        for (self.tables.items) |*table| {
+            table.deinit();
+        }
         self.terms.deinit();
         self.tables.deinit();
     }
@@ -45,8 +56,11 @@ const Table = struct {
     columns: std.StringArrayHashMap(Column),
 
     pub fn init(db: *DB, allocator: Allocator, name: []const u8) Table {
+        const table_id = db.max_table_id;
+        db.max_table_id += 1;
         return Table{
             .db = db,
+            .table_id = table_id,
             .allocator = allocator,
             .name = name,
             .columns = std.StringArrayHashMap(Column).init(allocator),
@@ -54,14 +68,20 @@ const Table = struct {
     }
 
     pub fn deinit(self: *Table) void {
+        var iterator = self.columns.iterator();
+        while (iterator.next()) |entry| {
+            var column = entry.value_ptr;
+            column.deinit();
+        }
         self.columns.deinit();
     }
 
-    pub fn addColumn(self: *Table, name: []const u8) !u32 {
+    pub fn addColumn(self: *Table, name: []const u8) !*Column {
         const column_id = self.db.max_column_id;
         self.db.max_column_id += 1;
-        try self.columns.put(name, Column.init(self, self.allocator, column_id));
-        return column_id;
+        const column = try Column.init(self, self.allocator, column_id);
+        try self.columns.put(name, column);
+        return self.columns.getPtr(name).?;
     }
 };
 
@@ -83,22 +103,30 @@ const Column = struct {
     refs: std.ArrayList(TermRefs),
     length: u32 = 0, // Total length. Equals order.items.len + order16.items.len
 
-    pub fn init(table: *Table, allocator: Allocator, column_id: u32) Column {
+    pub fn init(table: *Table, allocator: Allocator, column_id: u32) !Column {
+        const emptyOrd16 = try std.ArrayList(u16).initCapacity(allocator, 0);
         return Column{
             .allocator = allocator,
             .table = table,
             .id = column_id,
             .terms = std.ArrayList(Term).init(allocator),
             .order = std.ArrayList(u8).init(allocator),
-            .order16 = std.ArrayList(u16).initCapacity(allocator, 0),
+            .order16 = emptyOrd16,
             .refs = std.ArrayList(TermRefs).init(allocator),
         };
     }
 
     pub fn deinit(self: *Column) void {
+        // The term contents will be cleaned up by the base DB.
+        // for (self.terms.items) |*term| {
+        //     term.deinit();
+        // }
         self.terms.deinit();
         self.order.deinit();
         self.order16.deinit();
+        for (self.refs.items) |*termRefs| {
+            termRefs.deinit();
+        }
         self.refs.deinit();
     }
 
@@ -110,13 +138,14 @@ const Column = struct {
         } else {
             try self.order16.append(termIdx);
         }
+        const index = self.length;
         self.length += 1;
-        return self.length;
+        return index;
     }
 
     fn pushRef(self: *Column, termIdx: u16, orderIndex: u32) !void {
-        const termRefs = self.refs.items[termIdx];
-        termRefs.pushRef(orderIndex);
+        var termRefs = &self.refs.items[termIdx];
+        try termRefs.pushRef(orderIndex);
     }
 
     pub fn push(self: *Column, termIdx: u16) !void {
@@ -124,34 +153,46 @@ const Column = struct {
         try self.pushRef(termIdx, orderIndex);
     }
 
-    pub fn addTerm(self: *Column, term: Term) u16 {
-        // Add a new term to this column and push it.
-        // The caller is responsible for making sure it's a net-new term
-        // Otherwise, insertion performance would be dominated by that term-existence lookup.
-        const termIndex = self.terms.items.len;
-        assert(termIndex <= std.math.maxInt(u16));
-        try self.terms.append(term);
-        // assume: no concurrent access to self.length. And assuming we're immediately pushing this term after this call.
+    /// Add a new term to this column and push it, returning its column-relative local index.
+    /// The caller is responsible for making sure it's a net-new term.
+    /// Otherwise, insertion performance would be dominated by that term-existence lookup.
+    pub fn addTerm(self: *Column, term: *Term) !u16 {
+        const rawTermIdx = self.terms.items.len;
+        assert(rawTermIdx <= std.math.maxInt(u16));
+        const termIndex: u16 = @truncate(rawTermIdx);
+        try self.terms.append(term.*);
         const lastIndex = try self.pushOrder(termIndex);
-        try self.refs.append(TermRefs{ .allocator = self.allocator, .lastIndex = lastIndex });
-        return @truncate(termIndex);
+        const termRefs = try TermRefs.init(self.allocator, lastIndex);
+        try self.refs.append(termRefs);
+
+        // Have the term remember where it is in this column.
+        try term.addColumnRef(self.id, termIndex);
+
+        return termIndex;
     }
 };
 
 const TermRefs = struct {
     allocator: Allocator,
-    // Each column maintains an inverted index of where all each term appears
-    // Mostly stored as an offset array. 0 indicates offset overflow, which is stored in a second array.
-    offsets: std.ArrayList(u8), // Offset from previous appearance.
-    overflow: std.ArrayList(u32), // Any index where offset = 0 is found here. Else offset is offset from previous.
-    lastIndex: u32, // Last absolute index where this term appeared.
+    /// Each column maintains an inverted index of where all each term appears
+    /// Mostly stored as an offset array. 0 indicates offset overflow, which is stored in a second array.
+    /// Offset from previous appearance.
+    offsets: std.ArrayList(u8),
+    /// Any index where offset = 0 is found here. Else offset is offset from previous.
+    overflow: std.ArrayList(u32),
+    /// Last absolute index where this term appeared.
+    lastIndex: u32,
 
-    pub fn init(allocator: Allocator, initial_index: u32) TermRefs {
+    pub fn init(allocator: Allocator, initial_index: u32) !TermRefs {
         var offsets = std.ArrayList(u8).init(allocator);
         var overflow = std.ArrayList(u32).init(allocator);
         // Store the initial index in the array as well
-        try offsets.append(0);
-        try overflow.append(initial_index);
+        if (initial_index < 255) {
+            try offsets.append(@truncate(initial_index));
+        } else {
+            try offsets.append(0);
+            try overflow.append(initial_index);
+        }
 
         return TermRefs{
             .allocator = allocator,
@@ -171,8 +212,9 @@ const TermRefs = struct {
         if (offset < 255) {
             try self.offsets.append(@truncate(offset));
         } else {
+            std.debug.print("Overflow: {d} length {d}\n", .{ offset, self.offsets.items.len });
             try self.offsets.append(0);
-            try self.overflow.append(offset);
+            try self.overflow.append(index);
         }
         self.lastIndex = index;
     }
@@ -191,6 +233,7 @@ fn orderColumnRef(context: ColumnRef, item: ColumnRef) std.math.Order {
 const Term = struct {
     // Store a sorted arraylist of Column ID -> index of this term within that column's terms list.
     // A column may contain many terms, but it's expected that a term only makes an appearance in some small number of columns.
+    allocator: Allocator,
     refs: std.ArrayList(ColumnRef),
 
     pub fn init(allocator: Allocator) Term {
@@ -198,6 +241,10 @@ const Term = struct {
             .allocator = allocator,
             .refs = std.ArrayList(ColumnRef).init(allocator),
         };
+    }
+
+    pub fn deinit(self: *Term) void {
+        self.refs.deinit();
     }
 
     pub fn getColumnRef(self: *Term, column_id: u32) ?u32 {
@@ -217,11 +264,12 @@ const Term = struct {
             return null;
         } else {
             // Binary search if the list is large - which we expect to be fairly rare.
-            const index = std.sort.binarySearch(u32, self.refs.items, column_id, orderColumnRef);
+            const target = ColumnRef{ .column_id = column_id, .term_index = 0 };
+            const index = std.sort.binarySearch(ColumnRef, self.refs.items, target, orderColumnRef);
             if (index == null) {
                 return null;
             }
-            return self.refs.items[index].term_index;
+            return self.refs.items[index.?].term_index;
         }
     }
 
@@ -244,3 +292,101 @@ const Term = struct {
         try self.refs.insert(index, column_ref);
     }
 };
+
+test {
+    if (constants.DISABLE_ZIG_LAZY) {
+        @import("std").testing.refAllDecls(@This());
+    }
+}
+
+test "Column - Term indexing" {
+    var db = DB.init(test_allocator);
+    defer db.deinit();
+
+    var table = Table.init(&db, test_allocator, "test_table");
+    defer table.deinit();
+
+    var col = try table.addColumn("test_col");
+
+    var term1 = Term.init(test_allocator);
+    defer term1.deinit();
+
+    var term2 = Term.init(test_allocator);
+    defer term2.deinit();
+
+    const term1_idx = try col.addTerm(&term1);
+    const term2_idx = try col.addTerm(&term2);
+
+    try expectEqual(@as(u16, 0), term1_idx);
+    try expectEqual(@as(u16, 1), term2_idx);
+    try expectEqual(@as(usize, 2), col.terms.items.len);
+
+    try col.push(term2_idx);
+    try col.push(term1_idx);
+
+    // Ensure the order stores the term IDs properly.
+    try expectEqual(@as(u32, 4), col.length); // 2 from addRefs, 2 from push.
+    try expectEqual(@as(u8, 0), col.order.items[0]);
+    try expectEqual(@as(u8, 1), col.order.items[1]);
+    try expectEqual(@as(u8, 1), col.order.items[2]);
+    try expectEqual(@as(u8, 0), col.order.items[3]);
+
+    // Ensure the terms have a pointer back to their index in the column.
+    try expectEqual(@as(u32, 0), term1.getColumnRef(col.id).?);
+    try expectEqual(@as(u32, 1), term2.getColumnRef(col.id).?);
+
+    // Ensure each term stores the index offsets they appear in.
+    // 1 2 2 1 = term 1 refs at [0, 3]. Term 2 [0, 1]
+    try expectEqual(@as(u32, 0), col.refs.items[0].offsets.items[0]);
+    try expectEqual(@as(u32, 3), col.refs.items[0].offsets.items[1]);
+    try expectEqual(@as(u32, 1), col.refs.items[1].offsets.items[0]);
+    try expectEqual(@as(u32, 1), col.refs.items[1].offsets.items[1]);
+}
+
+test "Column - Large term sets" {
+    var db = DB.init(test_allocator);
+    defer db.deinit();
+
+    var table = Table.init(&db, test_allocator, "test_table");
+    defer table.deinit();
+
+    var col = try table.addColumn("test_col");
+
+    var i: u16 = 0;
+    while (i < 260) : (i += 1) {
+        var term = Term.init(test_allocator);
+        defer term.deinit();
+        const term_idx = try col.addTerm(&term);
+        try expectEqual(i, term_idx);
+        try col.push(term_idx);
+    }
+
+    try expectEqual(@as(u32, 520), col.length); // 260 from addTerm calls, 260 from push calls
+    // 254 * 2 = 508. After that, term ID is larger than 255. So 260-254=6 * 2 = 12
+    try expectEqual(@as(usize, 508), col.order.items.len);
+    try expectEqual(@as(usize, 12), col.order16.items.len);
+}
+
+test "TermRefs - Offset handling" {
+    var db = DB.init(test_allocator);
+    defer db.deinit();
+
+    var term_refs = try TermRefs.init(test_allocator, 7);
+    defer term_refs.deinit();
+
+    // Test small offsets
+    try term_refs.pushRef(13);
+    try term_refs.pushRef(23);
+    try term_refs.pushRef(35);
+
+    try expectEqual(@as(u32, 35), term_refs.lastIndex);
+    try expectEqual(@as(u8, 7), term_refs.offsets.items[0]); // Initial index = 7
+    try expectEqual(@as(u8, 6), term_refs.offsets.items[1]); // 13 - 7 = 6
+    try expectEqual(@as(u8, 10), term_refs.offsets.items[2]); // 23 - 13 = 10
+    try expectEqual(@as(u8, 12), term_refs.offsets.items[3]); // 35 - 23 = 12
+
+    // Storing large offsets beyond 255 difference should store 0 in offset and the actual value in the overflow array.
+    try term_refs.pushRef(300);
+    try expectEqual(@as(u8, 0), term_refs.offsets.items[4]);
+    try expectEqual(@as(u32, 300), term_refs.overflow.items[0]);
+}
