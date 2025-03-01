@@ -10,8 +10,8 @@ test:
 release:
     zig build -Doptimize=ReleaseFast
 
-bench-build: release
-    hyperfine "./zig-out/bin/Former test/data/run.ifi"
+bench-build NAME='run': release
+    hyperfine "./zig-out/bin/Former ../../Tests/FileTests/{{NAME}}.ifi"
 
 run NAME='run':
 	#!/usr/bin/env sh

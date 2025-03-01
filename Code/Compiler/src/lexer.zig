@@ -3,6 +3,7 @@ const val = @import("value.zig");
 const tok = @import("token.zig");
 const q = @import("queue.zig");
 const bitset = @import("bitset.zig");
+const constants = @import("constants.zig");
 
 const print = std.debug.print;
 const StringArrayHashMap = std.array_hash_map.StringArrayHashMap;
@@ -28,7 +29,7 @@ const IDENTIFIER_DELIIMITERS = bitset.character_bitset("()[]{}\"'.,:;\t\n%*+-/^<
 const IDENTIFIER_DELIIMITERS_WITH_SPACE = bitset.extend_bitset(IDENTIFIER_DELIIMITERS, " 0123456789");
 const KEYWORD_DELIMITERS = bitset.extend_bitset(IDENTIFIER_DELIIMITERS, " "); // Don't add numbers here. Better to be stricter about space / symbol separated keywords.
 
-const DEBUG = true;
+const DEBUG = constants.DEBUG;
 
 /// The lexer splits up an input buffer into tokens.
 /// The input buffer are smaller chunks of a source file.
@@ -204,13 +205,17 @@ pub const Lexer = struct {
         const MAX_LITERAL_NUMBER = std.math.pow(u64, 2, 16);
         // Predicate: Unary minus is handled separately. So value is always implicitly > 0.
         if (value > MAX_LITERAL_NUMBER) {
-            print("Add number to constant pool {d} {d}\n", .{ value, len });
+            if (DEBUG) {
+                print("Add number to constant pool {d} {d}\n", .{ value, len });
+            }
             // Add it to the numeric constant pool
             const constIdxEntry = self.internedNumbers.getOrPutValue(value, self.internedNumbers.count()) catch unreachable;
             const constIdx: u64 = constIdxEntry.value_ptr.*;
             try self.emitToken(Token.lex(TK.lit_number, @truncate(constIdx), 0));
         } else {
-            print("Emit literal number {d} {d}\n", .{ value, len });
+            if (DEBUG) {
+                print("Emit literal number {d} {d}\n", .{ value, len });
+            }
             // Emit it as an immediate value.
             try self.emitToken(Token.lex(TK.lit_number, @truncate(value), @truncate(len)));
         }
@@ -571,7 +576,9 @@ pub const Lexer = struct {
             // return tok.LEX_ERROR; // TODO
             return tok.AUX_SKIP;
         } else {
-            print("Indent: {d} Depth: {d}\n", .{ indent, self.depth });
+            if (DEBUG) {
+                print("Indent: {d} Depth: {d}\n", .{ indent, self.depth });
+            }
             // Count and determine if it's an indent or dedent.
             if (indent > self.depth) {
                 const diff = indent - self.depth;
@@ -759,7 +766,6 @@ const expectEqual = std.testing.expectEqual;
 const testutils = @import("testutils.zig");
 const testTokenEquals = testutils.testTokenEquals;
 const testQueueEquals = testutils.testQueueEquals;
-const constants = @import("constants.zig");
 
 // test {
 //     if (constants.DISABLE_ZIG_LAZY) {

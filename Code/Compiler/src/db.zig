@@ -203,12 +203,15 @@ const Term = struct {
     pub fn getColumnRef(self: *Term, column_id: u32) ?u32 {
         // Arbitrary boundary. General intuition is that binary-search will be slower than linear for small arrays.
         if (self.refs.items.len < 128) {
-            // Linear search. Terminate early if value > column_id
-            var i: usize = 0;
-            while (i < self.refs.items.len and self.refs.items[i].column_id < column_id) {
-                i += 1;
+            if (self.refs.items.len == 0) {
+                return null;
             }
-            if (i < self.refs.items.len and self.refs.items[i].column_id == column_id) {
+            // Linear search. Start at end and work back since queries are likely for more recent stuff.
+            var i: usize = self.refs.items.len - 1;
+            while (i > 0 and self.refs.items[i].column_id > column_id) {
+                i -= 1;
+            }
+            if (self.refs.items[i].column_id == column_id) {
                 return self.refs.items[i].term_index;
             }
             return null;
@@ -226,8 +229,12 @@ const Term = struct {
         const column_ref = ColumnRef{ .column_id = column_id, .term_index = term_index };
         var index: usize = 0;
         if (self.refs.items.len < 128) {
-            while (index < self.refs.items.len and self.refs.items[index].column_id < column_id) {
-                index += 1;
+            if (self.refs.items.len > 0) {
+                // Linear search. Start at end and work back since queries are more likely for more recent stuff.
+                index = self.refs.items.len - 1;
+                while (index > 0 and self.refs.items[index].column_id > column_id) {
+                    index -= 1;
+                }
             }
         } else {
             // insertion sort to add to refs

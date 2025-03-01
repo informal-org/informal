@@ -6,9 +6,10 @@ const tok = @import("token.zig");
 const codegen = @import("codegen.zig");
 const rs = @import("resolution.zig");
 const macho = @import("macho.zig");
+const constants = @import("constants.zig");
 const Allocator = std.mem.Allocator;
 const StringArrayHashMap = std.array_hash_map.StringArrayHashMap;
-const DEBUG = true;
+const DEBUG = constants.DEBUG;
 
 pub const Reader = struct {
     const Self = @This();
@@ -148,7 +149,6 @@ pub fn compile_file(filename: []u8) !void {
     }
 }
 
-const constants = @import("constants.zig");
 test {
     if (constants.DISABLE_ZIG_LAZY) {
         @import("std").testing.refAllDecls(@This());

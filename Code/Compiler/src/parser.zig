@@ -4,6 +4,7 @@ const tok = @import("token.zig");
 const q = @import("queue.zig");
 const bitset = @import("bitset.zig");
 const rs = @import("resolution.zig");
+const constants = @import("constants.zig");
 
 const print = std.debug.print;
 // const Token = tok.Token;
@@ -46,7 +47,7 @@ const NUD_STRUCTURES = [_][]const TK{
 // Infix like structures.
 const LED_STRUCTURES = [_][]const TK{};
 
-const DEBUG = true;
+const DEBUG = constants.DEBUG;
 // The parser takes a token stream from the lexer and converts it into a valid structure.
 // It's only concerned with the grammatic structure of the code - not the meaning.
 // It's a hybrid state-machine / recursive descent parser with state tables.
@@ -452,7 +453,9 @@ pub const Parser = struct {
         }
         try self.parsedQ.push(tok.AUX_STREAM_START); // Hack - to make sure zero index is always occupied.
         try self.initial_state();
-        print("-- End flush --\n", .{});
+        if (DEBUG) {
+            print("-- End flush --\n", .{});
+        }
 
         // At the end - flush the operator stack.
         // TODO: Validate that it contains no brackets (indicates open without close), etc.
@@ -498,7 +501,6 @@ pub fn testParse(buffer: []const u8, tokens: []const Token, aux: []const Token, 
     try expect(aux.len == 0);
 }
 
-const constants = @import("constants.zig");
 test {
     if (constants.DISABLE_ZIG_LAZY) {
         std.testing.refAllDecls(Parser);

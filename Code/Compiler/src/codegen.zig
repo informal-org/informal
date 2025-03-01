@@ -11,8 +11,9 @@ const StringArrayHashMap = std.array_hash_map.StringArrayHashMap;
 const TK = tok.Kind;
 const print = std.debug.print;
 const platform = @import("platform.zig");
+const constants = @import("constants.zig");
 
-const DEBUG = true;
+const DEBUG = constants.DEBUG;
 
 pub const Syscall = platform.Syscall;
 
@@ -369,7 +370,9 @@ pub const Codegen = struct {
                 },
             }
         }
-        print("Final register {any}\n", .{reg});
+        if (DEBUG) {
+            print("Final register {any}\n", .{reg});
+        }
         try self.emit_syscall(Syscall.exit, reg);
         try self.fixupConstRefs(tokenQueue, strConsts);
 
@@ -377,7 +380,6 @@ pub const Codegen = struct {
     }
 };
 
-const constants = @import("constants.zig");
 test {
     if (constants.DISABLE_ZIG_LAZY) {
         @import("std").testing.refAllDecls(Codegen);
