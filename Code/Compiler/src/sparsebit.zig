@@ -10,11 +10,69 @@ const assert = std.debug.assert;
 const stdbits = std.bit_set;
 
 const LEVEL_WIDTH = 64;
-pub const BitSet = stdbits.IntegerBitSet(LEVEL_WIDTH);
+const IntegerBitSet = stdbits.IntegerBitSet;
+pub const BitSet = IntegerBitSet(LEVEL_WIDTH);
 
-pub fn PopCountArray(comptime T: type, comptime D: type) {
+pub fn TaggedPointer(comptime Tag: type, comptime Ptr: type) type {
+    // There's two schemes for tagging we can use here.
+    // 1. Tag the lower bits, which should always be zero due to pointer alignment.
+    // 2. Tag the upper bits, relying on the fact that of the 64 bit address space, only 48 bits are generally used by OSes in practice.
+    // In WASM, we'll need to fallback to a longer version.
+    // With Zig's comptime, we could swap between the two-options using this same abstraction if we want.
+
+    const ChoppedPtr = ptr_type: {
+        // This trick is from
+        // https://zig.news/orgold/type-safe-tagged-pointers-with-comptime-ghi
+        var info = @typeInfo(usize);
+        info.int.bits -= @bitSizeOf(Tag);
+        break :ptr_type @Type(info);
+    };
+    assert(@bitSizeOf(ChoppedPtr) >= 48); // Can't go beyond this.
+
+    // Safety check to ensure there's enough alignment - if we're using option 1.
+    if (@ctz(@as(usize, @alignOf(Ptr))) >= @bitSizeOf(Tag)) {
+        // If there are enough trailing zeroes, use the alignment approach.
+        return packed struct(u64) {
+            tag: Tag,
+            ptr: ChoppedPtr, // Remaining size for pointer, i.e. u48, u62, etc.
+
+            pub inline fn init(tag: Tag, ptr: ?*Ptr) @This() {
+                return @This(){
+                    .tag = tag,
+                    // Truncate to discard the high bits and use it for tags.
+                    .ptr = @intCast(@intFromPtr(ptr) >> @bitSizeOf(Tag)),
+                };
+            }
+
+            pub inline fn getPointer(self: @This()) ?*Ptr {
+                return @ptrFromInt(@as(usize, self.ptr) << @bitSizeOf(Tag));
+            }
+        };
+    } else {
+        // Use the top-bits instead, which is less portable but has more space for tags.
+        return packed struct(u64) {
+            tag: Tag,
+            ptr: ChoppedPtr, // Remaining size for pointer, i.e. u48, u62, etc.
+
+            pub inline fn init(tag: Tag, ptr: ?*Ptr) @This() {
+                return @This(){
+                    .tag = tag,
+                    // Truncate to discard the high bits and use it for tags.
+                    .ptr = @truncate(@intFromPtr(ptr)),
+                };
+            }
+
+            pub inline fn getPointer(self: @This()) ?*Ptr {
+                return @ptrFromInt(@as(usize, self.ptr));
+            }
+        };
+    }
+}
+
+pub fn PopCountArray(comptime T: type, comptime D: type) type {
     return struct {
-        head: stdbits.IntegerBitSet(@bitSizeOf(T)),
+        const Self = @This();
+        head: IntegerBitSet(@bitSizeOf(T)),
         data: []D,
 
         pub fn init(allocator: std.mem.Allocator) !Self {
@@ -26,7 +84,7 @@ pub fn PopCountArray(comptime T: type, comptime D: type) {
         }
 
         pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
-            if(head.count() > 0) {
+            if (self.head.count() > 0) {
                 allocator.free(self.data);
             }
         }
@@ -34,12 +92,8 @@ pub fn PopCountArray(comptime T: type, comptime D: type) {
         pub fn set(self: *Self, index: u32) !void {
             self.head.set(index);
         }
-
-
-    }
-
+    };
 }
-    
 
 const SparseLevelBitset = struct {
     const Self = @This();
@@ -68,6 +122,7 @@ const SparseLevelBitset = struct {
     pub fn set(self: *Self, index: u32) !void {
         var current_index = index;
         var level_index: usize = 0;
+        var bs_index: usize = 0;
         while (current_index >= LEVEL_WIDTH) {
             assert(level_index < self.lvloffsets.items.len);
             // var absolute_index = self.lvloffsets.items[level_index] + level_offset;
@@ -120,6 +175,40 @@ const SparseLevelBitset = struct {
 const test_allocator = std.testing.allocator;
 const expectEqual = std.testing.expectEqual;
 const constants = @import("constants.zig");
+
+test "TaggedPointer basic functionality" {
+    const TestTag = enum(u2) {
+        First = 0,
+        Second = 1,
+        Third = 2,
+    };
+    const val: u64 = 12309123009;
+
+    const TestStruct = struct {
+        value: u64,
+    };
+
+    var test_struct = TestStruct{ .value = val };
+    const TaggedTestPtr = TaggedPointer(TestTag, TestStruct);
+
+    var tagged = TaggedTestPtr.init(TestTag.Second, &test_struct);
+    try expectEqual(tagged.tag, TestTag.Second);
+
+    const retrieved_ptr = tagged.getPointer();
+    try expectEqual(retrieved_ptr.?.value, val);
+
+    // Test with larger tags
+    const LargeTag = enum(u8) {
+        First = 0,
+        Second = 1,
+        Third = 2,
+    };
+    const TaggedLargePtr = TaggedPointer(LargeTag, TestStruct);
+    const large_taged = TaggedLargePtr.init(LargeTag.Third, &test_struct);
+    try expectEqual(large_taged.tag, LargeTag.Third);
+    const large_retrieved_ptr = large_taged.getPointer();
+    try expectEqual(large_retrieved_ptr.?.value, val);
+}
 
 test {
     if (constants.DISABLE_ZIG_LAZY) {
