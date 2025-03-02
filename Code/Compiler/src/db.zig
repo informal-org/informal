@@ -15,8 +15,8 @@ const ArrayList = std.ArrayList;
 const StringHashMap = std.StringHashMap;
 const assert = std.debug.assert;
 const constants = @import("constants.zig");
-const test_allocator = std.testing.allocator;
-const expectEqual = std.testing.expectEqual;
+const OffsetArray = @import("offsetarray.zig").OffsetArray;
+const OffsetIterator = @import("offsetarray.zig").OffsetIterator;
 
 const DB = struct {
     allocator: Allocator,
@@ -172,201 +172,26 @@ const Column = struct {
     }
 };
 
-const OffsetArray = struct {
-    /// An abstraction for storing series of indexes as offsets.
-    /// Most offsets are small, fitting in a byte.
-    /// An offset of 0 is used for overflow - it indicates the next 4 bytes represent an absolute 32-bit value.
-    /// When you have two offsets that are exactly the same, the next value will represent a 'run' for run-length encoding.
-    offsets: std.ArrayList(u8),
-    lastIndex: u32 = 0, // Absolute value of the last index.
-    // lastOffset and runLength can be figured out from the offsets array, but reading that array backwards is complex and very branchy.
-    lastOffset: u32 = 0,
-    runLength: u32 = 0,
-
-    pub fn init(allocator: Allocator) OffsetArray {
-        return OffsetArray{
-            .offsets = std.ArrayList(u8).init(allocator),
-        };
-    }
-
-    pub fn deinit(self: *OffsetArray) void {
-        self.offsets.deinit();
-    }
-
-    fn pushValue(self: *OffsetArray, offset: u32) !void {
-        std.debug.print("Pushing value: {d}\n", .{offset});
-        if (offset < 255) {
-            try self.offsets.append(@truncate(offset));
-        } else {
-            // Use 0 as a marker to indicate overflow, and store larger offsets directly.
-            try self.offsets.append(0);
-            try self.offsets.appendSlice(&std.mem.toBytes(offset));
-        }
-    }
-
-    pub fn push(self: *OffsetArray, index: u32) !void {
-        const offset = index - self.lastIndex;
-        if (offset == self.lastOffset) {
-            std.debug.print("Last offset: {d} - run-length: {d}\n", .{ self.lastOffset, self.runLength });
-            self.runLength += 1;
-            if (self.runLength == 1) {
-                std.debug.print("First run {d}\n", .{offset});
-                // This is the first run. Write the double-value and the index
-                try self.pushValue(offset);
-                try self.offsets.append(@truncate(self.runLength));
-            } else {
-                std.debug.print("Increment run-length: {d}\n", .{self.runLength});
-                // Just increment the run-length. Overflow when necessary.
-                if (self.runLength < 255) {
-                    self.offsets.items[self.offsets.items.len - 1] += 1;
-                } else if (self.runLength == 255) {
-                    // Initial overflow case.
-                    try self.pushValue(offset);
-                    try self.offsets.append(0);
-                    try self.offsets.appendSlice(&std.mem.toBytes(self.runLength));
-                } else {
-                    // Replace the last 4 bytes with the incremented runLength.
-                    const runLengthBytes = std.mem.toBytes(self.runLength);
-                    const runLengthBytesIndex = self.offsets.items.len - 4;
-                    for (0..4) |i| {
-                        self.offsets.items[runLengthBytesIndex + i] = runLengthBytes[i];
-                    }
-                }
-            }
-        } else {
-            std.debug.print("New offset: {d}\n", .{offset});
-            self.lastOffset = offset;
-            self.runLength = 0;
-            try self.pushValue(offset);
-        }
-        self.lastIndex = index;
-    }
-
-    pub fn getLastOffset(self: *OffsetArray) u32 {
-        if (self.offsets.len == 0) {
-            return 0;
-        }
-        if (self.offsets.len >= 5) {
-            var offset = 0;
-            // Check if it's a large offset
-            if (self.offsets.items[self.offsets.len - 5] == 0) {
-                offset = std.mem.bytesToValue(u32, self.offsets.items[self.offsets.len - 5 .. self.offsets.len - 1]);
-            } else {
-                // Not a large offset. But could be a run-length
-            }
-            const last = self.offsets.items[self.offsets.len - 1];
-            if (last == 0) {
-                return std.mem.bytesToValue(u32, self.offsets.items[self.offsets.len - 5 .. self.offsets.len - 1]);
-            }
-            return last;
-        }
-        return self.offsets.items[self.offsets.len - 1];
-    }
-};
-
-const OffsetIterator = struct {
-    offsetArray: *OffsetArray,
-    offsetIndex: usize = 0,
-    currentIndex: u32 = 0,
-    lastOffset: u32 = 0,
-    runLength: u32 = 0,
-
-    pub fn next(self: *OffsetIterator) ?u32 {
-        if (self.runLength > 0) {
-            self.runLength -= 1;
-            self.currentIndex += self.lastOffset;
-            return self.currentIndex;
-        }
-        if (self.offsetIndex >= self.offsetArray.offsets.items.len) {
-            return null;
-        }
-        const nextByte = self.offsetArray.offsets.items[self.offsetIndex];
-        self.offsetIndex += 1;
-        var offset: u32 = 0;
-
-        if (nextByte == 0) {
-            // Next 4 bytes are a larger offset
-            assert(self.offsetIndex + 4 <= self.offsetArray.offsets.items.len);
-            const offset_bytes = self.offsetArray.offsets.items[self.offsetIndex .. self.offsetIndex + 4];
-            offset = std.mem.bytesToValue(u32, offset_bytes[0..4]);
-            std.debug.print("Large offset: {d}\n", .{offset});
-            self.offsetIndex += 4;
-        } else {
-            offset = nextByte;
-            std.debug.print("Small offset: {d}\n", .{offset});
-        }
-
-        if (offset == self.lastOffset) {
-            self.getRunLength();
-        } else {
-            self.lastOffset = offset;
-            self.runLength = 0;
-        }
-
-        self.currentIndex += offset;
-        return self.currentIndex;
-    }
-
-    fn getRunLength(self: *OffsetIterator) void {
-        // Two same values back-to-back indicates a run. The next value indicates the count of the run.
-        const runLength = self.offsetArray.offsets.items[self.offsetIndex];
-        if (runLength == 0) {
-            // Read large runLength
-            const runLengthBytes = self.offsetArray.offsets.items[self.offsetIndex + 1 .. self.offsetIndex + 5];
-            self.runLength = std.mem.bytesToValue(u32, runLengthBytes[0..4]);
-            self.offsetIndex += 5;
-        } else {
-            self.runLength = runLength;
-            self.offsetIndex += 1;
-        }
-        // Run-lengths are always 1+. We subtract one since the first run is already emitted in-place.
-        self.runLength -= 1;
-    }
-};
-
 const TermRefs = struct {
     /// Each column maintains an inverted index of where all each term appears
     /// Mostly stored as an offset array. 0 indicates offset overflow, which is stored in a second array.
     /// Offset from previous appearance.
-    offsets: std.ArrayList(u8),
-    /// Any index where offset = 0 is found here. Else offset is offset from previous.
-    overflow: std.ArrayList(u32),
-    /// Last absolute index where this term appeared.
-    lastIndex: u32,
+    offsets: OffsetArray,
 
     pub fn init(allocator: Allocator, initial_index: u32) !TermRefs {
-        var offsets = std.ArrayList(u8).init(allocator);
-        var overflow = std.ArrayList(u32).init(allocator);
-        // Store the initial index in the array as well
-        if (initial_index < 255) {
-            try offsets.append(@truncate(initial_index));
-        } else {
-            try offsets.append(0);
-            try overflow.append(initial_index);
-        }
-
+        var offsets = OffsetArray.init(allocator);
+        try offsets.pushFirst(initial_index);
         return TermRefs{
             .offsets = offsets,
-            .overflow = overflow,
-            .lastIndex = initial_index,
         };
     }
 
     pub fn deinit(self: *TermRefs) void {
         self.offsets.deinit();
-        self.overflow.deinit();
     }
 
     fn pushRef(self: *TermRefs, index: u32) !void {
-        const offset = index - self.lastIndex;
-        if (offset < 255) {
-            try self.offsets.append(@truncate(offset));
-        } else {
-            std.debug.print("Overflow: {d} length {d}\n", .{ offset, self.offsets.items.len });
-            try self.offsets.append(0);
-            try self.overflow.append(index);
-        }
-        self.lastIndex = index;
+        try self.offsets.push(index);
     }
 };
 
@@ -440,6 +265,9 @@ const Term = struct {
     }
 };
 
+const test_allocator = std.testing.allocator;
+const expectEqual = std.testing.expectEqual;
+
 test {
     if (constants.DISABLE_ZIG_LAZY) {
         @import("std").testing.refAllDecls(@This());
@@ -484,10 +312,21 @@ test "Column - Term indexing" {
 
     // Ensure each term stores the index offsets they appear in.
     // 1 2 2 1 = term 1 refs at [0, 3]. Term 2 [0, 1]
-    try expectEqual(@as(u32, 0), col.refs.items[0].offsets.items[0]);
-    try expectEqual(@as(u32, 3), col.refs.items[0].offsets.items[1]);
-    try expectEqual(@as(u32, 1), col.refs.items[1].offsets.items[0]);
-    try expectEqual(@as(u32, 1), col.refs.items[1].offsets.items[1]);
+    const term1_expected = [_]u32{ 0, 3 };
+    var term1_iter = OffsetIterator{ .offsetArray = &col.refs.items[0].offsets };
+    for (term1_expected) |expected| {
+        const actual = term1_iter.next().?;
+        std.debug.print("expected: {d}, actual: {d}\n", .{ expected, actual });
+        try expectEqual(expected, actual);
+    }
+    assert(term1_iter.next() == null);
+
+    const term2_expected = [_]u32{ 1, 2 };
+    var term2_iter = OffsetIterator{ .offsetArray = &col.refs.items[1].offsets };
+    for (term2_expected) |expected| {
+        try expectEqual(expected, term2_iter.next().?);
+    }
+    assert(term2_iter.next() == null);
 }
 
 test "Column - Large term sets" {
@@ -512,93 +351,4 @@ test "Column - Large term sets" {
     // 254 * 2 = 508. After that, term ID is larger than 255. So 260-254=6 * 2 = 12
     try expectEqual(@as(usize, 508), col.order.items.len);
     try expectEqual(@as(usize, 12), col.order16.items.len);
-}
-
-test "TermRefs - Offset handling" {
-    var db = DB.init(test_allocator);
-    defer db.deinit();
-
-    var term_refs = try TermRefs.init(test_allocator, 7);
-    defer term_refs.deinit();
-
-    // Test small offsets
-    try term_refs.pushRef(13);
-    try term_refs.pushRef(23);
-    try term_refs.pushRef(35);
-
-    try expectEqual(@as(u32, 35), term_refs.lastIndex);
-    try expectEqual(@as(u8, 7), term_refs.offsets.items[0]); // Initial index = 7
-    try expectEqual(@as(u8, 6), term_refs.offsets.items[1]); // 13 - 7 = 6
-    try expectEqual(@as(u8, 10), term_refs.offsets.items[2]); // 23 - 13 = 10
-    try expectEqual(@as(u8, 12), term_refs.offsets.items[3]); // 35 - 23 = 12
-
-    // Storing large offsets beyond 255 difference should store 0 in offset and the actual value in the overflow array.
-    try term_refs.pushRef(300);
-    try expectEqual(@as(u8, 0), term_refs.offsets.items[4]);
-    try expectEqual(@as(u32, 300), term_refs.overflow.items[0]);
-}
-
-test "OffsetArray - Basic functionality" {
-    var offset_array = OffsetArray.init(test_allocator);
-    defer offset_array.deinit();
-
-    // Test with a simple sequence of values
-    try offset_array.push(3);
-    try offset_array.push(10);
-    try offset_array.push(25);
-
-    try expectEqual(@as(u32, 25), offset_array.lastIndex);
-    try expectEqual(@as(u32, 15), offset_array.lastOffset); // 25 - 10 = 15
-}
-
-test "OffsetArray - Run-length encoding" {
-    var offset_array = OffsetArray.init(test_allocator);
-    defer offset_array.deinit();
-
-    // Test run-length encoding with repeated offsets
-    try offset_array.push(10);
-    try offset_array.push(20); // offset 10
-    try offset_array.push(30); // offset 10 (should trigger run-length encoding)
-    try offset_array.push(40); // offset 10 (should increment run-length)
-
-    try expectEqual(@as(u32, 40), offset_array.lastIndex);
-    try expectEqual(@as(u32, 10), offset_array.lastOffset);
-    try expectEqual(@as(u32, 3), offset_array.runLength); // 3 occurrences of offset 10
-}
-
-test "OffsetArray - Large offsets" {
-    var offset_array = OffsetArray.init(test_allocator);
-    defer offset_array.deinit();
-
-    // Test with large offsets
-    try offset_array.push(10);
-    try offset_array.push(300); // offset 290 (> 255, should use large offset encoding)
-
-    try expectEqual(@as(u32, 300), offset_array.lastIndex);
-    try expectEqual(@as(u32, 290), offset_array.lastOffset);
-
-    // Verify the large offset is correctly stored
-    try expectEqual(@as(u8, 0), offset_array.offsets.items[1]); // Marker for large offset
-    const large_offset_bytes = offset_array.offsets.items[2..6];
-    const large_offset = std.mem.bytesToValue(u32, large_offset_bytes[0..4]);
-    try expectEqual(@as(u32, 290), large_offset);
-}
-
-test "OffsetArray - Iterator" {
-    var offset_array = OffsetArray.init(test_allocator);
-    defer offset_array.deinit();
-
-    const expected_values = [_]u32{ 3, 10, 25, 300, 350, 400, 700 };
-    for (expected_values) |value| {
-        try offset_array.push(value);
-    }
-    var iterator = OffsetIterator{ .offsetArray = &offset_array };
-
-    var index: usize = 0;
-    while (iterator.next()) |value| {
-        std.debug.print("Value: {d}\n", .{value});
-        try expectEqual(expected_values[index], value);
-        index += 1;
-    }
-    try expectEqual(expected_values.len, index);
 }
