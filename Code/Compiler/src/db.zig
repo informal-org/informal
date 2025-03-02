@@ -172,8 +172,66 @@ const Column = struct {
     }
 };
 
+const OffsetArray = struct {
+    /// An abstraction for storing series of indexes as offsets.
+    /// Most offsets are small, fitting in a byte.
+    /// An offset of 0 is used for overflow - it indicates the next 4 bytes represent an absolute 32-bit value.
+    /// When you have two offsets that are exactly the same, the next value will represent a 'run' for run-length encoding.
+    offsets: std.ArrayList(u8),
+    lastIndex: u32 = 0, // Absolute value of the last index.
+
+    pub fn init(allocator: Allocator) OffsetArray {
+        return OffsetArray{
+            .offsets = std.ArrayList(u8).init(allocator),
+        };
+    }
+
+    pub fn deinit(self: *OffsetArray) void {
+        self.offsets.deinit();
+    }
+
+    pub fn push(self: *OffsetArray, index: u32) !void {
+        const offset = index - self.lastIndex;
+        if (offset < 255) {
+            try self.offsets.append(@truncate(offset));
+        } else {
+            // Use 0 as a marker to indicate overflow, and store larger offsets directly.
+            try self.offsets.append(0);
+            try self.offsets.appendSlice(&std.mem.toBytes(offset));
+        }
+        self.lastIndex = index;
+    }
+};
+
+const OffsetIterator = struct {
+    offsetArray: *OffsetArray,
+    offsetIndex: usize = 0,
+    runIndex: u32 = 0,
+
+    pub fn next(self: *OffsetIterator) ?u32 {
+        if (self.offsetIndex >= self.offsetArray.offsets.items.len) {
+            return null;
+        }
+        const offset = self.offsetArray.offsets.items[self.offsetIndex];
+        self.offsetIndex += 1;
+
+        if (offset == 0) {
+            // Next 4 bytes are a larger offset
+            if (self.offsetIndex + 4 > self.offsetArray.offsets.items.len) {
+                return null; // Not enough bytes left for a large offset
+            }
+            const offset_bytes = self.offsetArray.offsets.items[self.offsetIndex .. self.offsetIndex + 4];
+            const largeOffset = std.mem.bytesToValue(u32, offset_bytes[0..4]);
+            self.offsetIndex += 4;
+            self.runIndex += largeOffset;
+        } else {
+            self.runIndex += offset;
+        }
+        return self.runIndex;
+    }
+};
+
 const TermRefs = struct {
-    allocator: Allocator,
     /// Each column maintains an inverted index of where all each term appears
     /// Mostly stored as an offset array. 0 indicates offset overflow, which is stored in a second array.
     /// Offset from previous appearance.
@@ -195,7 +253,6 @@ const TermRefs = struct {
         }
 
         return TermRefs{
-            .allocator = allocator,
             .offsets = offsets,
             .overflow = overflow,
             .lastIndex = initial_index,
@@ -221,7 +278,6 @@ const TermRefs = struct {
 };
 
 const ColumnRef = packed struct(u64) {
-    // TODO: Order here likely matters as a micro-optimization.
     column_id: u32,
     term_index: u32,
 };
@@ -233,12 +289,10 @@ fn orderColumnRef(context: ColumnRef, item: ColumnRef) std.math.Order {
 const Term = struct {
     // Store a sorted arraylist of Column ID -> index of this term within that column's terms list.
     // A column may contain many terms, but it's expected that a term only makes an appearance in some small number of columns.
-    allocator: Allocator,
     refs: std.ArrayList(ColumnRef),
 
     pub fn init(allocator: Allocator) Term {
         return Term{
-            .allocator = allocator,
             .refs = std.ArrayList(ColumnRef).init(allocator),
         };
     }
@@ -389,4 +443,22 @@ test "TermRefs - Offset handling" {
     try term_refs.pushRef(300);
     try expectEqual(@as(u8, 0), term_refs.offsets.items[4]);
     try expectEqual(@as(u32, 300), term_refs.overflow.items[0]);
+}
+
+test "OffsetArray - Iterator" {
+    var offset_array = OffsetArray.init(test_allocator);
+    defer offset_array.deinit();
+
+    const expected_values = [_]u32{ 5, 10, 20, 300, 350, 400, 700 };
+    for (expected_values) |value| {
+        try offset_array.push(value);
+    }
+    var iterator = OffsetIterator{ .offsetArray = &offset_array };
+
+    var index: usize = 0;
+    while (iterator.next()) |value| {
+        try expectEqual(expected_values[index], value);
+        index += 1;
+    }
+    try expectEqual(expected_values.len, index);
 }
