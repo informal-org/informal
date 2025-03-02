@@ -20,6 +20,8 @@ pub const OffsetArray = struct {
     }
 
     pub fn pushFirst(self: *OffsetArray, index: u32) !void {
+        // Only call this the very first time.
+        assert(self.offsets.items.len == 0);
         // First is the only case where a zero-index could happen.
         // Which typically indicate an extended byte-value.
         if (index == 0) {
