@@ -8,7 +8,7 @@
 const std = @import("std");
 const assert = std.debug.assert;
 const stdbits = std.bit_set;
-
+const Allocator = std.mem.Allocator;
 const LEVEL_WIDTH = 64;
 const IntegerBitSet = stdbits.IntegerBitSet;
 pub const BitSet = IntegerBitSet(LEVEL_WIDTH);
@@ -17,17 +17,12 @@ pub fn TaggedPointer(comptime Tag: type, comptime Ptr: type) type {
     // There's two schemes for tagging we can use here.
     // 1. Tag the lower bits, which should always be zero due to pointer alignment.
     // 2. Tag the upper bits, relying on the fact that of the 64 bit address space, only 48 bits are generally used by OSes in practice.
-    // In WASM, we'll need to fallback to a longer version.
+    // In WASM, we'll need to fallback to a longer version (not implemented yet)
     // With Zig's comptime, we could swap between the two-options using this same abstraction if we want.
     // References this implementation: // https://zig.news/orgold/type-safe-tagged-pointers-with-comptime-ghi
 
     const ChoppedPtr = std.meta.Int(.unsigned, @bitSizeOf(usize) - @bitSizeOf(Tag));
-
-    //     // var info = @typeInfo(usize);
-    //     // info.int.bits -= @bitSizeOf(Tag);
-    //     break :ptr_type @Type(info);
-    // };
-    assert(@bitSizeOf(ChoppedPtr) >= 48); // Can't go below this.
+    assert(@bitSizeOf(ChoppedPtr) >= 48); // Safety check - ensure we can cover the full standard virtual memory pointer space.
 
     // Safety check to ensure there's enough alignment - if we're using option 1.
     if (@ctz(@as(usize, @alignOf(Ptr))) >= @bitSizeOf(Tag)) {
@@ -80,20 +75,21 @@ pub fn SparseArray(comptime T: type, comptime D: type) type {
         // But then you're kinda on you're own with all system methods. So we'll stick with slices.
         data: ?[]D,
 
-        pub fn init() !Self {
+        pub fn init() Self {
             return Self{
                 .head = IntegerBitSet(@bitSizeOf(T)).initEmpty(),
-                .data = &[_]D{},
+                .data = null,
             };
         }
 
         pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
-            if (self.head.count() > 0) {
+            if (self.data != null and self.head.count() > 0) {
                 allocator.free(self.data.?);
+                self.data = null;
             }
         }
 
-        fn getIndex(self: *Self, at: IndexInt) IndexInt {
+        fn getIndex(self: *const Self, at: IndexInt) IndexInt {
             const topNMask = (@as(T, 1) << at) - 1;
             const count = @popCount(self.head.mask & topNMask);
             // Safety check for the truncate to ensure it'll fit. This method shouldn't be used in contexts where all bits are set.
@@ -102,28 +98,36 @@ pub fn SparseArray(comptime T: type, comptime D: type) type {
         }
 
         pub fn set(self: *Self, allocator: std.mem.Allocator, at: IndexInt, data: D) !void {
-            // New element. Add it in the array at the right spot.
-            const index = self.getIndex(at);
             if (self.head.isSet(at)) {
                 // Already set - replace the item in-place
+                const index = self.getIndex(at);
                 self.data.?[index] = data;
             } else {
-                // New element. Shift remaining elements down.
-                const to_shift = self.head.count() - index;
-                // std.debug.print("Insert at {d}. Len {d} - Shifting {d} elements\n", .{ index, self.head.count(), to_shift });
                 self.head.set(at);
+                const index = self.getIndex(at);
                 const newSize = self.head.count();
-                if (!allocator.resize(self.data.?, newSize)) {
+
+                if (self.data == null) {
+                    self.data = try allocator.alloc(D, newSize);
+                    self.data.?[index] = data;
+                } else {
+                    // Grow capacity and shift elements over if inserting in between.
+                    const oldSize = newSize - 1;
                     self.data = try allocator.realloc(self.data.?, newSize);
-                }
-                if (to_shift > 0) {
-                    @memcpy(self.data.?[index + 1 ..][0..to_shift], self.data.?[index..][0..to_shift]);
+
+                    if (index < oldSize) {
+                        // Move elements from the end to make space at index
+                        var i: usize = oldSize;
+                        while (i > index) : (i -= 1) {
+                            self.data.?[i] = self.data.?[i - 1];
+                        }
+                    }
                 }
                 self.data.?[index] = data;
             }
         }
 
-        pub fn get(self: *Self, at: IndexInt) ?D {
+        pub fn get(self: *const Self, at: IndexInt) ?D {
             if (self.head.isSet(at)) {
                 const index = self.getIndex(at);
                 return self.data.?[index];
@@ -143,89 +147,133 @@ const BitsetType = enum(u2) {
     // Selection pointer - a 16/32 bit offset and remaining bits for direct bitsets.
 };
 
-const LvlPointer = TaggedPointer(BitsetType, SparseBitsetLevel);
+const LvlPointer = TaggedPointer(BitsetType, BitsetLevel);
 
-pub const SparseBitsetLevel = struct {
+const BitsetLevel = struct {
     const Self = @This();
     data: SparseArray(u64, LvlPointer),
-};
 
-const SparseLevelBitset = struct {
-    const Self = @This();
-
-    bitlevels: std.ArrayList(BitSet),
-    // Level 0 starts at 0. Level 1 starts at 1, and extends till popcount of level 0 + 1.
-    // Level 2 then extends from popcount(lvl0) + 1 till sum of level 1 popcounts.
-    lvloffsets: std.ArrayList(u32),
-
-    pub fn init(allocator: std.mem.Allocator) !Self {
-        var bitlevels = std.ArrayList(BitSet).init(allocator);
-        var lvloffsets = std.ArrayList(u32).init(allocator);
-        try bitlevels.append(BitSet.initEmpty());
-        try lvloffsets.append(0); // Future optimization: We can skip storing the offsets for level 0, 1 and 2 since that's trivially known.
-
+    pub fn init() Self {
         return Self{
-            .bitlevels = bitlevels,
-            .lvloffsets = lvloffsets,
+            .data = SparseArray(u64, LvlPointer).init(),
         };
     }
 
-    pub fn deinit(self: *Self) void {
-        self.bitlevels.deinit();
-    }
-
-    pub fn set(self: *Self, index: u32) !void {
-        var current_index = index;
-        var level_index: usize = 0;
-        var bs_index: usize = 0;
-        while (current_index >= LEVEL_WIDTH) {
-            assert(level_index < self.lvloffsets.items.len);
-            // var absolute_index = self.lvloffsets.items[level_index] + level_offset;
-            // Fast mod & div - as long as our level-sizes are power of two.
-            const segmentIndex = current_index % LEVEL_WIDTH;
-
-            if (self.bitlevels.items[bs_index].isSet(segmentIndex)) {} else {
-                self.bitlevels.items[bs_index].set(segmentIndex);
-                if (level_index > 1) {
-                    self.lvloffsets.items[level_index - 1] += 1;
+    pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
+        // Recursively deinit all nested levels
+        const len = self.data.head.count();
+        if (len > 0 and self.data.data != null) {
+            for (self.data.data.?[0..len]) |ptr| {
+                if (ptr.tag == BitsetType.Nested) {
+                    if (ptr.getPointer()) |nested| {
+                        nested.deinit(allocator);
+                        allocator.destroy(nested);
+                    }
                 }
             }
-            self.bitlevels.items[bs_index].set();
-            level_index += 1;
-            current_index /= LEVEL_WIDTH;
-            bs_index += 1;
         }
-        if (bs_index >= self.bitlevels.items.len) {
-            try self.bitlevels.append(BitSet.initEmpty());
-        }
-        self.bitlevels.items[bs_index].set(current_index);
-    }
-
-    pub fn isSet(self: *const Self, index: u32) bool {
-        var current_index = index;
-        var bs_index: usize = 0;
-
-        while (current_index >= LEVEL_WIDTH) {
-            if (bs_index >= self.bitlevels.items.len) {
-                return false;
-            }
-
-            // Terminate early if an intermediate layer indicates there's no sparse bit set in subsequent layers.
-            if (!self.bitlevels.items[bs_index].isSet(current_index % LEVEL_WIDTH)) {
-                return false;
-            }
-
-            current_index /= LEVEL_WIDTH;
-            bs_index += 1;
-        }
-
-        if (bs_index >= self.bitlevels.items.len) {
-            return false;
-        }
-
-        return self.bitlevels.items[bs_index].isSet(current_index);
+        self.data.deinit(allocator);
     }
 };
+
+/// A compact hierarchical representation of a sparse bitset of a fixed maximum size.
+/// The hierarchical structure optimizes many of the bitset operations and allows for short-circuiting.
+pub fn SparseBitset(comptime Range: type) type {
+    const MAX_VALUE = std.math.maxInt(Range);
+    const BITS_PER_LEVEL = std.math.log2_int_ceil(Range, LEVEL_WIDTH); // 6 for LEVEL_WIDTH=64
+    // const LEVEL_COUNT = (std.math.log2_int(Range, MAX_VALUE) + BITS_PER_LEVEL - 1) / BITS_PER_LEVEL;
+    const LEVEL_COUNT = std.math.log2_int_ceil(Range, MAX_VALUE) / BITS_PER_LEVEL;
+
+    // Bit positions within each level's sparse-array.
+    const BitPositionType = std.meta.Int(.unsigned, BITS_PER_LEVEL);
+    const ShiftType = std.math.Log2Int(Range);
+
+    return struct {
+        const Self = @This();
+        level: BitsetLevel,
+
+        pub fn init() Self {
+            return Self{
+                .level = BitsetLevel.init(),
+            };
+        }
+
+        pub fn deinit(self: *Self, allocator: Allocator) void {
+            self.level.deinit(allocator);
+        }
+
+        pub fn set(
+            self: *Self,
+            allocator: Allocator,
+            index: Range,
+        ) !void {
+            var current_level = &self.level;
+            const remaining_index = index;
+            // Levels start at MSB->LSB (0)
+            var level_idx: i32 = @intCast(LEVEL_COUNT);
+            while (level_idx >= 0) : (level_idx -= 1) {
+                // Extract the bit-slice for this level.
+                const shift_amount: ShiftType = @intCast(level_idx * BITS_PER_LEVEL);
+                const bit_position: BitPositionType = @intCast((remaining_index >> shift_amount) & (LEVEL_WIDTH - 1));
+
+                if (level_idx == 0) {
+                    const direct_tag = LvlPointer.init(BitsetType.Direct, null);
+                    try current_level.data.set(allocator, bit_position, direct_tag);
+                } else {
+                    const level_segement_ptr = current_level.data.get(bit_position);
+                    if (level_segement_ptr == null) {
+                        const next_level = try allocator.create(BitsetLevel);
+                        next_level.* = BitsetLevel.init();
+
+                        const tagged_lvl_pointer = LvlPointer.init(BitsetType.Nested, next_level);
+                        try current_level.data.set(allocator, bit_position, tagged_lvl_pointer);
+
+                        current_level = next_level;
+                    } else {
+                        current_level = level_segement_ptr.?.getPointer().?;
+                    }
+                }
+            }
+        }
+
+        pub fn isSet(self: *const Self, index: Range) bool {
+            var current_level = &self.level;
+            const remaining_index = index;
+
+            // Start from MSB (top level) and work down
+            var level_idx: i32 = @intCast(LEVEL_COUNT);
+
+            while (level_idx >= 0) : (level_idx -= 1) {
+                // Calculate bit position at current level
+                const shift_amount: ShiftType = @intCast(level_idx * BITS_PER_LEVEL);
+                const bit_position: BitPositionType = @intCast((remaining_index >> shift_amount) & (LEVEL_WIDTH - 1));
+
+                // Check if the bit is set at this level
+                const nested_ptr = current_level.data.get(bit_position);
+
+                if (nested_ptr == null) {
+                    // Bit not set at this level, so it's not set at all
+                    return false;
+                }
+
+                if (level_idx == 0) {
+                    // At leaf level, just check if the bit is marked as set
+                    return nested_ptr.?.tag == BitsetType.Direct;
+                } else {
+                    // For non-leaf levels, we need to check the next level
+                    if (nested_ptr.?.tag != BitsetType.Nested) {
+                        return false;
+                    }
+
+                    // Move to the next level
+                    current_level = nested_ptr.?.getPointer().?;
+                }
+            }
+
+            return false; // Shouldn't reach here
+        }
+    };
+}
 
 const test_allocator = std.testing.allocator;
 const expectEqual = std.testing.expectEqual;
@@ -280,7 +328,7 @@ test "PopCountArray size" {
 
 test "PopCountArray basic functionality" {
     const PCA = SparseArray(u64, u64);
-    var pca = try PCA.init();
+    var pca = PCA.init();
     defer pca.deinit(test_allocator);
     try expectEqual(pca.getIndex(6), 0);
     try pca.set(test_allocator, 5, 1);
@@ -293,4 +341,183 @@ test "PopCountArray basic functionality" {
     try expectEqual(pca.get(1), 2);
     try expectEqual(pca.get(3), 3);
     try expectEqual(pca.get(2), null);
+}
+
+// SparseBitset tests
+test "SparseBitset basic functionality" {
+    std.debug.print("SparseBitset basic functionality\n", .{});
+    // Test with u16 to keep the test simple but still require multiple levels
+    const SB = SparseBitset(u16);
+    var sb = SB.init();
+    defer sb.deinit(test_allocator);
+
+    // Initially, no bits should be set
+    try expectEqual(sb.isSet(0), false);
+    try expectEqual(sb.isSet(1), false);
+    try expectEqual(sb.isSet(42), false);
+    try expectEqual(sb.isSet(1000), false);
+
+    // Set a few bits and check they're set
+    try sb.set(test_allocator, 0);
+    try expectEqual(sb.isSet(0), true);
+    try expectEqual(sb.isSet(1), false);
+
+    try sb.set(test_allocator, 1);
+    try expectEqual(sb.isSet(1), true);
+
+    try sb.set(test_allocator, 63);
+    try expectEqual(sb.isSet(63), true);
+    try expectEqual(sb.isSet(62), false);
+    try expectEqual(sb.isSet(64), false);
+
+    try sb.set(test_allocator, 64);
+    try expectEqual(sb.isSet(64), true);
+
+    try sb.set(test_allocator, 1000);
+    try expectEqual(sb.isSet(1000), true);
+    try expectEqual(sb.isSet(999), false);
+    try expectEqual(sb.isSet(1001), false);
+}
+
+test "SparseBitset level boundaries" {
+    std.debug.print("SparseBitset level boundaries\n", .{});
+    // Test behavior at level boundaries
+    const SB = SparseBitset(u32);
+    var sb = SB.init();
+    defer sb.deinit(test_allocator);
+
+    // Test level 0 to level 1 boundary (at 64)
+    try sb.set(test_allocator, 63);
+    try sb.set(test_allocator, 64);
+    try expectEqual(sb.isSet(63), true);
+    try expectEqual(sb.isSet(64), true);
+
+    // Test level 1 to level 2 boundary (at 64*64 = 4096)
+    try sb.set(test_allocator, 4095);
+    try sb.set(test_allocator, 4096);
+    try expectEqual(sb.isSet(4095), true);
+    try expectEqual(sb.isSet(4096), true);
+}
+
+test "SparseBitset idempotence" {
+    std.debug.print("SparseBitset idempotence\n", .{});
+    // Setting a bit multiple times should have the same effect as setting it once
+    const SB = SparseBitset(u32);
+    var sb = SB.init();
+    defer sb.deinit(test_allocator);
+
+    try sb.set(test_allocator, 42);
+    try expectEqual(sb.isSet(42), true);
+
+    // Set the same bit again
+    try sb.set(test_allocator, 42);
+    try expectEqual(sb.isSet(42), true);
+
+    // Set a bit at a higher level
+    try sb.set(test_allocator, 1000);
+    try expectEqual(sb.isSet(1000), true);
+
+    // Set it again
+    try sb.set(test_allocator, 1000);
+    try expectEqual(sb.isSet(1000), true);
+}
+
+test "SparseBitset sparse patterns" {
+    std.debug.print("SparseBitset sparse patterns\n", .{});
+    // Test with very sparse patterns to ensure the hierarchical structure works correctly
+    const SB = SparseBitset(u32);
+    var sb = SB.init();
+    defer sb.deinit(test_allocator);
+
+    // Set bits with large gaps
+    const test_bits = [_]u32{ 0, 63, 64, 127, 128, 4095, 4096, 8191, 8192, 100000 };
+
+    // Set each bit
+    for (test_bits) |bit| {
+        try sb.set(test_allocator, bit);
+    }
+
+    // Verify each bit is set
+    for (test_bits) |bit| {
+        try expectEqual(sb.isSet(bit), true);
+    }
+
+    // Check some bits in between are not set
+    const unset_bits = [_]u32{ 1, 62, 65, 1000, 4097, 9000, 99999, 100001 };
+    for (unset_bits) |bit| {
+        try expectEqual(sb.isSet(bit), false);
+    }
+}
+
+test "SparseBitset edge cases" {
+    // Test extremes and edge cases
+    {
+        // Test with u8 (small range)
+        const SB8 = SparseBitset(u8);
+        var sb = SB8.init();
+        defer sb.deinit(test_allocator);
+
+        try sb.set(test_allocator, 0);
+        try sb.set(test_allocator, 255); // Max u8 value
+        try expectEqual(sb.isSet(0), true);
+        try expectEqual(sb.isSet(255), true);
+    }
+
+    {
+        // Test with u16
+        const SB16 = SparseBitset(u16);
+        var sb = SB16.init();
+        defer sb.deinit(test_allocator);
+
+        try sb.set(test_allocator, 0);
+        try sb.set(test_allocator, 65535); // Max u16 value
+        try expectEqual(sb.isSet(0), true);
+        try expectEqual(sb.isSet(65535), true);
+    }
+}
+
+test "SparseBitset consecutive ranges" {
+    // Test setting and checking consecutive ranges of bits
+    const SB = SparseBitset(u16);
+    var sb = SB.init();
+    defer sb.deinit(test_allocator);
+
+    // Set a full consecutive range within one level
+    for (0..64) |i| {
+        try sb.set(test_allocator, @intCast(i));
+    }
+
+    // Verify all bits in the range are set
+    for (0..64) |i| {
+        try expectEqual(sb.isSet(@intCast(i)), true);
+    }
+
+    // Set a range that crosses a level boundary
+    for (60..70) |i| {
+        try sb.set(test_allocator, @intCast(i));
+    }
+
+    // Verify the cross-boundary range
+    for (60..70) |i| {
+        try expectEqual(sb.isSet(@intCast(i)), true);
+    }
+}
+
+test "SparseBitset memory leaks" {
+    // This test doesn't directly verify memory leaks but uses defer to ensure
+    // proper cleanup. Memory tools like valgrind or ASAN would catch leaks.
+    var iterations: usize = 0;
+    while (iterations < 10) : (iterations += 1) {
+        const SB = SparseBitset(u32);
+        var sb = SB.init();
+        defer sb.deinit(test_allocator);
+
+        // Create a complex hierarchy to test deinit
+        const test_bits = [_]u32{ 0, 67, 134, 4097, 8194, 100000 };
+        for (test_bits) |bit| {
+            try sb.set(test_allocator, bit);
+            try expectEqual(sb.isSet(bit), true);
+        }
+    }
+    // If there are memory leaks, the test allocator will report them
 }
