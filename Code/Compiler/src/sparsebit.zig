@@ -19,15 +19,15 @@ pub fn TaggedPointer(comptime Tag: type, comptime Ptr: type) type {
     // 2. Tag the upper bits, relying on the fact that of the 64 bit address space, only 48 bits are generally used by OSes in practice.
     // In WASM, we'll need to fallback to a longer version.
     // With Zig's comptime, we could swap between the two-options using this same abstraction if we want.
+    // References this implementation: // https://zig.news/orgold/type-safe-tagged-pointers-with-comptime-ghi
 
-    const ChoppedPtr = ptr_type: {
-        // This trick is from
-        // https://zig.news/orgold/type-safe-tagged-pointers-with-comptime-ghi
-        var info = @typeInfo(usize);
-        info.int.bits -= @bitSizeOf(Tag);
-        break :ptr_type @Type(info);
-    };
-    assert(@bitSizeOf(ChoppedPtr) >= 48); // Can't go beyond this.
+    const ChoppedPtr = std.meta.Int(.unsigned, @bitSizeOf(usize) - @bitSizeOf(Tag));
+
+    //     // var info = @typeInfo(usize);
+    //     // info.int.bits -= @bitSizeOf(Tag);
+    //     break :ptr_type @Type(info);
+    // };
+    assert(@bitSizeOf(ChoppedPtr) >= 48); // Can't go below this.
 
     // Safety check to ensure there's enough alignment - if we're using option 1.
     if (@ctz(@as(usize, @alignOf(Ptr))) >= @bitSizeOf(Tag)) {
@@ -70,16 +70,18 @@ pub fn TaggedPointer(comptime Tag: type, comptime Ptr: type) type {
 }
 
 pub fn PopCountArray(comptime T: type, comptime D: type) type {
+    const IndexInt = std.math.Log2Int(T);
     return struct {
         const Self = @This();
         head: IntegerBitSet(@bitSizeOf(T)),
+        // The Zig array slice does store the length-internally, which could be avoided since we store it via popcnt(head)
+        // But then you're kinda on you're own with all system methods. So we'll stick with slices.
         data: []D,
 
-        pub fn init(allocator: std.mem.Allocator) !Self {
+        pub fn init() !Self {
             return Self{
                 .head = IntegerBitSet(@bitSizeOf(T)).initEmpty(),
                 .data = &[_]D{},
-                .allocator = allocator,
             };
         }
 
@@ -89,8 +91,42 @@ pub fn PopCountArray(comptime T: type, comptime D: type) type {
             }
         }
 
-        pub fn set(self: *Self, index: u32) !void {
-            self.head.set(index);
+        fn getIndex(self: *Self, at: IndexInt) IndexInt {
+            const topNMask = (@as(T, 1) << at) - 1;
+            const count = @popCount(self.head.mask & topNMask);
+            // Safety check for the truncate to ensure it'll fit. This method shouldn't be used in contexts where all bits are set.
+            assert(count < @bitSizeOf(T));
+            return @truncate(count);
+        }
+
+        pub fn set(self: *Self, allocator: std.mem.Allocator, at: IndexInt, data: D) !void {
+            // New element. Add it in the array at the right spot.
+            const index = self.getIndex(at);
+            if (self.head.isSet(at)) {
+                // Already set - replace the item in-place
+                self.data[index] = data;
+            } else {
+                // New element. Shift remaining elements down.
+                const to_shift = self.head.count() - index;
+                // std.debug.print("Insert at {d}. Len {d} - Shifting {d} elements\n", .{ index, self.head.count(), to_shift });
+                self.head.set(at);
+                const newSize = self.head.count();
+                if (!allocator.resize(self.data, newSize)) {
+                    self.data = try allocator.realloc(self.data, newSize);
+                }
+                if (to_shift > 0) {
+                    @memcpy(self.data[index + 1 ..][0..to_shift], self.data[index..][0..to_shift]);
+                }
+                self.data[index] = data;
+            }
+        }
+
+        pub fn get(self: *Self, at: IndexInt) ?D {
+            if (self.head.isSet(at)) {
+                const index = self.getIndex(at);
+                return self.data[index];
+            }
+            return null;
         }
     };
 }
@@ -214,4 +250,28 @@ test {
     if (constants.DISABLE_ZIG_LAZY) {
         @import("std").testing.refAllDecls(@This());
     }
+}
+
+test "PopCountArray size" {
+    const PCA = PopCountArray(u64, u64);
+    // Takes 24 bytes if you use a []D
+    // Only 16 bytes if you use [*]D, but it's less safe. Can come back to that at some point.
+    try expectEqual(24, @sizeOf(PCA));
+}
+
+test "PopCountArray basic functionality" {
+    const PCA = PopCountArray(u64, u64);
+    var pca = try PCA.init();
+    defer pca.deinit(test_allocator);
+    try expectEqual(pca.getIndex(6), 0);
+    try pca.set(test_allocator, 5, 1);
+    try expectEqual(pca.getIndex(5), 0);
+    try expectEqual(pca.getIndex(4), 0);
+    try expectEqual(pca.getIndex(6), 1);
+    try pca.set(test_allocator, 1, 2);
+    try pca.set(test_allocator, 3, 3);
+    try expectEqual(pca.get(5), 1);
+    try expectEqual(pca.get(1), 2);
+    try expectEqual(pca.get(3), 3);
+    try expectEqual(pca.get(2), null);
 }
