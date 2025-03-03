@@ -69,14 +69,16 @@ pub fn TaggedPointer(comptime Tag: type, comptime Ptr: type) type {
     }
 }
 
-pub fn PopCountArray(comptime T: type, comptime D: type) type {
+/// A compact sparse array where only certain elements, denoted by a bitset, are set.
+/// Suitable only for small-sizes (64, 128, 256, etc.)
+pub fn SparseArray(comptime T: type, comptime D: type) type {
     const IndexInt = std.math.Log2Int(T);
     return struct {
         const Self = @This();
         head: IntegerBitSet(@bitSizeOf(T)),
         // The Zig array slice does store the length-internally, which could be avoided since we store it via popcnt(head)
         // But then you're kinda on you're own with all system methods. So we'll stick with slices.
-        data: []D,
+        data: ?[]D,
 
         pub fn init() !Self {
             return Self{
@@ -87,7 +89,7 @@ pub fn PopCountArray(comptime T: type, comptime D: type) type {
 
         pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
             if (self.head.count() > 0) {
-                allocator.free(self.data);
+                allocator.free(self.data.?);
             }
         }
 
@@ -104,32 +106,49 @@ pub fn PopCountArray(comptime T: type, comptime D: type) type {
             const index = self.getIndex(at);
             if (self.head.isSet(at)) {
                 // Already set - replace the item in-place
-                self.data[index] = data;
+                self.data.?[index] = data;
             } else {
                 // New element. Shift remaining elements down.
                 const to_shift = self.head.count() - index;
                 // std.debug.print("Insert at {d}. Len {d} - Shifting {d} elements\n", .{ index, self.head.count(), to_shift });
                 self.head.set(at);
                 const newSize = self.head.count();
-                if (!allocator.resize(self.data, newSize)) {
-                    self.data = try allocator.realloc(self.data, newSize);
+                if (!allocator.resize(self.data.?, newSize)) {
+                    self.data = try allocator.realloc(self.data.?, newSize);
                 }
                 if (to_shift > 0) {
-                    @memcpy(self.data[index + 1 ..][0..to_shift], self.data[index..][0..to_shift]);
+                    @memcpy(self.data.?[index + 1 ..][0..to_shift], self.data.?[index..][0..to_shift]);
                 }
-                self.data[index] = data;
+                self.data.?[index] = data;
             }
         }
 
         pub fn get(self: *Self, at: IndexInt) ?D {
             if (self.head.isSet(at)) {
                 const index = self.getIndex(at);
-                return self.data[index];
+                return self.data.?[index];
             }
             return null;
         }
     };
 }
+
+const BitsetType = enum(u2) {
+    Direct, // Bitset stored directly.
+    Nested, // Hiearchical. Contains further levels.
+    Runs, // Runs of 1s (offset, length).
+    Sparse, // Covers a larger range, with a few bits set.
+    // Other options:
+    // Variants of the sparse - sparse8, sparse16, sparse32
+    // Selection pointer - a 16/32 bit offset and remaining bits for direct bitsets.
+};
+
+const LvlPointer = TaggedPointer(BitsetType, SparseBitsetLevel);
+
+pub const SparseBitsetLevel = struct {
+    const Self = @This();
+    data: SparseArray(u64, LvlPointer),
+};
 
 const SparseLevelBitset = struct {
     const Self = @This();
@@ -253,14 +272,14 @@ test {
 }
 
 test "PopCountArray size" {
-    const PCA = PopCountArray(u64, u64);
+    const PCA = SparseArray(u64, u64);
     // Takes 24 bytes if you use a []D
     // Only 16 bytes if you use [*]D, but it's less safe. Can come back to that at some point.
     try expectEqual(24, @sizeOf(PCA));
 }
 
 test "PopCountArray basic functionality" {
-    const PCA = PopCountArray(u64, u64);
+    const PCA = SparseArray(u64, u64);
     var pca = try PCA.init();
     defer pca.deinit(test_allocator);
     try expectEqual(pca.getIndex(6), 0);
