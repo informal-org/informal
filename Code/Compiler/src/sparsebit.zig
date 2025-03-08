@@ -296,7 +296,7 @@ pub fn SparseBitset(comptime Range: type) type {
             var iter = traverse.init(self, index);
             while (iter.level_idx >= 0) {
                 // If we can't traverse further and we're not at the end, create the necessary level
-                if (!iter.next() and iter.level_idx >= 0) {
+                if (!iter.next()) {
                     try iter.create(allocator);
                 }
             }
@@ -305,14 +305,11 @@ pub fn SparseBitset(comptime Range: type) type {
         pub fn isSet(self: *const Self, index: Range) bool {
             var iter = traverse.initConst(self, index);
             while (iter.level_idx >= 0) {
-                const result = iter.next();
-                // Terminate early if any levels indicate there's nothing under that range.
-                if (!result) {
-                    return false;
-                }
-
                 if (iter.level_idx == 0) {
                     return iter.next();
+                } else if (!iter.next()) {
+                    // Terminate early if any levels indicate there's nothing under that range.
+                    return false;
                 }
             }
             // If we've exhausted all levels without finding the bit, it's not set
