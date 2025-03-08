@@ -12,6 +12,8 @@ const Allocator = std.mem.Allocator;
 const LEVEL_WIDTH = 64;
 const IntegerBitSet = stdbits.IntegerBitSet;
 pub const BitSet = IntegerBitSet(LEVEL_WIDTH);
+const constants = @import("constants.zig");
+const DEBUG = constants.DEBUG;
 
 pub fn TaggedPointer(comptime Tag: type, comptime Ptr: type) type {
     // There's two schemes for tagging we can use here.
@@ -216,8 +218,18 @@ pub fn SparseBitset(comptime Range: type) type {
                 };
             }
 
+            // Const version of init for isSet method
+            pub fn initConst(self: *const Self, index: Range) Traversal {
+                return Traversal{
+                    .current_level = @constCast(&self.level),
+                    .level_idx = @intCast(LEVEL_COUNT),
+                    .index = index,
+                };
+            }
+
             pub fn get_bit_position(self: *Traversal) BitPositionType {
                 // Get the bit position of this index within this level.
+                assert(self.level_idx >= 0);
                 const shift_amount: ShiftType = @intCast(self.level_idx * BITS_PER_LEVEL);
                 return @intCast((self.index >> shift_amount) & (LEVEL_WIDTH - 1));
             }
@@ -230,13 +242,18 @@ pub fn SparseBitset(comptime Range: type) type {
                     if (self.level_idx == 0) {
                         // The root levels just use the bitset head without further references.
                         // You could optimize this further by having the leaf-pointers point directly to bitsets rather than sparse-arrays.
-                        return self.current_level.data.head.isSet(bit_position);
+                        const is_set = self.current_level.data.head.isSet(bit_position);
+                        if (is_set) {
+                            // Mark as terminal. But don't if it's not set so that we can create it.
+                            self.level_idx -= 1;
+                        }
+                        return is_set;
                     } else {
-                        self.level_idx -= 1;
                         var nextLevel = self.current_level.data.get(bit_position);
                         if (nextLevel == null) {
                             return false;
                         } else {
+                            self.level_idx -= 1;
                             self.current_level = nextLevel.?.getPointer().?;
                             return true;
                         }
@@ -245,11 +262,16 @@ pub fn SparseBitset(comptime Range: type) type {
                 return false;
             }
 
-            pub fn create(self: *Traversal, allocator: Allocator) void {
+            pub fn create(self: *Traversal, allocator: Allocator) !void {
+                // Ensure we're not trying to create a level below the leaf level
+                if (self.level_idx < 0) return;
+
                 const bit_position = self.get_bit_position();
                 if (self.level_idx == 0) {
                     // Just set the bit directly
                     self.current_level.data.head.set(bit_position);
+                    // Mark that we've reached the end of traversal
+                    self.level_idx -= 1;
                 } else {
                     // Create a new nested level
                     const next_level = try allocator.create(BitsetLevel);
@@ -271,29 +293,36 @@ pub fn SparseBitset(comptime Range: type) type {
             index: Range,
         ) !void {
             // Levels start at MSB->LSB (0)
-            const iter = traverse.init(self, index);
+            var iter = traverse.init(self, index);
             while (iter.level_idx >= 0) {
-                if (!iter.next()) {
+                // If we can't traverse further and we're not at the end, create the necessary level
+                if (!iter.next() and iter.level_idx >= 0) {
                     try iter.create(allocator);
                 }
             }
         }
 
         pub fn isSet(self: *const Self, index: Range) bool {
-            const iter = traverse.init(self, index);
+            var iter = traverse.initConst(self, index);
             while (iter.level_idx >= 0) {
-                if (!iter.next()) {
+                const result = iter.next();
+                // Terminate early if any levels indicate there's nothing under that range.
+                if (!result) {
                     return false;
                 }
+
+                if (iter.level_idx == 0) {
+                    return iter.next();
+                }
             }
-            return true;
+            // If we've exhausted all levels without finding the bit, it's not set
+            return false;
         }
     };
 }
 
 const test_allocator = std.testing.allocator;
 const expectEqual = std.testing.expectEqual;
-const constants = @import("constants.zig");
 
 test "TaggedPointer basic functionality" {
     const TestTag = enum(u2) {
