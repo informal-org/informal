@@ -179,8 +179,8 @@ const BitsetLevel = struct {
 /// The hierarchical structure optimizes many of the bitset operations and allows for short-circuiting.
 pub fn SparseBitset(comptime Range: type) type {
     const MAX_VALUE = std.math.maxInt(Range);
-    const BITS_PER_LEVEL = std.math.log2_int_ceil(Range, LEVEL_WIDTH); // 6 for LEVEL_WIDTH=64
-    // const LEVEL_COUNT = (std.math.log2_int(Range, MAX_VALUE) + BITS_PER_LEVEL - 1) / BITS_PER_LEVEL;
+    const BITS_PER_LEVEL = std.math.log2_int_ceil(Range, LEVEL_WIDTH); // 6 bits per level for 64-wide bitset.
+    // How many levels it takes to store the maximum value.
     const LEVEL_COUNT = std.math.log2_int_ceil(Range, MAX_VALUE) / BITS_PER_LEVEL;
 
     // Bit positions within each level's sparse-array.
@@ -201,75 +201,92 @@ pub fn SparseBitset(comptime Range: type) type {
             self.level.deinit(allocator);
         }
 
+        const traverse = struct {
+            const Traversal = @This();
+            const level_count: i32 = @intCast(LEVEL_COUNT);
+
+            current_level: *BitsetLevel,
+            level_idx: i32,
+            index: Range,
+            pub fn init(self: *Self, index: Range) Traversal {
+                return Traversal{
+                    .current_level = &self.level,
+                    .level_idx = @intCast(LEVEL_COUNT),
+                    .index = index,
+                };
+            }
+
+            pub fn get_bit_position(self: *Traversal) BitPositionType {
+                // Get the bit position of this index within this level.
+                const shift_amount: ShiftType = @intCast(self.level_idx * BITS_PER_LEVEL);
+                return @intCast((self.index >> shift_amount) & (LEVEL_WIDTH - 1));
+            }
+
+            pub fn next(self: *Traversal) bool {
+                // Iterate down to the next-level and return whether the bit for this index is set or not.
+                // Maintains state so that we can traverse further, terminate early or create nodes as necessary.
+                if (self.level_idx >= 0) {
+                    const bit_position = self.get_bit_position();
+                    if (self.level_idx == 0) {
+                        // The root levels just use the bitset head without further references.
+                        // You could optimize this further by having the leaf-pointers point directly to bitsets rather than sparse-arrays.
+                        return self.current_level.data.head.isSet(bit_position);
+                    } else {
+                        self.level_idx -= 1;
+                        var nextLevel = self.current_level.data.get(bit_position);
+                        if (nextLevel == null) {
+                            return false;
+                        } else {
+                            self.current_level = nextLevel.?.getPointer().?;
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            }
+
+            pub fn create(self: *Traversal, allocator: Allocator) void {
+                const bit_position = self.get_bit_position();
+                if (self.level_idx == 0) {
+                    // Just set the bit directly
+                    self.current_level.data.head.set(bit_position);
+                } else {
+                    // Create a new nested level
+                    const next_level = try allocator.create(BitsetLevel);
+                    next_level.* = BitsetLevel.init();
+
+                    const tagged_lvl_pointer = LvlPointer.init(BitsetType.Nested, next_level);
+                    try self.current_level.data.set(allocator, bit_position, tagged_lvl_pointer);
+
+                    self.current_level = next_level;
+                    assert(self.level_idx > 0);
+                    self.level_idx -= 1;
+                }
+            }
+        };
+
         pub fn set(
             self: *Self,
             allocator: Allocator,
             index: Range,
         ) !void {
             // Levels start at MSB->LSB (0)
-            var current_level = &self.level;
-            var level_idx: i32 = @intCast(LEVEL_COUNT);
-
-            while (level_idx >= 0) : (level_idx -= 1) {
-                // Extract the bit-slice for this level.
-                const shift_amount: ShiftType = @intCast(level_idx * BITS_PER_LEVEL);
-                const bit_position: BitPositionType = @intCast((index >> shift_amount) & (LEVEL_WIDTH - 1));
-
-                if (level_idx == 0) {
-                    const direct_tag = LvlPointer.init(BitsetType.Direct, null);
-                    try current_level.data.set(allocator, bit_position, direct_tag);
-                } else {
-                    const level_segement_ptr = current_level.data.get(bit_position);
-                    if (level_segement_ptr == null) {
-                        const next_level = try allocator.create(BitsetLevel);
-                        next_level.* = BitsetLevel.init();
-
-                        const tagged_lvl_pointer = LvlPointer.init(BitsetType.Nested, next_level);
-                        try current_level.data.set(allocator, bit_position, tagged_lvl_pointer);
-
-                        current_level = next_level;
-                    } else {
-                        current_level = level_segement_ptr.?.getPointer().?;
-                    }
+            const iter = traverse.init(self, index);
+            while (iter.level_idx >= 0) {
+                if (!iter.next()) {
+                    try iter.create(allocator);
                 }
             }
         }
 
         pub fn isSet(self: *const Self, index: Range) bool {
-            var current_level = &self.level;
-            const remaining_index = index;
-
-            // Start from MSB (top level) and work down
-            var level_idx: i32 = @intCast(LEVEL_COUNT);
-
-            while (level_idx >= 0) : (level_idx -= 1) {
-                // Calculate bit position at current level
-                const shift_amount: ShiftType = @intCast(level_idx * BITS_PER_LEVEL);
-                const bit_position: BitPositionType = @intCast((remaining_index >> shift_amount) & (LEVEL_WIDTH - 1));
-
-                // Check if the bit is set at this level
-                const nested_ptr = current_level.data.get(bit_position);
-
-                if (nested_ptr == null) {
-                    // Bit not set at this level, so it's not set at all
+            const iter = traverse.init(self, index);
+            while (iter.level_idx >= 0) {
+                if (!iter.next()) {
                     return false;
                 }
-
-                if (level_idx == 0) {
-                    // At leaf level, just check if the bit is marked as set
-                    return nested_ptr.?.tag == BitsetType.Direct;
-                } else {
-                    // For non-leaf levels, we need to check the next level
-                    if (nested_ptr.?.tag != BitsetType.Nested) {
-                        return false;
-                    }
-
-                    // Move to the next level
-                    current_level = nested_ptr.?.getPointer().?;
-                }
             }
-
-            return false; // Shouldn't reach here
+            return true;
         }
     };
 }
