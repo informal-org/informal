@@ -116,11 +116,10 @@ pub fn SparseArray(comptime T: type, comptime D: type) type {
                     self.data = try allocator.realloc(self.data.?, newSize);
 
                     if (index < oldSize) {
-                        // Move elements from the end to make space at index
-                        var i: usize = oldSize;
-                        while (i > index) : (i -= 1) {
-                            self.data.?[i] = self.data.?[i - 1];
-                        }
+                        // Move elements to make space at index
+                        const src = self.data.?[index..oldSize];
+                        const dest = self.data.?[index + 1 .. oldSize + 1];
+                        @memcpy(dest, src);
                     }
                 }
                 self.data.?[index] = data;
@@ -207,14 +206,14 @@ pub fn SparseBitset(comptime Range: type) type {
             allocator: Allocator,
             index: Range,
         ) !void {
-            var current_level = &self.level;
-            const remaining_index = index;
             // Levels start at MSB->LSB (0)
+            var current_level = &self.level;
             var level_idx: i32 = @intCast(LEVEL_COUNT);
+
             while (level_idx >= 0) : (level_idx -= 1) {
                 // Extract the bit-slice for this level.
                 const shift_amount: ShiftType = @intCast(level_idx * BITS_PER_LEVEL);
-                const bit_position: BitPositionType = @intCast((remaining_index >> shift_amount) & (LEVEL_WIDTH - 1));
+                const bit_position: BitPositionType = @intCast((index >> shift_amount) & (LEVEL_WIDTH - 1));
 
                 if (level_idx == 0) {
                     const direct_tag = LvlPointer.init(BitsetType.Direct, null);
