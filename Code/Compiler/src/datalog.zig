@@ -5,9 +5,9 @@ const Table = db.Table;
 const Term = db.Term;
 const assert = std.debug.assert;
 
-const Datalog = struct {
+pub const Datalog = struct {
     allocator: std.mem.Allocator,
-    db: *DB,
+    db: DB,
 
     pub fn init(allocator: std.mem.Allocator) Datalog {
         return Datalog{
@@ -20,32 +20,34 @@ const Datalog = struct {
         self.db.deinit();
     }
 
-    pub fn addRelation(self: *Datalog, relation_name: []const u8, attributes: []const []const u8) *Table {
-        const table = self.db.addTable(relation_name);
+    pub fn addRelation(self: *Datalog, relation_name: []const u8, attributes: []const []const u8) !*Table {
+        const table = try self.db.addTable(relation_name);
         for (attributes) |attribute| {
-            table.addColumn(attribute);
+            _ = try table.addColumn(attribute);
         }
         return table;
     }
 
-    pub fn addFact(_: *Datalog, relation: *Table, facts: []*const Term) !void {
+    pub fn addFact(_: *Datalog, relation: *Table, facts: []const *Term) !void {
         assert(facts.len == relation.columns.count());
         // Zip columns with each entry in row and call addTerm
-        for (0.., relation.columns.values()) |i, column| {
-            try column.pushTerm(facts[i]);
+        const columns = relation.columns.values();
+        for (0.., columns) |i, column| {
+            _ = try column.pushTerm(facts[i]);
         }
     }
 
-    pub fn term(self: *Datalog, name: []const u8) *Term {
-        return self.db.getOrCreateTerm(name, false);
+    pub fn term(self: *Datalog, name: []const u8) !*Term {
+        return try self.db.getOrCreateTerm(name, false);
     }
 
-    pub fn variable(self: *Datalog, name: []const u8) *Term {
-        return self.db.getOrCreateTerm(name, true);
+    pub fn variable(self: *Datalog, name: []const u8) !*Term {
+        return try self.db.getOrCreateTerm(name, true);
     }
 };
 
 test "Ancestor relations" {
+    std.debug.print("\n=== Starting Ancestor relations test ===\n", .{});
     // Part 1: Express facts
     // parent(c, cpp).
     // parent(cpp, java).
@@ -57,23 +59,33 @@ test "Ancestor relations" {
     var dl = Datalog.init(std.testing.allocator);
     defer dl.deinit();
 
-    // Define the parent relation schema.
-    const parent_rel = dl.addRelation("parent", &[_][]const u8{ "parent", "child" });
+    const parent_rel = try dl.addRelation("parent", &[_][]const u8{ "parent", "child" });
 
-    // Pre-define terms.
-    const c = dl.term("c");
-    const cpp = dl.term("cpp");
-    const java = dl.term("java");
-    const scala = dl.term("scala");
-    const clojure = dl.term("clojure");
-    const lisp = dl.term("lisp");
-    const kotlin = dl.term("kotlin");
+    const c = try dl.term("c");
+    const cpp = try dl.term("cpp");
+    const java = try dl.term("java");
+    const scala = try dl.term("scala");
+    const clojure = try dl.term("clojure");
+    const lisp = try dl.term("lisp");
+    const kotlin = try dl.term("kotlin");
 
-    // Add facts
-    try dl.addFact(parent_rel, &[_]*const Term{ c, cpp });
-    try dl.addFact(parent_rel, &[_]*const Term{ cpp, java });
-    try dl.addFact(parent_rel, &[_]*const Term{ java, scala });
-    try dl.addFact(parent_rel, &[_]*const Term{ java, clojure });
-    try dl.addFact(parent_rel, &[_]*const Term{ lisp, clojure });
-    try dl.addFact(parent_rel, &[_]*const Term{ java, kotlin });
+    var facts1 = [_]*Term{ c, cpp };
+    try dl.addFact(parent_rel, &facts1);
+
+    var facts2 = [_]*Term{ cpp, java };
+    try dl.addFact(parent_rel, &facts2);
+
+    var facts3 = [_]*Term{ java, scala };
+    try dl.addFact(parent_rel, &facts3);
+
+    var facts4 = [_]*Term{ java, clojure };
+    try dl.addFact(parent_rel, &facts4);
+
+    var facts5 = [_]*Term{ lisp, clojure };
+    try dl.addFact(parent_rel, &facts5);
+
+    var facts6 = [_]*Term{ java, kotlin };
+    try dl.addFact(parent_rel, &facts6);
+
+    std.debug.print("=== Ancestor relations test completed ===\n", .{});
 }

@@ -17,10 +17,11 @@ const assert = std.debug.assert;
 const constants = @import("constants.zig");
 const OffsetArray = @import("offsetarray.zig").OffsetArray;
 const OffsetIterator = @import("offsetarray.zig").OffsetIterator;
+const Datalog = @import("datalog.zig").Datalog;
 
 pub const DB = struct {
     allocator: Allocator,
-    terms: std.StringHashMap(Term),
+    terms: std.StringHashMap(*Term),
     tables: std.StringHashMap(Table),
     max_column_id: u32 = 0,
     max_term_id: u32 = 0,
@@ -29,7 +30,7 @@ pub const DB = struct {
     pub fn init(allocator: Allocator) DB {
         return DB{
             .allocator = allocator,
-            .terms = std.StringHashMap(Term).init(allocator),
+            .terms = std.StringHashMap(*Term).init(allocator),
             .tables = std.StringHashMap(Table).init(allocator),
         };
     }
@@ -37,8 +38,10 @@ pub const DB = struct {
     pub fn deinit(self: *DB) void {
         var terms_iterator = self.terms.iterator();
         while (terms_iterator.next()) |entry| {
-            var term_ptr = entry.value_ptr;
+            var term_ptr = entry.value_ptr.*;
             term_ptr.deinit();
+            self.allocator.destroy(term_ptr);
+            self.allocator.free(entry.key_ptr.*);
         }
         var tables_iterator = self.tables.iterator();
         while (tables_iterator.next()) |entry| {
@@ -50,24 +53,36 @@ pub const DB = struct {
         self.tables.deinit();
     }
 
-    pub fn addTable(self: *DB, name: []const u8) *Table {
-        const table = Table.init(self, self.allocator, name);
+    pub fn addTable(self: *DB, name: []const u8) !*Table {
         // Insert at tables for name
         if (self.tables.get(name)) |_| {
             @panic("Table already exists");
+        } else {
+            // Clone the name first since both Table and our hashmap need to own it
+            const owned_name = try self.allocator.dupe(u8, name);
+            const owned_name_for_table = try self.allocator.dupe(u8, name);
+            const table = Table.init(self, self.allocator, owned_name_for_table);
+            try self.tables.put(owned_name, table);
+            return &self.tables.getPtr(owned_name).?.*;
         }
-        try self.tables.put(name, table);
-        return table;
     }
 
-    pub fn getOrCreateTerm(self: *DB, name: []const u8, variable: bool) *Term {
+    pub fn getOrCreateTerm(self: *DB, name: []const u8, variable: bool) !*Term {
         if (self.terms.get(name)) |t| {
             assert(t.variable == variable);
             return t;
         }
-        const new_term = Term.init(self.allocator);
+        // Create new term on the heap
+        var new_term = try self.allocator.create(Term);
+        errdefer self.allocator.destroy(new_term);
+
+        new_term.* = Term.init(self.allocator);
         new_term.variable = variable;
-        try self.terms.put(name, new_term);
+
+        const owned_name = try self.allocator.dupe(u8, name);
+        errdefer self.allocator.free(owned_name);
+
+        try self.terms.put(owned_name, new_term);
         return new_term;
     }
 };
@@ -77,7 +92,7 @@ pub const Table = struct {
     table_id: u32,
     name: []const u8,
     allocator: Allocator,
-    columns: std.StringArrayHashMap(Column),
+    columns: std.StringArrayHashMap(*Column),
 
     pub fn init(db: *DB, allocator: Allocator, name: []const u8) Table {
         const table_id = db.max_table_id;
@@ -87,25 +102,37 @@ pub const Table = struct {
             .table_id = table_id,
             .allocator = allocator,
             .name = name,
-            .columns = std.StringArrayHashMap(Column).init(allocator),
+            .columns = std.StringArrayHashMap(*Column).init(allocator),
         };
     }
 
     pub fn deinit(self: *Table) void {
         var iterator = self.columns.iterator();
         while (iterator.next()) |entry| {
-            var column = entry.value_ptr;
-            column.deinit();
+            var column_ptr = entry.value_ptr.*;
+            column_ptr.deinit();
+            self.allocator.destroy(column_ptr);
+            self.allocator.free(entry.key_ptr.*);
         }
         self.columns.deinit();
+        self.allocator.free(self.name);
     }
 
     pub fn addColumn(self: *Table, name: []const u8) !*Column {
         const column_id = self.db.max_column_id;
         self.db.max_column_id += 1;
-        const column = try Column.init(self, self.allocator, column_id);
-        try self.columns.put(name, column);
-        return self.columns.getPtr(name).?;
+        var column_ptr = try self.allocator.create(Column);
+        errdefer self.allocator.destroy(column_ptr);
+
+        column_ptr.* = try Column.init(self, self.allocator, column_id);
+        errdefer column_ptr.deinit();
+
+        const owned_name = try self.allocator.dupe(u8, name);
+        errdefer self.allocator.free(owned_name);
+
+        try self.columns.put(owned_name, column_ptr);
+
+        return column_ptr;
     }
 };
 
@@ -116,7 +143,8 @@ pub const Column = struct {
     // List of distinct terms which appear in this column. The index in this table is what's used everywhere else.
     // This list shouldn't be used much. Instead, prefer the term->column ID for lookups.
     // We could remove this and replace it with a max term ID if needed.
-    terms: std.ArrayList(Term),
+    // We could remove this and replace it with a max term ID if needed.
+    terms: std.ArrayList(*Term),
     // The raw list of byte values, indicating which term appears in that position (based on the term index)
     // If there are more than 255 values, then the second arraylist is used for newer terms going forward.
     order: std.ArrayList(u8),
@@ -133,7 +161,7 @@ pub const Column = struct {
             .allocator = allocator,
             .table = table,
             .id = column_id,
-            .terms = std.ArrayList(Term).init(allocator),
+            .terms = std.ArrayList(*Term).init(allocator),
             .order = std.ArrayList(u8).init(allocator),
             .order16 = emptyOrd16,
             .refs = std.ArrayList(TermRefs).init(allocator),
@@ -181,26 +209,37 @@ pub const Column = struct {
     /// The caller is responsible for making sure it's a net-new term.
     /// Otherwise, insertion performance would be dominated by that term-existence lookup.
     pub fn addTerm(self: *Column, term: *Term) !u16 {
+        std.debug.print("addTerm: Adding term {*} to column {}\n", .{ term, self.id });
         const rawTermIdx = self.terms.items.len;
         assert(rawTermIdx <= std.math.maxInt(u16));
         const termIndex: u16 = @truncate(rawTermIdx);
-        try self.terms.append(term.*);
+        std.debug.print("addTerm: Term index will be {}\n", .{termIndex});
+        try self.terms.append(term);
+        std.debug.print("addTerm: Appended term to terms list\n", .{});
         const lastIndex = try self.pushOrder(termIndex);
+        std.debug.print("addTerm: Pushed order with index {}\n", .{lastIndex});
         const termRefs = try TermRefs.init(self.allocator, lastIndex);
+        std.debug.print("addTerm: Created TermRefs\n", .{});
         try self.refs.append(termRefs);
+        std.debug.print("addTerm: Appended TermRefs\n", .{});
 
         // Have the term remember where it is in this column.
+        std.debug.print("addTerm: Adding column ref to term\n", .{});
         try term.addColumnRef(self.id, termIndex);
+        std.debug.print("addTerm: Successfully added column ref\n", .{});
 
         return termIndex;
     }
 
     pub fn pushTerm(self: *Column, term: *Term) !u16 {
         // Add if it's a new term or push existing.
+        std.debug.print("pushTerm: Checking if term {*} exists in column {}\n", .{ term, self.id });
         if (term.getColumnRef(self.id)) |index| {
-            self.push(index);
-            return index;
+            std.debug.print("pushTerm: Term exists with index {}\n", .{index});
+            try self.push(@truncate(index));
+            return @truncate(index);
         } else {
+            std.debug.print("pushTerm: Term is new, adding...\n", .{});
             return self.addTerm(term);
         }
     }
@@ -258,19 +297,24 @@ pub const Term = struct {
     }
 
     pub fn getColumnRef(self: *Term, column_id: u32) ?u32 {
+        std.debug.print("getColumnRef: Checking column {} in term {*} with {} refs\n", .{ column_id, self, self.refs.items.len });
+
+        if (self.refs.items.len == 0) {
+            return null;
+        }
+
         // Arbitrary boundary. General intuition is that binary-search will be slower than linear for small arrays.
         if (self.refs.items.len < 128) {
-            if (self.refs.items.len == 0) {
-                return null;
-            }
             // Linear search. Start at end and work back since queries are likely for more recent stuff.
             var i: usize = self.refs.items.len - 1;
             while (i > 0 and self.refs.items[i].column_id > column_id) {
                 i -= 1;
             }
             if (self.refs.items[i].column_id == column_id) {
+                std.debug.print("getColumnRef: Found match with term_index {}\n", .{self.refs.items[i].term_index});
                 return self.refs.items[i].term_index;
             }
+            std.debug.print("getColumnRef: No match found\n", .{});
             return null;
         } else {
             // Binary search if the list is large - which we expect to be fairly rare.
@@ -313,6 +357,7 @@ test {
 }
 
 test "Column - Term indexing" {
+    std.debug.print("\n=== Starting Term indexing test ===\n", .{});
     var db = DB.init(test_allocator);
     defer db.deinit();
 
@@ -321,14 +366,12 @@ test "Column - Term indexing" {
 
     var col = try table.addColumn("test_col");
 
-    var term1 = Term.init(test_allocator);
-    defer term1.deinit();
+    // Create terms through the DB to ensure proper allocation
+    var term1 = try db.getOrCreateTerm("term1", false);
+    var term2 = try db.getOrCreateTerm("term2", false);
 
-    var term2 = Term.init(test_allocator);
-    defer term2.deinit();
-
-    const term1_idx = try col.addTerm(&term1);
-    const term2_idx = try col.addTerm(&term2);
+    const term1_idx = try col.addTerm(term1);
+    const term2_idx = try col.addTerm(term2);
 
     try expectEqual(@as(u16, 0), term1_idx);
     try expectEqual(@as(u16, 1), term2_idx);
@@ -347,6 +390,8 @@ test "Column - Term indexing" {
     // Ensure the terms have a pointer back to their index in the column.
     try expectEqual(@as(u32, 0), term1.getColumnRef(col.id).?);
     try expectEqual(@as(u32, 1), term2.getColumnRef(col.id).?);
+    std.debug.print("Column ref for term1: {?}\n", .{term1.getColumnRef(col.id)});
+    std.debug.print("Column ref for term2: {?}\n", .{term2.getColumnRef(col.id)});
 
     // Ensure each term stores the index offsets they appear in.
     // 1 2 2 1 = term 1 refs at [0, 3]. Term 2 [0, 1]
@@ -368,6 +413,7 @@ test "Column - Term indexing" {
 }
 
 test "Column - Large term sets" {
+    std.debug.print("\n=== Starting Large term sets test ===\n", .{});
     var db = DB.init(test_allocator);
     defer db.deinit();
 
@@ -378,9 +424,12 @@ test "Column - Large term sets" {
 
     var i: u16 = 0;
     while (i < 260) : (i += 1) {
-        var term = Term.init(test_allocator);
-        defer term.deinit();
-        const term_idx = try col.addTerm(&term);
+        // Create a unique named term using the DB
+        var term_name_buf: [20]u8 = undefined;
+        const term_name = try std.fmt.bufPrint(&term_name_buf, "term{d}", .{i});
+        const term = try db.getOrCreateTerm(term_name, false);
+
+        const term_idx = try col.addTerm(term);
         try expectEqual(i, term_idx);
         try col.push(term_idx);
     }
