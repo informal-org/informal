@@ -68,6 +68,10 @@ pub fn TaggedPointer(comptime Tag: type, comptime Ptr: type) type {
 
 /// A compact sparse array where only certain elements, denoted by a bitset, are set.
 /// Suitable only for small-sizes (64, 128, 256, etc.)
+/// TODO: A variant of this which grows dynamically by doubling with empty slots in between.
+/// This variant is more compact and optimized for static data. The dynamic version will be better for dynamic inserts.
+/// There is a neat approach to figuring out the indexing with that. We know the array length from data.len, and we know
+/// occupancy from head.popcount(). Assume len will always be a power of 2.
 pub fn SparseArray(comptime T: type, comptime D: type) type {
     const IndexInt = std.math.Log2Int(T);
     return struct {
@@ -218,15 +222,6 @@ pub fn SparseBitset(comptime Range: type) type {
                 };
             }
 
-            // Const version of init for isSet method
-            pub fn initConst(self: *const Self, index: Range) Traversal {
-                return Traversal{
-                    .current_level = @constCast(&self.level),
-                    .level_idx = @intCast(LEVEL_COUNT),
-                    .index = index,
-                };
-            }
-
             pub fn get_bit_position(self: *Traversal) BitPositionType {
                 // Get the bit position of this index within this level.
                 assert(self.level_idx >= 0);
@@ -287,6 +282,11 @@ pub fn SparseBitset(comptime Range: type) type {
             }
         };
 
+        // const zip = struct {
+        //     const Zip = @This();
+        //     // Iterate through two different
+        // };
+
         pub fn set(
             self: *Self,
             allocator: Allocator,
@@ -302,8 +302,8 @@ pub fn SparseBitset(comptime Range: type) type {
             }
         }
 
-        pub fn isSet(self: *const Self, index: Range) bool {
-            var iter = traverse.initConst(self, index);
+        pub fn isSet(self: *Self, index: Range) bool {
+            var iter = traverse.init(self, index);
             while (iter.level_idx >= 0) {
                 if (iter.level_idx == 0) {
                     return iter.next();

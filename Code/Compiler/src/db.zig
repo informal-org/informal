@@ -18,10 +18,10 @@ const constants = @import("constants.zig");
 const OffsetArray = @import("offsetarray.zig").OffsetArray;
 const OffsetIterator = @import("offsetarray.zig").OffsetIterator;
 
-const DB = struct {
+pub const DB = struct {
     allocator: Allocator,
     terms: std.StringHashMap(Term),
-    tables: std.ArrayList(Table),
+    tables: std.StringHashMap(Table),
     max_column_id: u32 = 0,
     max_term_id: u32 = 0,
     max_table_id: u32 = 0,
@@ -30,25 +30,49 @@ const DB = struct {
         return DB{
             .allocator = allocator,
             .terms = std.StringHashMap(Term).init(allocator),
-            .tables = std.ArrayList(Table).init(allocator),
+            .tables = std.StringHashMap(Table).init(allocator),
         };
     }
 
     pub fn deinit(self: *DB) void {
         var terms_iterator = self.terms.iterator();
         while (terms_iterator.next()) |entry| {
-            var term = entry.value_ptr;
-            term.deinit();
+            var term_ptr = entry.value_ptr;
+            term_ptr.deinit();
         }
-        for (self.tables.items) |*table| {
+        var tables_iterator = self.tables.iterator();
+        while (tables_iterator.next()) |entry| {
+            var table = entry.value_ptr;
             table.deinit();
+            self.allocator.free(entry.key_ptr.*);
         }
         self.terms.deinit();
         self.tables.deinit();
     }
+
+    pub fn addTable(self: *DB, name: []const u8) *Table {
+        const table = Table.init(self, self.allocator, name);
+        // Insert at tables for name
+        if (self.tables.get(name)) |_| {
+            @panic("Table already exists");
+        }
+        try self.tables.put(name, table);
+        return table;
+    }
+
+    pub fn getOrCreateTerm(self: *DB, name: []const u8, variable: bool) *Term {
+        if (self.terms.get(name)) |t| {
+            assert(t.variable == variable);
+            return t;
+        }
+        const new_term = Term.init(self.allocator);
+        new_term.variable = variable;
+        try self.terms.put(name, new_term);
+        return new_term;
+    }
 };
 
-const Table = struct {
+pub const Table = struct {
     db: *DB,
     table_id: u32,
     name: []const u8,
@@ -85,7 +109,7 @@ const Table = struct {
     }
 };
 
-const Column = struct {
+pub const Column = struct {
     id: u32, // Global Column ID
     table: *Table,
     allocator: Allocator,
@@ -170,6 +194,16 @@ const Column = struct {
 
         return termIndex;
     }
+
+    pub fn pushTerm(self: *Column, term: *Term) !u16 {
+        // Add if it's a new term or push existing.
+        if (term.getColumnRef(self.id)) |index| {
+            self.push(index);
+            return index;
+        } else {
+            return self.addTerm(term);
+        }
+    }
 };
 
 const TermRefs = struct {
@@ -204,14 +238,18 @@ fn orderColumnRef(context: ColumnRef, item: ColumnRef) std.math.Order {
     return std.math.order(context.column_id, item.column_id);
 }
 
-const Term = struct {
+pub const Term = struct {
     // Store a sorted arraylist of Column ID -> index of this term within that column's terms list.
     // A column may contain many terms, but it's expected that a term only makes an appearance in some small number of columns.
     refs: std.ArrayList(ColumnRef),
+    // We could store this with a tagged pointer instead.
+    // Or semantically as a Term ID, type, etc. to fit in a packed union.
+    variable: bool = false,
 
     pub fn init(allocator: Allocator) Term {
         return Term{
             .refs = std.ArrayList(ColumnRef).init(allocator),
+            .variable = false,
         };
     }
 

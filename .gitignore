@@ -6,3 +6,6 @@ __pycache__/
 *.py[cod]
 dist/
 .idea
+CLAUDE.md
+.cursorrules
+*.cursorrules
