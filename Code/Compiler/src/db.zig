@@ -90,7 +90,7 @@ pub const DB = struct {
 pub const Table = struct {
     db: *DB,
     table_id: u32,
-    name: []const u8,
+    name: []const u8, // Managed by caller
     allocator: Allocator,
     columns: std.StringArrayHashMap(*Column),
 
@@ -115,7 +115,6 @@ pub const Table = struct {
             self.allocator.free(entry.key_ptr.*);
         }
         self.columns.deinit();
-        self.allocator.free(self.name);
     }
 
     pub fn addColumn(self: *Table, name: []const u8) !*Column {
@@ -209,37 +208,26 @@ pub const Column = struct {
     /// The caller is responsible for making sure it's a net-new term.
     /// Otherwise, insertion performance would be dominated by that term-existence lookup.
     pub fn addTerm(self: *Column, term: *Term) !u16 {
-        std.debug.print("addTerm: Adding term {*} to column {}\n", .{ term, self.id });
         const rawTermIdx = self.terms.items.len;
         assert(rawTermIdx <= std.math.maxInt(u16));
         const termIndex: u16 = @truncate(rawTermIdx);
-        std.debug.print("addTerm: Term index will be {}\n", .{termIndex});
         try self.terms.append(term);
-        std.debug.print("addTerm: Appended term to terms list\n", .{});
         const lastIndex = try self.pushOrder(termIndex);
-        std.debug.print("addTerm: Pushed order with index {}\n", .{lastIndex});
         const termRefs = try TermRefs.init(self.allocator, lastIndex);
-        std.debug.print("addTerm: Created TermRefs\n", .{});
         try self.refs.append(termRefs);
-        std.debug.print("addTerm: Appended TermRefs\n", .{});
 
         // Have the term remember where it is in this column.
-        std.debug.print("addTerm: Adding column ref to term\n", .{});
         try term.addColumnRef(self.id, termIndex);
-        std.debug.print("addTerm: Successfully added column ref\n", .{});
 
         return termIndex;
     }
 
     pub fn pushTerm(self: *Column, term: *Term) !u16 {
         // Add if it's a new term or push existing.
-        std.debug.print("pushTerm: Checking if term {*} exists in column {}\n", .{ term, self.id });
         if (term.getColumnRef(self.id)) |index| {
-            std.debug.print("pushTerm: Term exists with index {}\n", .{index});
             try self.push(@truncate(index));
             return @truncate(index);
         } else {
-            std.debug.print("pushTerm: Term is new, adding...\n", .{});
             return self.addTerm(term);
         }
     }
@@ -297,8 +285,6 @@ pub const Term = struct {
     }
 
     pub fn getColumnRef(self: *Term, column_id: u32) ?u32 {
-        std.debug.print("getColumnRef: Checking column {} in term {*} with {} refs\n", .{ column_id, self, self.refs.items.len });
-
         if (self.refs.items.len == 0) {
             return null;
         }
@@ -311,10 +297,8 @@ pub const Term = struct {
                 i -= 1;
             }
             if (self.refs.items[i].column_id == column_id) {
-                std.debug.print("getColumnRef: Found match with term_index {}\n", .{self.refs.items[i].term_index});
                 return self.refs.items[i].term_index;
             }
-            std.debug.print("getColumnRef: No match found\n", .{});
             return null;
         } else {
             // Binary search if the list is large - which we expect to be fairly rare.
@@ -356,6 +340,23 @@ test {
     }
 }
 
+test "Memory management test - init and deinit" {
+    std.debug.print("\n=== Starting Memory management test ===\n", .{});
+    var db = DB.init(test_allocator);
+    defer db.deinit();
+
+    var table = Table.init(&db, test_allocator, "test_table");
+    defer table.deinit();
+
+    var col = try table.addColumn("test_col");
+    defer col.deinit();
+
+    var term = try db.getOrCreateTerm("term1", false);
+    defer term.deinit();
+
+    std.debug.print("end of memory management test\n", .{});
+}
+
 test "Column - Term indexing" {
     std.debug.print("\n=== Starting Term indexing test ===\n", .{});
     var db = DB.init(test_allocator);
@@ -390,8 +391,6 @@ test "Column - Term indexing" {
     // Ensure the terms have a pointer back to their index in the column.
     try expectEqual(@as(u32, 0), term1.getColumnRef(col.id).?);
     try expectEqual(@as(u32, 1), term2.getColumnRef(col.id).?);
-    std.debug.print("Column ref for term1: {?}\n", .{term1.getColumnRef(col.id)});
-    std.debug.print("Column ref for term2: {?}\n", .{term2.getColumnRef(col.id)});
 
     // Ensure each term stores the index offsets they appear in.
     // 1 2 2 1 = term 1 refs at [0, 3]. Term 2 [0, 1]

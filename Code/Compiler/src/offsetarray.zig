@@ -100,7 +100,7 @@ pub const OffsetIterator = struct {
         if (self.offsetIndex >= self.offsetArray.offsets.items.len) {
             return null;
         }
-        std.debug.print("OffsetIndex: {d} len {d}\n", .{ self.offsetIndex, self.offsetArray.offsets.items.len });
+        // std.debug.print("OffsetIndex: {d} len {d}\n", .{ self.offsetIndex, self.offsetArray.offsets.items.len });
         const nextByte = self.offsetArray.offsets.items[self.offsetIndex];
         self.offsetIndex += 1;
         var offset: u32 = 0;
@@ -110,10 +110,10 @@ pub const OffsetIterator = struct {
             assert(self.offsetIndex + 4 <= self.offsetArray.offsets.items.len);
             const offset_bytes = self.offsetArray.offsets.items[self.offsetIndex .. self.offsetIndex + 4];
             offset = std.mem.bytesToValue(u32, offset_bytes[0..4]);
-            std.debug.print("Large offset: {d}\n", .{offset});
+            // std.debug.print("Large offset: {d}\n", .{offset});
             self.offsetIndex += 4;
         } else {
-            std.debug.print("Small offset: {d}\n", .{nextByte});
+            // std.debug.print("Small offset: {d}\n", .{nextByte});
             offset = nextByte;
         }
 
