@@ -189,10 +189,11 @@ pub fn offsetJoin(offset_iterators: []OffsetIterator, merged_rows: *std.ArrayLis
     while (!done) {
         var all_match = true;
         for (offset_iterators[0..]) |*ref| {
-            var next_index = ref.next();
+            var next_index = ref.peek();
             // Skip all elements which are lower
             while (next_index != null and next_index.? < candidate_index.?) {
-                next_index = ref.next();
+                _ = ref.next();
+                next_index = ref.peek();
             }
             if (next_index == null) {
                 done = true;
@@ -205,6 +206,7 @@ pub fn offsetJoin(offset_iterators: []OffsetIterator, merged_rows: *std.ArrayLis
                 break;
             }
             // Else, next_index == candidate_index. Continue on to see if other columns match.
+            _ = ref.next();
         }
         if (all_match) {
             try merged_rows.append(candidate_index.?);
