@@ -4,6 +4,13 @@ const DB = db.DB;
 const Table = db.Table;
 const Term = db.Term;
 const assert = std.debug.assert;
+const offsetarray = @import("offsetarray.zig");
+const OffsetIterator = offsetarray.OffsetIterator;
+
+pub const Bindings = struct {
+    variable: *Term,
+    values: std.ArrayList(*Term),
+};
 
 pub const Datalog = struct {
     allocator: std.mem.Allocator,
@@ -35,6 +42,39 @@ pub const Datalog = struct {
         for (0.., columns) |i, column| {
             _ = try column.pushTerm(facts[i]);
         }
+    }
+
+    // TODO: return !?[]const Bindings
+    pub fn query(self: *Datalog, relation: *Table, pattern: []const *Term) void {
+        // Response can return the full facts, but it'll just be redundant with a lot of duplicate terms.
+        // Instead, it's more useful to just return the binds for each variable.
+
+        // TODO: Handle the multiple variable case.
+        // var binds = std.ArrayList(*Bindings).init(self.allocator);
+        // Indexes of the rows which match all constraints.
+
+        assert(pattern.len == relation.columns.count());
+
+        // List of iterators to the indexes each value appears at.
+        var ref_indexes = std.ArrayList(*OffsetIterator).init(self.allocator);
+
+        for (0.., pattern) |i, t| {
+            if (!t.*.isVariable()) {
+                // ID of this term within this relation.
+                const column = relation.getColumnByIndex(i);
+                const relTermId = t.*.getColumnRef(column.id);
+                if (relTermId == null) {
+                    return null;
+                }
+                // Where this term appears in this column
+                // TODO: We can convert this merge operation to sparse bitset.
+                const termRefs = column.refs[relTermId.?];
+                try ref_indexes.append(OffsetIterator{ .offsetArray = &termRefs.offsets });
+            }
+        }
+
+        // Now join all of these offsets to find our final list.
+
     }
 
     pub fn term(self: *Datalog, name: []const u8) !*Term {
@@ -69,23 +109,17 @@ test "Ancestor relations" {
     const lisp = try dl.term("lisp");
     const kotlin = try dl.term("kotlin");
 
-    var facts1 = [_]*Term{ c, cpp };
-    try dl.addFact(parent_rel, &facts1);
-
-    var facts2 = [_]*Term{ cpp, java };
-    try dl.addFact(parent_rel, &facts2);
-
-    var facts3 = [_]*Term{ java, scala };
-    try dl.addFact(parent_rel, &facts3);
-
-    var facts4 = [_]*Term{ java, clojure };
-    try dl.addFact(parent_rel, &facts4);
-
-    var facts5 = [_]*Term{ lisp, clojure };
-    try dl.addFact(parent_rel, &facts5);
-
-    var facts6 = [_]*Term{ java, kotlin };
-    try dl.addFact(parent_rel, &facts6);
+    try dl.addFact(parent_rel, &[_]*Term{ c, cpp });
+    try dl.addFact(parent_rel, &[_]*Term{ cpp, java });
+    try dl.addFact(parent_rel, &[_]*Term{ java, scala });
+    try dl.addFact(parent_rel, &[_]*Term{ java, clojure });
+    try dl.addFact(parent_rel, &[_]*Term{ lisp, clojure });
+    try dl.addFact(parent_rel, &[_]*Term{ java, kotlin });
 
     std.debug.print("=== Ancestor relations test completed ===\n", .{});
+
+    // Be able to query with variables that match a pattern.
+    const childVar = try dl.variable("child");
+    const qJavaChilds = try dl.query(parent_rel, &[_]*Term{ java, childVar });
+    std.debug.print("Java childs: {s}\n", .{qJavaChilds});
 }

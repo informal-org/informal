@@ -302,6 +302,9 @@ pub fn SparseBitset(comptime Range: type) type {
             }
         }
 
+        // TODO: Clear function to unset a bit.
+        // The tricky part is clearing the higher-levels as well if the level is now empty.
+
         pub fn isSet(self: *Self, index: Range) bool {
             var iter = traverse.init(self, index);
             while (iter.level_idx >= 0) {

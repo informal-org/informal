@@ -134,6 +134,11 @@ pub const Table = struct {
 
         return column_ptr;
     }
+
+    pub fn getColumnByIndex(self: *Table, index: u32) *Column {
+        assert(index < self.columns.count());
+        return self.columns.values()[index];
+    }
 };
 
 pub const Column = struct {
@@ -146,7 +151,7 @@ pub const Column = struct {
     // We could remove this and replace it with a max term ID if needed.
     terms: std.ArrayList(*Term),
     // The raw list of byte values, indicating which term appears in that position (based on the term index)
-    // If there are more than 255 values, then the second arraylist is used for newer terms going forward.
+    // If there are more than 255 terms, then the second arraylist is used for newer terms going forward.
     order: std.ArrayList(u8),
     // Only used if there are more than 255 distinct terms (i.e. term ID overflow). Initialized to empty capacity.
     // Since columns only add, and term IDs only increase, you can conceptually think of this array as continuing where order left off.
