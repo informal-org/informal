@@ -145,6 +145,9 @@ pub fn compile_file(filename: []u8) !void {
             break;
         }
         try process_chunk(buffer[0..readResult], reader, gpa.allocator(), &out_name);
+        // TODO: Safety check - there's an implicit assumption that the contents of the buffer are not referenced after chunk processing is done.
+        // Else it's a use after free or it might be referencing something else than intended.
+        // TODO: Handle larger files beyond the 16kb size.
         buffer = undefined;
     }
 }

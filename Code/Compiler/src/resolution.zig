@@ -101,6 +101,44 @@ pub const Resolution = struct {
         self.scopeStack.deinit();
     }
 
+    pub fn startScope(
+        self: *Self,
+        scope: Scope,
+    ) !void {
+        try self.scopeStack.append(scope);
+        self.scopeId += 1;
+    }
+
+    pub fn endScope(self: *Self, index: u32) !void {
+        const scope = self.scopeStack.pop();
+        // Go and patch the start in the parsed queue to point to the end.
+        // Return back the token which should be inserted.
+        const startNode = self.parsedQ.list.items[scope.start];
+        self.parsedQ.list.items[scope.start] = tok.Token.lex(startNode.kind, index, startNode.data.value.arg1);
+    }
+
+    fn getCurrentScope(self: *Self) Scope {
+        // The scope stack is always non-empty since we initialize with a base module scope
+        return self.scopeStack.items[self.scopeStack.items.len - 1];
+    }
+
+    pub fn declare(
+        self: *Self,
+        index: u32,
+        token: tok.Token,
+    ) tok.Token {
+        const result = self.chainTokenDeclaration(index, token);
+        self.declarations[token.data.value.arg0] = index;
+        if (DEBUG) {
+            tok.print_token("Declared [{any}] at", token, "");
+            print(" {any}\n", .{index});
+        }
+
+        // Resolve any previously unresolved refs for this given symbol.
+        self.resolveForwardDeclarations(index, result);
+        return result;
+    }
+
     fn chainTokenDeclaration(self: *Self, index: u32, token: tok.Token) tok.Token {
         // Internal helper to add a new declaration for a given symbol
         const symbol = token.data.value.arg0;
@@ -119,12 +157,7 @@ pub const Resolution = struct {
         }
     }
 
-    fn getCurrentScope(self: *Self) Scope {
-        // The scope stack is always non-empty since we initialize with a base module scope
-        return self.scopeStack.items[self.scopeStack.items.len - 1];
-    }
-
-    fn forwardDeclare(self: *Self, declarationIndex: u32, token: tok.Token) void {
+    fn resolveForwardDeclarations(self: *Self, declarationIndex: u32, token: tok.Token) void {
         // Check if the current scope type supports forward-declaration where the usage can come before the declaration.
         const currentScope = self.getCurrentScope();
         if (currentScope.scopeType == .module or currentScope.scopeType == .object) {
@@ -164,23 +197,6 @@ pub const Resolution = struct {
         }
     }
 
-    pub fn declare(
-        self: *Self,
-        index: u32,
-        token: tok.Token,
-    ) tok.Token {
-        const result = self.chainTokenDeclaration(index, token);
-        self.declarations[token.data.value.arg0] = index;
-        if (DEBUG) {
-            tok.print_token("Declared [{any}] at", token, "");
-            print(" {any}\n", .{index});
-        }
-
-        // Resolve any previously unresolved refs for this given symbol.
-        self.forwardDeclare(index, result);
-        return result;
-    }
-
     pub fn resolve(self: *Self, index: u32, token: tok.Token) tok.Token {
         // Resolve a symbol to a declaration, or add it to the unresolved list if no declarations are found.
         // If there are previous unresolved refs, set this symbol's offset to that in the parsed queue.
@@ -189,6 +205,8 @@ pub const Resolution = struct {
         const offset = if (self.declarations[symbol] != UNDECLARED_SENTINEL) calcOffset(u16, self.declarations[symbol], index) else UNDECLARED_SENTINEL;
         if (self.declarations[symbol] == UNDECLARED_SENTINEL) {
             // No declarations found, add to unresolved list.
+            // TODO: Reviewing this code again, Do I need a linked-list structure for this too?
+            // TODO TODO TODO
             self.unresolved[symbol] = index;
         }
         if (DEBUG) {
@@ -202,22 +220,6 @@ pub const Resolution = struct {
             .data = .{ .value = .{ .arg0 = symbol, .arg1 = offset } },
             .aux = token.aux,
         };
-    }
-
-    pub fn startScope(
-        self: *Self,
-        scope: Scope,
-    ) !void {
-        try self.scopeStack.append(scope);
-        self.scopeId += 1;
-    }
-
-    pub fn endScope(self: *Self, index: u32) !void {
-        const scope = self.scopeStack.pop();
-        // Go and patch the start in the parsed queue to point to the end.
-        // Return back the token which should be inserted.
-        const startNode = self.parsedQ.list.items[scope.start];
-        self.parsedQ.list.items[scope.start] = tok.Token.lex(startNode.kind, index, startNode.data.value.arg1);
     }
 };
 

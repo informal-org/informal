@@ -580,6 +580,7 @@ pub const MachOLinker = struct {
 
     pub fn deinit(self: *Self) void {
         self.headerBuffer.deinit();
+        self.sectionBuffer.deinit();
     }
 
     const DEFAULT_SEGMENT_VM_SIZE = 0x4000; // In-memory size of this segment.

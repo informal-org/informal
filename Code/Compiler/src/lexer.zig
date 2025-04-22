@@ -64,6 +64,10 @@ pub const Lexer = struct {
     // Interned constants.
     symbolTable: *std.StringHashMap(u64),
     // internedStrings: *std.StringHashMap(u64),
+    // TODO: Right now we're doing all of the interning in the lexer, but it might be slightly beneficial to do it in the parser instead.
+    // The lexer can still identify the type and the boundaries, but avoid the tiny-allocations and remain purely IO bound that way.
+    // The parser would then be responsible for normalizing these into globally or chunk-relative interned values.
+    // That also has the added advantage of being more incremental, since later stages can merge/alias identifiers in a chunk-relative manner.
     internedStrings: *StringArrayHashMap(u64),
     internedNumbers: *std.AutoHashMap(u64, u64), // Key is the const. Val = the index.
     internedFloats: *std.AutoHashMap(f64, u64),
@@ -275,11 +279,13 @@ pub const Lexer = struct {
         if (self.index < self.buffer.len and self.buffer[self.index] == '"') {
             self.index += 1;
         } else {
+            // TODO: Error handling for unterminated strings.
             unreachable; // Error: Unterminated string
         }
 
         const tokenLen = outIndex - tokenStart;
         if (tokenLen > (2 << 16)) {
+            // TODO: Error handling for extra-long strings.
             unreachable; // Error: String too long
         }
 
@@ -288,6 +294,8 @@ pub const Lexer = struct {
         const constIdxEntry = self.internedStrings.getOrPutValue(strValue, self.internedStrings.count()) catch unreachable;
         const constIdx: u64 = constIdxEntry.value_ptr.*;
         try self.emitToken(Token.lex(TK.lit_string, @truncate(constIdx), @truncate(tokenLen)));
+
+        // TODO: Assert - beginning and end isn't quotes (unless end has a slash right before).
     }
 
     fn is_identifier_delimiter(ch: u8) bool {
@@ -323,6 +331,7 @@ pub const Lexer = struct {
     fn push_identifier(self: *Lexer, start: u32) u64 {
         // Max identifier length.
         if (self.index - start > 255) {
+            // TODO: Error handling for extra-long identifiers.
             unreachable;
         }
         const name = self.buffer[start..self.index];
@@ -552,10 +561,12 @@ pub const Lexer = struct {
     }
 
     fn tiny_stack_push(self: *Lexer, indentLvl: u3) void {
+        // TODO: Assert bounds. We kinda check underflow in token_indentation, but maybe worth checking here too.
         self.indentStack = (self.indentStack << 3) | indentLvl;
     }
 
     fn tiny_stack_pop(self: *Lexer) u3 {
+        // TODO: Assert bounds
         const indentLvl = self.indentStack & 0b111;
         self.indentStack >>= 3;
         return @truncate(indentLvl);
@@ -568,12 +579,14 @@ pub const Lexer = struct {
         const ch = self.peek_ch();
         if (ch == '\n') {
             // Skip emitting anything when the entire line is empty.
+            // TODO: Make sure this doesn't affect line counting.
             return tok.AUX_SKIP; // TODO: Return a special token to skip
         } else if (ch == '\t') {
             // Error on tabs - because it'll look like indentation visually, but don't have semantic meaning.
             // So either we have to raise an error error or accept tabs.
             print("Error: Mixed indentation. Use 4 spaces to align.", .{});
             // return tok.LEX_ERROR; // TODO
+            // TODO: Incorrect - Terminate instead of skipping.
             return tok.AUX_SKIP;
         } else {
             if (DEBUG) {
@@ -586,6 +599,7 @@ pub const Lexer = struct {
                     // You can indent pretty far, but just can't do more than 8 spaces at a time.
                     print("Indentation level too deep. Use 4 spaces to align.", .{});
                     // return tok.LEX_ERROR;
+                    // TODO: Incorrect - Terminate instead of skipping.
                     return tok.AUX_SKIP;
                 }
                 self.tiny_stack_push(@truncate(diff));

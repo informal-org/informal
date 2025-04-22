@@ -57,6 +57,7 @@ pub const Datalog = struct {
 
         // List of iterators to the indexes each value appears at.
         var ref_indexes = std.ArrayList(*OffsetIterator).init(self.allocator);
+        var variable_count = 0;
 
         for (0.., pattern) |i, t| {
             if (!t.*.isVariable()) {
@@ -67,14 +68,24 @@ pub const Datalog = struct {
                     return null;
                 }
                 // Where this term appears in this column
-                // TODO: We can convert this merge operation to sparse bitset.
+                // TODO: Benchmark converting this merge operation to sparse bitset.
+                // Current version is likely better (due to its skip behavior), but the bitset can process more at once.
                 const termRefs = column.refs[relTermId.?];
                 try ref_indexes.append(OffsetIterator{ .offsetArray = &termRefs.offsets });
+            } else {
+                variable_count += 1;
             }
         }
 
         // Now join all of these offsets to find our final list.
+        var merged = std.ArrayList(u32).init(self.allocator);
+        offsetarray.offsetJoin(ref_indexes.items, &merged);
 
+        if (variable_count == 0) {
+            // Still return something to indicate whether we found any matches or not.
+        }
+
+        return merged;
     }
 
     pub fn term(self: *Datalog, name: []const u8) !*Term {

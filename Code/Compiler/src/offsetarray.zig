@@ -92,7 +92,7 @@ pub const OffsetIterator = struct {
 
     pub fn next(self: *OffsetIterator) ?u32 {
         if (self.runLength > 0) {
-            std.debug.print("Run length: {d}\n", .{self.runLength});
+            // std.debug.print("Run length: {d}\n", .{self.runLength});
             self.runLength -= 1;
             self.currentIndex += self.lastOffset;
             return self.currentIndex;
@@ -130,7 +130,7 @@ pub const OffsetIterator = struct {
 
     pub fn peek(self: *OffsetIterator) ?u32 {
         if (self.runLength > 0) {
-            std.debug.print("Run length: {d}\n", .{self.runLength});
+            // std.debug.print("Run length: {d}\n", .{self.runLength});
             return self.currentIndex + self.lastOffset;
         }
         if (self.offsetIndex >= self.offsetArray.offsets.items.len) {

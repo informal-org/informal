@@ -204,7 +204,7 @@ pub const Parser = struct {
             }
             const ident = self.resolution.resolve(@truncate(self.parsedQ.list.items.len), token);
             if (kind == TK.call_identifier) {
-                // Next token is known to be an open-paren. But put it after the identifier.
+                // Next token is known to be an open-paren. But put it after the identifier, so it's kinda in a lispy form. (foo ...)
                 const next = self.syntaxQ.pop();
                 if (next.kind != TK.aux_stream_end) {
                     if (next.kind != TK.grp_open_paren) {
@@ -258,6 +258,7 @@ pub const Parser = struct {
             const scopeId = self.resolution.scopeId;
             const startIdx = self.parsedQ.list.items.len;
             try self.emitParsed(tok.Token.lex(TK.grp_indent, 0, scopeId)); // We emit the indentation start right away to denote blocks.
+            // TODO: Pass in the correct scope type.
             try self.resolution.startScope(rs.Scope{ .start = @truncate(startIdx), .scopeType = .block }); // TODO: Scope type
             // try self.pushOp(token);
             // We actually push the `dedent` token onto the stack instead, since that's the marker we want at the end.
@@ -321,6 +322,7 @@ pub const Parser = struct {
             if (kind == TK.op_assign_eq) {
                 // Assume - the token to the left was the identifier.
                 // When we add destructuring in the future, this will need to change.
+                // TODO: This is fairly brittle since the previous val may not be an identifier or it might be a more complex definition.
                 const ident = self.resolution.declare(@truncate(self.parsedQ.list.items.len - 1), self.parsedQ.list.getLast());
                 self.parsedQ.list.items[self.parsedQ.list.items.len - 1] = ident;
 
