@@ -69,6 +69,10 @@ pub const OffsetArray = struct {
                     // Replace the last 4 bytes with the incremented runLength.
                     const runLengthBytes = std.mem.toBytes(self.runLength);
                     const runLengthBytesIndex = self.offsets.items.len - 4;
+                    // TODO: Might be inefficient if this is an unaligned write we repeatedly do.
+                    // A strategy to mitigate would be that the zero-value would pad till alignment boundary.
+                    // Indexing then just needs to shift to alignment + 1 to read the legnth.
+                    // Or alternatively, we keep the counter outside and only write it once at the end when it's no longer a run. (likely better option).
                     for (0..4) |i| {
                         self.offsets.items[runLengthBytesIndex + i] = runLengthBytes[i];
                     }
