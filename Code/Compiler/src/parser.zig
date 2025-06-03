@@ -18,35 +18,22 @@ const TokBitset = bitset.BitSet64;
 
 const isKind = bitset.isKind;
 
-// Expresses the syntactic structures we want to match for validation and/or rewriting.
-// You can read each pattern here as if it's a token <varialbe> token <variable> sequence
-// i.e. there's an implicit variable captured in between each keyword.
-// The lexer is expected to combine multi-tokens into a single token, making these patterns easier to match.
-// Pattern should be in sorted-order, grouped by the kind (allowing later stages to optimize shared prefix matching)
-// NUD - null denotation. These are all keyword-starts.
-// Optimization: The lexer also maintains linkage for each token-type, allowing us to "seek" to the next token-type
-// without needing to individually examine each token in between.
-// Another option here is we could store bitsets if we want to match groups of things (without needing to distinguish it).
-const NUD_STRUCTURES = [_][]const TK{
-    &[_]TK{ TK.kw_if, TK.op_colon_assoc, TK.kw_else }, // if [condition]: [body] else [else_body]
-    &[_]TK{
-        // if [condition_head]:
-        //     [condition_map]
-        TK.kw_if,
-        TK.op_colon_assoc,
-        TK.grp_indent,
-        TK.grp_dedent,
-    },
-    // TODO: If: should get lexed as a bare if
-};
-
+/// The parser is solely responsible for recognizing structures and putting it in a useful form.
+/// It should not concern itself with more semantic validity checks - that can come in a later stage.
+/// Assumptions:
+///   - Lexer combines multi-token keywords into a single token.
+///   - Lexer normalizes unary minus into negative literals or a negatie multiplication. That removes a multi-role operator special-case.
+/// The parser handles these semantic structures:
+///   <Prefix> <Value> - Where value always denotes either a literal or an identifier.
+///   <Value> <Infix> <Value>
+///   <Type> (<Type>..) <Value>
+///   <GroupStart> (<Value> <Separator>)+ | (<Value>) <GroupEnd> - i.e. Grouping tokens like (), {}, [], indent-dedent, etc.
+///   <Keyword> (Header) ":" <Body> (<ContinuationKeyword>)
+///      - The ordering in the token list should group the keywords such that startKeyword + 1 = continuationKeyword for all that have continuaton
+///      - And we group those structures which have continuation separate from those without (allowing us to check what type it is just by index)
 /// Some syntax notes:
 /// We don't have the traditional "else if". That leads to an unbalanced visual structure.
 /// Instead, we use switch/match style conditional blocks, which aligns the conditions and bodies more regularly.
-
-// Infix like structures.
-const LED_STRUCTURES = [_][]const TK{};
-
 const DEBUG = constants.DEBUG;
 // The parser takes a token stream from the lexer and converts it into a valid structure.
 // It's only concerned with the grammatic structure of the code - not the meaning.
@@ -185,8 +172,54 @@ pub const Parser = struct {
     // { } - Empty scope is invalid?
     // Indent - Indentation at beginning of file is invalid.
     // Separators - , ; etch are invalid at the beginning.
+    // -------------------------------------------
+    // #Optimization - Rather than multiple comparisons, it would be nice to just jump to some table @ your type index.
+    // Or if we reduce the type down to certain significant bits necessary for that jump, it'll keep that table short.
+    // Or if we can't do that, the second best option is to calculate an index into that jump table using fast operations
+    // i.e. index = ctz(popcnt(BITSET | (1 << kind)) + 2 * popcnt(BITSET2 | (1 << kind)) + 4 * popcnt(BITSET3 | (1 << kind))...)
+    // Abstract this out into some hash-jump abstraction which will map from some comptime bitsets to functions. It's broadly applicable.
     /////////////////////////////////////////////
     fn initial_state(self: *Self) !void {
+        const token = self.syntaxQ.pop();
+        if (token.kind == tok.AUX_STREAM_END.kind) {
+            return;
+        }
+        const kind = token.kind;
+        if (isKind(tok.LITERALS, kind) || isKind(tok.IDENTIFIER, kind)) {
+            try self.emitParsed(token);
+            try self.expect_binary();
+        } else if (isKind(tok.UNARY_OPS, kind)) {
+            tok.print_token("Initial state - UNARY Op: {any}\n", token, self.buffer);
+        } else if (isKind(tok.GROUP_START, kind)) {
+            // All of the groupings introduce their own child-scope. Yes, not just indentation, also (), [], {}.
+            tok.print_token("Initial state - Group start: {any}\n", token, self.buffer);
+            const scopeId = self.resolution.scopeId;
+            const startIdx = self.parsedQ.list.items.len;
+            try self.emitParsed(tok.Token.lex(kind, 0, scopeId)); // We emit the indentation start right away to denote blocks.
+            // TODO: Pass in the correct scope type.
+            try self.resolution.startScope(rs.Scope{ .start = @truncate(startIdx), .scopeType = .block }); // TODO: Scope type
+            // try self.pushOp(token);
+            // We actually push the `dedent` token onto the stack instead, since that's the marker we want at the end.
+            const groupEnd: TK = @enumFromInt(@intFromEnum(kind) - 1);
+            try self.pushOp(Token.lex(groupEnd, @truncate(startIdx), scopeId));
+            try self.initial_state();
+
+            // TODO: We need something to handle separators within lists consistently.
+        } else if (isKind(tok.GROUP_END, kind)) {
+            tok.print_token("Initial state - GROUP END: {any}\n", token, self.buffer);
+            try self.flushUntilToken(kind);
+            try self.resolution.endScope(@truncate(self.parsedQ.list.items.len));
+            try self.initial_state();
+        } else if (isKind(tok.KEYWORD_START, kind)) {
+            // There's several variants of keyword-denoted structures
+            // <keyword> <header> : <body> <continuation> ...
+            // <keyword> : <body>  - Like else: .... Header and continuation is optional but body isn't.
+            // For some structures, the continuation is required. Like try catch.
+
+        }
+    }
+
+    fn old_initial_state(self: *Self) !void {
         const token = self.syntaxQ.pop();
         if (token.kind == tok.AUX_STREAM_END.kind) {
             return;
