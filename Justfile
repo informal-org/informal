@@ -1,8 +1,11 @@
+set working-directory := 'Code/Compiler'
+
+
 build:
     zig build
 
-add:
-    zig build && ./zig-out/bin/Former test/data/add.ifi
+basic-test:
+    zig build && ./zig-out/bin/Former ../../Tests/FileTests/add.ifi
 
 test:
 	zig test src/filetest.zig --test-filter "filetest"
@@ -31,16 +34,3 @@ informal NAME='run':
 	echo "\nRan with code: $?"
 	[ $? -eq 13 ] || true
 
-
-bindiff:
-    bash -c "diff -y <(xxd minimal) <(xxd ~/code/informal/Sources/Former/out.bin)"
-
-llink:
-	ld64.lld hello.o -o llvm_hello -arch arm64 -platform_version macos 10.15 11.0 -e _main
-
-ldlink:
-	# Must have -pie and -codesignature or it'll run into security restrictions on mac
-	# Static version - which runs into code signature issues.
-	# ld hello.o -o minimal -dead_strip -no_uuid -S -x -no_eh_labels -e _main -static -pie -adhoc_codesign -random_uuid
-	# ld hello.o -o minimal -S -x -e _main -pie -adhoc_codesign -dead_strip -no_uuid
-	ld hello.o -o minimal -no_uuid

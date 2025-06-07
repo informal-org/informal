@@ -10,7 +10,7 @@ const Token = tok.Token;
 const StringArrayHashMap = std.array_hash_map.StringArrayHashMap;
 const TK = tok.Kind;
 const print = std.debug.print;
-const platform = @import("platform.zig");
+const platform = @import("darwin.zig");
 const constants = @import("constants.zig");
 
 const DEBUG = constants.DEBUG;

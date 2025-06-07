@@ -5,7 +5,7 @@ const std = @import("std");
 // Reference:
 // https://developer.arm.com/documentation/ddi0602/2024-12/Index-by-Encoding?lang=en
 
-const platform = @import("platform.zig");
+const platform = @import("darwin.zig");
 
 pub const Reg = enum(u5) {
     x0 = 0,

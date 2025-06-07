@@ -29,17 +29,17 @@ Comments and Documentation
 
 Variables and Types
 ```
-// Variable names can contain spaces. Yes, really.
-String hello world = "Hello, World!"
+hello_world : String = "Hello, World!"
 
 // Types can be inferred.
-is spring = True
+is_spring = True
 
 // Types can depend on other types (Generic Types) or on values (Dependent Types).
-Int(32) power level = 9000
+power_level : Int(32) = 9000
 
-fun slice(Array arr, Int index < arr.length) Array(size=index):
-// Or more explicitly as slice(Array arr, Int index if index < arr.length)    
+fn slice(arr : Array, index : Int index < arr.size) Array(size=index): ...
+// Or more explicitly as slice(Array arr, Int index if index < arr.size)
+
 
 ```
 
@@ -56,22 +56,23 @@ Conditions
 ```
 // Informal has just a single conditional operator - the pattern-matching "if".
 if sunny:
-    go outside()
+    go_outside()
 else if rainy:
-    go outside with umbrella()
+    go_outside_with_umbrella()
 else:
+    stay_inside()
 
 
 // You can use it as a switch case. 
 // Conditions are expressions, so you can capture their result and store it as a variable.
-char type = if ch:
+classify_letter = if ch:
     ' ': "ch is a Space"
     'a'..'z' | 'A'..'Z': "ch is a Letter"
     '0'..'9': "ch is a Digit"
     else: "ch is something else"
 
 // You can match against other kinds of operators
-if grade >:
+if grade >
     90: "A"
     80: "B"
     70: "C"
@@ -88,9 +89,9 @@ if (n % 5, n % 3):
 // Or specify each branch separately
 if:
     user.email:
-        send confirmation email(user.email)
-    user.phone OR user.messenger id:
-        send confirmation text(user)
+        send_confirmation_email(user.email)
+    user.phone or user.messenger_id:
+        send_confirmation_text(user)
 ```
 
 Array operators and functional constructs replace the need for most loops, but Informal still comes with a flexible for loop to process any kind of data.
@@ -111,25 +112,25 @@ months: {"January": 1, "February": 2, "March": 3, "April": 4,
         "May": 5, "June": 6, "July": 7, "August": 8, 
         "September": 9, "October": 10, "November": 11, "December": 12}
 
-invert months = for month str, month num IN months:
-    { month num : month str }
+invert_months = for month_str, month_num in months:
+    { month_num : month_str }
 
 // You can iterate over multiple data streams at once. 
 // This often comes in useful for "zipping" values together.
 brr = [10, 20, 30, 40, 50]
-for x IN arr, y IN brr:
+for x in arr, y in brr:
     x + y
 
 // [11, 22, 33, 44, 55]
 
 // You can specify guard clauses to break out of loops early.
-for x IN [1..10]: if x < 4
+for x in [1..10] if x < 4:
     x + 10
 
 // Or leave out the conditional clause, to loop "while" the guard-clause is true.
 
 n = 12
-for: if n != 1
+for if n != 1:
     if n % 2:
         n = n / 2
     else:
@@ -138,7 +139,7 @@ for: if n != 1
 ```
 
 
-```kotlin
+```
 // Array operations
 2 * [10, 20, 30]
 // [20, 40, 60]
@@ -173,14 +174,22 @@ Functions, Types and the patterns beneath it all
 // Everything in Informal is built on a single concept. Pattern Matching.
 // Functions are a mapping that transform an input to an output.
 
-fun concat([], []): []
-fun concat([], [a]): a
-fun concat([a, ...restA], Array b): [a, ...concat(restA, b)]
+
+// Anonymous functions
+(x) :: x + 1
+
+// Named functions
+
+fn concat([], []): []
+fn concat([], [a]): a
+fn concat([a, ...restA], Array b): [a, ...concat(restA, b)]
 
 // We can then use this function backwards, to query the language for all pair of lists which concat to give a given result.
 
-// Find a variable A, B such that concating the two will match [1, 2, 3]
+// A lambda that maps a variable A, B such that concating the two will match [1, 2, 3]
 A, B :: concat(A, B) = [1, 2, 3]
+// Uppercase predicate parameters are available in-scope with values matching the predicates.
+print(A, B)
 
 // A = [], B = [1, 2, 3]
 // Or query for all possibilities
@@ -193,31 +202,25 @@ A[], B[] :: concat(A, B) = [1, 2, 3]
 // You can define structure and match with it.
 
 DateString:
-    year string.Digits(4)
+    year : string.Digits(4)
     "-"
-    month string.Digits(2)
+    month : string.Digits(2)
     "-"
-    day string.Digits(2)
+    day : string.Digits(2)
 
 
 // Use destructuring to unwrap the data by patterns, without regex.
-DateString d = "2023-03-05"
+d: DateString = "2023-03-05"
 d.year == "2023"
 // Or forward, to use it as a pattern to encode the data.
 d2 = DateString(year="2023", month="03", day="05")
 d == d2
 
 
-// Anonymous functions
-(x): x + 1
-// You can avoid naming x in these cases.
-array.map(_ + 1)
-
-
 // Macros and meta programming
 // Macros can be defined as just regular functions, which take in code and return new code.
 
-fun cache(Expression code): Expression
+fn cache(code: Expression) Expression:
     code.arguments[1]
 
 

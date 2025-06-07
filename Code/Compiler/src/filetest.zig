@@ -13,6 +13,9 @@ fn exitCodeTest(filename: []const u8) !u32 {
     // Create an executable with the given assembly code.
     // Execute it and check the exit code.
 
+    // Clean up any existing test.bin file to ensure proper permissions are set
+    std.fs.cwd().deleteFile("test.bin") catch {};
+
     const re = try reader.Reader.init(test_allocator);
     defer re.deinit();
 

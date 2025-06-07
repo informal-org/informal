@@ -719,6 +719,7 @@ pub const MachOLinker = struct {
     }
 
     pub fn emitBinary(self: *Self, code: []const u32, internedStrings: *StringArrayHashMap(u64), constSize: usize, outfile: []const u8) !void {
+        // Note: Need to ensure the file doesn't exist. If the file exists without the execute permission bit, it won't get set and you'll get an error.
         const file = try std.fs.cwd().createFile(
             outfile,
             .{ .read = true, .mode = 0o755 },

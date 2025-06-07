@@ -179,47 +179,46 @@ pub const Parser = struct {
     // i.e. index = ctz(popcnt(BITSET | (1 << kind)) + 2 * popcnt(BITSET2 | (1 << kind)) + 4 * popcnt(BITSET3 | (1 << kind))...)
     // Abstract this out into some hash-jump abstraction which will map from some comptime bitsets to functions. It's broadly applicable.
     /////////////////////////////////////////////
+    // fn initial_state(self: *Self) !void {
+    //     const token = self.syntaxQ.pop();
+    //     if (token.kind == tok.AUX_STREAM_END.kind) {
+    //         return;
+    //     }
+    //     const kind = token.kind;
+    //     if (isKind(tok.LITERALS, kind) || isKind(tok.IDENTIFIER, kind)) {
+    //         try self.emitParsed(token);
+    //         try self.expect_binary();
+    //     } else if (isKind(tok.UNARY_OPS, kind)) {
+    //         tok.print_token("Initial state - UNARY Op: {any}\n", token, self.buffer);
+    //     } else if (isKind(tok.GROUP_START, kind)) {
+    //         // All of the groupings introduce their own child-scope. Yes, not just indentation, also (), [], {}.
+    //         tok.print_token("Initial state - Group start: {any}\n", token, self.buffer);
+    //         const scopeId = self.resolution.scopeId;
+    //         const startIdx = self.parsedQ.list.items.len;
+    //         try self.emitParsed(tok.Token.lex(kind, 0, scopeId)); // We emit the indentation start right away to denote blocks.
+    //         // TODO: Pass in the correct scope type.
+    //         try self.resolution.startScope(rs.Scope{ .start = @truncate(startIdx), .scopeType = .block }); // TODO: Scope type
+    //         // try self.pushOp(token);
+    //         // We actually push the `dedent` token onto the stack instead, since that's the marker we want at the end.
+    //         const groupEnd: TK = @enumFromInt(@intFromEnum(kind) - 1);
+    //         try self.pushOp(Token.lex(groupEnd, @truncate(startIdx), scopeId));
+    //         try self.initial_state();
+
+    //         // TODO: We need something to handle separators within lists consistently.
+    //     } else if (isKind(tok.GROUP_END, kind)) {
+    //         tok.print_token("Initial state - GROUP END: {any}\n", token, self.buffer);
+    //         try self.flushUntilToken(kind);
+    //         try self.resolution.endScope(@truncate(self.parsedQ.list.items.len));
+    //         try self.initial_state();
+    //     } else if (isKind(tok.KEYWORD_START, kind)) {
+    //         // There's several variants of keyword-denoted structures
+    //         // <keyword> <header> : <body> <continuation> ...
+    //         // <keyword> : <body>  - Like else: .... Header and continuation is optional but body isn't.
+    //         // For some structures, the continuation is required. Like try catch.
+    //     }
+    // }
+
     fn initial_state(self: *Self) !void {
-        const token = self.syntaxQ.pop();
-        if (token.kind == tok.AUX_STREAM_END.kind) {
-            return;
-        }
-        const kind = token.kind;
-        if (isKind(tok.LITERALS, kind) || isKind(tok.IDENTIFIER, kind)) {
-            try self.emitParsed(token);
-            try self.expect_binary();
-        } else if (isKind(tok.UNARY_OPS, kind)) {
-            tok.print_token("Initial state - UNARY Op: {any}\n", token, self.buffer);
-        } else if (isKind(tok.GROUP_START, kind)) {
-            // All of the groupings introduce their own child-scope. Yes, not just indentation, also (), [], {}.
-            tok.print_token("Initial state - Group start: {any}\n", token, self.buffer);
-            const scopeId = self.resolution.scopeId;
-            const startIdx = self.parsedQ.list.items.len;
-            try self.emitParsed(tok.Token.lex(kind, 0, scopeId)); // We emit the indentation start right away to denote blocks.
-            // TODO: Pass in the correct scope type.
-            try self.resolution.startScope(rs.Scope{ .start = @truncate(startIdx), .scopeType = .block }); // TODO: Scope type
-            // try self.pushOp(token);
-            // We actually push the `dedent` token onto the stack instead, since that's the marker we want at the end.
-            const groupEnd: TK = @enumFromInt(@intFromEnum(kind) - 1);
-            try self.pushOp(Token.lex(groupEnd, @truncate(startIdx), scopeId));
-            try self.initial_state();
-
-            // TODO: We need something to handle separators within lists consistently.
-        } else if (isKind(tok.GROUP_END, kind)) {
-            tok.print_token("Initial state - GROUP END: {any}\n", token, self.buffer);
-            try self.flushUntilToken(kind);
-            try self.resolution.endScope(@truncate(self.parsedQ.list.items.len));
-            try self.initial_state();
-        } else if (isKind(tok.KEYWORD_START, kind)) {
-            // There's several variants of keyword-denoted structures
-            // <keyword> <header> : <body> <continuation> ...
-            // <keyword> : <body>  - Like else: .... Header and continuation is optional but body isn't.
-            // For some structures, the continuation is required. Like try catch.
-
-        }
-    }
-
-    fn old_initial_state(self: *Self) !void {
         const token = self.syntaxQ.pop();
         if (token.kind == tok.AUX_STREAM_END.kind) {
             return;
