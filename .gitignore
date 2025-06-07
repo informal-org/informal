@@ -9,3 +9,6 @@ dist/
 CLAUDE.md
 .cursorrules
 *.cursorrules
+.ropeproject/
+.mypy_cache/
+.idea/
