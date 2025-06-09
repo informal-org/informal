@@ -97,12 +97,12 @@ if:
 Array operators and functional constructs replace the need for most loops, but Informal still comes with a flexible for loop to process any kind of data.
 ```
 // The built-in for loop can be used as a for-each.
-for x in [1..5]:
+for x : [1..5]
     x + 10
 
 // You can specify a second parameter to get the index
 arr = [1, 2, 3, 4, 5]
-for index, value in arr:
+for index, value : 0.., arr
     value + 10
 
 // You can similarly loop over maps.
@@ -112,19 +112,19 @@ months: {"January": 1, "February": 2, "March": 3, "April": 4,
         "May": 5, "June": 6, "July": 7, "August": 8, 
         "September": 9, "October": 10, "November": 11, "December": 12}
 
-invert_months = for month_str, month_num in months:
+invert_months = for month_str, month_num : months
     { month_num : month_str }
 
 // You can iterate over multiple data streams at once. 
 // This often comes in useful for "zipping" values together.
 brr = [10, 20, 30, 40, 50]
-for x in arr, y in brr:
+for x : arr, y : brr
     x + y
 
 // [11, 22, 33, 44, 55]
 
 // You can specify guard clauses to break out of loops early.
-for x in [1..10] if x < 4:
+for x : [1..10] if x < 4
     x + 10
 
 // Or leave out the conditional clause, to loop "while" the guard-clause is true.
@@ -225,4 +225,9 @@ fn cache(code: Expression) Expression:
 
 
 ```
+
+# Pipeline
+x = readInt() |>
+    0: 0
+    (x) :: 1/x
 
