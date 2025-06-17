@@ -4,6 +4,12 @@ set working-directory := 'Code/Compiler'
 build:
     zig build
 
+build-wasi:
+	zig build -Dtarget=wasm32-wasi
+
+build-wasm:
+	zig build -Dtarget=wasm32-freestanding
+
 basic-test:
     zig build && ./zig-out/bin/Former ../../Tests/FileTests/add.ifi
 
