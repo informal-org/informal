@@ -29,8 +29,6 @@ const IDENTIFIER_DELIIMITERS = bitset.character_bitset("()[]{}\"'.,:;\t\n%*+-/^<
 const IDENTIFIER_DELIIMITERS_WITH_SPACE = bitset.extend_bitset(IDENTIFIER_DELIIMITERS, " 0123456789");
 const KEYWORD_DELIMITERS = bitset.extend_bitset(IDENTIFIER_DELIIMITERS, " "); // Don't add numbers here. Better to be stricter about space / symbol separated keywords.
 
-const DEBUG = constants.DEBUG;
-
 /// The lexer splits up an input buffer into tokens.
 /// The input buffer are smaller chunks of a source file.
 /// Lines are never split across chunks. The lexer yields after each line.
@@ -209,17 +207,13 @@ pub const Lexer = struct {
         const MAX_LITERAL_NUMBER = std.math.pow(u64, 2, 16);
         // Predicate: Unary minus is handled separately. So value is always implicitly > 0.
         if (value > MAX_LITERAL_NUMBER) {
-            if (DEBUG) {
-                print("Add number to constant pool {d} {d}\n", .{ value, len });
-            }
+            std.log.debug("Add number to constant pool {d} {d}", .{ value, len });
             // Add it to the numeric constant pool
             const constIdxEntry = self.internedNumbers.getOrPutValue(value, self.internedNumbers.count()) catch unreachable;
             const constIdx: u64 = constIdxEntry.value_ptr.*;
             try self.emitToken(Token.lex(TK.lit_number, @truncate(constIdx), 0));
         } else {
-            if (DEBUG) {
-                print("Emit literal number {d} {d}\n", .{ value, len });
-            }
+            std.log.debug("Emit literal number {d} {d}", .{ value, len });
             // Emit it as an immediate value.
             try self.emitToken(Token.lex(TK.lit_number, @truncate(value), @truncate(len)));
         }
@@ -335,12 +329,10 @@ pub const Lexer = struct {
             unreachable;
         }
         const name = self.buffer[start..self.index];
-        if (DEBUG) {
-            if (self.symbolTable.get(name)) |constIdx| {
-                print("REF {s} => Symbol {d}\n", .{ name, constIdx });
-            } else {
-                print("DEF {s} => Symbol {d}\n", .{ name, self.symbolTable.count() });
-            }
+        if (self.symbolTable.get(name)) |constIdx| {
+            std.log.debug("REF {s} => Symbol {d}", .{ name, constIdx });
+        } else {
+            std.log.debug("DEF {s} => Symbol {d}", .{ name, self.symbolTable.count() });
         }
 
         const constIdxEntry = self.symbolTable.getOrPutValue(name, self.symbolTable.count()) catch unreachable;
@@ -594,9 +586,7 @@ pub const Lexer = struct {
             // TODO: Incorrect - Terminate instead of skipping.
             return tok.AUX_SKIP;
         } else {
-            if (DEBUG) {
-                print("Indent: {d} Depth: {d}\n", .{ indent, self.depth });
-            }
+            std.log.debug("Indent: {d} Depth: {d}", .{ indent, self.depth });
             // Count and determine if it's an indent or dedent.
             if (indent > self.depth) {
                 const diff = indent - self.depth;
@@ -657,9 +647,7 @@ pub const Lexer = struct {
     }
 
     pub fn lex(self: *Lexer) !void {
-        if (DEBUG) {
-            print("\n------------- Lexer --------------- \n", .{});
-        }
+        std.log.debug("\n------------- Lexer --------------- \n", .{});
         // if (self.index >= self.buffer.len) {
         //     if (self.depth > 0) {
         //         // Flush any remaining open blocks.
@@ -717,9 +705,7 @@ pub const Lexer = struct {
                         // All multichar symbol starts are a subset of the single-char symbol starts.
                         if (MULTICHAR_BITSET.isSet(ch)) {
                             const peekCh = self.peek_ch();
-                            if (DEBUG) {
-                                print("Multichar: {c} {c}\n", .{ ch, peekCh });
-                            }
+                            std.log.debug("Multichar: {c} {c}", .{ ch, peekCh });
                             // All of the current multi-char symbols have = as the followup char.
                             // If that changes in the future, use a lookup string indexed by chBit popcnt index.
                             if (peekCh == '=') {
@@ -763,17 +749,13 @@ pub const Lexer = struct {
         try self.emitAux(tok.AUX_STREAM_END);
         try self.flushPrev(false);
 
-        if (DEBUG) {
-            print("\n------------- Lexer End --------------- \n", .{});
-            // Print the full interned symbol table
-            print("\nInterned Symbol Table:\n", .{});
-            var symbolIter = self.symbolTable.iterator();
-            while (symbolIter.next()) |entry| {
-                print("{d: <3} {s}\n", .{
-                    entry.value_ptr.*,
-                    entry.key_ptr.*,
-                });
-            }
+        std.log.debug("\n------------- Lexer End --------------- \n", .{});
+        var symbolIter = self.symbolTable.iterator();
+        while (symbolIter.next()) |entry| {
+            std.log.debug("{d: <3} {s}", .{
+                entry.value_ptr.*,
+                entry.key_ptr.*,
+            });
         }
     }
 };

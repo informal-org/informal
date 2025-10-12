@@ -6,6 +6,7 @@ const bitset = @import("bitset.zig");
 const rs = @import("resolution.zig");
 const constants = @import("constants.zig");
 
+const log = std.log.scoped(.parser);
 const print = std.debug.print;
 // const Token = tok.Token;
 const Token = tok.Token;
@@ -34,7 +35,7 @@ const isKind = bitset.isKind;
 /// Some syntax notes:
 /// We don't have the traditional "else if". That leads to an unbalanced visual structure.
 /// Instead, we use switch/match style conditional blocks, which aligns the conditions and bodies more regularly.
-const DEBUG = constants.DEBUG;
+
 // The parser takes a token stream from the lexer and converts it into a valid structure.
 // It's only concerned with the grammatic structure of the code - not the meaning.
 // It's a hybrid state-machine / recursive descent parser with state tables.
@@ -124,35 +125,27 @@ pub const Parser = struct {
     }
 
     fn flushUntilToken(self: *Self, kind: tok.Kind) !void {
-        if (DEBUG) {
-            print("Flush until token: {any}\n", .{kind});
-        }
+        log.debug("Flush until token: {any}\n", .{kind});
         // You could write a specialized version of this without the bitset, but this is cleaner.
         try self.flushUntil(bitset.token_bitset(&[_]tok.Kind{kind}));
     }
 
     fn pushOp(self: *Self, token: Token) !void {
-        if (DEBUG) {
-            tok.print_token("    PUSH: {any}\n", token, self.buffer);
-        }
+        log.debug("    PUSH: {any}", .{token});
         try self.flushOpStack(token);
         try self.opStack.append(ParseNode{ .token = token, .index = self.index });
     }
 
     fn push(self: *Self, token: Token) !void {
         // Push without flushing
-        if (DEBUG) {
-            tok.print_token("    PUSH: {any}\n", token, self.buffer);
-        }
+        log.debug("    PUSH: {any}\n", .{token});
         try self.opStack.append(ParseNode{ .token = token, .index = self.index });
     }
 
     fn popOp(self: *Self) !void {
         // TODO: We can do const-folding here by looking at the operands. If they're literals, emit the result instead of the op.
         const opNode = self.opStack.pop();
-        if (DEBUG) {
-            tok.print_token("    POP: {any}\n", opNode.token, self.buffer);
-        }
+        log.debug("    POP: {any}\n", .{opNode.token});
         try self.parsedQ.push(opNode.token);
         try self.pushOffset(opNode.index);
     }
@@ -173,51 +166,6 @@ pub const Parser = struct {
     // Indent - Indentation at beginning of file is invalid.
     // Separators - , ; etch are invalid at the beginning.
     // -------------------------------------------
-    // #Optimization - Rather than multiple comparisons, it would be nice to just jump to some table @ your type index.
-    // Or if we reduce the type down to certain significant bits necessary for that jump, it'll keep that table short.
-    // Or if we can't do that, the second best option is to calculate an index into that jump table using fast operations
-    // i.e. index = ctz(popcnt(BITSET | (1 << kind)) + 2 * popcnt(BITSET2 | (1 << kind)) + 4 * popcnt(BITSET3 | (1 << kind))...)
-    // Abstract this out into some hash-jump abstraction which will map from some comptime bitsets to functions. It's broadly applicable.
-    /////////////////////////////////////////////
-    // fn initial_state(self: *Self) !void {
-    //     const token = self.syntaxQ.pop();
-    //     if (token.kind == tok.AUX_STREAM_END.kind) {
-    //         return;
-    //     }
-    //     const kind = token.kind;
-    //     if (isKind(tok.LITERALS, kind) || isKind(tok.IDENTIFIER, kind)) {
-    //         try self.emitParsed(token);
-    //         try self.expect_binary();
-    //     } else if (isKind(tok.UNARY_OPS, kind)) {
-    //         tok.print_token("Initial state - UNARY Op: {any}\n", token, self.buffer);
-    //     } else if (isKind(tok.GROUP_START, kind)) {
-    //         // All of the groupings introduce their own child-scope. Yes, not just indentation, also (), [], {}.
-    //         tok.print_token("Initial state - Group start: {any}\n", token, self.buffer);
-    //         const scopeId = self.resolution.scopeId;
-    //         const startIdx = self.parsedQ.list.items.len;
-    //         try self.emitParsed(tok.Token.lex(kind, 0, scopeId)); // We emit the indentation start right away to denote blocks.
-    //         // TODO: Pass in the correct scope type.
-    //         try self.resolution.startScope(rs.Scope{ .start = @truncate(startIdx), .scopeType = .block }); // TODO: Scope type
-    //         // try self.pushOp(token);
-    //         // We actually push the `dedent` token onto the stack instead, since that's the marker we want at the end.
-    //         const groupEnd: TK = @enumFromInt(@intFromEnum(kind) - 1);
-    //         try self.pushOp(Token.lex(groupEnd, @truncate(startIdx), scopeId));
-    //         try self.initial_state();
-
-    //         // TODO: We need something to handle separators within lists consistently.
-    //     } else if (isKind(tok.GROUP_END, kind)) {
-    //         tok.print_token("Initial state - GROUP END: {any}\n", token, self.buffer);
-    //         try self.flushUntilToken(kind);
-    //         try self.resolution.endScope(@truncate(self.parsedQ.list.items.len));
-    //         try self.initial_state();
-    //     } else if (isKind(tok.KEYWORD_START, kind)) {
-    //         // There's several variants of keyword-denoted structures
-    //         // <keyword> <header> : <body> <continuation> ...
-    //         // <keyword> : <body>  - Like else: .... Header and continuation is optional but body isn't.
-    //         // For some structures, the continuation is required. Like try catch.
-    //     }
-    // }
-
     fn initial_state(self: *Self) !void {
         const token = self.syntaxQ.pop();
         if (token.kind == tok.AUX_STREAM_END.kind) {
@@ -225,15 +173,11 @@ pub const Parser = struct {
         }
         const kind = token.kind;
         if (isKind(tok.LITERALS, kind)) {
-            if (DEBUG) {
-                tok.print_token("Initial state - Literal: {any}\n", token, self.buffer);
-            }
+            log.debug("Initial state - Literal: {any}\n", .{token});
             try self.emitParsed(token);
             try self.expect_binary();
         } else if (isKind(tok.IDENTIFIER, kind)) {
-            if (DEBUG) {
-                tok.print_token("Initial state - Identifier: {any}\n", token, self.buffer);
-            }
+            log.debug("Initial state - Identifier: {any}\n", .{token});
             const ident = self.resolution.resolve(@truncate(self.parsedQ.list.items.len), token);
             if (kind == TK.call_identifier) {
                 // Next token is known to be an open-paren. But put it after the identifier, so it's kinda in a lispy form. (foo ...)
@@ -256,18 +200,14 @@ pub const Parser = struct {
         } else if (isKind(tok.KEYWORD_START, kind)) {
             switch (kind) {
                 .kw_if => {
-                    if (DEBUG) {
-                        tok.print_token("Initial state - Keyword Start: {any}\n", token, self.buffer);
-                    }
+                    log.debug("Initial state - Keyword Start: {any}\n", .{token});
                     try self.emitParsed(token);
                     // try self.push(token);
                     // TODO: Going to initial here would mean multiple successive keywords are allowed... TBD whether we want that...
                     try self.initial_state();
                 },
                 .kw_else => {
-                    if (DEBUG) {
-                        tok.print_token("Initial state - Keyword Start: {any}\n", token, self.buffer);
-                    }
+                    log.debug("Initial state - Keyword Start: {any}\n", .{token});
                     try self.emitParsed(token);
                     // try self.push(token);
                     // Likely need some checks to make sure it's within some condition now.
@@ -347,9 +287,7 @@ pub const Parser = struct {
             // Flush any operators.
             try self.initial_state();
         } else if (isKind(tok.BINARY_OPS, kind)) {
-            if (DEBUG) {
-                tok.print_token("Expect binary - Binary op: {any}\n", token, self.buffer);
-            }
+            log.debug("Expect binary - Binary op: {any}\n", .{token});
 
             if (kind == TK.op_assign_eq) {
                 // Assume - the token to the left was the identifier.
@@ -423,15 +361,11 @@ pub const Parser = struct {
 
         // Pretty similar to the initial state.
         if (isKind(tok.LITERALS, kind)) {
-            if (DEBUG) {
-                tok.print_token("Expect unary - Literal: {any}\n", token, self.buffer);
-            }
+            log.debug("Expect unary - Literal: {any}\n", .{token});
             try self.emitParsed(token);
             try self.expect_binary();
         } else if (isKind(tok.IDENTIFIER, kind)) {
-            if (DEBUG) {
-                tok.print_token("Expect unary - Identifier: {any}\n", token, self.buffer);
-            }
+            log.debug("Expect unary - Identifier: {any}\n", .{token});
 
             const ident = self.resolution.resolve(@truncate(self.parsedQ.list.items.len), token);
             try self.emitParsed(ident);
@@ -482,14 +416,10 @@ pub const Parser = struct {
     // Note: All sub-parse functions MUST be tail-recursive, in a direct-threaded style.
     // Each state function should process a token at a time, with no lookahead or backtracking.
     pub fn parse(self: *Self) !void {
-        if (DEBUG) {
-            print("\n------------- Parser --------------- \n", .{});
-        }
+        log.debug("\n------------- Parser --------------- \n", .{});
         try self.parsedQ.push(tok.AUX_STREAM_START); // Hack - to make sure zero index is always occupied.
         try self.initial_state();
-        if (DEBUG) {
-            print("-- End flush --\n", .{});
-        }
+        log.debug("-- End flush --\n", .{});
 
         // At the end - flush the operator stack.
         // TODO: Validate that it contains no brackets (indicates open without close), etc.
@@ -504,11 +434,20 @@ const expect = std.testing.expect;
 const expectEqual = std.testing.expectEqual;
 const testutils = @import("testutils.zig");
 
+pub const std_options = .{
+    .log_level = .debug,
+};
+
+fn enableDebugLog() void {
+    std.testing.log_level = .debug;
+}
+
 // pub fn testParseExpression(buffer: []const u8, expected: []const Token) !void {
 //     print("\nTest Parse: {s}\n", .{buffer});
 // }
 
 pub fn testParse(buffer: []const u8, tokens: []const Token, aux: []const Token, expected: []const Token) !void {
+    enableDebugLog();
     var syntaxQ = TokenQueue.init(test_allocator);
     try testutils.pushAll(&syntaxQ, tokens);
 

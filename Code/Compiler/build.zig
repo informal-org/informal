@@ -23,6 +23,11 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+
+    const exe_options = b.addOptions();
+    exe_options.addOption(std.log.Level, "log_level", .debug);
+    exe.root_module.addOptions("build_options", exe_options);
+
     exe.linkLibC();
 
     // const cLib = b.addStaticLibrary("syscall", "syscall.h");
@@ -77,6 +82,10 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+
+    const test_options = b.addOptions();
+    test_options.addOption(std.log.Level, "log_level", .debug);
+    unit_tests.root_module.addOptions("build_options", test_options);
 
     const run_unit_tests = b.addRunArtifact(unit_tests);
 

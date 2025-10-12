@@ -13,8 +13,6 @@ const print = std.debug.print;
 const platform = @import("darwin.zig");
 const constants = @import("constants.zig");
 
-const DEBUG = constants.DEBUG;
-
 pub const Syscall = platform.Syscall;
 
 const BranchLabel = packed struct(u32) {
@@ -133,12 +131,10 @@ pub const Codegen = struct {
         const alignmentPadding = codeSize - std.mem.alignBackward(usize, codeSize, 16);
         const textStart = std.mem.alignBackward(u64, 0x4000 - codeSize - self.totalConstSize - alignmentPadding - 16, 16);
         const constStart: u12 = @truncate(textStart + codeSize + alignmentPadding);
-        if (DEBUG) {
-            print("Alignment padding {x}\n", .{alignmentPadding});
-            print("Code size {x}\n", .{codeSize});
-            print("Text start {x}\n", .{textStart});
-            print("Const start {x}\n", .{constStart});
-        }
+        std.log.debug("Alignment padding {x}", .{alignmentPadding});
+        std.log.debug("Code size {x}", .{codeSize});
+        std.log.debug("Text start {x}", .{textStart});
+        std.log.debug("Const start {x}", .{constStart});
 
         // Index safety - since the zero index in the parser queue is always reserved for the start-node,
         // it'll never contain a constant. So we can safely use it as a sentinel value.
@@ -152,9 +148,7 @@ pub const Codegen = struct {
 
             // Replace it with the computed position for that constant.
             const constOffset = constOffsets[constId] + constStart;
-            if (DEBUG) {
-                print("Const id {d}, rel offset {d} offset {x}\n", .{ constId, constOffsets[constId], constOffset });
-            }
+            std.log.debug("Const id {d}, rel offset {d} offset {x}", .{ constId, constOffsets[constId], constOffset });
 
             // TODO: We can stuff the proper register into the flags / kind fields.
             const instr = arm.addi(arm.Reg.x1, arm.Reg.x1, @truncate(constOffset));
@@ -188,9 +182,7 @@ pub const Codegen = struct {
     }
 
     pub fn emitAll(self: *Self, tokenQueue: []Token, strConsts: *StringArrayHashMap(u64)) !void {
-        if (DEBUG) {
-            print("\n------------- Codegen --------------- \n", .{});
-        }
+        std.log.debug("\n------------- Codegen --------------- ", .{});
 
         // Reserve a couple of registers.
         self.registerMap.set(0);
@@ -250,18 +242,14 @@ pub const Codegen = struct {
                         self.pushReg(reg);
                         // Save which register this identifier is associated with to the parsed queue so future refs can look it up.
                         tokenQueue[index] = token.assignReg(@intFromEnum(reg));
-                        if (DEBUG) {
-                            print("DECL @{any}, {s}\n", .{ index, @tagName(reg) });
-                        }
+                        std.log.debug("DECL @{any}, {s}", .{ index, @tagName(reg) });
                     } else {
                         // Find what register this identifier is at by following the usage chain.
                         const offset = token.data.value.arg1;
                         const prevRefDecIndex = resolution.applyOffset(i16, @truncate(index), offset);
                         const register = tokenQueue[prevRefDecIndex].data.value.arg0;
-                        if (DEBUG) {
-                            const signedOffset: i16 = @bitCast(offset);
-                            print("REF @{any}, x{any} offset {any}\n", .{ prevRefDecIndex, register, signedOffset });
-                        }
+                        const signedOffset: i16 = @bitCast(offset);
+                        std.log.debug("REF @{any}, x{any} offset {any}", .{ prevRefDecIndex, register, signedOffset });
                         reg = @enumFromInt(register);
                         self.pushReg(reg);
 
@@ -370,9 +358,7 @@ pub const Codegen = struct {
                 },
             }
         }
-        if (DEBUG) {
-            print("Final register {any}\n", .{reg});
-        }
+        std.log.debug("Final register {any}", .{reg});
         try self.emit_syscall(Syscall.exit, reg);
         try self.fixupConstRefs(tokenQueue, strConsts);
 

@@ -9,7 +9,6 @@ const rs = @import("resolution.zig");
 const constants = @import("constants.zig");
 const Allocator = std.mem.Allocator;
 const StringArrayHashMap = std.array_hash_map.StringArrayHashMap;
-const DEBUG = constants.DEBUG;
 
 pub const Reader = struct {
     const Self = @This();
@@ -97,10 +96,8 @@ pub fn process_chunk(chunk: []u8, reader: *Reader, allocator: Allocator, out_fil
     var lexer = lex.Lexer.init(chunk, reader.syntaxQ, reader.auxQ, reader.internedStrings, reader.internedNumbers, reader.internedFloats, reader.internedSymbols);
     try lexer.lex();
 
-    if (DEBUG) {
-        std.debug.print("\n------------- Lexer Queue --------------- \n", .{});
-        tok.print_token_queue(reader.syntaxQ.list.items, chunk);
-    }
+    std.log.debug("\n------------- Lexer Queue --------------- \n", .{});
+    std.log.debug("Token queue: {any}", .{reader.syntaxQ.list.items});
 
     var resolution = try rs.Resolution.init(allocator, reader.internedSymbols.count(), reader.parsedQ);
     defer resolution.deinit();
@@ -109,10 +106,8 @@ pub fn process_chunk(chunk: []u8, reader: *Reader, allocator: Allocator, out_fil
     defer p.deinit();
 
     try p.parse();
-    if (DEBUG) {
-        std.debug.print("\n------------- Parsed Queue --------------- \n", .{});
-        tok.print_token_queue(reader.parsedQ.list.items, chunk);
-    }
+    std.log.debug("\n------------- Parsed Queue --------------- \n", .{});
+    std.log.debug("Parsed queue: {any}", .{reader.parsedQ.list.items});
 
     var c = codegen.Codegen.init(allocator, chunk);
     defer c.deinit();

@@ -19,8 +19,6 @@ const parser = @import("parser.zig");
 const tok = @import("token.zig");
 const Token = tok.Token;
 
-const DEBUG = true;
-
 const ScopeType = enum {
     base,
     module,
@@ -129,10 +127,7 @@ pub const Resolution = struct {
     ) tok.Token {
         const result = self.chainTokenDeclaration(index, token);
         self.declarations[token.data.value.arg0] = index;
-        if (DEBUG) {
-            tok.print_token("Declared [{any}] at", token, "");
-            print(" {any}\n", .{index});
-        }
+        std.log.debug("Declared [{any}] at {any}", .{ token, index });
 
         // Resolve any previously unresolved refs for this given symbol.
         self.resolveForwardDeclarations(index, result);
@@ -209,12 +204,8 @@ pub const Resolution = struct {
             // TODO TODO TODO
             self.unresolved[symbol] = index;
         }
-        if (DEBUG) {
-            // print("Resolved {any} to {any} at offset {any}\n", .{ token, self.declarations[symbol], offset });
-            tok.print_token("Resolved [{any}] to offset", token, "");
-            const signedOffset: i16 = @bitCast(offset);
-            print(" {any}\n", .{signedOffset});
-        }
+        const signedOffset: i16 = @bitCast(offset);
+        std.log.debug("Resolved [{any}] to offset {any}", .{ token, signedOffset });
         return tok.Token{
             .kind = token.kind,
             .data = .{ .value = .{ .arg0 = symbol, .arg1 = offset } },
