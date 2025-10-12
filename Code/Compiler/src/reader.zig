@@ -5,7 +5,7 @@ const queue = @import("queue.zig");
 const tok = @import("token.zig");
 const codegen = @import("codegen.zig");
 const rs = @import("resolution.zig");
-// const macho = @import("macho.zig");
+const macho = @import("macho.zig");
 const constants = @import("constants.zig");
 const Allocator = std.mem.Allocator;
 const StringArrayHashMap = std.array_hash_map.StringArrayHashMap;
@@ -114,11 +114,9 @@ pub fn process_chunk(chunk: []u8, reader: *Reader, allocator: Allocator, out_fil
 
     try c.emitAll(reader.parsedQ.list.items, reader.internedStrings);
 
-    std.debug.print("Out file name: {s}\n", .{out_filename});
-
-    // var linker = macho.MachOLinker.init(allocator);
-    // defer linker.deinit();
-    // try linker.emitBinary(c.objCode.items, reader.internedStrings, c.totalConstSize, out_filename);
+    var linker = macho.MachOLinker.init(allocator);
+    defer linker.deinit();
+    try linker.emitBinary(c.objCode.items, reader.internedStrings, c.totalConstSize, out_filename);
 }
 
 pub fn compile_file(filename: []u8) !void {

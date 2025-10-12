@@ -47,7 +47,7 @@ fn exitCodeTest(filename: []const u8) !u32 {
     const termination = try process.spawnAndWait();
 
     // Cleanup file
-    try std.fs.cwd().deleteFile("test.bin");
+    // try std.fs.cwd().deleteFile("test.bin");
 
     switch (termination) {
         .Exited => |exitcode| return exitcode,

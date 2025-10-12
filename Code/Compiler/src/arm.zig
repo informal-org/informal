@@ -1780,7 +1780,7 @@ pub const LoadStoreEncoding = packed struct(u32) { _: u32 };
 const test_allocator = std.testing.allocator;
 const expect = std.testing.expect;
 const expectEqual = std.testing.expectEqual;
-// const macho = @import("macho.zig");
+const macho = @import("macho.zig");
 const print = std.debug.print;
 const constants = @import("constants.zig");
 const StringArrayHashMap = std.array_hash_map.StringArrayHashMap;
@@ -1796,13 +1796,13 @@ fn exitCodeTest(code: []const u32) !u32 {
     // Create an executable with the given assembly code.
     // Execute it and check the exit code.
 
-    // var linker = macho.MachOLinker.init(test_allocator);
+    var linker = macho.MachOLinker.init(test_allocator);
     var internedStrings = StringArrayHashMap(u64).init(test_allocator);
     // try internedStrings.put("Hello, World!", 0);
     defer internedStrings.deinit();
 
-    // defer linker.deinit();
-    // try linker.emitBinary(code, &internedStrings, 0, "test.bin");
+    defer linker.deinit();
+    try linker.emitBinary(code, &internedStrings, 0, "test.bin");
 
     // Execute the binary file
     const cwd = std.fs.cwd();
@@ -1813,7 +1813,6 @@ fn exitCodeTest(code: []const u32) !u32 {
 
     const termination = try process.spawnAndWait();
     // print("Terminated with : {any}\n", .{termination});
-    print("Code size: {d}\n", .{code.len});
 
     defer {
         // std.fs.cwd().deleteFile("test.bin");
