@@ -38,7 +38,6 @@ is spring = True
 power level : Int(32) = 9000
 
 fn slice(arr : Array, index : Int index < arr.size) Array(size=index): ...
-// Or more explicitly as slice(Array arr, Int index if index < arr.size)
 
 
 ```
@@ -55,11 +54,11 @@ print("a", "b", "c", separator=" ", ending="")
 Conditions
 ```
 // Informal has just a single conditional operator - the pattern-matching "if".
-sunny: go_outside()
+sunny: go outside()
 rainy: 
     go outside with umbrella()
     jump in puddles()
-else: stay_inside()
+_: stay inside()
 
 
 // You can use it as a switch case. 
@@ -81,21 +80,21 @@ result = (n % 5, n % 3):
 
 // Or specify each branch separately
 user.email:
-    send_confirmation_email(user.email)
-user.phone or user.messenger_id:
-    send_confirmation_text(user)
+    send confirmation email(user.email)
+user.phone or user.messenger id:
+    send confirmation text(user)
 ```
 
-Array operators and functional constructs replace the need for most loops, but Informal still comes with a flexible for loop to process any kind of data.
+Array operators and functional constructs replace the need for most loops, but Informal still comes with a flexible loop to process any kind of data.
 ```
 // The built-in for loop can be used as a for-each.
-for x : [1..5]
-    x + 10
+[1..5].each:
+    (x): x + 10
 
 // You can specify a second parameter to get the index
 arr = [1, 2, 3, 4, 5]
-for index in 0.., value in arr:
-    value + 10
+(0.., arr).enumerate:
+    (index, value): value + index
 
 // You can similarly loop over maps.
 // Loops are also expressions, which return values
@@ -104,32 +103,22 @@ months: {"January": 1, "February": 2, "March": 3, "April": 4,
         "May": 5, "June": 6, "July": 7, "August": 8, 
         "September": 9, "October": 10, "November": 11, "December": 12}
 
-invert_months = for month_str, month_num : months
-    { month_num : month_str }
+invert_months = months.each:
+    (month str, month num): { month_num : month_str }
 
 // You can iterate over multiple data streams at once. 
 // This often comes in useful for "zipping" values together.
 brr = [10, 20, 30, 40, 50]
-for x : arr, y : brr
-    x + y
+(arr, brr).each:
+    (x, y): x + y
 
 // [11, 22, 33, 44, 55]
 
 // You can specify guard clauses to break out of loops early.
-for x : [1..10] if x < 4
+[1..10].until{ (x): x > 4 }.each:
     x + 10
 
-// Or leave out the conditional clause, to loop "while" the guard-clause is true.
-
-n = 12
-for if n != 1:
-    if n % 2:
-        n = n / 2
-    else:
-        n = 3*n + 1
-
 ```
-
 
 ```
 // Array operations
@@ -168,24 +157,24 @@ Functions, Types and the patterns beneath it all
 
 
 // Anonymous functions
-(x) :: x + 1
+(x) : x + 1
 
 // Named functions
 
-fn concat([], []): []
-fn concat([], [a]): a
-fn concat([a, ...restA], Array b): [a, ...concat(restA, b)]
+concat([], []): []
+concat([], [a]): a
+concat([a, ...restA], Array b): [a, ...concat(restA, b)]
 
 // We can then use this function backwards, to query the language for all pair of lists which concat to give a given result.
 
 // A lambda that maps a variable A, B such that concating the two will match [1, 2, 3]
-A, B :: concat(A, B) = [1, 2, 3]
+A, B : concat(A, B) = [1, 2, 3]
 // Uppercase predicate parameters are available in-scope with values matching the predicates.
 print(A, B)
 
 // A = [], B = [1, 2, 3]
 // Or query for all possibilities
-A[], B[] :: concat(A, B) = [1, 2, 3]
+A[], B[] : concat(A, B) = [1, 2, 3]
 // A = [], B = [1, 2, 3]
 // A = [1], B = [2, 3]
 // A = [1, 2], B = [3]
