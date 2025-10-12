@@ -29,13 +29,13 @@ Comments and Documentation
 
 Variables and Types
 ```
-hello_world : String = "Hello, World!"
+hello world : String = "Hello, World!"
 
 // Types can be inferred.
-is_spring = True
+is spring = True
 
 // Types can depend on other types (Generic Types) or on values (Dependent Types).
-power_level : Int(32) = 9000
+power level : Int(32) = 9000
 
 fn slice(arr : Array, index : Int index < arr.size) Array(size=index): ...
 // Or more explicitly as slice(Array arr, Int index if index < arr.size)
@@ -55,43 +55,35 @@ print("a", "b", "c", separator=" ", ending="")
 Conditions
 ```
 // Informal has just a single conditional operator - the pattern-matching "if".
-if sunny:
-    go_outside()
-else if rainy:
-    go_outside_with_umbrella()
-else:
-    stay_inside()
+sunny: go_outside()
+rainy: 
+    go outside with umbrella()
+    jump in puddles()
+else: stay_inside()
 
 
 // You can use it as a switch case. 
 // Conditions are expressions, so you can capture their result and store it as a variable.
-classify_letter = if ch:
+ch = '7'
+classify letter = ch:
     ' ': "ch is a Space"
     'a'..'z' | 'A'..'Z': "ch is a Letter"
     '0'..'9': "ch is a Digit"
     else: "ch is something else"
 
-// You can match against other kinds of operators
-if grade >
-    90: "A"
-    80: "B"
-    70: "C"
-    60: "D"
-    else: "F"
 
 // Or match by structure
-if (n % 5, n % 3):
+result = (n % 5, n % 3):
     (0, 0): "FizzBuzz"
     (0, _): "Fizz"
     (_, 0): "Buzz"
     (_, _): n
 
 // Or specify each branch separately
-if:
-    user.email:
-        send_confirmation_email(user.email)
-    user.phone or user.messenger_id:
-        send_confirmation_text(user)
+user.email:
+    send_confirmation_email(user.email)
+user.phone or user.messenger_id:
+    send_confirmation_text(user)
 ```
 
 Array operators and functional constructs replace the need for most loops, but Informal still comes with a flexible for loop to process any kind of data.
@@ -102,7 +94,7 @@ for x : [1..5]
 
 // You can specify a second parameter to get the index
 arr = [1, 2, 3, 4, 5]
-for index, value : 0.., arr
+for index in 0.., value in arr:
     value + 10
 
 // You can similarly loop over maps.

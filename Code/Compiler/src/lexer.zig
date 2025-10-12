@@ -364,6 +364,7 @@ pub const Lexer = struct {
                 }
 
                 // Space followed by TWO or more uppercase characters is an operator.
+                // TODO, this could have false-positives in words like AClass
                 if (peekCh >= 'A' and peekCh <= 'Z') {
                     self.index += 1;
                     const peekCh2 = self.peek_ch();
@@ -375,6 +376,8 @@ pub const Lexer = struct {
                     break;
                 }
             } else {
+                // TODO : By this logic, any other characters are allowed in identifiers.
+                // But we may want more restricted set and raise here if otherwise.
                 self.index += 1;
             }
         }
@@ -405,6 +408,7 @@ pub const Lexer = struct {
         }
     }
     fn token_keyword_or_identifier(self: *Lexer) !void {
+        // TODO: Deprecated. We've removed these keywords, so now it's all identifiers.
         const start = self.index;
         _ = self.seek_till_keyword_delimiter();
         const len = self.index - start;
@@ -467,6 +471,7 @@ pub const Lexer = struct {
             const constIdx = self.push_identifier(start);
             try self.emitToken(Token.lex(TK.type_identifier, @truncate(constIdx), @truncate(len)));
         } else {
+            // TODO: I'd really like to not have these be recognized by the compiler at all. But that requires some support for precedence for user-defined ops.
             // None of the built-in infix-operators contain lowercase letters.
             // StaticStringMap is another option for doing this if the number of keywords grows large.
             if (len == 2) {
@@ -750,7 +755,7 @@ pub const Lexer = struct {
                         continue;
                     }
 
-                    try self.token_keyword_or_identifier();
+                    try self.token_identifier(self.index);
                 },
             }
         }
@@ -939,13 +944,14 @@ test "Multiple consecutive spaces in identifier" {
     }, null);
 }
 
-test "Keyword as identifier" {
-    var buffer = "if x".*;
-    try testToken(&buffer, &[_]Token{
-        tok.KW_IF.nextAlt(),
-        Token.lex(TK.identifier, 0, 1).nextAlt(),
-    }, null);
-}
+// Deprecated - no longer have if keyword.
+// test "Keyword as identifier" {
+//     var buffer = "if x".*;
+//     try testToken(&buffer, &[_]Token{
+//         tok.KW_IF.nextAlt(),
+//         Token.lex(TK.identifier, 0, 1).nextAlt(),
+//     }, null);
+// }
 
 test "Identifiers with operator separators" {
     var buffer = "aa OR bb".*;
