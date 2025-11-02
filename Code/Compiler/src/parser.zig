@@ -158,7 +158,7 @@ pub const Parser = struct {
     // Identifiers - Emit directly. Transition to expect after identifier.
     // ( - Push onto the stack. Transition to initial_state.
     // Unary operators.
-    // Block keywords like def, if, etc. are valid. Switch to their custom handlers.
+    // // -- No longer relevant - Block keywords like def, if, etc. are valid. Switch to their custom handlers.
     // ------------------------------------------
     // Invalid states:
     // Binary operators - need an operand on the left.
@@ -182,14 +182,10 @@ pub const Parser = struct {
             if (kind == TK.call_identifier) {
                 // Next token is known to be an open-paren. But put it after the identifier, so it's kinda in a lispy form. (foo ...)
                 const next = self.syntaxQ.pop();
-                if (next.kind != TK.aux_stream_end) {
-                    if (next.kind != TK.grp_open_paren) {
-                        tok.print_token("Compilation error - UNEXPECTED TOKEN AFTER IDENTIFIER: {any}\n", next, self.buffer);
-                        // return error.UnexpectedTokenAfterIdentifier;
-                    }
-                }
+                std.debug.assert(next.kind == TK.grp_open_paren);
                 try self.pushOp(next);
                 try self.pushOp(token);
+                // TODO: Is initial state right here? Or do we want to allow indentations?
                 try self.initial_state();
             } else {
                 try self.emitParsed(ident);
@@ -197,29 +193,6 @@ pub const Parser = struct {
             }
         } else if (isKind(tok.PAREN_START, kind)) {
             tok.print_token("Initial state - Paren Start: {any}\n", token, self.buffer);
-        } else if (isKind(tok.KEYWORD_START, kind)) {
-            switch (kind) {
-                .kw_if => {
-                    log.debug("Initial state - Keyword Start: {any}\n", .{token});
-                    try self.emitParsed(token);
-                    // try self.push(token);
-                    // TODO: Going to initial here would mean multiple successive keywords are allowed... TBD whether we want that...
-                    try self.initial_state();
-                },
-                .kw_else => {
-                    log.debug("Initial state - Keyword Start: {any}\n", .{token});
-                    try self.emitParsed(token);
-                    // try self.push(token);
-                    // Likely need some checks to make sure it's within some condition now.
-                    // try self.initial_state();
-                    // Expect the colon afterwards. Else if should go to initial state.
-                    try self.expect_binary();
-                },
-                else => {
-                    tok.print_token("Initial state - UNHANDLED - Keyword Start: {any}\n", token, self.buffer);
-                },
-            }
-            // print("Keyword Start: {any}\n", .{token});
         } else if (isKind(tok.UNARY_OPS, kind)) {
             tok.print_token("Initial state - UNARY Op: {any}\n", token, self.buffer);
         } else if (kind == TK.sep_newline) {
@@ -301,7 +274,7 @@ pub const Parser = struct {
             } else if (kind == TK.op_colon_assoc) {
                 // Pop whatever keyword was on the stack.
                 try self.pushOp(token);
-                try self.flushUntil(tok.KEYWORD_START);
+                try self.flushUntil(tok.KEYWORD_START); // TODO: What does this become now?
                 try self.initial_state();
             } else {
                 try self.pushOp(token);
@@ -318,6 +291,7 @@ pub const Parser = struct {
         } else if (isKind(tok.GROUP_END, kind)) {
             tok.print_token("Expect binary - Group end: {any}\n", token, self.buffer);
             try self.flushUntil(tok.GROUP_START);
+            // TODO: Should this contain indent as well?
             const expectedStart = switch (kind) {
                 TK.grp_close_brace => TK.grp_open_brace,
                 TK.grp_close_paren => TK.grp_open_paren,
