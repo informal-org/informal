@@ -123,7 +123,12 @@ pub const Data = packed union {
 
 pub const Flags = packed struct(u8) {
     alt: bool = false, // Indicates the next token is in the other queue.
-    declaration: bool = false,
+    declaration: bool = false, // TODO: Do we really need a flag for this or can we do this with data types?
+
+    // continue-sibling node
+    // is-child
+    // parent-target - Must have
+
     _reserved: u6 = 0,
 
     pub fn empty() Flags {

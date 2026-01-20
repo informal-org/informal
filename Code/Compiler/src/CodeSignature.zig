@@ -16,105 +16,132 @@
 // This is not a general purpose implementation. It's a minimal version for Informal's use case.
 
 const std = @import("std");
-const fs = std.fs;
 const macho = std.macho;
 const mem = std.mem;
 const Allocator = mem.Allocator;
 const Sha256 = std.crypto.hash.sha2.Sha256;
 const HASH_SIZE = 32; // Sha256.digest_length;
 
-const ThreadPool = std.Thread.Pool;
-const WaitGroup = std.Thread.WaitGroup;
+// Hash file pages concurrently for code signature generation.
 
 pub fn ParallelHasher(comptime PHasher: type) type {
     return struct {
         allocator: Allocator,
-        thread_pool: *ThreadPool,
+        io: std.Io,
 
-        pub fn hash(self: Self, file: fs.File, out: [][HASH_SIZE]u8, opts: struct {
+        pub fn hash(self: Self, file: std.Io.File, out: [][HASH_SIZE]u8, opts: struct {
             chunk_size: u64 = 0x4000,
             max_file_size: ?u64 = null,
         }) !void {
-            var wg: WaitGroup = .{};
-
-            const file_size = blk: {
-                const file_size = opts.max_file_size orelse try file.getEndPos();
-                break :blk std.math.cast(usize, file_size) orelse return error.Overflow;
-            };
+            const file_size_u64 = opts.max_file_size orelse (try file.stat(self.io)).size;
+            const file_size = std.math.cast(usize, file_size_u64) orelse return error.Overflow;
             const chunk_size = std.math.cast(usize, opts.chunk_size) orelse return error.Overflow;
 
-            const buffer = try self.allocator.alloc(u8, chunk_size * out.len);
-            defer self.allocator.free(buffer);
+            if (out.len == 0) {
+                return;
+            }
 
-            const results = try self.allocator.alloc(fs.File.PReadError!usize, out.len);
+            const cpu_count = std.Thread.getCpuCount() catch 1;
+            const thread_count = @min(out.len, cpu_count);
+
+            const buffers = try self.allocator.alloc(u8, chunk_size * thread_count);
+            defer self.allocator.free(buffers);
+
+            const results = try self.allocator.alloc(std.Io.File.ReadPositionalError!usize, out.len);
             defer self.allocator.free(results);
 
-            {
-                wg.reset();
-                defer wg.wait();
-
-                for (out, results, 0..) |*out_buf, *result, i| {
-                    const fstart = i * chunk_size;
-                    const fsize = if (fstart + chunk_size > file_size)
-                        file_size - fstart
-                    else
-                        chunk_size;
-                    wg.start();
-                    try self.thread_pool.spawn(worker, .{
-                        file,
-                        fstart,
-                        buffer[fstart..][0..fsize],
-                        &(out_buf.*),
-                        &(result.*),
-                        &wg,
-                    });
-                }
+            var next_index = std.atomic.Value(usize).init(0);
+            var wg: std.Thread.WaitGroup = .{};
+            for (0..thread_count) |thread_index| {
+                const buffer = buffers[thread_index * chunk_size ..][0..chunk_size];
+                std.Thread.WaitGroup.spawnManager(&wg, worker, .{
+                    self.io,
+                    file,
+                    out,
+                    results,
+                    chunk_size,
+                    file_size,
+                    buffer,
+                    &next_index,
+                });
             }
-            for (results) |result| _ = try result;
+            wg.wait();
+
+            for (results) |result| {
+                _ = try result;
+            }
         }
 
         fn worker(
-            file: fs.File,
-            fstart: usize,
+            io: std.Io,
+            file: std.Io.File,
+            out: [][HASH_SIZE]u8,
+            results: []std.Io.File.ReadPositionalError!usize,
+            chunk_size: usize,
+            file_size: usize,
             buffer: []u8,
-            out: *[HASH_SIZE]u8,
-            err: *fs.File.PReadError!usize,
-            wg: *WaitGroup,
+            next_index: *std.atomic.Value(usize),
         ) void {
-            defer wg.finish();
-            err.* = file.preadAll(buffer, fstart);
-            PHasher.hash(buffer, out, .{});
+            while (true) {
+                const index = next_index.fetchAdd(1, .monotonic);
+                if (index >= out.len) {
+                    break;
+                }
+
+                const fstart = index * chunk_size;
+                const fsize = if (fstart + chunk_size > file_size)
+                    file_size - fstart
+                else
+                    chunk_size;
+
+                const read_result = file.readPositionalAll(io, buffer[0..fsize], fstart);
+                results[index] = read_result;
+                if (read_result) |_| {
+                    PHasher.hash(buffer[0..fsize], &out[index], .{});
+                } else |_| {}
+            }
         }
 
         const Self = @This();
     };
 }
 
+fn writeIntBig(writer: anytype, comptime T: type, value: T) !void {
+    var buf: [@sizeOf(T)]u8 = undefined;
+    std.mem.writeInt(T, buf[0..], value, .big);
+    _ = try std.Io.Writer.writeVec(@constCast(&writer.interface), &[_][]const u8{buf[0..]});
+}
+
+fn writeByte(writer: anytype, value: u8) !void {
+    const buf = [_]u8{value};
+    _ = try std.Io.Writer.writeVec(@constCast(&writer.interface), &[_][]const u8{&buf});
+}
+
 fn writeCodeDirectory(writer: anytype, codedir: macho.CodeDirectory) !void {
     // The format requires the structs to be encoded in big-endian,
     // while the Arm platform is little endian...
     // So each field is manually encoded.
-    try writer.writeInt(u32, codedir.magic, .big);
-    try writer.writeInt(u32, codedir.length, .big);
-    try writer.writeInt(u32, codedir.version, .big);
-    try writer.writeInt(u32, codedir.flags, .big);
-    try writer.writeInt(u32, codedir.hashOffset, .big);
-    try writer.writeInt(u32, codedir.identOffset, .big);
-    try writer.writeInt(u32, codedir.nSpecialSlots, .big);
-    try writer.writeInt(u32, codedir.nCodeSlots, .big);
-    try writer.writeInt(u32, codedir.codeLimit, .big);
-    try writer.writeByte(codedir.hashSize);
-    try writer.writeByte(codedir.hashType);
-    try writer.writeByte(codedir.platform);
-    try writer.writeByte(codedir.pageSize);
-    try writer.writeInt(u32, codedir.spare2, .big);
-    try writer.writeInt(u32, codedir.scatterOffset, .big);
-    try writer.writeInt(u32, codedir.teamOffset, .big);
-    try writer.writeInt(u32, codedir.spare3, .big);
-    try writer.writeInt(u64, codedir.codeLimit64, .big);
-    try writer.writeInt(u64, codedir.execSegBase, .big);
-    try writer.writeInt(u64, codedir.execSegLimit, .big);
-    try writer.writeInt(u64, codedir.execSegFlags, .big);
+    try writeIntBig(writer, u32, codedir.magic);
+    try writeIntBig(writer, u32, codedir.length);
+    try writeIntBig(writer, u32, codedir.version);
+    try writeIntBig(writer, u32, codedir.flags);
+    try writeIntBig(writer, u32, codedir.hashOffset);
+    try writeIntBig(writer, u32, codedir.identOffset);
+    try writeIntBig(writer, u32, codedir.nSpecialSlots);
+    try writeIntBig(writer, u32, codedir.nCodeSlots);
+    try writeIntBig(writer, u32, codedir.codeLimit);
+    try writeByte(writer, codedir.hashSize);
+    try writeByte(writer, codedir.hashType);
+    try writeByte(writer, codedir.platform);
+    try writeByte(writer, codedir.pageSize);
+    try writeIntBig(writer, u32, codedir.spare2);
+    try writeIntBig(writer, u32, codedir.scatterOffset);
+    try writeIntBig(writer, u32, codedir.teamOffset);
+    try writeIntBig(writer, u32, codedir.spare3);
+    try writeIntBig(writer, u64, codedir.codeLimit64);
+    try writeIntBig(writer, u64, codedir.execSegBase);
+    try writeIntBig(writer, u64, codedir.execSegLimit);
+    try writeIntBig(writer, u64, codedir.execSegFlags);
 }
 
 const pageSizeBits = 12;
@@ -142,7 +169,7 @@ pub fn estimateSize(args: SignArgs) u64 {
     return superBlobSize + blobSize + codeDirectorySize + args.identifier.len + 1 + hashEnd;
 }
 
-pub fn sign(writer: anytype, file: fs.File, args: SignArgs) !void {
+pub fn sign(writer: anytype, file: std.Io.File, io: std.Io, args: SignArgs) !void {
     // General format for the ad-hoc signatures:
     // 1. Super Blob header, beginning with the magic 0xfade0cc0
     // 2. Index Blob for each sub-blobs - in this case, just the CodeDirectory index blob.
@@ -167,15 +194,15 @@ pub fn sign(writer: anytype, file: fs.File, args: SignArgs) !void {
         .length = totalSignatureSize, // Overall size of the binary. Zig sums this incrementally per blob. Go uses the above.
         .count = 1, // # of BlobIndex entries following. We just need 1 for the code-dir.
     };
-    try writer.writeInt(u32, sb.magic, .big);
-    try writer.writeInt(u32, sb.length, .big);
-    try writer.writeInt(u32, sb.count, .big);
+    try writeIntBig(writer, u32, sb.magic);
+    try writeIntBig(writer, u32, sb.length);
+    try writeIntBig(writer, u32, sb.count);
 
     // Part 2 - Index blobs ---------------------------------------------------------------
     // The Zig version supports multiple blob indexes for requirements, entitlements, etc.
     // We just need a single index blob for the code-signature, like the go version.
-    try writer.writeInt(u32, macho.CSSLOT_CODEDIRECTORY, .big); // 0
-    try writer.writeInt(u32, codeDirOffset, .big);
+    try writeIntBig(writer, u32, macho.CSSLOT_CODEDIRECTORY);
+    try writeIntBig(writer, u32, codeDirOffset);
 
     // Part 3 - Code Directory ------------------------------------------------------------
     const code_dir = macho.CodeDirectory{
@@ -208,28 +235,26 @@ pub fn sign(writer: anytype, file: fs.File, args: SignArgs) !void {
 
     // Part 4 - Binary name --------------------------------------------------------------
     // Write file name identifier.
-    try writer.writeAll(args.identifier);
-    try writer.writeByte(0); // Null terminate.
+    _ = try std.Io.Writer.writeVec(@constCast(&writer.interface), &[_][]const u8{args.identifier});
+    const null_byte: u8 = 0;
+    _ = try std.Io.Writer.writeVec(@constCast(&writer.interface), &[_][]const u8{&[_]u8{null_byte}});
 
     // Part 5 - Hash signature -----------------------------------------------------------
     // Hash the file contents
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
-    var thread_pool: ThreadPool = undefined;
-    try thread_pool.init(.{ .allocator = allocator });
-    defer thread_pool.deinit();
 
     var code_slots: std.ArrayListUnmanaged([HASH_SIZE]u8) = .{};
     try code_slots.ensureTotalCapacityPrecise(allocator, nCodeSlots);
     code_slots.items.len = nCodeSlots;
 
-    var hasher = ParallelHasher(Sha256){ .allocator = allocator, .thread_pool = &thread_pool };
+    var hasher = ParallelHasher(Sha256){ .allocator = allocator, .io = io };
     try hasher.hash(file, code_slots.items, .{
         .chunk_size = pageSize,
         .max_file_size = args.overallBinCodeLimit,
     });
 
     for (code_slots.items) |slot| {
-        try writer.writeAll(&slot);
+        _ = try std.Io.Writer.writeVec(@constCast(&writer.interface), &[_][]const u8{&slot});
     }
 }

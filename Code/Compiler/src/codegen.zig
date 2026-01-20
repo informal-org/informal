@@ -38,7 +38,7 @@ pub const Codegen = struct {
 
     const Self = @This();
     allocator: Allocator,
-    objCode: std.ArrayList(u32),
+    objCode: std.array_list.AlignedManaged(u32, null),
     registerMap: bitset.BitSet32 = bitset.BitSet32.initEmpty(), // Bitmap of which registers are in use.
     buffer: []const u8,
     regStack: u64 = 0,
@@ -63,7 +63,7 @@ pub const Codegen = struct {
     ctx_block_start: usize = 0,
 
     pub fn init(allocator: Allocator, buffer: []const u8) Self {
-        return Self{ .objCode = std.ArrayList(u32).init(allocator), .buffer = buffer, .regStack = 0, .allocator = allocator };
+        return Self{ .objCode = std.array_list.AlignedManaged(u32, null).init(allocator), .buffer = buffer, .regStack = 0, .allocator = allocator };
     }
 
     pub fn deinit(self: *Self) void {

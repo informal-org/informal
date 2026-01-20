@@ -1802,17 +1802,13 @@ fn exitCodeTest(code: []const u32) !u32 {
     defer internedStrings.deinit();
 
     defer linker.deinit();
-    try linker.emitBinary(code, &internedStrings, 0, "test.bin");
+    try linker.emitBinary(std.testing.io, code, &internedStrings, 0, "test.bin");
 
-    // Execute the binary file
-    const cwd = std.fs.cwd();
-    var out_buffer: [1024]u8 = undefined;
-    const path = try cwd.realpath("test.bin", &out_buffer);
-
-    var process = std.process.Child.init(&[_][]const u8{path}, test_allocator);
-
-    const termination = try process.spawnAndWait();
-    // print("Terminated with : {any}\n", .{termination});
+    // Execute the binary file (use relative path in cwd)
+    const run_result = try std.process.run(test_allocator, std.testing.io, .{
+        .argv = &[_][]const u8{"./test.bin"},
+    });
+    // print("Terminated with : {any}\n", .{run_result.term});
 
     defer {
         // std.fs.cwd().deleteFile("test.bin");
@@ -1826,11 +1822,11 @@ fn exitCodeTest(code: []const u32) !u32 {
         // }
     }
 
-    switch (termination) {
-        .Exited => |exitcode| return exitcode,
-        .Signal => |sig| return sig,
-        .Stopped => |_| return 999,
-        .Unknown => |_| return 999,
+    switch (run_result.term) {
+        .exited => |exitcode| return exitcode,
+        .signal => |sig| return @intFromEnum(sig),
+        .stopped => |_| return 999,
+        .unknown => |_| return 999,
     }
 }
 

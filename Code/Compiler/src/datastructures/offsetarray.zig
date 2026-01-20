@@ -7,7 +7,7 @@ pub const OffsetArray = struct {
     /// Most offsets are small, fitting in a byte.
     /// An offset of 0 is used for overflow - it indicates the next 4 bytes represent an absolute 32-bit value.
     /// When you have two offsets that are exactly the same, the next value will represent a 'run' for run-length encoding.
-    offsets: std.ArrayList(u8),
+    offsets: std.array_list.AlignedManaged(u8, null),
     lastIndex: u32 = 0, // Absolute value of the last index.
     // lastOffset and runLength can be figured out from the offsets array, but reading that array backwards is complex and very branchy.
     lastOffset: u32 = 0,
@@ -15,7 +15,7 @@ pub const OffsetArray = struct {
 
     pub fn init(allocator: Allocator) OffsetArray {
         return OffsetArray{
-            .offsets = std.ArrayList(u8).init(allocator),
+            .offsets = std.array_list.AlignedManaged(u8, null).init(allocator),
         };
     }
 
@@ -297,7 +297,7 @@ test "offsetJoin - Single iterator" {
 
     const iterator = OffsetIterator{ .offsetArray = &offset_array };
     var iterators = [_]OffsetIterator{iterator};
-    var merged_rows = std.ArrayList(u32).init(test_allocator);
+    var merged_rows = std.array_list.AlignedManaged(u32, null).init(test_allocator);
     defer merged_rows.deinit();
 
     try offsetJoin(iterators[0..], &merged_rows);
@@ -324,7 +324,7 @@ test "offsetJoin - Multiple iterators with exact match" {
     const iterator1 = OffsetIterator{ .offsetArray = &array1 };
     const iterator2 = OffsetIterator{ .offsetArray = &array2 };
     var iterators = [_]OffsetIterator{ iterator1, iterator2 };
-    var merged_rows = std.ArrayList(u32).init(test_allocator);
+    var merged_rows = std.array_list.AlignedManaged(u32, null).init(test_allocator);
     defer merged_rows.deinit();
 
     try offsetJoin(iterators[0..], &merged_rows);
@@ -357,7 +357,7 @@ test "offsetJoin - Multiple iterators with intersection" {
     const iterator1 = OffsetIterator{ .offsetArray = &array1 };
     const iterator2 = OffsetIterator{ .offsetArray = &array2 };
     var iterators = [_]OffsetIterator{ iterator1, iterator2 };
-    var merged_rows = std.ArrayList(u32).init(test_allocator);
+    var merged_rows = std.array_list.AlignedManaged(u32, null).init(test_allocator);
     defer merged_rows.deinit();
 
     try offsetJoin(iterators[0..], &merged_rows);
@@ -389,7 +389,7 @@ test "offsetJoin - Multiple iterators with no intersection" {
     const iterator1 = OffsetIterator{ .offsetArray = &array1 };
     const iterator2 = OffsetIterator{ .offsetArray = &array2 };
     var iterators = [_]OffsetIterator{ iterator1, iterator2 };
-    var merged_rows = std.ArrayList(u32).init(test_allocator);
+    var merged_rows = std.array_list.AlignedManaged(u32, null).init(test_allocator);
     defer merged_rows.deinit();
 
     try offsetJoin(iterators[0..], &merged_rows);
@@ -428,7 +428,7 @@ test "offsetJoin - Three iterators with intersection" {
     const iterator2 = OffsetIterator{ .offsetArray = &array2 };
     const iterator3 = OffsetIterator{ .offsetArray = &array3 };
     var iterators = [_]OffsetIterator{ iterator1, iterator2, iterator3 };
-    var merged_rows = std.ArrayList(u32).init(test_allocator);
+    var merged_rows = std.array_list.AlignedManaged(u32, null).init(test_allocator);
     defer merged_rows.deinit();
 
     try offsetJoin(iterators[0..], &merged_rows);
@@ -461,7 +461,7 @@ test "offsetJoin - With large values" {
     const iterator1 = OffsetIterator{ .offsetArray = &array1 };
     const iterator2 = OffsetIterator{ .offsetArray = &array2 };
     var iterators = [_]OffsetIterator{ iterator1, iterator2 };
-    var merged_rows = std.ArrayList(u32).init(test_allocator);
+    var merged_rows = std.array_list.AlignedManaged(u32, null).init(test_allocator);
     defer merged_rows.deinit();
 
     try offsetJoin(iterators[0..], &merged_rows);
@@ -497,7 +497,7 @@ test "offsetJoin - With run-length encoded values" {
     const iterator1 = OffsetIterator{ .offsetArray = &array1 };
     const iterator2 = OffsetIterator{ .offsetArray = &array2 };
     var iterators = [_]OffsetIterator{ iterator1, iterator2 };
-    var merged_rows = std.ArrayList(u32).init(test_allocator);
+    var merged_rows = std.array_list.AlignedManaged(u32, null).init(test_allocator);
     defer merged_rows.deinit();
 
     try offsetJoin(iterators[0..], &merged_rows);

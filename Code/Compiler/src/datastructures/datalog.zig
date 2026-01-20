@@ -9,7 +9,7 @@ const OffsetIterator = offsetarray.OffsetIterator;
 
 pub const Bindings = struct {
     variable: *Term,
-    values: std.ArrayList(*Term),
+    values: std.array_list.AlignedManaged(*Term, null),
 };
 
 pub const Datalog = struct {
@@ -56,7 +56,7 @@ pub const Datalog = struct {
         assert(pattern.len == relation.columns.count());
 
         // List of iterators to the indexes each value appears at.
-        var ref_indexes = std.ArrayList(*OffsetIterator).init(self.allocator);
+        var ref_indexes = std.array_list.AlignedManaged(*OffsetIterator, null).init(self.allocator);
         var variable_count = 0;
 
         for (0.., pattern) |i, t| {
@@ -78,7 +78,7 @@ pub const Datalog = struct {
         }
 
         // Now join all of these offsets to find our final list.
-        var merged = std.ArrayList(u32).init(self.allocator);
+        var merged = std.array_list.AlignedManaged(u32, null).init(self.allocator);
         offsetarray.offsetJoin(ref_indexes.items, &merged);
 
         if (variable_count == 0) {

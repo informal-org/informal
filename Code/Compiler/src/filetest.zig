@@ -14,46 +14,42 @@ fn exitCodeTest(filename: []const u8) !u32 {
     // Execute it and check the exit code.
 
     // Clean up any existing test.bin file to ensure proper permissions are set
-    std.fs.cwd().deleteFile("test.bin") catch {};
+    std.Io.Dir.cwd().deleteFile(std.testing.io, "test.bin") catch {};
 
     const re = try reader.Reader.init(test_allocator);
     defer re.deinit();
 
-    const file = try std.fs.cwd().openFile(filename, .{});
-    defer file.close();
+    const file = try std.Io.Dir.cwd().openFile(std.testing.io, filename, .{});
+    defer file.close(std.testing.io);
 
-    const fileReader = file.reader();
     var buffer: [16384]u8 = undefined; // 16kb - sysctl vm.pagesize
+    const buffer_slice: []u8 = &buffer;
     var out_name = "test.bin".*;
 
     while (true) {
-        const readResult = try fileReader.read(&buffer);
+        const buffer_array = [_][]u8{buffer_slice};
+        const readResult = try file.readStreaming(std.testing.io, &buffer_array);
         if (readResult == 0) {
             break;
         }
-        try reader.process_chunk(buffer[0..readResult], re, test_allocator, &out_name);
+        try reader.process_chunk(buffer[0..readResult], re, test_allocator, std.testing.io, &out_name);
 
         buffer = undefined;
     }
 
-    // Execute the binary file
-    const cwd = std.fs.cwd();
-    var out_buffer: [1024]u8 = undefined;
-
-    const path = try cwd.realpath(&out_name, &out_buffer);
-
-    var process = std.process.Child.init(&[_][]const u8{path}, test_allocator);
-
-    const termination = try process.spawnAndWait();
+    // Execute the binary file (use relative path in cwd)
+    const run_result = try std.process.run(test_allocator, std.testing.io, .{
+        .argv = &[_][]const u8{"./test.bin"},
+    });
 
     // Cleanup file
     // try std.fs.cwd().deleteFile("test.bin");
 
-    switch (termination) {
-        .Exited => |exitcode| return exitcode,
-        .Signal => |sig| return sig,
-        .Stopped => |_| return 999,
-        .Unknown => |_| return 999,
+    switch (run_result.term) {
+        .exited => |exitcode| return exitcode,
+        .signal => |sig| return @intFromEnum(sig),
+        .stopped => |_| return 999,
+        .unknown => |_| return 999,
     }
 }
 

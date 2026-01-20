@@ -74,7 +74,7 @@ pub const Resolution = struct {
     unresolved: []u32,
 
     // Start index of the each scope and its scope type.
-    scopeStack: std.ArrayList(Scope),
+    scopeStack: std.array_list.AlignedManaged(Scope, null),
     scopeId: u16,
 
     parsedQ: *parser.TokenQueue,
@@ -86,7 +86,7 @@ pub const Resolution = struct {
         const unresolved = try allocator.alloc(u32, maxSymbols);
         @memset(unresolved, UNDECLARED_SENTINEL);
 
-        var scopeStack = std.ArrayList(Scope).init(allocator);
+        var scopeStack = std.array_list.AlignedManaged(Scope, null).init(allocator);
         // Initialize with a base module scope.
         try scopeStack.append(Scope{ .start = 0, .scopeType = .base });
 
@@ -108,7 +108,7 @@ pub const Resolution = struct {
     }
 
     pub fn endScope(self: *Self, index: u32) !void {
-        const scope = self.scopeStack.pop();
+        const scope = self.scopeStack.pop() orelse return;
         // Go and patch the start in the parsed queue to point to the end.
         // Return back the token which should be inserted.
         const startNode = self.parsedQ.list.items[scope.start];

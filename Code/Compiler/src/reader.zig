@@ -87,7 +87,7 @@ pub const Reader = struct {
     }
 };
 
-pub fn process_chunk(chunk: []u8, reader: *Reader, allocator: Allocator, out_filename: []u8) !void {
+pub fn process_chunk(chunk: []u8, reader: *Reader, allocator: Allocator, io: std.Io, out_filename: []u8) !void {
 
     // std.debug.print("Processing next chunk\n", .{});
     reader.syntaxQ.reset();
@@ -116,30 +116,31 @@ pub fn process_chunk(chunk: []u8, reader: *Reader, allocator: Allocator, out_fil
 
     var linker = macho.MachOLinker.init(allocator);
     defer linker.deinit();
-    try linker.emitBinary(c.objCode.items, reader.internedStrings, c.totalConstSize, out_filename);
+    try linker.emitBinary(io, c.objCode.items, reader.internedStrings, c.totalConstSize, out_filename);
 }
 
-pub fn compile_file(filename: []u8) !void {
+pub fn compile_file(io: std.Io, filename: []const u8) !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 
     var reader = try Reader.init(gpa.allocator());
     defer reader.deinit();
 
-    const file = try std.fs.cwd().openFile(filename, .{});
-    defer file.close();
+    const file = try std.Io.Dir.cwd().openFile(io, filename, .{});
+    defer file.close(io);
 
-    const r = file.reader();
     var buffer: [16384]u8 = undefined; // 16kb - sysctl vm.pagesize
+    const buffer_slice: []u8 = &buffer;
 
     // Create a mutable slice for the output filename
     var out_name = "out.bin".*;
 
     while (true) {
-        const readResult = try r.read(&buffer);
+        const buffer_array = [_][]u8{buffer_slice};
+        const readResult = try file.readStreaming(io, &buffer_array);
         if (readResult == 0) {
             break;
         }
-        try process_chunk(buffer[0..readResult], reader, gpa.allocator(), &out_name);
+        try process_chunk(buffer[0..readResult], reader, gpa.allocator(), io, &out_name);
         // TODO: Safety check - there's an implicit assumption that the contents of the buffer are not referenced after chunk processing is done.
         // Else it's a use after free or it might be referencing something else than intended.
         // TODO: Handle larger files beyond the 16kb size.

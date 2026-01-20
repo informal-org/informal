@@ -9,7 +9,7 @@ pub fn Queue(comptime t: type, comptime default: t) type {
     return struct {
         const Self = @This();
         // const Allocator = std.heap.page_allocator;
-        const ArrayList = std.ArrayList(t);
+        const ArrayList = std.array_list.AlignedManaged(t, null);
 
         list: ArrayList,
         head: usize,
@@ -51,7 +51,7 @@ pub fn Queue(comptime t: type, comptime default: t) type {
         }
 
         pub fn popLast(self: *Self) t {
-            return self.list.pop();
+            return self.list.pop() orelse default;
         }
     };
 }

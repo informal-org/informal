@@ -54,7 +54,7 @@ pub const Parser = struct {
 
     // Benchmark: MultiArrayList vs ArrayList for this use-case.
     // Multi will be more compact without the padding, but we push/pop them in pairs anyway.
-    opStack: std.ArrayList(ParseNode),
+    opStack: std.array_list.AlignedManaged(ParseNode, null),
 
     resolution: *rs.Resolution,
 
@@ -67,7 +67,7 @@ pub const Parser = struct {
     };
 
     pub fn init(buffer: []const u8, syntaxQ: *TokenQueue, auxQ: *TokenQueue, parsedQ: *TokenQueue, offsetQ: *OffsetQueue, allocator: Allocator, resolution: *rs.Resolution) Self {
-        const opStack = std.ArrayList(ParseNode).init(allocator);
+        const opStack = std.array_list.AlignedManaged(ParseNode, null).init(allocator);
         return Self{ .buffer = buffer, .syntaxQ = syntaxQ, .auxQ = auxQ, .parsedQ = parsedQ, .offsetQ = offsetQ, .allocator = allocator, .index = 0, .opStack = opStack, .resolution = resolution };
     }
 
@@ -144,7 +144,7 @@ pub const Parser = struct {
 
     fn popOp(self: *Self) !void {
         // TODO: We can do const-folding here by looking at the operands. If they're literals, emit the result instead of the op.
-        const opNode = self.opStack.pop();
+        const opNode = self.opStack.pop() orelse return;
         log.debug("    POP: {any}\n", .{opNode.token});
         try self.parsedQ.push(opNode.token);
         try self.pushOffset(opNode.index);

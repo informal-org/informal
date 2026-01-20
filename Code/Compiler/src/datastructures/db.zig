@@ -149,27 +149,27 @@ pub const Column = struct {
     // This list shouldn't be used much. Instead, prefer the term->column ID for lookups.
     // We could remove this and replace it with a max term ID if needed.
     // We could remove this and replace it with a max term ID if needed.
-    terms: std.ArrayList(*Term),
+    terms: std.array_list.AlignedManaged(*Term, null),
     // The raw list of byte values, indicating which term appears in that position (based on the term index)
     // If there are more than 255 terms, then the second arraylist is used for newer terms going forward.
-    order: std.ArrayList(u8),
+    order: std.array_list.AlignedManaged(u8, null),
     // Only used if there are more than 255 distinct terms (i.e. term ID overflow). Initialized to empty capacity.
     // Since columns only add, and term IDs only increase, you can conceptually think of this array as continuing where order left off.
-    order16: std.ArrayList(u16),
+    order16: std.array_list.AlignedManaged(u16, null),
     // Term ID -> List of its references. Indexed by the local term index.
-    refs: std.ArrayList(TermRefs),
+    refs: std.array_list.AlignedManaged(TermRefs, null),
     length: u32 = 0, // Total length. Equals order.items.len + order16.items.len
 
     pub fn init(table: *Table, allocator: Allocator, column_id: u32) !Column {
-        const emptyOrd16 = try std.ArrayList(u16).initCapacity(allocator, 0);
+        const emptyOrd16 = try std.array_list.AlignedManaged(u16, null).initCapacity(allocator, 0);
         return Column{
             .allocator = allocator,
             .table = table,
             .id = column_id,
-            .terms = std.ArrayList(*Term).init(allocator),
-            .order = std.ArrayList(u8).init(allocator),
+            .terms = std.array_list.AlignedManaged(*Term, null).init(allocator),
+            .order = std.array_list.AlignedManaged(u8, null).init(allocator),
             .order16 = emptyOrd16,
-            .refs = std.ArrayList(TermRefs).init(allocator),
+            .refs = std.array_list.AlignedManaged(TermRefs, null).init(allocator),
         };
     }
 
@@ -274,14 +274,14 @@ fn orderColumnRef(context: ColumnRef, item: ColumnRef) std.math.Order {
 pub const Term = struct {
     // Store a sorted arraylist of Column ID -> index of this term within that column's terms list.
     // A column may contain many terms, but it's expected that a term only makes an appearance in some small number of columns.
-    refs: std.ArrayList(ColumnRef),
+    refs: std.array_list.AlignedManaged(ColumnRef, null),
     // We could store this with a tagged pointer instead.
     // Or semantically as a Term ID, type, etc. to fit in a packed union.
     variable: bool = false,
 
     pub fn init(allocator: Allocator) Term {
         return Term{
-            .refs = std.ArrayList(ColumnRef).init(allocator),
+            .refs = std.array_list.AlignedManaged(ColumnRef, null).init(allocator),
             .variable = false,
         };
     }

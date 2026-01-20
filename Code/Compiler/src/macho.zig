@@ -556,9 +556,9 @@ pub const MachOLinker = struct {
     cmdLinkEdit: SegmentCommand64 = undefined,
 
     // Header is buffered until the entire header is available so we can calculate the size.
-    headerBuffer: std.ArrayList(u8),
+    headerBuffer: std.array_list.AlignedManaged(u8, null),
     // Some segments have multiple sections.
-    sectionBuffer: std.ArrayList(u8),
+    sectionBuffer: std.array_list.AlignedManaged(u8, null),
     allocator: Allocator,
 
     pub fn init(allocator: Allocator) Self {
@@ -573,8 +573,8 @@ pub const MachOLinker = struct {
             .headerSize = 0,
             .totalLinkEditSize = 0,
             .allocator = allocator,
-            .headerBuffer = std.ArrayList(u8).init(allocator),
-            .sectionBuffer = std.ArrayList(u8).init(allocator),
+            .headerBuffer = std.array_list.AlignedManaged(u8, null).init(allocator),
+            .sectionBuffer = std.array_list.AlignedManaged(u8, null).init(allocator),
         };
     }
 
@@ -710,23 +710,27 @@ pub const MachOLinker = struct {
             .sizeofcmds = @truncate(self.headerBuffer.items.len + 8), // +8 for magic header struct size.
         };
         // Mach Header - Size 32
-        try writer.writeStruct(header);
+        const header_bytes = std.mem.asBytes(&header);
+        _ = try std.Io.Writer.writeVec(@constCast(&writer.interface), &[_][]const u8{header_bytes});
 
-        try writer.writeAll(self.headerBuffer.items);
+        _ = try std.Io.Writer.writeVec(@constCast(&writer.interface), &[_][]const u8{self.headerBuffer.items});
         // Where the header section ends and zero padding begins.
         self.headerSize = @truncate(self.headerBuffer.items.len + SIZE_MACH_HEADER);
         self.headerBuffer.clearAndFree();
     }
 
-    pub fn emitBinary(self: *Self, code: []const u32, internedStrings: *StringArrayHashMap(u64), constSize: usize, outfile: []const u8) !void {
+    pub fn emitBinary(self: *Self, io: std.Io, code: []const u32, internedStrings: *StringArrayHashMap(u64), constSize: usize, outfile: []const u8) !void {
         // Note: Need to ensure the file doesn't exist. If the file exists without the execute permission bit, it won't get set and you'll get an error.
-        const file = try std.fs.cwd().createFile(
+        const file = try std.Io.Dir.cwd().createFile(
+            io,
             outfile,
-            .{ .read = true, .mode = 0o755 },
+            .{ .read = true },
         );
 
-        defer file.close();
-        const writer = file.writer();
+        defer file.close(io);
+        try file.setPermissions(io, std.Io.File.Permissions.fromMode(0o755));
+        var write_buffer: [4096]u8 = undefined;
+        var writer = file.writer(io, &write_buffer);
 
         // const assembly_code_size = 0xC;     // 12   - TODO: Parametrize this.
         // const num_instructions = 3;
@@ -839,7 +843,7 @@ pub const MachOLinker = struct {
         // ------------------------------------------------
         // End of header section.
         // ------------------------------------------------
-        try self.flushHeader(writer);
+        try self.flushHeader(&writer);
 
         // ------------------------ Zero padding ------------------------
         // Pad zeros from end of header to beginning of text section.
@@ -848,7 +852,7 @@ pub const MachOLinker = struct {
         if (DEBUG) {
             print("paddingSize {d} {d} {d} \n", .{ self.headerSize, self.headerBuffer.items.len, paddingSize });
         }
-        try writer.writeByteNTimes(0, paddingSize);
+        try writeZeroPadding(&writer, paddingSize);
 
         // // -------------------- Assembly --------------------
         // // Assembly
@@ -876,25 +880,26 @@ pub const MachOLinker = struct {
         // try writer.writeStruct(arm.SVC{ .imm16 = arm.SVC.SYSCALL });
 
         for (code) |instr| {
-            try writer.writeInt(u32, instr, std.builtin.Endian.little);
+            const instr_bytes = std.mem.asBytes(&instr);
+            _ = try std.Io.Writer.writeVec(@constCast(&writer.interface), &[_][]const u8{instr_bytes});
         }
 
         // Emit the constants after code with padding for alignment.
-        try writer.writeByteNTimes(0, codeConstAlignmentPadding);
+        try writeZeroPadding(&writer, @as(u64, codeConstAlignmentPadding));
         for (internedStrings.keys()) |key| {
             // We can add additional alignment in between constants as well here.
             // It doesn't seem strictly necessary. Unclear if it'll be a plus or minus for performance.
-            try writer.writeAll(key);
+            _ = try std.Io.Writer.writeVec(@constCast(&writer.interface), &[_][]const u8{key});
         }
 
         // Zero pad for 16 byte alignment.
         const textPadding = 0x4000 - text_offset - totalTextSize;
-        try writer.writeByteNTimes(0, textPadding);
+        try writeZeroPadding(&writer, @as(u64, textPadding));
 
         // -------------------- Symbol Table --------------------
 
         // __mh_execute_header
-        try writer.writeStruct(NList64{
+        const nlist1 = NList64{
             .stringIndex = 2, // . IDK why it's offset by 2...
             .nType = NType{
                 .isExternal = true,
@@ -903,10 +908,12 @@ pub const MachOLinker = struct {
             .sectionNumber = 1,
             .description = NDEF_REFERENCED_DYNAMICALLY,
             .value = 0x100000000, // Base VM addr,
-        });
+        };
+        const nlist1_bytes = std.mem.asBytes(&nlist1);
+        _ = try std.Io.Writer.writeVec(@constCast(&writer.interface), &[_][]const u8{nlist1_bytes});
 
         // _main symbol
-        try writer.writeStruct(NList64{
+        const nlist2 = NList64{
             .stringIndex = 22, // 2 + 19 ("__mh_execute_header") + 1 (null byte) for prev symbol.
             .nType = NType{
                 .isExternal = true,
@@ -915,23 +922,53 @@ pub const MachOLinker = struct {
             .sectionNumber = 1,
             .description = 0,
             .value = text_addr, // Start of main.
-        });
+        };
+        const nlist2_bytes = std.mem.asBytes(&nlist2);
+        _ = try std.Io.Writer.writeVec(@constCast(&writer.interface), &[_][]const u8{nlist2_bytes});
 
         // String table
-        try writer.writeByte(0x20);
-        try writer.writeByte(0x00);
-        try writer.print("__mh_execute_header", .{});
-        try writer.writeByte(0);
-        try writer.print("_main", .{});
-        try writer.writeByte(0);
-        try writer.writeByteNTimes(0, 4);
+        const byte: u8 = 0x20;
+        _ = try std.Io.Writer.writeVec(@constCast(&writer.interface), &[_][]const u8{&[_]u8{byte}});
+        const byte2: u8 = 0x00;
+        _ = try std.Io.Writer.writeVec(@constCast(&writer.interface), &[_][]const u8{&[_]u8{byte2}});
+        const str1 = "__mh_execute_header";
+        _ = try std.Io.Writer.writeVec(@constCast(&writer.interface), &[_][]const u8{str1});
+        const byte3: u8 = 0;
+        _ = try std.Io.Writer.writeVec(@constCast(&writer.interface), &[_][]const u8{&[_]u8{byte3}});
+        const str2 = "_main";
+        _ = try std.Io.Writer.writeVec(@constCast(&writer.interface), &[_][]const u8{str2});
+        const byte4: u8 = 0;
+        _ = try std.Io.Writer.writeVec(@constCast(&writer.interface), &[_][]const u8{&[_]u8{byte4}});
+        const zero4 = [_]u8{0} ** 4;
+        _ = try std.Io.Writer.writeVec(@constCast(&writer.interface), &[_][]const u8{&zero4});
 
-        try codesig.sign(writer, file, signArgs);
+        try writer.flush();
+        try codesig.sign(&writer, file, io, signArgs);
 
         // Indicates end of file.
-        try writer.writeByteNTimes(0, 4);
+        const zero4_2 = [_]u8{0} ** 4;
+        _ = try std.Io.Writer.writeVec(@constCast(&writer.interface), &[_][]const u8{&zero4_2});
+
+        try writer.flush();
     }
 };
+
+fn writeZeroPadding(writer: anytype, count: u64) !void {
+    if (count == 0) {
+        return;
+    }
+
+    var zero_buf: [4096]u8 = undefined;
+    @memset(zero_buf[0..], 0);
+
+    var remaining = count;
+    while (remaining > 0) {
+        const chunk = @min(remaining, @as(u64, zero_buf.len));
+        const chunk_len: usize = @intCast(chunk);
+        _ = try std.Io.Writer.writeVec(@constCast(&writer.interface), &[_][]const u8{zero_buf[0..chunk_len]});
+        remaining -= chunk;
+    }
+}
 
 // pub fn main() !void {
 //     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
