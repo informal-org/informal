@@ -1792,7 +1792,7 @@ test {
 
 const exitSeq = &[_]u32{ movz(Reg.x16, 1), svc(0) };
 
-fn exitCodeTest(code: []const u32) !u32 {
+fn exitCodeTest(io: std.Io, code: []const u32) !u32 {
     // Create an executable with the given assembly code.
     // Execute it and check the exit code.
 
@@ -1802,10 +1802,10 @@ fn exitCodeTest(code: []const u32) !u32 {
     defer internedStrings.deinit();
 
     defer linker.deinit();
-    try linker.emitBinary(std.testing.io, code, &internedStrings, 0, "test.bin");
+    try linker.emitBinary(io, code, &internedStrings, 0, "test.bin");
 
     // Execute the binary file (use relative path in cwd)
-    const run_result = try std.process.run(test_allocator, std.testing.io, .{
+    const run_result = try std.process.run(test_allocator, io, .{
         .argv = &[_][]const u8{"./test.bin"},
     });
     // print("Terminated with : {any}\n", .{run_result.term});
@@ -1840,7 +1840,7 @@ fn exitCodeTest(code: []const u32) !u32 {
 // }
 
 test "print" {
-    const printAsm = exitCodeTest(&[_]u32{
+    const printAsm = exitCodeTest(std.testing.io, &[_]u32{
         // mov(Reg.x0, 1),  // File descriptor
         movz(Reg.x0, 1), // File descriptor - stdout
         // adrp(Reg.x1, 0),
