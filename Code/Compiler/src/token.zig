@@ -121,6 +121,11 @@ pub const Data = packed union {
     triple: Triple,
 };
 
+// Unsigned offsets. All 'previous' ones are assumed as negative. 0 indicates not-present.
+// Previous Grouping Start, Previous Separator, Next Separator
+// Used for ( ) [ ] ,
+pub const SequenceData = Data.Triple;
+
 pub const Flags = packed struct(u8) {
     alt: bool = false, // Indicates the next token is in the other queue.
     declaration: bool = false, // TODO: Do we really need a flag for this or can we do this with data types?
@@ -148,6 +153,26 @@ pub const Token = packed struct(u64) {
             .kind = kind,
             .data = Data{ .value = .{ .arg0 = value, .arg1 = offset } },
             .aux = Flags.empty(),
+        };
+    }
+
+    pub fn sep(self: Token, index: u32, sepIndex: u32, grpIndex: u32) Token {
+        // Flip the substractions to get positive results.
+        const prevGrpStart = if (grpIndex != 0) index - grpIndex else 0;
+        const prevSep = if (sepIndex != 0) index - sepIndex else 0;
+
+        std.debug.assert(prevGrpStart <= std.math.maxInt(u16));
+        std.debug.assert(prevSep <= std.math.maxInt(u16));
+        return Token{
+            .kind = self.kind,
+            .data = SequenceData{
+                .triple = .{
+                    .arg0 = @truncate(prevGrpStart),
+                    .arg1 = @truncate(prevSep),
+                    .arg2 = 0,
+                },
+            },
+            .aux = self.aux,
         };
     }
 

@@ -61,6 +61,9 @@ pub const Parser = struct {
     allocator: Allocator,
     index: u32,
 
+    sepIndex: u32, // Index of previous separators like commas
+    grpIndex: u32, // Index of current group-start nodes like (, [, {, <indent>
+
     const ParseNode = struct {
         token: Token,
         index: usize,
@@ -227,6 +230,23 @@ pub const Parser = struct {
         // }
     }
 
+    fn setNextSepIndex(self: *Self) void {
+        const currentIndex = self.parsedQ.list.items.len;
+        if (self.sepIndex != 0) {
+            std.debug.assert(self.sepIndex < currentIndex);
+            // Set next index
+            const nextIndex = currentIndex - self.sepIndex;
+            std.debug.assert(nextIndex <= std.math.maxInt(u16));
+            self.parsedQ.list.items[self.sepIndex].data.triple.arg2 = @truncate(nextIndex);
+        }
+        self.sepIndex = currentIndex;
+    }
+
+    fn emitSep(self: *Self, token: Token) !void {
+        try self.parsedQ.push(token.sep(self.index, self.sepIndex, self.grpIndex));
+        self.setNextSepIndex();
+    }
+
     /////////////////////////////////////////////
     // Expect Binary Literal Operations
     // We've seen an operand on the left. Now expecting a binary operation.
@@ -257,6 +277,7 @@ pub const Parser = struct {
         if (isKind(tok.SEPARATORS, kind)) {
             tok.print_token("Separators: {any}\n", token, self.buffer);
             try self.flushOpStack(token);
+            try self.emitSep(token); // Push ,
             // Flush any operators.
             try self.initial_state();
         } else if (isKind(tok.BINARY_OPS, kind)) {
@@ -282,6 +303,7 @@ pub const Parser = struct {
             }
         } else if (isKind(tok.GROUP_START, kind)) {
             tok.print_token("Expect binary - Group start: {any}\n", token, self.buffer);
+            // TODO: Push sep - but do we really want to emit the ()?
             if (kind == TK.grp_indent) {
                 tok.print_token("Expect binary - UNEXPECTED INDENT TOKEN!: {any}\n", token, self.buffer);
             } else {
