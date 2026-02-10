@@ -26,7 +26,9 @@ pub fn extend_bitset(base: BitSet128, pattern: []const u8) BitSet128 {
 pub fn token_bitset(tokens: []const tok.Kind) BitSet64 {
     var bs = BitSet64.initEmpty();
     for (tokens) |token| {
-        bs.set(@intFromEnum(token));
+        const val = @intFromEnum(token);
+        std.debug.assert(val < 64);
+        bs.set(val);
     }
     return bs;
 }

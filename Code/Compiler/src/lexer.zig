@@ -520,17 +520,22 @@ pub const Lexer = struct {
         }
     }
     fn token_keyword_or_identifier(self: *Lexer) !void {
-        // TODO: Deprecated. We've removed these keywords, so now it's all identifiers.
         const start = self.index;
         _ = self.seek_till_keyword_delimiter();
         const len = self.index - start;
         if (len == 2) {
             const name = self.buffer[start..self.index];
             if (std.mem.eql(u8, name, "if")) {
+                // TODO: Deprecate if keyword - just an identifier now.
                 try self.emitToken(tok.KW_IF);
+                return;
+            } else if (std.mem.eql(u8, name, "fn")) {
+                std.log.debug("token_identifier: keyword fn", .{});
+                try self.emitToken(tok.createToken(TK.kw_fn));
                 return;
             }
         } else if (len == 4) {
+            // TODO: Deprecate else keyword - just an identifier now.
             const name = self.buffer[start..self.index];
             if (std.mem.eql(u8, name, "else")) {
                 try self.emitToken(tok.KW_ELSE);
@@ -1140,6 +1145,13 @@ test "Identifiers with operator separators" {
         Token.lex(TK.identifier, 0, 2).nextAlt(),
         tok.createToken(TK.op_or).nextAlt(),
         Token.lex(TK.identifier, 1, 2).nextAlt(),
+    }, null);
+}
+
+test "Lex def keyword" {
+    var buffer = "fn".*;
+    try testToken(&buffer, &[_]Token{
+        tok.createToken(TK.kw_fn).nextAlt(),
     }, null);
 }
 

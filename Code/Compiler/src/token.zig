@@ -74,7 +74,7 @@ pub const Kind = enum(u8) {
     kw_else,
     kw_else_if,
     kw_for,
-    kw_def,
+    kw_fn,
 
     identifier,
     const_identifier,
@@ -241,6 +241,12 @@ pub fn print_token(comptime fmt: []const u8, token: Token, buffer: []const u8) v
     print(fmt, .{TokenWriter{ .token = token, .buffer = buffer }});
 }
 
+pub fn debug_token(comptime fmt: []const u8, token: Token, buffer: []const u8) void {
+    if (constants.DEBUG) {
+        print(fmt, .{TokenWriter{ .token = token, .buffer = buffer }});
+    }
+}
+
 pub const TK = Kind;
 
 pub const LITERALS = bitset.token_bitset(&[_]TK{ TK.lit_string, TK.lit_number, TK.lit_bool, TK.lit_null });
@@ -248,7 +254,7 @@ pub const UNARY_OPS = bitset.token_bitset(&[_]TK{ TK.op_not, TK.op_unary_minus }
 pub const GROUP_START = bitset.token_bitset(&[_]TK{ TK.grp_indent, TK.grp_open_paren, TK.grp_open_brace, TK.grp_open_bracket });
 pub const GROUP_END = bitset.token_bitset(&[_]TK{ TK.grp_close_brace, TK.grp_close_paren, TK.grp_close_bracket });
 pub const IDENTIFIER = bitset.token_bitset(&[_]TK{ TK.identifier, TK.const_identifier, TK.call_identifier });
-pub const KEYWORD_START = bitset.token_bitset(&[_]TK{ TK.kw_if, TK.kw_for, TK.kw_def, TK.kw_else });
+pub const KEYWORD_START = bitset.token_bitset(&[_]TK{ TK.kw_if, TK.kw_for, TK.kw_fn, TK.kw_else });
 pub const PAREN_START = bitset.token_bitset(&[_]TK{TK.grp_open_paren});
 pub const BINARY_OPS = bitset.token_bitset(&[_]TK{
     TK.op_gte,
@@ -332,7 +338,7 @@ fn initPrecedenceTable() [64]bitset.BitSet64 {
     // We only want to construct the precedence table for the tokens which have precedence.
     // Everything else should be handled by separate state-machine logic and should be unreachable.
     for (PRECEDENCE_LEVELS) |level| {
-        for (0..64) |i| { // TODO
+        for (0..64) |i| {
             // Assumption: Each op only shows up in one precedence level.
             if (level.isSet(i)) {
                 flushTbl[i] = getFlushBitset(@enumFromInt(i));
