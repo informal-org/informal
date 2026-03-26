@@ -228,8 +228,9 @@ pub const Lexer = struct {
         // Points to the beginning of line rather than newline char. Stored to allow line-relative char calculations.
         self.lineChStart = self.index;
 
-        // Post: lineChStart points to start of next line
+        // Post: previous character should be the newline character, and lineChStart points to start of next line
         std.debug.assert(self.lineChStart == self.index);
+        std.debug.assert(self.index > 0 and self.buffer[self.index - 1] == '\n');
     }
 
     fn token_dot(self: *Lexer) !void {

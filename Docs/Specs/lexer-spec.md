@@ -36,10 +36,6 @@ RECOMMENDED_INDENT_SIZE  = 4        // User guidance
 - Tokens carry interned indices (not raw text)
 - Hash maps: `symbolTable`, `internedStrings`, `internedNumbers`, `internedFloats`
 
-**Future Migration:**
-- Consider moving interning to parser for better incrementality
-- Would reduce lexer allocations, make it purely IO-bound
-
 ---
 
 ## Output: Dual Queues to separate semantic and formatting tokens
@@ -69,22 +65,25 @@ RECOMMENDED_INDENT_SIZE  = 4        // User guidance
 Newlines appear in **both queues** with complementary data:
 
 **Syntax Queue Newline:**
-```zig
-Token.lex(
-    kind: sep_newline,
-    value: auxQueueIndex,      // u32: points to aux newline
-    aux: prevLineTokenOffset   // u16: tokens since last newline
-)
+```
+ 63       48 47                    16 15        8 7         0
+┌───────────┬────────────────────────┬───────────┬──────────┐
+│prev_tk(16)│   aux queue index (32) │sep_newline│ flags    │
+└───────────┴────────────────────────┴───────────┴──────────┘
+  prev_tk = tokens since last newline in syntaxQ (u16 offset)
+  aux queue index = position of corresponding aux_newline
 ```
 
 **Aux Queue Newline:**
-```zig
-Token.lex(
-    kind: aux_newline, 
-    value: charIndex,          // u32: character position in buffer
-    aux: absoluteLineNumber    // u16: line number in chunk
-)
 ```
+ 63       48 47                    16 15        8 7         0
+┌───────────┬────────────────────────┬───────────┬──────────┐
+│line_no(16)│    char index (32)     │aux_newline│ flags    │
+└───────────┴────────────────────────┴───────────┴──────────┘
+  line_no = absolute line number within chunk
+  char index = byte position of \n in buffer
+```
+
 
 This allows:
 - Parser: fast syntax token traversal with line metadata access
@@ -97,8 +96,11 @@ This allows:
 
 ### 64-bit Token Encoding
 
+Tokens are encoded in one of three formats, which vary by kind.
 ```
-[8-bit kind][32-bit value][16-bit aux][8-bit flags]
+[16-bit aux][32-bit value    ][8-bit kind][8-bit flags]
+[22-bit aux  ][22-bit value  ][8-bit kind][8-bit flags]
+[16-bit A][16-bit B][16-bit C][8-bit kind][8-bit flags]
 ```
 
 **Fields:**
@@ -107,46 +109,86 @@ This allows:
 - `aux`: Secondary data (length, offset, line number, etc.)
 - `flags`: Contains `alt` bit for queue switching
 
+
+**Flags byte** (bits 7:0):
+```
+  7  6  5  4  3  2  1  0
+┌──────────────────┬──┬──┐
+│   reserved (6)   │dc│al│
+└──────────────────┴──┴──┘
+  al = alt bit (next token is in other queue)
+  dc = declaration (identifier is a declaration site)
+```
+
+
 ### Token Categories
 
 #### Identifiers
-- **identifier**: `[a-z_][a-zA-Z0-9_ ]*` (lowercase start. Spaces are allowed in identifiers)
-  - `value`: interned symbol index
-  - `aux`: length in bytes
-  
-- **call_identifier**: identifier immediately followed by `(`
-  - Enables lookahead-free parsing of function calls
-  
-- **type_identifier**: `[A-Z][a-zA-Z0-9_]*` Starts with uppercase with at least one lowercase
-  - Examples: `Int`, `String`, `MyType`, `HttpRequest`
-  
-- **const_identifier**: `[A-Z_]+` (all uppercase. Cannot contain spaces). 
-  - Examples: `MAX_SIZE`, `PI`, `DEFAULT_TIMEOUT`
-  
-- **op_identifier**: All uppercase, contextually after identifier
-  - Examples: `value TRANSFORM result`, `items FILTER predicate`
-  - Enables user-defined operators
+```
+┌───────────┬────────────────────────┬───────────┬──────────┐
+│length (16)│   symbol index (32)    │ kind (8)  │ flags    │
+└───────────┴────────────────────────┴───────────┴──────────┘
+length in bytes
+Interned symbol index
+```
+
+
+| Kind               | Pattern                      | Notes                                                      | Examples                                      |
+|--------------------|-----------------------------|------------------------------------------------------------|-----------------------------------------------|
+| `identifier`       | `[a-z_][a-zA-Z0-9_ ]*`      | Lowercase start. Single spaces allowed inside.             | `thing`, `do_a_thing`, `fooBar`, `foo bar`    |
+| `call_identifier`  | identifier + `(`            | Avoids lookahead in parser for function calls              | `sum(`, `parse_one(`, `my_func(`              |
+| `type_identifier`  | `[A-Z][a-zA-Z0-9_]*`        | Uppercase start, at least one lowercase.                   | `Int`, `String`, `MyType`, `HttpRequest`      |
+| `const_identifier` | `[A-Z_]+`                   | All uppercase, no spaces.                                  | `MAX_SIZE`, `PI`, `DEFAULT_TIMEOUT`           |
+| `op_identifier`    | identifier + `[A-Z_]+`  | User-defined infix operator. Contextually after identifier. | `value TRANSFORM result`, `items FILTER predicate` |
 
 #### Literals
 
 **Numbers (`lit_number`):**
 - Syntax: `[0-9]+` or `\.[0-9]+`  
 - Small numbers are stored directly in the token if value ≤ MAX_LITERAL_NUMBER. 
-  - `value`: numeric value (immediate)
-  - `aux`: digit count
+(value ≤ 65536, stored inline)
+```
+ 63       48 47                    16 15        8 7         0
+┌───────────┬────────────────────────┬───────────┬──────────┐
+│digits (16)│   numeric value (32)   │lit_number │ flags    │
+└───────────┴────────────────────────┴───────────┴──────────┘
+  digits = source character count    value = parsed integer
+```
+
 - Large numbers are interned into a constant pool if value > MAX_LITERAL_NUMBER:
-  - `value`: interned constant pool index
-  - `aux`: 0 (flag for pool lookup)
+
+```
+ 63       48 47                    16 15        8 7         0
+┌───────────┬────────────────────────┬───────────┬──────────┐
+│  0x0000   │  const pool index (32) │lit_number │ flags    │
+└───────────┴────────────────────────┴───────────┴──────────┘
+  arg1 (digit length) == 0 is the flag distinguishing pool lookup from inline
+```
+
 
 **Strings (`lit_string`):**
 - Syntax: `"[^"]*"` with escape sequences
 - Escape sequences: `\n \t \r \\ \"`
 - Processing: **in-place** replacement in source buffer
-- `value`: interned string index
-- `aux`: processed length (after escape substitution)
-
+```
+ 63       48 47                    16 15        8 7         0
+┌───────────┬────────────────────────┬───────────┬──────────┐
+│length (16)│  interned str idx (32) │lit_string │ flags    │
+└───────────┴────────────────────────┴───────────┴──────────┘
+  length = processed length after escape substitution
+  Escapes: \n \t \r \\ \"   — replaced in-place in source buffer
+```
 
 #### Operators and Symbols
+
+```
+ 63       48 47                    16 15        8 7         0
+┌───────────┬────────────────────────┬───────────┬──────────┐
+│  0x0000   │       0x00000000       │ kind (8)  │ flags    │
+└───────────┴────────────────────────┴───────────┴──────────┘
+  No payload. Token kind alone encodes the operation.
+```
+
 
 **Built-in Symbolic Operators:**
 ```
@@ -160,8 +202,18 @@ This allows:
 
 **Multi-Character Operators:**
 All use `=` as second character: `!=`, `*=`, `+=`, `-=`, `/=`, `<=`, `>=`, `==`
+The first character maps to the kind via `MULTICHAR_BITSET` popcount index.
+
 
 **Word Operators (Built-in):**
+
+```
+ 63       48 47                    16 15        8 7         0
+┌───────────┬────────────────────────┬───────────┬──────────┐
+│  0x0000   │       0x00000000       │ kind (8)  │ flags    │
+└───────────┴────────────────────────┴───────────┴──────────┘
+```
+
 ```
 AND  OR  NOT            // Logical
 AS   IN  IS             // Type/membership
@@ -179,6 +231,14 @@ Note: Currently not implemented in `token_dot()`
 - **sep_newline**: `\n` (dual-queue emission, see above)
 
 #### Grouping
+
+```
+ 63       48 47                    16 15        8 7         0
+┌───────────┬────────────────────────┬───────────┬──────────┐
+│  0x0000   │       0x00000000       │ kind (8)  │ flags    │
+└───────────┴────────────────────────┴───────────┴──────────┘
+  No payload. Kind alone identifies the grouping type.
+```
 
 - **Parentheses**: `(` `)` 
 - **Brackets**: `[` `]`
@@ -200,14 +260,34 @@ Indentation is semantically meningful and represented in the output queue with i
 #### Auxiliary Tokens
 
 - **aux_whitespace**: Horizontal formatting whitespace (spaces, not at line start and not in identifiers)
-  - `value`: start index
-  - `aux`: length
+
+```
+ 63       48 47                    16 15        8 7         0
+┌───────────┬────────────────────────┬───────────┬──────────┐
+│length (16)│  start char index (32) │aux_wspace │ flags    │
+└───────────┴────────────────────────┴───────────┴──────────┘
+  Spaces between tokens (not at line start, not inside identifiers)
+```
   
 - **aux_indentation**: Tab character (error diagnostic)
+```
+ 63       48 47                    16 15        8 7         0
+┌───────────┬────────────────────────┬───────────┬──────────┐
+│  0x0001   │    char index (32)     │aux_indent │ flags    │
+└───────────┴────────────────────────┴───────────┴──────────┘
+  Emitted when a tab character is encountered (always an error)
+```
   
 - **aux_newline**: Newline metadata (see cross-indexing above)
 
 - **aux_stream_start** / **aux_stream_end**: Stream boundaries
+```
+ 63       48 47                    16 15        8 7         0
+┌───────────┬────────────────────────┬───────────┬──────────┐
+│  0x0000   │       0x00000000       │ kind (8)  │ flags    │
+└───────────┴────────────────────────┴───────────┴──────────┘
+  aux_stream_end kind = 255 (sentinel for queue termination)
+```
 
 #### Comments (TODO: Improve)
 
