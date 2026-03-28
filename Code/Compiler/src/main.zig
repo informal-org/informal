@@ -1,8 +1,9 @@
 const std = @import("std");
 const reader = @import("reader.zig");
+const build_options = @import("build_options");
 
 pub const std_options = std.Options{
-    .log_level = .debug,
+    .log_level = @enumFromInt(@intFromEnum(build_options.log_level)),
 };
 
 pub fn main(init: std.process.Init) !void {

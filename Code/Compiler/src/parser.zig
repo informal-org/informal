@@ -119,9 +119,8 @@ pub const Parser = struct {
             }
             if (isKind(tok.GROUP_START, tokKind)) {
                 // Compilation error - print token
-                tok.print_token("Compilation error - UNMATCHED GROUPING: {any}\n", tokNode.token, self.buffer);
+                // tok.print_token("Compilation error - UNMATCHED GROUPING: {any}\n", tokNode.token, self.buffer);
                 return;
-                // return error.UnmatchedGrouping;
             }
             try self.popOp();
         }
@@ -195,14 +194,14 @@ pub const Parser = struct {
                 try self.expect_binary();
             }
         } else if (isKind(tok.PAREN_START, kind)) {
-            tok.print_token("Initial state - Paren Start: {any}\n", token, self.buffer);
+            // tok.print_token("Initial state - Paren Start: {any}\n", token, self.buffer);
         } else if (isKind(tok.UNARY_OPS, kind)) {
-            tok.print_token("Initial state - UNARY Op: {any}\n", token, self.buffer);
+            // tok.print_token("Initial state - UNARY Op: {any}\n", token, self.buffer);
         } else if (kind == TK.sep_newline) {
-            tok.print_token("Initial state - Skipping Newline: {any}\n", token, self.buffer);
+            // tok.print_token("Initial state - Skipping Newline: {any}\n", token, self.buffer);
             try self.initial_state();
         } else if (kind == TK.grp_indent) {
-            tok.print_token("Initial state - Indent: {any}\n", token, self.buffer);
+            // tok.print_token("Initial state - Indent: {any}\n", token, self.buffer);
             const scopeId = self.resolution.scopeId;
             const startIdx = self.parsedQ.list.items.len;
             try self.emitParsed(tok.Token.lex(TK.grp_indent, 0, scopeId)); // We emit the indentation start right away to denote blocks.
@@ -213,12 +212,12 @@ pub const Parser = struct {
             try self.pushOp(Token.lex(TK.grp_dedent, @truncate(startIdx), scopeId));
             try self.initial_state();
         } else if (kind == TK.grp_dedent) {
-            tok.print_token("Initial state - Dedent: {any}\n", token, self.buffer);
+            // tok.print_token("Initial state - Dedent: {any}\n", token, self.buffer);
             try self.flushUntilToken(TK.grp_dedent);
             try self.resolution.endScope(@truncate(self.parsedQ.list.items.len));
             try self.initial_state();
         } else {
-            tok.print_token("Initial state - Invalid token: {any}\n", token, self.buffer);
+            // tok.print_token("Initial state - Invalid token: {any}\n", token, self.buffer);
         }
 
         // switch (token.kind) {
@@ -275,7 +274,7 @@ pub const Parser = struct {
 
         const kind = token.kind;
         if (isKind(tok.SEPARATORS, kind)) {
-            tok.print_token("Separators: {any}\n", token, self.buffer);
+            // tok.print_token("Separators: {any}\n", token, self.buffer);
             try self.flushOpStack(token);
             //try self.emitSep(token); // Push ,
             // Flush any operators.
@@ -302,16 +301,16 @@ pub const Parser = struct {
                 try self.expect_unary();
             }
         } else if (isKind(tok.GROUP_START, kind)) {
-            tok.print_token("Expect binary - Group start: {any}\n", token, self.buffer);
+            // tok.print_token("Expect binary - Group start: {any}\n", token, self.buffer);
             // TODO: Push sep - but do we really want to emit the ()?
             if (kind == TK.grp_indent) {
-                tok.print_token("Expect binary - UNEXPECTED INDENT TOKEN!: {any}\n", token, self.buffer);
+                // tok.print_token("Expect binary - UNEXPECTED INDENT TOKEN!: {any}\n", token, self.buffer);
             } else {
                 try self.pushOp(token);
                 try self.initial_state();
             }
         } else if (isKind(tok.GROUP_END, kind)) {
-            tok.print_token("Expect binary - Group end: {any}\n", token, self.buffer);
+            // tok.print_token("Expect binary - Group end: {any}\n", token, self.buffer);
             try self.flushUntil(tok.GROUP_START);
             // TODO: Should this contain indent as well?
             const expectedStart = switch (kind) {
@@ -327,14 +326,13 @@ pub const Parser = struct {
             _ = self.offsetQ.popLast();
             // TODO: Long-term, we'll want some kind of error-recovery here to keep parsing.
             if (top.kind != expectedStart) {
-                tok.print_token("Compilation error - UNMATCHED GROUPING: {any}\n", token, self.buffer);
+                // tok.print_token("Compilation error - UNMATCHED GROUPING: {any}\n", token, self.buffer);
                 return;
-                // return error.UnmatchedGrouping;
             }
 
             try self.initial_state();
         } else {
-            tok.print_token("Invalid token: {any}\n", token, self.buffer);
+            // tok.print_token("Invalid token: {any}\n", token, self.buffer);
         }
     }
 
@@ -367,13 +365,13 @@ pub const Parser = struct {
             try self.emitParsed(ident);
             try self.expect_binary();
         } else if (isKind(tok.PAREN_START, kind)) {
-            tok.print_token("Parser - unhandled unary - Paren Start: {any}\n", token, self.buffer);
+            // tok.print_token("Parser - unhandled unary - Paren Start: {any}\n", token, self.buffer);
         } else if (isKind(tok.KEYWORD_START, kind)) {
-            tok.print_token("Parser - unhandled unary - Keyword Start: {any}\n", token, self.buffer);
+            // tok.print_token("Parser - unhandled unary - Keyword Start: {any}\n", token, self.buffer);
         } else if (isKind(tok.UNARY_OPS, kind)) {
-            tok.print_token("Parser - unhandled unary - UNARY Op: {any}\n", token, self.buffer);
+            // tok.print_token("Parser - unhandled unary - UNARY Op: {any}\n", token, self.buffer);
         } else {
-            print("Parser - unhandled unary at {d} - Invalid token: {any}\n", .{ self.index, token });
+            // print("Parser - unhandled unary at {d} - Invalid token: {any}\n", .{ self.index, token });
         }
     }
 
@@ -411,7 +409,7 @@ pub const Parser = struct {
     // Initialize the parser state.
     // Note: All sub-parse functions MUST be tail-recursive, in a direct-threaded style.
     // Each state function should process a token at a time, with no lookahead or backtracking.
-    pub fn parse(self: *Self) !void {
+    pub fn startParse(self: *Self) !void {
         log.debug("\n------------- Parser --------------- \n", .{});
         try self.parsedQ.push(tok.AUX_STREAM_START); // Hack - to make sure zero index is always occupied.
         try self.initial_state();

@@ -20,10 +20,14 @@ pub const PrattParser = struct {
     auxQ: *TokenQueue,
     resolution: *rs.Resolution,
     allocator: Allocator,
+    index: u32,
+    tokenParsers: [64]TokenParser = initGrammar(),
 
-    tokenParsers: [64]TokenParser,
+    parsedQ: *TokenQueue,
+    // For each token in the parsedQ, indicates where to find it in the syntaxQ.
+    offsetQ: *OffsetQueue,
 
-    const LeftBindingPower = enum(u8) {
+    const Power = enum(u8) {
         None = 0,
         Separator = 10,
         Assign = 20,
@@ -37,106 +41,165 @@ pub const PrattParser = struct {
         Unary = 100,
         Member = 110,
         Call = 120,
+
+        pub fn val(self: Power) u8 {
+            return @intFromEnum(self);
+        }
     };
 
-    const ParserType = enum { none, literal, identifier, callExpr, unaryOp, binaryOp, binaryRightAssocOp, assignOp, colonAssocOp, separator, skipNewLine, groupParen, groupBracket, groupBrace, indentBlock };
+    const ParserType = enum(u8) {
+        none,
+        literal,
+        identifier,
+        callExpr,
+        unaryOp,
+        binaryOp,
+        binaryRightAssocOp,
+        assignOp,
+        colonAssocOp,
+        separator,
+        skipNewLine,
+        groupParen,
+        groupBracket,
+        groupBrace,
+        indentBlock,
+    };
 
-    const TokenParser = packed struct(u32) {
+    const TokenParser = packed struct(u24) {
         // Compact pratt rule representations. Aviods storing function pointers directly, but requires an extra level of indirection.
         prefix: ParserType = .none, // What does this token mean at the start of an expression with nothing to its left? Null denotation.
         infix: ParserType = .none, // What does this token mean when it follows some expression? Left denotation.
-        power: LeftBindingPower = .None, // Left binding power
+        power: Power = .None, // Left binding power
     };
+
+    pub fn init(
+        buffer: []const u8,
+        syntaxQ: *TokenQueue,
+        auxQ: *TokenQueue,
+        parsedQ: *TokenQueue,
+        offsetQ: *OffsetQueue,
+        allocator: Allocator,
+        resolution: *rs.Resolution,
+    ) Self {
+        return Self{
+            .buffer = buffer,
+            .syntaxQ = syntaxQ,
+            .auxQ = auxQ,
+            .parsedQ = parsedQ,
+            .offsetQ = offsetQ,
+            .allocator = allocator,
+            .index = 0,
+            .resolution = resolution,
+        };
+    }
+
+    pub fn deinit(self: *Self) void {
+        // No opStack to free.
+        _ = self;
+    }
 
     fn define(self: *Self, kind: Kind, rule: TokenParser) void {
         self.tokenParsers[@intFromEnum(kind)] = rule;
     }
 
-    fn initRules(self: *Self) void {
+    fn initGrammar() [64]TokenParser {
+        @setEvalBranchQuota(10000);
         assert(tok.AUX_KIND_START <= 64);
-        for (0..64) |i| {
-            self.rules[i] = TokenParser{};
-        }
 
-        self.define(Kind.lit_number, TokenParser{ .prefix = .literal });
-        self.define(Kind.lit_string, TokenParser{ .prefix = .literal });
-        self.define(Kind.lit_bool, TokenParser{ .prefix = .literal });
-        self.define(Kind.lit_null, TokenParser{ .prefix = .literal });
-        self.define(Kind.identifier, TokenParser{ .prefix = .identifier });
-        self.define(Kind.const_identifier, TokenParser{ .prefix = .identifier });
-        self.define(Kind.call_identifier, TokenParser{ .prefix = .callExpr });
+        const Grammar = struct {
+            const Grammy = @This();
+            grammar: [64]TokenParser,
+            fn init() Grammy {
+                return Grammy{ .grammar = [_]TokenParser{TokenParser{ .prefix = .none, .infix = .none, .power = .None }} ** 64 };
+            }
+            fn infix(self: *Grammy, kind: Kind, parserType: ParserType, lbp: Power) void {
+                self.grammar[@intFromEnum(kind)] = TokenParser{ .infix = parserType, .power = lbp };
+            }
+            fn prefix(self: *Grammy, kind: Kind, parserType: ParserType, lbp: Power) void {
+                self.grammar[@intFromEnum(kind)] = TokenParser{ .prefix = parserType, .power = lbp };
+            }
+        };
+        var grammar = Grammar.init();
+
+        grammar.prefix(Kind.lit_number, .literal, .None);
+        grammar.prefix(Kind.lit_string, .literal, .None);
+        grammar.prefix(Kind.lit_bool, .literal, .None);
+        grammar.prefix(Kind.lit_null, .literal, .None);
+        grammar.prefix(Kind.identifier, .identifier, .None);
+        grammar.prefix(Kind.const_identifier, .identifier, .None);
+        grammar.prefix(Kind.call_identifier, .callExpr, .None);
 
         // Unary ops (prefix only)
-        self.define(Kind.op_not, TokenParser{ .prefix = .unaryOp, .power = .Unary });
-        self.define(Kind.op_unary_minus, TokenParser{ .prefix = .unaryOp, .power = .Unary });
-
-        // Binary arithmetic
-        self.define(Kind.op_add, TokenParser{ .infix = .binaryOp, .power = .Additive });
-        self.define(Kind.op_sub, TokenParser{ .infix = .binaryOp, .power = .Additive });
-
-        self.define(Kind.op_mul, TokenParser{ .infix = .binaryOp, .power = .Divisive });
-        self.define(Kind.op_div, TokenParser{ .infix = .binaryOp, .power = .Divisive });
-        self.define(Kind.op_mod, TokenParser{ .infix = .binaryOp, .power = .Divisive });
-        self.define(Kind.op_pow, TokenParser{ .infix = .binaryRightAssocOp, .power = .Exp });
+        grammar.prefix(Kind.op_not, .unaryOp, .Unary);
+        grammar.prefix(Kind.op_unary_minus, .unaryOp, .Unary);
+        grammar.infix(Kind.op_add, .binaryOp, .Additive);
+        grammar.infix(Kind.op_sub, .binaryOp, .Additive);
+        grammar.infix(Kind.op_mul, .binaryOp, .Divisive);
+        grammar.infix(Kind.op_div, .binaryOp, .Divisive);
+        grammar.infix(Kind.op_mod, .binaryOp, .Divisive);
+        grammar.infix(Kind.op_pow, .binaryRightAssocOp, .Exp);
 
         // Comparison
-        self.define(Kind.op_lt, TokenParser{ .infix = .binaryOp, .power = .Comparison });
-        self.define(Kind.op_gt, TokenParser{ .infix = .binaryOp, .power = .Comparison });
-        self.define(Kind.op_lte, TokenParser{ .infix = .binaryOp, .power = .Comparison });
-        self.define(Kind.op_gte, TokenParser{ .infix = .binaryOp, .power = .Comparison });
-        self.define(Kind.op_dbl_eq, TokenParser{ .infix = .binaryOp, .power = .Equality });
-        self.define(Kind.op_not_eq, TokenParser{ .infix = .binaryOp, .power = .Equality });
+        grammar.infix(Kind.op_lt, .binaryOp, .Comparison);
+        grammar.infix(Kind.op_gt, .binaryOp, .Comparison);
+        grammar.infix(Kind.op_lte, .binaryOp, .Comparison);
+        grammar.infix(Kind.op_gte, .binaryOp, .Comparison);
+        grammar.infix(Kind.op_dbl_eq, .binaryOp, .Equality);
+        grammar.infix(Kind.op_not_eq, .binaryOp, .Equality);
 
         // Logical
-        self.define(Kind.op_and, TokenParser{ .infix = .binaryOp, .power = .And });
-        self.define(Kind.op_or, TokenParser{ .infix = .binaryOp, .power = .Or });
-
-        // Assignment
-        self.define(Kind.op_assign_eq, TokenParser{ .infix = .assignOp, .power = .Assign });
-        self.define(Kind.op_plus_eq, TokenParser{ .infix = .assignOp, .power = .Assign });
-        self.define(Kind.op_minus_eq, TokenParser{ .infix = .assignOp, .power = .Assign });
-        self.define(Kind.op_mul_eq, TokenParser{ .infix = .assignOp, .power = .Assign });
-        self.define(Kind.op_div_eq, TokenParser{ .infix = .assignOp, .power = .Assign });
+        grammar.infix(Kind.op_and, .binaryOp, .And);
+        grammar.infix(Kind.op_or, .binaryOp, .Or);
 
         // Other binary
-        self.define(Kind.op_choice, TokenParser{ .infix = .binaryOp, .power = .Or });
-        self.define(Kind.op_in, TokenParser{ .infix = .binaryOp, .power = .Comparison });
-        self.define(Kind.op_is, TokenParser{ .infix = .binaryOp, .power = .Comparison });
-        self.define(Kind.op_as, TokenParser{ .infix = .binaryOp, .power = .Comparison });
-        self.define(Kind.op_identifier, TokenParser{ .infix = .binaryOp, .power = .Comparison });
-        self.define(Kind.op_dot_member, TokenParser{ .infix = .binaryOp, .power = .Member });
+        grammar.infix(Kind.op_choice, .binaryOp, .Or);
+        grammar.infix(Kind.op_in, .binaryOp, .Comparison);
+        grammar.infix(Kind.op_is, .binaryOp, .Comparison);
+        grammar.infix(Kind.op_as, .binaryOp, .Comparison);
+        grammar.infix(Kind.op_identifier, .binaryOp, .Comparison);
+        grammar.infix(Kind.op_dot_member, .binaryOp, .Member);
+
+        // Assignment
+        grammar.infix(Kind.op_assign_eq, .assignOp, .Assign);
+        grammar.infix(Kind.op_plus_eq, .assignOp, .Assign);
+        grammar.infix(Kind.op_minus_eq, .assignOp, .Assign);
+        grammar.infix(Kind.op_mul_eq, .assignOp, .Assign);
+        grammar.infix(Kind.op_div_eq, .assignOp, .Assign);
 
         // Separators
-        self.define(Kind.sep_comma, TokenParser{ .infix = .separator, .power = .Separator });
-        self.define(Kind.sep_newline, TokenParser{ .prefix = .skipNewLine, .infix = .separator, .power = .Separator });
+        grammar.infix(Kind.sep_comma, .separator, .Separator);
+        grammar.prefix(Kind.sep_newline, .skipNewLine, .Separator);
 
         // Grouping
-        self.define(Kind.grp_open_paren, TokenParser{ .prefix = .groupParen });
-        self.define(Kind.grp_open_bracket, TokenParser{ .prefix = .groupBracket });
-        self.define(Kind.grp_open_brace, TokenParser{ .prefix = .groupBrace });
-        self.define(Kind.grp_indent, TokenParser{ .prefix = .indentBlock });
-        self.define(Kind.grp_dedent, TokenParser{ .prefix = .dedentBlock });
+        grammar.prefix(Kind.grp_open_paren, .groupParen, .None);
+        grammar.prefix(Kind.grp_open_bracket, .groupBracket, .None);
+        grammar.prefix(Kind.grp_open_brace, .groupBrace, .None);
+        grammar.prefix(Kind.grp_indent, .indentBlock, .None);
+        // grammar.prefix(Kind.grp_dedent, .dedentBlock, .None);
 
         // TODO: Keywords like if, for, fn, etc.
+        return grammar.grammar;
     }
 
     const ParseFn = *const fn (*Self, Token) anyerror!void;
-    const parseFns = [64]ParseFn;
-    fn initParseFns(self: *Self) void {
-        self.parseFns[ParserType.literal] = literal;
-        self.parseFns[ParserType.identifier] = identifier;
-        self.parseFns[ParserType.callExpr] = callExpr;
-        self.parseFns[ParserType.unaryOp] = unaryOp;
-        self.parseFns[ParserType.skipNewLine] = skipNewLine;
-        self.parseFns[ParserType.groupParen] = groupParen;
-        self.parseFns[ParserType.groupBracket] = groupBracket;
-        self.parseFns[ParserType.groupBrace] = groupBrace;
-        self.parseFns[ParserType.indentBlock] = indentBlock;
-        self.parseFns[ParserType.binaryOp] = binaryOp;
-        self.parseFns[ParserType.binaryRightAssocOp] = binaryRightAssocOp;
-        self.parseFns[ParserType.assignOp] = assignOp;
-        self.parseFns[ParserType.colonAssocOp] = colonAssocOp;
-        self.parseFns[ParserType.separator] = separator;
+    const parseFns = initParseFns();
+    fn initParseFns() [64]ParseFn {
+        var fns: [64]ParseFn = [_]ParseFn{literal} ** 64;
+        fns[@intFromEnum(ParserType.literal)] = literal;
+        fns[@intFromEnum(ParserType.identifier)] = identifier;
+        fns[@intFromEnum(ParserType.callExpr)] = callExpr;
+        fns[@intFromEnum(ParserType.unaryOp)] = unaryOp;
+        fns[@intFromEnum(ParserType.skipNewLine)] = skipNewLine;
+        fns[@intFromEnum(ParserType.groupParen)] = groupParen;
+        fns[@intFromEnum(ParserType.groupBracket)] = groupBracket;
+        fns[@intFromEnum(ParserType.groupBrace)] = groupBrace;
+        fns[@intFromEnum(ParserType.indentBlock)] = indentBlock;
+        fns[@intFromEnum(ParserType.binaryOp)] = binaryOp;
+        fns[@intFromEnum(ParserType.binaryRightAssocOp)] = binaryRightAssocOp;
+        fns[@intFromEnum(ParserType.assignOp)] = assignOp;
+        fns[@intFromEnum(ParserType.colonAssocOp)] = colonAssocOp;
+        fns[@intFromEnum(ParserType.separator)] = separator;
+        return fns;
     }
 
     fn emit(self: *Self, token: Token) anyerror!void {
@@ -144,21 +207,21 @@ pub const PrattParser = struct {
         try self.offsetQ.push(@truncate(self.offsetQ.list.items.len - self.index)); // TODO: This is probably not the correct offset. Need to double-check.
     }
 
-    fn currentBindingPower(self: *Self) LeftBindingPower {
+    fn currentBindingPower(self: *Self) u8 {
         const token = self.syntaxQ.peek();
-        const rule = self.rules[@intFromEnum(token.kind)];
-        return rule.power;
+        const rule = self.tokenParsers[@intFromEnum(token.kind)];
+        return rule.power.val();
     }
 
     fn prefix(self: *Self, token: Token) anyerror!void {
         const tokenParser = self.tokenParsers[@intFromEnum(token.kind)];
-        const parseFn = self.parseFns[@intFromEnum(tokenParser.prefix)];
+        const parseFn = parseFns[@intFromEnum(tokenParser.prefix)];
         try parseFn(self, token);
     }
 
     fn infix(self: *Self, token: Token) anyerror!void {
         const tokenParser = self.tokenParsers[@intFromEnum(token.kind)];
-        const parseFn = self.parseFns[@intFromEnum(tokenParser.infix)];
+        const parseFn = parseFns[@intFromEnum(tokenParser.infix)];
         try parseFn(self, token);
     }
 
@@ -179,7 +242,7 @@ pub const PrattParser = struct {
         const openParen = self.syntaxQ.pop();
         // TODO: Do we need to be handling the parentheses here?
         std.debug.assert(openParen.kind == Kind.grp_open_paren);
-        try self.parse(.None);
+        try self.parse(Power.None.val());
         const closeParen = self.syntaxQ.peek();
         if (closeParen.kind == Kind.grp_close_paren) {
             _ = self.syntaxQ.pop();
@@ -189,28 +252,28 @@ pub const PrattParser = struct {
 
     fn unaryOp(self: *Self, token: Token) anyerror!void {
         // TODO: Not really implemented.
-        try self.parse(.Unary);
+        try self.parse(Power.Unary.val());
         try self.emit(token);
     }
 
     fn skipNewLine(self: *Self, _: Token) anyerror!void {
-        try self.parse(.None);
+        try self.parse(Power.None.val());
     }
 
     fn groupParen(self: *Self, _: Token) anyerror!void {
-        try self.parse(.None);
+        try self.parse(Power.None.val());
         // TODO: There needs to be additional handling for commas in an inner loop here probably.
-        assert(self.syntaxQ.pop() == Kind.grp_close_paren);
+        assert(self.syntaxQ.pop().kind == Kind.grp_close_paren);
     }
 
     fn groupBracket(self: *Self, _: Token) anyerror!void {
-        try self.parse(.None);
-        assert(self.syntaxQ.pop() == Kind.grp_close_bracket);
+        try self.parse(Power.None.val());
+        assert(self.syntaxQ.pop().kind == Kind.grp_close_bracket);
     }
 
     fn groupBrace(self: *Self, _: Token) anyerror!void {
-        try self.parse(.None);
-        assert(self.syntaxQ.pop() == Kind.grp_close_brace);
+        try self.parse(Power.None.val());
+        assert(self.syntaxQ.pop().kind == Kind.grp_close_brace);
     }
 
     fn indentBlock(self: *Self, _: Token) anyerror!void {
@@ -218,7 +281,7 @@ pub const PrattParser = struct {
         const startIdx = self.parsedQ.list.items.len;
         try self.emit(Token.lex(Kind.grp_indent, 0, scopeId));
         try self.resolution.startScope(rs.Scope{ .start = @truncate(startIdx), .scopeType = .block });
-        try self.parse(.None);
+        try self.parse(Power.None.val());
         const dedentToken = self.syntaxQ.peek();
         if (dedentToken.kind == Kind.grp_dedent) {
             _ = self.syntaxQ.pop();
@@ -247,17 +310,17 @@ pub const PrattParser = struct {
         const ident = self.resolution.declare(@truncate(self.parsedQ.list.items.len - 1), self.parsedQ.list.getLast());
         self.parsedQ.list.items[self.parsedQ.list.items.len - 1] = ident;
 
-        try self.parse(.Assign);
+        try self.parse(Power.Assign.val());
         try self.emit(token);
     }
 
     fn colonAssocOp(self: *Self, token: Token) anyerror!void {
-        try self.parse(.Separator);
+        try self.parse(Power.Separator.val());
         try self.emit(token);
     }
 
     fn separator(self: *Self, _: Token) anyerror!void {
-        try self.parse(.Separator);
+        try self.parse(Power.Separator.val());
     }
 
     // Core of the parsing loop
@@ -271,10 +334,10 @@ pub const PrattParser = struct {
         }
     }
 
-    fn start(self: *Self) !void {
+    pub fn startParse(self: *Self) !void {
         log.debug("Starting Pratt Parser", .{});
-        self.parsedQ.push(tok.AUX_STREAM_START);
-        try self.parse(.None);
+        try self.parsedQ.push(tok.AUX_STREAM_START);
+        try self.parse(Power.None.val());
         log.debug("Ending Pratt Parser", .{});
     }
 };

@@ -50,6 +50,13 @@ pub fn Queue(comptime t: type, comptime default: t) type {
             return value;
         }
 
+        pub fn peek(self: *Self) t {
+            if (self.head == self.tail) {
+                return default;
+            }
+            return self.list.items[self.head];
+        }
+
         pub fn popLast(self: *Self) t {
             return self.list.pop() orelse default;
         }

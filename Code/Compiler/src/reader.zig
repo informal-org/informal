@@ -1,14 +1,18 @@
 const std = @import("std");
 const lex = @import("lexer.zig");
 const parser = @import("parser.zig");
+const pratt = @import("pratt_parser.zig");
 const queue = @import("queue.zig");
 const tok = @import("token.zig");
 const codegen = @import("codegen.zig");
 const rs = @import("resolution.zig");
 const macho = @import("macho.zig");
 const constants = @import("constants.zig");
+const build_options = @import("build_options");
 const Allocator = std.mem.Allocator;
 const StringArrayHashMap = std.array_hash_map.StringArrayHashMap;
+
+const ParserImpl = if (build_options.parser == .pratt) pratt.PrattParser else parser.Parser;
 
 pub const Reader = struct {
     const Self = @This();
@@ -102,12 +106,14 @@ pub fn process_chunk(chunk: []u8, reader: *Reader, allocator: Allocator, io: std
     var resolution = try rs.Resolution.init(allocator, reader.internedSymbols.count(), reader.parsedQ);
     defer resolution.deinit();
 
-    var p = parser.Parser.init(chunk, reader.syntaxQ, reader.auxQ, reader.parsedQ, reader.offsetQ, allocator, &resolution);
+    var p = ParserImpl.init(chunk, reader.syntaxQ, reader.auxQ, reader.parsedQ, reader.offsetQ, allocator, &resolution);
     defer p.deinit();
 
-    try p.parse();
+    try p.startParse();
     std.log.debug("\n------------- Parsed Queue --------------- \n", .{});
     std.log.debug("Parsed queue: {any}", .{reader.parsedQ.list.items});
+
+    if (build_options.benchmark) return;
 
     var c = codegen.Codegen.init(allocator, chunk);
     defer c.deinit();
