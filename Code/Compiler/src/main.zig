@@ -9,10 +9,10 @@ pub const std_options = std.Options{
 pub fn main(init: std.process.Init) !void {
     var args_iter = try std.process.Args.Iterator.initAllocator(init.minimal.args, init.gpa);
     defer args_iter.deinit();
-    
+
     var arg_count: usize = 0;
     var filename: []const u8 = undefined;
-    
+
     while (args_iter.next()) |arg| {
         if (arg_count == 1) {
             filename = arg;

@@ -80,8 +80,8 @@ pub fn build(b: *std.Build) void {
     });
 
     const test_options = b.addOptions();
-    test_options.addOption(std.log.Level, "log_level", .debug);
-    test_options.addOption(bool, "use_pratt", false);
+    test_options.addOption(std.log.Level, "log_level", .err);
+    test_options.addOption(ParserChoice, "parser", .default);
     test_options.addOption(bool, "benchmark", false);
     test_module.addOptions("build_options", test_options);
 

@@ -8,11 +8,11 @@ const codegen = @import("codegen.zig");
 const rs = @import("resolution.zig");
 const macho = @import("macho.zig");
 const constants = @import("constants.zig");
-const build_options = @import("build_options");
+// const build_options = @import("build_options");
 const Allocator = std.mem.Allocator;
 const StringArrayHashMap = std.array_hash_map.StringArrayHashMap;
 
-const ParserImpl = if (build_options.parser == .pratt) pratt.PrattParser else parser.Parser;
+const ParserImpl = pratt.PrattParser;
 
 pub const Reader = struct {
     const Self = @This();
@@ -112,8 +112,6 @@ pub fn process_chunk(chunk: []u8, reader: *Reader, allocator: Allocator, io: std
     try p.startParse();
     std.log.debug("\n------------- Parsed Queue --------------- \n", .{});
     std.log.debug("Parsed queue: {any}", .{reader.parsedQ.list.items});
-
-    if (build_options.benchmark) return;
 
     var c = codegen.Codegen.init(allocator, chunk);
     defer c.deinit();

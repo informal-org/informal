@@ -35,8 +35,8 @@ pub const PrattParser = struct {
         And = 40,
         Equality = 50,
         Comparison = 60,
-        Divisive = 70,
-        Additive = 80,
+        Additive = 70,
+        Multiplicative = 80,
         Exp = 90,
         Unary = 100,
         Member = 110,
@@ -47,23 +47,7 @@ pub const PrattParser = struct {
         }
     };
 
-    const ParserType = enum(u8) {
-        none,
-        literal,
-        identifier,
-        callExpr,
-        unaryOp,
-        binaryOp,
-        binaryRightAssocOp,
-        assignOp,
-        colonAssocOp,
-        separator,
-        skipNewLine,
-        groupParen,
-        groupBracket,
-        groupBrace,
-        indentBlock,
-    };
+    const ParserType = enum(u8) { none, literal, identifier, callExpr, unaryOp, binaryOp, binaryRightAssocOp, assignOp, colonAssocOp, separator, skipNewLine, groupParen, groupBracket, groupBrace, indentBlock };
 
     const TokenParser = packed struct(u24) {
         // Compact pratt rule representations. Aviods storing function pointers directly, but requires an extra level of indirection.
@@ -134,9 +118,9 @@ pub const PrattParser = struct {
         grammar.prefix(Kind.op_unary_minus, .unaryOp, .Unary);
         grammar.infix(Kind.op_add, .binaryOp, .Additive);
         grammar.infix(Kind.op_sub, .binaryOp, .Additive);
-        grammar.infix(Kind.op_mul, .binaryOp, .Divisive);
-        grammar.infix(Kind.op_div, .binaryOp, .Divisive);
-        grammar.infix(Kind.op_mod, .binaryOp, .Divisive);
+        grammar.infix(Kind.op_mul, .binaryOp, .Multiplicative);
+        grammar.infix(Kind.op_div, .binaryOp, .Multiplicative);
+        grammar.infix(Kind.op_mod, .binaryOp, .Multiplicative);
         grammar.infix(Kind.op_pow, .binaryRightAssocOp, .Exp);
 
         // Comparison
@@ -168,7 +152,7 @@ pub const PrattParser = struct {
 
         // Separators
         grammar.infix(Kind.sep_comma, .separator, .Separator);
-        grammar.prefix(Kind.sep_newline, .skipNewLine, .Separator);
+        grammar.grammar[@intFromEnum(Kind.sep_newline)] = TokenParser{ .prefix = .skipNewLine, .infix = .separator, .power = .Separator };
 
         // Grouping
         grammar.prefix(Kind.grp_open_paren, .groupParen, .None);
@@ -209,8 +193,9 @@ pub const PrattParser = struct {
 
     fn currentBindingPower(self: *Self) u8 {
         const token = self.syntaxQ.peek();
-        const rule = self.tokenParsers[@intFromEnum(token.kind)];
-        return rule.power.val();
+        const kindVal = @intFromEnum(token.kind);
+        if (kindVal >= self.tokenParsers.len) return Power.None.val();
+        return self.tokenParsers[kindVal].power.val();
     }
 
     fn prefix(self: *Self, token: Token) anyerror!void {
@@ -326,6 +311,7 @@ pub const PrattParser = struct {
     // Core of the parsing loop
     fn parse(self: *Self, minRightBindingPower: u8) !void {
         var current = self.syntaxQ.pop();
+        if (current.kind == Kind.aux_stream_end) return;
         try self.prefix(current);
 
         while (minRightBindingPower < self.currentBindingPower()) {
@@ -341,3 +327,228 @@ pub const PrattParser = struct {
         log.debug("Ending Pratt Parser", .{});
     }
 };
+
+const parser_mod = @import("parser.zig");
+const test_allocator = std.testing.allocator;
+const expect = std.testing.expect;
+const expectEqual = std.testing.expectEqual;
+const testutils = @import("testutils.zig");
+const print = std.debug.print;
+const TK = Kind;
+
+/// Run the same token stream through both the old parser and the pratt parser,
+/// then assert the parsedQ outputs are identical.
+fn testBothParsers(buffer: []const u8, tokens: []const Token) !void {
+    return testBothParsersWithSymbols(buffer, tokens, 0);
+}
+
+fn testBothParsersWithSymbols(buffer: []const u8, tokens: []const Token, maxSymbols: u32) !void {
+    // --- Old parser ---
+    var oldSyntaxQ = TokenQueue.init(test_allocator);
+    var oldAuxQ = TokenQueue.init(test_allocator);
+    var oldParsedQ = TokenQueue.init(test_allocator);
+    var oldOffsetQ = OffsetQueue.init(test_allocator);
+    var oldResolution = try rs.Resolution.init(test_allocator, maxSymbols, &oldParsedQ);
+    defer oldSyntaxQ.deinit();
+    defer oldAuxQ.deinit();
+    defer oldParsedQ.deinit();
+    defer oldOffsetQ.deinit();
+    defer oldResolution.deinit();
+
+    try testutils.pushAll(&oldSyntaxQ, tokens);
+    var old = parser_mod.Parser.init(buffer, &oldSyntaxQ, &oldAuxQ, &oldParsedQ, &oldOffsetQ, test_allocator, &oldResolution);
+    defer old.deinit();
+    try old.startParse();
+
+    // --- Pratt parser ---
+    var prattSyntaxQ = TokenQueue.init(test_allocator);
+    var prattAuxQ = TokenQueue.init(test_allocator);
+    var prattParsedQ = TokenQueue.init(test_allocator);
+    var prattOffsetQ = OffsetQueue.init(test_allocator);
+    var prattResolution = try rs.Resolution.init(test_allocator, maxSymbols, &prattParsedQ);
+    defer prattSyntaxQ.deinit();
+    defer prattAuxQ.deinit();
+    defer prattParsedQ.deinit();
+    defer prattOffsetQ.deinit();
+    defer prattResolution.deinit();
+
+    try testutils.pushAll(&prattSyntaxQ, tokens);
+    var pratt = PrattParser.init(buffer, &prattSyntaxQ, &prattAuxQ, &prattParsedQ, &prattOffsetQ, test_allocator, &prattResolution);
+    defer pratt.deinit();
+    try pratt.startParse();
+
+    // --- Compare ---
+    try testutils.testQueueEquals(buffer, &prattParsedQ, oldParsedQ.list.items);
+}
+
+test "basic add" {
+    const buffer = "1+3";
+    const tokens = &[_]Token{
+        Token.lex(TK.lit_number, 0, 1),
+        tok.createToken(TK.op_add),
+        Token.lex(TK.lit_number, 2, 1).nextAlt(),
+    };
+    try testBothParsers(buffer, tokens);
+}
+
+test "math op precedence" {
+    const buffer = "1+2*3";
+    const tokens = &[_]Token{
+        Token.lex(TK.lit_number, 0, 1),
+        tok.createToken(TK.op_add),
+        Token.lex(TK.lit_number, 2, 1),
+        tok.createToken(TK.op_mul),
+        Token.lex(TK.lit_number, 4, 1),
+    };
+    try testBothParsers(buffer, tokens);
+}
+
+test "math op precedence reversed" {
+    const buffer = "1*2+3";
+    const tokens = &[_]Token{
+        Token.lex(TK.lit_number, 0, 1),
+        tok.createToken(TK.op_mul),
+        Token.lex(TK.lit_number, 2, 1),
+        tok.createToken(TK.op_add),
+        Token.lex(TK.lit_number, 4, 1),
+    };
+    try testBothParsers(buffer, tokens);
+}
+
+test "subtraction and division" {
+    const buffer = "6-2/3";
+    const tokens = &[_]Token{
+        Token.lex(TK.lit_number, 0, 1),
+        tok.createToken(TK.op_sub),
+        Token.lex(TK.lit_number, 2, 1),
+        tok.createToken(TK.op_div),
+        Token.lex(TK.lit_number, 4, 1),
+    };
+    try testBothParsers(buffer, tokens);
+}
+
+test "chained adds" {
+    const buffer = "1+2+3";
+    const tokens = &[_]Token{
+        Token.lex(TK.lit_number, 0, 1),
+        tok.createToken(TK.op_add),
+        Token.lex(TK.lit_number, 2, 1),
+        tok.createToken(TK.op_add),
+        Token.lex(TK.lit_number, 4, 1),
+    };
+    try testBothParsers(buffer, tokens);
+}
+
+test "comparison operators" {
+    const buffer = "1<2";
+    const tokens = &[_]Token{
+        Token.lex(TK.lit_number, 0, 1),
+        tok.createToken(TK.op_lt),
+        Token.lex(TK.lit_number, 2, 1),
+    };
+    try testBothParsers(buffer, tokens);
+}
+
+test "equality with arithmetic" {
+    const buffer = "1+2==3";
+    const tokens = &[_]Token{
+        Token.lex(TK.lit_number, 0, 1),
+        tok.createToken(TK.op_add),
+        Token.lex(TK.lit_number, 2, 1),
+        tok.createToken(TK.op_dbl_eq),
+        Token.lex(TK.lit_number, 4, 1),
+    };
+    try testBothParsers(buffer, tokens);
+}
+
+test "logical and/or" {
+    const buffer = "a and b or c";
+    const tokens = &[_]Token{
+        Token.lex(TK.identifier, 0, 1),
+        tok.createToken(TK.op_and),
+        Token.lex(TK.identifier, 1, 1),
+        tok.createToken(TK.op_or),
+        Token.lex(TK.identifier, 2, 1),
+    };
+    try testBothParsersWithSymbols(buffer, tokens, 3);
+}
+
+test "assignment" {
+    const buffer = "x=1";
+    const tokens = &[_]Token{
+        Token.lex(TK.identifier, 0, 1),
+        tok.createToken(TK.op_assign_eq),
+        Token.lex(TK.lit_number, 2, 1),
+    };
+    try testBothParsersWithSymbols(buffer, tokens, 1);
+}
+
+test "assignment with expression" {
+    const buffer = "x=1+2";
+    const tokens = &[_]Token{
+        Token.lex(TK.identifier, 0, 1),
+        tok.createToken(TK.op_assign_eq),
+        Token.lex(TK.lit_number, 2, 1),
+        tok.createToken(TK.op_add),
+        Token.lex(TK.lit_number, 4, 1),
+    };
+    try testBothParsersWithSymbols(buffer, tokens, 1);
+}
+
+test "multiple expressions with newline" {
+    const buffer = "1+2\n3+4";
+    const tokens = &[_]Token{
+        Token.lex(TK.lit_number, 0, 1),
+        tok.createToken(TK.op_add),
+        Token.lex(TK.lit_number, 2, 1),
+        tok.createToken(TK.sep_newline),
+        Token.lex(TK.lit_number, 4, 1),
+        tok.createToken(TK.op_add),
+        Token.lex(TK.lit_number, 6, 1),
+    };
+    try testBothParsers(buffer, tokens);
+}
+
+test "comma separated" {
+    const buffer = "1,2,3";
+    const tokens = &[_]Token{
+        Token.lex(TK.lit_number, 0, 1),
+        tok.createToken(TK.sep_comma),
+        Token.lex(TK.lit_number, 2, 1),
+        tok.createToken(TK.sep_comma),
+        Token.lex(TK.lit_number, 4, 1),
+    };
+    try testBothParsers(buffer, tokens);
+}
+
+test "single literal" {
+    const buffer = "42";
+    const tokens = &[_]Token{
+        Token.lex(TK.lit_number, 0, 2),
+    };
+    try testBothParsers(buffer, tokens);
+}
+
+test "modulo" {
+    const buffer = "7%3";
+    const tokens = &[_]Token{
+        Token.lex(TK.lit_number, 0, 1),
+        tok.createToken(TK.op_mod),
+        Token.lex(TK.lit_number, 2, 1),
+    };
+    try testBothParsers(buffer, tokens);
+}
+
+test "mixed precedence mul add sub" {
+    const buffer = "1+2*3-4";
+    const tokens = &[_]Token{
+        Token.lex(TK.lit_number, 0, 1),
+        tok.createToken(TK.op_add),
+        Token.lex(TK.lit_number, 2, 1),
+        tok.createToken(TK.op_mul),
+        Token.lex(TK.lit_number, 4, 1),
+        tok.createToken(TK.op_sub),
+        Token.lex(TK.lit_number, 6, 1),
+    };
+    try testBothParsers(buffer, tokens);
+}

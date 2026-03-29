@@ -428,10 +428,6 @@ const expect = std.testing.expect;
 const expectEqual = std.testing.expectEqual;
 const testutils = @import("testutils.zig");
 
-pub const std_options = .{
-    .log_level = .debug,
-};
-
 fn enableDebugLog() void {
     std.testing.log_level = .debug;
 }
@@ -457,7 +453,7 @@ pub fn testParse(buffer: []const u8, tokens: []const Token, aux: []const Token, 
     var parser = Parser.init(buffer, &syntaxQ, &auxQ, &parsedQ, &offsetQ, test_allocator, &resolution);
     defer parser.deinit();
 
-    try parser.parse();
+    try parser.startParse();
 
     print("\nTest Parse: {s}\n", .{buffer});
     tok.print_token_queue(parsedQ.list.items, buffer);
