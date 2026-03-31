@@ -12,8 +12,8 @@ const Allocator = std.mem.Allocator;
 const LEVEL_WIDTH = 64;
 const IntegerBitSet = stdbits.IntegerBitSet;
 pub const BitSet = IntegerBitSet(LEVEL_WIDTH);
-const constants = @import("constants.zig");
-const DEBUG = constants.DEBUG;
+const build_options = @import("build_options");
+const DEBUG = build_options.debug;
 
 pub fn TaggedPointer(comptime Tag: type, comptime Ptr: type) type {
     // There's two schemes for tagging we can use here.

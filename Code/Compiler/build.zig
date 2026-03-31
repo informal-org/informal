@@ -30,10 +30,14 @@ pub fn build(b: *std.Build) void {
 
     // Create build options
     const benchmark = b.option(bool, "benchmark", "Benchmark mode: skip codegen/linking, suppress debug output") orelse false;
+    const debug = b.option(bool, "debug", "Enable extra debug-only codepaths") orelse true;
+    const disable_zig_lazy = b.option(bool, "disable_zig_lazy", "Disable Zig lazy compilation (slower, but exercises all symbols)") orelse false;
 
     const exe_options = b.addOptions();
     exe_options.addOption(std.log.Level, "log_level", if (benchmark) .err else .debug);
     exe_options.addOption(bool, "benchmark", benchmark);
+    exe_options.addOption(bool, "debug", debug);
+    exe_options.addOption(bool, "disable_zig_lazy", disable_zig_lazy);
     root_module.addOptions("build_options", exe_options);
 
     // Define the executable
@@ -79,6 +83,8 @@ pub fn build(b: *std.Build) void {
     const test_options = b.addOptions();
     test_options.addOption(std.log.Level, "log_level", .err);
     test_options.addOption(bool, "benchmark", false);
+    test_options.addOption(bool, "debug", false);
+    test_options.addOption(bool, "disable_zig_lazy", false);
     test_module.addOptions("build_options", test_options);
 
     const unit_tests = b.addTest(.{

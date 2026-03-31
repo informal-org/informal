@@ -1,6 +1,5 @@
 const std = @import("std");
 const sparsearray = @import("../datastructures/sparsearray.zig");
-const constants = @import("../datastructures/constants.zig");
 
 const TaggedPointer = sparsearray.TaggedPointer;
 const SparseArray = sparsearray.SparseArray;

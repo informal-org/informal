@@ -2,7 +2,7 @@ const val = @import("value.zig");
 const std = @import("std");
 const print = std.debug.print;
 const bitset = @import("bitset.zig");
-const constants = @import("constants.zig");
+const build_options = @import("build_options");
 
 pub const Kind = enum(u8) {
     // Operators identified by the lexer.
@@ -268,7 +268,7 @@ pub fn print_token(comptime fmt: []const u8, token: Token, buffer: []const u8) v
 }
 
 pub fn debug_token(comptime fmt: []const u8, token: Token, buffer: []const u8) void {
-    if (constants.DEBUG) {
+    if (build_options.debug) {
         print(fmt, .{TokenWriter{ .token = token, .buffer = buffer }});
     }
 }

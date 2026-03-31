@@ -10,7 +10,7 @@ const StringArrayHashMap = std.array_hash_map.StringArrayHashMap;
 const TK = tok.Kind;
 const print = std.debug.print;
 const platform = @import("darwin.zig");
-const constants = @import("constants.zig");
+const build_options = @import("build_options");
 
 pub const Syscall = platform.Syscall;
 
@@ -366,7 +366,7 @@ pub const Codegen = struct {
 };
 
 test {
-    if (constants.DISABLE_ZIG_LAZY) {
+    if (build_options.disable_zig_lazy) {
         @import("std").testing.refAllDecls(Codegen);
     }
 }

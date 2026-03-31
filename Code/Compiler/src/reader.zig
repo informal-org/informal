@@ -6,8 +6,7 @@ const tok = @import("token.zig");
 const codegen = @import("codegen.zig");
 const rs = @import("resolution.zig");
 const macho = @import("macho.zig");
-const constants = @import("constants.zig");
-// const build_options = @import("build_options");
+const build_options = @import("build_options");
 const Allocator = std.mem.Allocator;
 const StringArrayHashMap = std.array_hash_map.StringArrayHashMap;
 
@@ -152,7 +151,7 @@ pub fn compile_file(io: std.Io, filename: []const u8) !void {
 }
 
 test {
-    if (constants.DISABLE_ZIG_LAZY) {
+    if (build_options.disable_zig_lazy) {
         @import("std").testing.refAllDecls(@This());
     }
 }

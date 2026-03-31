@@ -3,7 +3,7 @@ const val = @import("value.zig");
 const tok = @import("token.zig");
 const q = @import("queue.zig");
 const bitset = @import("bitset.zig");
-const constants = @import("constants.zig");
+const build_options = @import("build_options");
 
 const print = std.debug.print;
 const StringArrayHashMap = std.array_hash_map.StringArrayHashMap;
