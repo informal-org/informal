@@ -1,7 +1,6 @@
 const std = @import("std");
 const arm = @import("arm.zig");
 const tok = @import("token.zig");
-const parser = @import("parser.zig");
 const bitset = @import("bitset.zig");
 const resolution = @import("resolution.zig");
 

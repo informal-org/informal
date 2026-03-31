@@ -29,13 +29,10 @@ pub fn build(b: *std.Build) void {
     root_module.addIncludePath(b.path("lib/include/"));
 
     // Create build options
-    const ParserChoice = enum { default, pratt };
-    const parser_choice = b.option(ParserChoice, "parser", "Which parser to use (default, pratt)") orelse .default;
     const benchmark = b.option(bool, "benchmark", "Benchmark mode: skip codegen/linking, suppress debug output") orelse false;
 
     const exe_options = b.addOptions();
     exe_options.addOption(std.log.Level, "log_level", if (benchmark) .err else .debug);
-    exe_options.addOption(ParserChoice, "parser", parser_choice);
     exe_options.addOption(bool, "benchmark", benchmark);
     root_module.addOptions("build_options", exe_options);
 
@@ -81,7 +78,6 @@ pub fn build(b: *std.Build) void {
 
     const test_options = b.addOptions();
     test_options.addOption(std.log.Level, "log_level", .err);
-    test_options.addOption(ParserChoice, "parser", .default);
     test_options.addOption(bool, "benchmark", false);
     test_module.addOptions("build_options", test_options);
 

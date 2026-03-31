@@ -1,493 +1,379 @@
-const std = @import("std");
-const val = @import("value.zig");
 const tok = @import("token.zig");
+const Kind = tok.Kind;
+const std = @import("std");
+const debug = std.debug;
+const assert = debug.assert;
 const q = @import("queue.zig");
-const bitset = @import("bitset.zig");
+const parse_queue = @import("parse_queue.zig");
 const rs = @import("resolution.zig");
-const constants = @import("constants.zig");
 
-const log = std.log.scoped(.parser);
-const print = std.debug.print;
-// const Token = tok.Token;
 const Token = tok.Token;
-const TK = tok.Kind;
 pub const TokenQueue = q.Queue(Token, tok.AUX_STREAM_END);
 pub const OffsetQueue = q.Queue(u16, 0);
 const Allocator = std.mem.Allocator;
 
-const TokBitset = bitset.BitSet64;
+const log = std.log.scoped(.pratt_parser);
 
-const isKind = bitset.isKind;
-
-/// The parser is solely responsible for recognizing structures and putting it in a useful form.
-/// It should not concern itself with more semantic validity checks - that can come in a later stage.
-/// Assumptions:
-///   - Lexer combines multi-token keywords into a single token.
-///   - Lexer normalizes unary minus into negative literals or a negatie multiplication. That removes a multi-role operator special-case.
-/// The parser handles these semantic structures:
-///   <Prefix> <Value> - Where value always denotes either a literal or an identifier.
-///   <Value> <Infix> <Value>
-///   <Type> (<Type>..) <Value>
-///   <GroupStart> (<Value> <Separator>)+ | (<Value>) <GroupEnd> - i.e. Grouping tokens like (), {}, [], indent-dedent, etc.
-///   <Keyword> (Header) ":" <Body> (<ContinuationKeyword>)
-///      - The ordering in the token list should group the keywords such that startKeyword + 1 = continuationKeyword for all that have continuaton
-///      - And we group those structures which have continuation separate from those without (allowing us to check what type it is just by index)
-/// Some syntax notes:
-/// We don't have the traditional "else if". That leads to an unbalanced visual structure.
-/// Instead, we use switch/match style conditional blocks, which aligns the conditions and bodies more regularly.
-
-// The parser takes a token stream from the lexer and converts it into a valid structure.
-// It's only concerned with the grammatic structure of the code - not the meaning.
-// It's a hybrid state-machine / recursive descent parser with state tables.
-pub const Parser = struct {
+pub const PrattParser = struct {
     const Self = @This();
     buffer: []const u8,
     syntaxQ: *TokenQueue,
     auxQ: *TokenQueue,
+    resolution: *rs.Resolution,
+    allocator: Allocator,
+    index: u32,
+    tokenParsers: [64]TokenParser = initGrammar(),
 
-    // The AST is stored is a postfix order - where all operands come before the operator.
-    // This stack structure avoids the need for any explicit pointers for operators
-    // and matches the dependency order we want to emit bytecode in and matches the order of evaluation.
     parsedQ: *TokenQueue,
     // For each token in the parsedQ, indicates where to find it in the syntaxQ.
     offsetQ: *OffsetQueue,
 
-    // Benchmark: MultiArrayList vs ArrayList for this use-case.
-    // Multi will be more compact without the padding, but we push/pop them in pairs anyway.
-    opStack: std.array_list.AlignedManaged(ParseNode, null),
+    const Power = enum(u8) {
+        None = 0,
+        Separator = 10,
+        Assign = 20,
+        Or = 30,
+        And = 40,
+        Equality = 50,
+        Comparison = 60,
+        Additive = 70,
+        Multiplicative = 80,
+        Exp = 90,
+        Unary = 100,
+        Member = 110,
+        Call = 120,
 
-    resolution: *rs.Resolution,
-
-    allocator: Allocator,
-    index: u32,
-
-    // sepIndex: u32, // Index of previous separators like commas
-    // grpIndex: u32, // Index of current group-start nodes like (, [, {, <indent>
-
-    const ParseNode = struct {
-        token: Token,
-        index: usize,
+        pub fn val(self: Power) u8 {
+            return @intFromEnum(self);
+        }
     };
 
-    pub fn init(buffer: []const u8, syntaxQ: *TokenQueue, auxQ: *TokenQueue, parsedQ: *TokenQueue, offsetQ: *OffsetQueue, allocator: Allocator, resolution: *rs.Resolution) Self {
-        const opStack = std.array_list.AlignedManaged(ParseNode, null).init(allocator);
-        return Self{ .buffer = buffer, .syntaxQ = syntaxQ, .auxQ = auxQ, .parsedQ = parsedQ, .offsetQ = offsetQ, .allocator = allocator, .index = 0, .opStack = opStack, .resolution = resolution };
+    const ParserType = enum(u8) { none, literal, identifier, callExpr, unaryOp, binaryOp, binaryRightAssocOp, assignOp, colonAssocOp, separator, skipNewLine, groupParen, groupBracket, groupBrace, indentBlock };
+
+    const TokenParser = packed struct(u24) {
+        // Compact pratt rule representations. Aviods storing function pointers directly, but requires an extra level of indirection.
+        prefix: ParserType = .none, // What does this token mean at the start of an expression with nothing to its left? Null denotation.
+        infix: ParserType = .none, // What does this token mean when it follows some expression? Left denotation.
+        power: Power = .None, // Left binding power
+    };
+
+    pub fn init(
+        buffer: []const u8,
+        syntaxQ: *TokenQueue,
+        auxQ: *TokenQueue,
+        parsedQ: *TokenQueue,
+        offsetQ: *OffsetQueue,
+        allocator: Allocator,
+        resolution: *rs.Resolution,
+    ) Self {
+        return Self{
+            .buffer = buffer,
+            .syntaxQ = syntaxQ,
+            .auxQ = auxQ,
+            .parsedQ = parsedQ,
+            .offsetQ = offsetQ,
+            .allocator = allocator,
+            .index = 0,
+            .resolution = resolution,
+        };
     }
 
     pub fn deinit(self: *Self) void {
-        self.opStack.deinit();
+        // No opStack to free.
+        _ = self;
     }
 
-    fn emitParsed(self: *Self, token: Token) !void {
+    fn define(self: *Self, kind: Kind, rule: TokenParser) void {
+        self.tokenParsers[@intFromEnum(kind)] = rule;
+    }
+
+    fn initGrammar() [64]TokenParser {
+        @setEvalBranchQuota(10000);
+        assert(tok.AUX_KIND_START <= 64);
+
+        const Grammar = struct {
+            const Grammy = @This();
+            grammar: [64]TokenParser,
+            fn init() Grammy {
+                return Grammy{ .grammar = [_]TokenParser{TokenParser{ .prefix = .none, .infix = .none, .power = .None }} ** 64 };
+            }
+            fn infix(self: *Grammy, kind: Kind, parserType: ParserType, lbp: Power) void {
+                self.grammar[@intFromEnum(kind)] = TokenParser{ .infix = parserType, .power = lbp };
+            }
+            fn prefix(self: *Grammy, kind: Kind, parserType: ParserType, lbp: Power) void {
+                self.grammar[@intFromEnum(kind)] = TokenParser{ .prefix = parserType, .power = lbp };
+            }
+        };
+        var grammar = Grammar.init();
+
+        grammar.prefix(Kind.lit_number, .literal, .None);
+        grammar.prefix(Kind.lit_string, .literal, .None);
+        grammar.prefix(Kind.lit_bool, .literal, .None);
+        grammar.prefix(Kind.lit_null, .literal, .None);
+        grammar.prefix(Kind.identifier, .identifier, .None);
+        grammar.prefix(Kind.const_identifier, .identifier, .None);
+        grammar.prefix(Kind.call_identifier, .callExpr, .None);
+
+        // Unary ops (prefix only)
+        grammar.prefix(Kind.op_not, .unaryOp, .Unary);
+        grammar.prefix(Kind.op_unary_minus, .unaryOp, .Unary);
+        grammar.infix(Kind.op_add, .binaryOp, .Additive);
+        grammar.infix(Kind.op_sub, .binaryOp, .Additive);
+        grammar.infix(Kind.op_mul, .binaryOp, .Multiplicative);
+        grammar.infix(Kind.op_div, .binaryOp, .Multiplicative);
+        grammar.infix(Kind.op_mod, .binaryOp, .Multiplicative);
+        grammar.infix(Kind.op_pow, .binaryRightAssocOp, .Exp);
+
+        // Comparison
+        grammar.infix(Kind.op_lt, .binaryOp, .Comparison);
+        grammar.infix(Kind.op_gt, .binaryOp, .Comparison);
+        grammar.infix(Kind.op_lte, .binaryOp, .Comparison);
+        grammar.infix(Kind.op_gte, .binaryOp, .Comparison);
+        grammar.infix(Kind.op_dbl_eq, .binaryOp, .Equality);
+        grammar.infix(Kind.op_not_eq, .binaryOp, .Equality);
+
+        // Logical
+        grammar.infix(Kind.op_and, .binaryOp, .And);
+        grammar.infix(Kind.op_or, .binaryOp, .Or);
+
+        // Other binary
+        grammar.infix(Kind.op_choice, .binaryOp, .Or);
+        grammar.infix(Kind.op_in, .binaryOp, .Comparison);
+        grammar.infix(Kind.op_is, .binaryOp, .Comparison);
+        grammar.infix(Kind.op_as, .binaryOp, .Comparison);
+        grammar.infix(Kind.op_identifier, .binaryOp, .Comparison);
+        grammar.infix(Kind.op_dot_member, .binaryOp, .Member);
+
+        // Assignment
+        grammar.infix(Kind.op_assign_eq, .assignOp, .Assign);
+        grammar.infix(Kind.op_plus_eq, .assignOp, .Assign);
+        grammar.infix(Kind.op_minus_eq, .assignOp, .Assign);
+        grammar.infix(Kind.op_mul_eq, .assignOp, .Assign);
+        grammar.infix(Kind.op_div_eq, .assignOp, .Assign);
+
+        // Separators
+        grammar.infix(Kind.sep_comma, .separator, .Separator);
+        grammar.grammar[@intFromEnum(Kind.sep_newline)] = TokenParser{ .prefix = .skipNewLine, .infix = .separator, .power = .Separator };
+
+        // Grouping
+        grammar.prefix(Kind.grp_open_paren, .groupParen, .None);
+        grammar.prefix(Kind.grp_open_bracket, .groupBracket, .None);
+        grammar.prefix(Kind.grp_open_brace, .groupBrace, .None);
+        grammar.prefix(Kind.grp_indent, .indentBlock, .None);
+        // grammar.prefix(Kind.grp_dedent, .dedentBlock, .None);
+
+        // TODO: Keywords like if, for, fn, etc.
+        return grammar.grammar;
+    }
+
+    const ParseFn = *const fn (*Self, Token) anyerror!void;
+    const parseFns = initParseFns();
+    fn initParseFns() [64]ParseFn {
+        var fns: [64]ParseFn = [_]ParseFn{literal} ** 64;
+        fns[@intFromEnum(ParserType.literal)] = literal;
+        fns[@intFromEnum(ParserType.identifier)] = identifier;
+        fns[@intFromEnum(ParserType.callExpr)] = callExpr;
+        fns[@intFromEnum(ParserType.unaryOp)] = unaryOp;
+        fns[@intFromEnum(ParserType.skipNewLine)] = skipNewLine;
+        fns[@intFromEnum(ParserType.groupParen)] = groupParen;
+        fns[@intFromEnum(ParserType.groupBracket)] = groupBracket;
+        fns[@intFromEnum(ParserType.groupBrace)] = groupBrace;
+        fns[@intFromEnum(ParserType.indentBlock)] = indentBlock;
+        fns[@intFromEnum(ParserType.binaryOp)] = binaryOp;
+        fns[@intFromEnum(ParserType.binaryRightAssocOp)] = binaryRightAssocOp;
+        fns[@intFromEnum(ParserType.assignOp)] = assignOp;
+        fns[@intFromEnum(ParserType.colonAssocOp)] = colonAssocOp;
+        fns[@intFromEnum(ParserType.separator)] = separator;
+        return fns;
+    }
+
+    fn emit(self: *Self, token: Token) anyerror!void {
         try self.parsedQ.push(token);
-        try self.pushOffset(self.index);
+        try self.offsetQ.push(@truncate(self.offsetQ.list.items.len - self.index)); // TODO: This is probably not the correct offset. Need to double-check.
     }
 
-    fn pushOffset(self: *Self, index: usize) !void {
-        // TODO: Bounds check
-        try self.offsetQ.push(@truncate(self.offsetQ.list.items.len - index));
+    fn currentBindingPower(self: *Self) u8 {
+        const token = self.syntaxQ.peek();
+        const kindVal = @intFromEnum(token.kind);
+        if (kindVal >= self.tokenParsers.len) return Power.None.val();
+        return self.tokenParsers[kindVal].power.val();
     }
 
-    fn flushOpStack(self: *Self, token: Token) !void {
-        // Indicates which tokens have higher-precedence and associativity.
-        // Those operations must be emitted/done first before the current token.
-        const tokValue = @intFromEnum(token.kind);
-        if (tokValue < tok.TBL_PRECEDENCE_FLUSH.len) {
-            const flushBitset = tok.TBL_PRECEDENCE_FLUSH[tokValue];
-            while (self.opStack.items.len > 0) {
-                const top = self.opStack.items[self.opStack.items.len - 1];
-                const topKind = top.token.kind;
-                if (flushBitset.isSet(@intFromEnum(topKind))) {
-                    try self.popOp();
-                } else {
-                    break;
-                }
-            }
+    fn prefix(self: *Self, token: Token) anyerror!void {
+        const tokenParser = self.tokenParsers[@intFromEnum(token.kind)];
+        const parseFn = parseFns[@intFromEnum(tokenParser.prefix)];
+        try parseFn(self, token);
+    }
+
+    fn infix(self: *Self, token: Token) anyerror!void {
+        const tokenParser = self.tokenParsers[@intFromEnum(token.kind)];
+        const parseFn = parseFns[@intFromEnum(tokenParser.infix)];
+        try parseFn(self, token);
+    }
+
+    fn power(self: *Self, token: Token) u8 {
+        return @intFromEnum(self.tokenParsers[@intFromEnum(token.kind)].power);
+    }
+
+    fn literal(self: *Self, token: Token) anyerror!void {
+        try self.emit(token);
+    }
+
+    fn identifier(self: *Self, token: Token) anyerror!void {
+        const resolved = self.resolution.resolve(@truncate(self.parsedQ.list.items.len), token);
+        try self.emit(resolved);
+    }
+
+    fn callExpr(self: *Self, token: Token) anyerror!void {
+        const openParen = self.syntaxQ.pop();
+        // TODO: Do we need to be handling the parentheses here?
+        std.debug.assert(openParen.kind == Kind.grp_open_paren);
+        try self.parse(Power.None.val());
+        const closeParen = self.syntaxQ.peek();
+        if (closeParen.kind == Kind.grp_close_paren) {
+            _ = self.syntaxQ.pop();
+        }
+        try self.emit(token);
+    }
+
+    fn unaryOp(self: *Self, token: Token) anyerror!void {
+        // TODO: Not really implemented.
+        try self.parse(Power.Unary.val());
+        try self.emit(token);
+    }
+
+    fn skipNewLine(self: *Self, _: Token) anyerror!void {
+        try self.parse(Power.None.val());
+    }
+
+    fn groupParen(self: *Self, _: Token) anyerror!void {
+        try self.parse(Power.None.val());
+        // TODO: There needs to be additional handling for commas in an inner loop here probably.
+        assert(self.syntaxQ.pop().kind == Kind.grp_close_paren);
+    }
+
+    fn groupBracket(self: *Self, _: Token) anyerror!void {
+        try self.parse(Power.None.val());
+        assert(self.syntaxQ.pop().kind == Kind.grp_close_bracket);
+    }
+
+    fn groupBrace(self: *Self, _: Token) anyerror!void {
+        try self.parse(Power.None.val());
+        assert(self.syntaxQ.pop().kind == Kind.grp_close_brace);
+    }
+
+    fn indentBlock(self: *Self, _: Token) anyerror!void {
+        const scopeId = self.resolution.scopeId;
+        const startIdx = self.parsedQ.list.items.len;
+        try self.emit(Token.lex(Kind.grp_indent, 0, scopeId));
+        try self.resolution.startScope(rs.Scope{ .start = @truncate(startIdx), .scopeType = .block });
+        try self.parse(Power.None.val());
+        const dedentToken = self.syntaxQ.peek();
+        if (dedentToken.kind == Kind.grp_dedent) {
+            _ = self.syntaxQ.pop();
+        }
+        try self.emit(Token.lex(Kind.grp_dedent, @truncate(startIdx), scopeId));
+        try self.resolution.endScope(@truncate(self.parsedQ.list.items.len));
+    }
+
+    fn binaryOp(self: *Self, token: Token) anyerror!void {
+        try self.parse(self.power(token) + 1);
+        try self.emit(token);
+    }
+
+    fn binaryRightAssocOp(self: *Self, token: Token) anyerror!void {
+        try self.parse(self.power(token));
+        try self.emit(token);
+    }
+
+    // Infix operations
+
+    fn assignOp(self: *Self, token: Token) anyerror!void {
+        // Assume - the token to the left was the identifier.
+        // When we add destructuring in the future, this will need to change.
+        // TODO: This is fairly brittle since the previous val may not be an identifier or it might be a more complex definition.
+        // Replace the previous token with the declared version.
+        const ident = self.resolution.declare(@truncate(self.parsedQ.list.items.len - 1), self.parsedQ.list.getLast());
+        self.parsedQ.list.items[self.parsedQ.list.items.len - 1] = ident;
+
+        try self.parse(Power.Assign.val());
+        try self.emit(token);
+    }
+
+    fn colonAssocOp(self: *Self, token: Token) anyerror!void {
+        try self.parse(Power.Separator.val());
+        try self.emit(token);
+    }
+
+    fn separator(self: *Self, _: Token) anyerror!void {
+        try self.parse(Power.Separator.val());
+    }
+
+    // Core of the parsing loop
+    fn parse(self: *Self, minRightBindingPower: u8) !void {
+        var current = self.syntaxQ.pop();
+        if (current.kind == Kind.aux_stream_end) return;
+        try self.prefix(current);
+
+        while (minRightBindingPower < self.currentBindingPower()) {
+            current = self.syntaxQ.pop();
+            try self.infix(current);
         }
     }
 
-    fn flushUntil(self: *Self, set: bitset.BitSet64) !void {
-        // Flush while will keep flushing as long as the bitset pattern is met.
-        // Flush until will keep flushing until the bitset pattern is met. Then flush that and stop.
-        while (self.opStack.items.len > 0) {
-            const tokNode = self.opStack.items[self.opStack.items.len - 1];
-            const tokKind = tokNode.token.kind;
-            if (isKind(set, tokKind)) { // tok.KEYWORD_START
-                try self.popOp();
-                // TODO: Multi-keyword?
-                break;
-            }
-            if (isKind(tok.GROUP_START, tokKind)) {
-                // Compilation error - print token
-                // tok.print_token("Compilation error - UNMATCHED GROUPING: {any}\n", tokNode.token, self.buffer);
-                return;
-            }
-            try self.popOp();
-        }
-    }
-
-    fn flushUntilToken(self: *Self, kind: tok.Kind) !void {
-        log.debug("Flush until token: {any}\n", .{kind});
-        // You could write a specialized version of this without the bitset, but this is cleaner.
-        try self.flushUntil(bitset.token_bitset(&[_]tok.Kind{kind}));
-    }
-
-    fn pushOp(self: *Self, token: Token) !void {
-        log.debug("    PUSH: {any}", .{token});
-        try self.flushOpStack(token);
-        try self.opStack.append(ParseNode{ .token = token, .index = self.index });
-    }
-
-    fn push(self: *Self, token: Token) !void {
-        // Push without flushing
-        log.debug("    PUSH: {any}\n", .{token});
-        try self.opStack.append(ParseNode{ .token = token, .index = self.index });
-    }
-
-    fn popOp(self: *Self) !void {
-        // TODO: We can do const-folding here by looking at the operands. If they're literals, emit the result instead of the op.
-        const opNode = self.opStack.pop() orelse return;
-        log.debug("    POP: {any}\n", .{opNode.token});
-        try self.parsedQ.push(opNode.token);
-        try self.pushOffset(opNode.index);
-    }
-
-    /////////////////////////////////////////////
-    // Initial State
-    // Null state at the beginning of the file;
-    // Valid states:
-    // Literals - Emit directly. Transition to expect_binary
-    // Identifiers - Emit directly. Transition to expect after identifier.
-    // ( - Push onto the stack. Transition to initial_state.
-    // Unary operators.
-    // // -- No longer relevant - Block keywords like def, if, etc. are valid. Switch to their custom handlers.
-    // ------------------------------------------
-    // Invalid states:
-    // Binary operators - need an operand on the left.
-    // { } - Empty scope is invalid?
-    // Indent - Indentation at beginning of file is invalid.
-    // Separators - , ; etch are invalid at the beginning.
-    // -------------------------------------------
-    fn initial_state(self: *Self) !void {
-        const token = self.syntaxQ.pop();
-        if (token.kind == tok.AUX_STREAM_END.kind) {
-            return;
-        }
-        const kind = token.kind;
-        if (isKind(tok.LITERALS, kind)) {
-            log.debug("Initial state - Literal: {any}\n", .{token});
-            try self.emitParsed(token);
-            try self.expect_binary();
-        } else if (isKind(tok.IDENTIFIER, kind)) {
-            log.debug("Initial state - Identifier: {any}\n", .{token});
-            const ident = self.resolution.resolve(@truncate(self.parsedQ.list.items.len), token);
-            if (kind == TK.call_identifier) {
-                // Next token is known to be an open-paren. But put it after the identifier, so it's kinda in a lispy form. (foo ...)
-                const next = self.syntaxQ.pop();
-                std.debug.assert(next.kind == TK.grp_open_paren);
-                try self.pushOp(next);
-                try self.pushOp(token);
-                // TODO: Is initial state right here? Or do we want to allow indentations?
-                try self.initial_state();
-            } else {
-                try self.emitParsed(ident);
-                try self.expect_binary();
-            }
-        } else if (isKind(tok.PAREN_START, kind)) {
-            // tok.print_token("Initial state - Paren Start: {any}\n", token, self.buffer);
-        } else if (isKind(tok.UNARY_OPS, kind)) {
-            // tok.print_token("Initial state - UNARY Op: {any}\n", token, self.buffer);
-        } else if (kind == TK.sep_newline) {
-            // tok.print_token("Initial state - Skipping Newline: {any}\n", token, self.buffer);
-            try self.initial_state();
-        } else if (kind == TK.grp_indent) {
-            // tok.print_token("Initial state - Indent: {any}\n", token, self.buffer);
-            const scopeId = self.resolution.scopeId;
-            const startIdx = self.parsedQ.list.items.len;
-            try self.emitParsed(tok.Token.lex(TK.grp_indent, 0, scopeId)); // We emit the indentation start right away to denote blocks.
-            // TODO: Pass in the correct scope type.
-            try self.resolution.startScope(rs.Scope{ .start = @truncate(startIdx), .scopeType = .block }); // TODO: Scope type
-            // try self.pushOp(token);
-            // We actually push the `dedent` token onto the stack instead, since that's the marker we want at the end.
-            try self.pushOp(Token.lex(TK.grp_dedent, @truncate(startIdx), scopeId));
-            try self.initial_state();
-        } else if (kind == TK.grp_dedent) {
-            // tok.print_token("Initial state - Dedent: {any}\n", token, self.buffer);
-            try self.flushUntilToken(TK.grp_dedent);
-            try self.resolution.endScope(@truncate(self.parsedQ.list.items.len));
-            try self.initial_state();
-        } else {
-            // tok.print_token("Initial state - Invalid token: {any}\n", token, self.buffer);
-        }
-
-        // switch (token.kind) {
-        //     LITERALS => {}, // self.expect_binary(token),
-        //     IDENTIFIER => {}, // self.expect_after_identifier(token),
-        //     PAREN_START => {}, // self.group_start(token),
-        //     KEYWORD_START => {}, // self.keyword(token),
-        //     _ => {} // self.expect_error(token),
-        // }
-    }
-
-    // fn setNextSepIndex(self: *Self) void {
-    //     const currentIndex = self.parsedQ.list.items.len;
-    //     if (self.sepIndex != 0) {
-    //         std.debug.assert(self.sepIndex < currentIndex);
-    //         // Set next index
-    //         const nextIndex = currentIndex - self.sepIndex;
-    //         std.debug.assert(nextIndex <= std.math.maxInt(u16));
-    //         self.parsedQ.list.items[self.sepIndex].data.triple.arg2 = @truncate(nextIndex);
-    //     }
-    //     self.sepIndex = currentIndex;
-    // }
-
-    // fn emitSep(self: *Self, token: Token) !void {
-    //     try self.parsedQ.push(token.sep(self.index, self.sepIndex, self.grpIndex));
-    //     self.setNextSepIndex();
-    // }
-
-    /////////////////////////////////////////////
-    // Expect Binary Literal Operations
-    // We've seen an operand on the left. Now expecting a binary operation.
-    // Valid states:
-    // Binary operators:
-    //     Precedence flush: Lookup current operator for a bitmask of what to flush - encodes precedence and associtivity.
-    //     Check any non-matches if they're error-cases in another bitset.
-    //     Push the operand onto the stack - indicate that it's a binary op (to differentiate unary vs binary -)
-    //     Transition to expect_unary.
-    // Separators - 1, 2
-    // Invalid States:
-    // Literals / Identifiers - Need a binary operator. 1 1 is invalid.
-    // Unary operators. ex. True not.
-    // Grouping operators. ex. 1 (...
-    /////////////////////////////////////////////
-    // Zig can't infer the error set due to circular refs. Propagate errors from push/pop.
-    fn expect_binary(self: *Self) (std.mem.Allocator.Error)!void { // (err || error)
-        const token = self.syntaxQ.pop();
-        if (token.kind == tok.AUX_STREAM_END.kind) {
-            // Stream end is fine. Expression is complete without continuation.
-            // 1 + 1 _
-            return;
-        }
-        // 1 __
-        // "hello " ___
-
-        const kind = token.kind;
-        if (isKind(tok.SEPARATORS, kind)) {
-            // tok.print_token("Separators: {any}\n", token, self.buffer);
-            try self.flushOpStack(token);
-            //try self.emitSep(token); // Push ,
-            // Flush any operators.
-            try self.initial_state();
-        } else if (isKind(tok.BINARY_OPS, kind)) {
-            log.debug("Expect binary - Binary op: {any}\n", .{token});
-
-            if (kind == TK.op_assign_eq) {
-                // Assume - the token to the left was the identifier.
-                // When we add destructuring in the future, this will need to change.
-                // TODO: This is fairly brittle since the previous val may not be an identifier or it might be a more complex definition.
-                const ident = self.resolution.declare(@truncate(self.parsedQ.list.items.len - 1), self.parsedQ.list.getLast());
-                self.parsedQ.list.items[self.parsedQ.list.items.len - 1] = ident;
-
-                try self.pushOp(token);
-                try self.expect_unary();
-            } else if (kind == TK.op_colon_assoc) {
-                // Pop whatever keyword was on the stack.
-                try self.pushOp(token);
-                try self.flushUntil(tok.KEYWORD_START); // TODO: What does this become now?
-                try self.initial_state();
-            } else {
-                try self.pushOp(token);
-                try self.expect_unary();
-            }
-        } else if (isKind(tok.GROUP_START, kind)) {
-            // tok.print_token("Expect binary - Group start: {any}\n", token, self.buffer);
-            // TODO: Push sep - but do we really want to emit the ()?
-            if (kind == TK.grp_indent) {
-                // tok.print_token("Expect binary - UNEXPECTED INDENT TOKEN!: {any}\n", token, self.buffer);
-            } else {
-                try self.pushOp(token);
-                try self.initial_state();
-            }
-        } else if (isKind(tok.GROUP_END, kind)) {
-            // tok.print_token("Expect binary - Group end: {any}\n", token, self.buffer);
-            try self.flushUntil(tok.GROUP_START);
-            // TODO: Should this contain indent as well?
-            const expectedStart = switch (kind) {
-                TK.grp_close_brace => TK.grp_open_brace,
-                TK.grp_close_paren => TK.grp_open_paren,
-                TK.grp_close_bracket => TK.grp_open_bracket,
-                else => unreachable,
-            };
-
-            // Pop off the grouping tokens from the parsedQ - we don't need them anymore.
-            // Make sure the token at the end matches.
-            const top = self.parsedQ.popLast();
-            _ = self.offsetQ.popLast();
-            // TODO: Long-term, we'll want some kind of error-recovery here to keep parsing.
-            if (top.kind != expectedStart) {
-                // tok.print_token("Compilation error - UNMATCHED GROUPING: {any}\n", token, self.buffer);
-                return;
-            }
-
-            try self.initial_state();
-        } else {
-            // tok.print_token("Invalid token: {any}\n", token, self.buffer);
-        }
-    }
-
-    /////////////////////////////////////////////
-    // Expect Identifier Operations
-    // We've seen an identifier to the left. You can do an operation on it.
-    // Or it might be a function call foo()
-    // Or an index access. foo[0]
-    // Or a declaration like class foo {} (TODO: Needs more thought...)
-    // Separators - a, b = 1, 2
-    // Invalid states:
-    // Other identifiers or literals.
-    // Unary operators.
-    fn expect_unary(self: *Self) !void {
-        const token = self.syntaxQ.pop();
-        if (token.kind == tok.AUX_STREAM_END.kind) {
-            return;
-        }
-        const kind = token.kind;
-
-        // Pretty similar to the initial state.
-        if (isKind(tok.LITERALS, kind)) {
-            log.debug("Expect unary - Literal: {any}\n", .{token});
-            try self.emitParsed(token);
-            try self.expect_binary();
-        } else if (isKind(tok.IDENTIFIER, kind)) {
-            log.debug("Expect unary - Identifier: {any}\n", .{token});
-
-            const ident = self.resolution.resolve(@truncate(self.parsedQ.list.items.len), token);
-            try self.emitParsed(ident);
-            try self.expect_binary();
-        } else if (isKind(tok.PAREN_START, kind)) {
-            // tok.print_token("Parser - unhandled unary - Paren Start: {any}\n", token, self.buffer);
-        } else if (isKind(tok.KEYWORD_START, kind)) {
-            // tok.print_token("Parser - unhandled unary - Keyword Start: {any}\n", token, self.buffer);
-        } else if (isKind(tok.UNARY_OPS, kind)) {
-            // tok.print_token("Parser - unhandled unary - UNARY Op: {any}\n", token, self.buffer);
-        } else {
-            // print("Parser - unhandled unary at {d} - Invalid token: {any}\n", .{ self.index, token });
-        }
-    }
-
-    /////////////////////////////////////////////
-    // Expect Binary String Operations
-    // We've seen a string literal. You can index it, or call string functions on it.
-    // Allow [] and . operations and other binary functions like +, and, etc.
-    /////////////////////////////////////////////
-
-    /////////////////////////////////////////////
-    // Expect Right Unary Operations. a op ___
-    // We're in the middle of an expression. There may be an operator to the left.
-    // Valid states:
-    // Unary operators:
-    //     Precedence flush.
-    // Literals:
-    //     Numeric -> Expect binary literal operations.
-    //     String -> Expect binary string operations.
-    // Keyword starts - sub-expressions which will give a value. x + if y then z else w
-    // Identifiers: -> Expect identifier operations
-    // Grouping is valid. i.e. 1 * (2 + 3)
-    // Invalid states:
-    // Binary operators.
-    // Indentation, separators, {}, [].
-    // Keyword continuations - i.e. a + else
-
-    /////////////////////////////////////////////
-    // Expect assignment right. a = ___
-    // We're at an assignment operator.
-    // Mark the currently open line or group as containing an assignment.
-    // This allows the symbol-resolution to recognize declaration vs reference without lookahead.
-    // That'll also support de-structuring like [a, b, c] = ...
-    /////////////////////////////////////////////
-
-    // Initialize the parser state.
-    // Note: All sub-parse functions MUST be tail-recursive, in a direct-threaded style.
-    // Each state function should process a token at a time, with no lookahead or backtracking.
     pub fn startParse(self: *Self) !void {
-        log.debug("\n------------- Parser --------------- \n", .{});
-        try self.parsedQ.push(tok.AUX_STREAM_START); // Hack - to make sure zero index is always occupied.
-        try self.initial_state();
-        log.debug("-- End flush --\n", .{});
-
-        // At the end - flush the operator stack.
-        // TODO: Validate that it contains no brackets (indicates open without close), etc.
-        while (self.opStack.items.len > 0) {
-            try self.popOp();
-        }
+        log.debug("Starting Pratt Parser", .{});
+        try self.parsedQ.push(tok.AUX_STREAM_START);
+        try self.parse(Power.None.val());
+        log.debug("Ending Pratt Parser", .{});
     }
 };
 
 const test_allocator = std.testing.allocator;
-const expect = std.testing.expect;
-const expectEqual = std.testing.expectEqual;
 const testutils = @import("testutils.zig");
+const TK = Kind;
 
-fn enableDebugLog() void {
-    std.testing.log_level = .debug;
-}
-
-// pub fn testParseExpression(buffer: []const u8, expected: []const Token) !void {
-//     print("\nTest Parse: {s}\n", .{buffer});
-// }
-
-pub fn testParse(buffer: []const u8, tokens: []const Token, aux: []const Token, expected: []const Token) !void {
-    enableDebugLog();
+fn testPrattParse(buffer: []const u8, tokens: []const Token, max_symbols: u32, expected: []const Token) !void {
     var syntaxQ = TokenQueue.init(test_allocator);
-    try testutils.pushAll(&syntaxQ, tokens);
-
     var auxQ = TokenQueue.init(test_allocator);
     var parsedQ = TokenQueue.init(test_allocator);
     var offsetQ = OffsetQueue.init(test_allocator);
-    var resolution = try rs.Resolution.init(test_allocator, 0, &parsedQ);
+    var resolution = try rs.Resolution.init(test_allocator, max_symbols, &parsedQ);
     defer syntaxQ.deinit();
     defer auxQ.deinit();
     defer parsedQ.deinit();
     defer offsetQ.deinit();
     defer resolution.deinit();
-    var parser = Parser.init(buffer, &syntaxQ, &auxQ, &parsedQ, &offsetQ, test_allocator, &resolution);
-    defer parser.deinit();
 
-    try parser.startParse();
-
-    print("\nTest Parse: {s}\n", .{buffer});
-    tok.print_token_queue(parsedQ.list.items, buffer);
+    try testutils.pushAll(&syntaxQ, tokens);
+    var p = PrattParser.init(buffer, &syntaxQ, &auxQ, &parsedQ, &offsetQ, test_allocator, &resolution);
+    defer p.deinit();
+    try p.startParse();
 
     try testutils.testQueueEquals(buffer, &parsedQ, expected);
-
-    // Ignore aux. Fail when we start using it in tests.
-    try expect(aux.len == 0);
 }
 
-test {
-    if (constants.DISABLE_ZIG_LAZY) {
-        std.testing.refAllDecls(Parser);
-    }
+fn tok64(comptime bits: u64) Token {
+    return @bitCast(bits);
 }
 
-test "Parse basic add" {
+test "basic add" {
     const buffer = "1+3";
-    const tokens = &[_]Token{ Token.lex(TK.lit_number, 0, 1), tok.createToken(TK.op_add), Token.lex(TK.lit_number, 2, 1).nextAlt() };
-
-    const aux = &[_]Token{};
-
-    const expected = &[_]Token{
-        tok.AUX_STREAM_START,
+    const tokens = &[_]Token{
         Token.lex(TK.lit_number, 0, 1),
-        // next-alt bit doesn't have much meaning in the parsed expr...
-        Token.lex(TK.lit_number, 2, 1).nextAlt(),
         tok.createToken(TK.op_add),
+        Token.lex(TK.lit_number, 2, 1).nextAlt(),
     };
-
-    try testParse(buffer, tokens, aux, expected);
+    const expected = &[_]Token{
+        tok64(0x0000000000003900),
+        tok64(0x0001000000003100),
+        tok64(0x0001000000023101),
+        tok64(0x0000000000001200),
+    };
+    try testPrattParse(buffer, tokens, 0, expected);
 }
 
-test "Parse math op precedence" {
+test "math op precedence" {
     const buffer = "1+2*3";
     const tokens = &[_]Token{
         Token.lex(TK.lit_number, 0, 1),
@@ -496,10 +382,258 @@ test "Parse math op precedence" {
         tok.createToken(TK.op_mul),
         Token.lex(TK.lit_number, 4, 1),
     };
+    const expected = &[_]Token{
+        tok64(0x0000000000003900),
+        tok64(0x0001000000003100),
+        tok64(0x0001000000023100),
+        tok64(0x0001000000043100),
+        tok64(0x0000000000001300),
+        tok64(0x0000000000001200),
+    };
+    try testPrattParse(buffer, tokens, 0, expected);
+}
 
-    const aux = &[_]Token{};
-    // Ensure multiply before add.
-    const expected = &[_]Token{ tok.AUX_STREAM_START, Token.lex(TK.lit_number, 0, 1), Token.lex(TK.lit_number, 2, 1), Token.lex(TK.lit_number, 4, 1), tok.createToken(TK.op_mul), tok.createToken(TK.op_add) };
+test "math op precedence reversed" {
+    const buffer = "1*2+3";
+    const tokens = &[_]Token{
+        Token.lex(TK.lit_number, 0, 1),
+        tok.createToken(TK.op_mul),
+        Token.lex(TK.lit_number, 2, 1),
+        tok.createToken(TK.op_add),
+        Token.lex(TK.lit_number, 4, 1),
+    };
+    const expected = &[_]Token{
+        tok64(0x0000000000003900),
+        tok64(0x0001000000003100),
+        tok64(0x0001000000023100),
+        tok64(0x0000000000001300),
+        tok64(0x0001000000043100),
+        tok64(0x0000000000001200),
+    };
+    try testPrattParse(buffer, tokens, 0, expected);
+}
 
-    try testParse(buffer, tokens, aux, expected);
+test "subtraction and division" {
+    const buffer = "6-2/3";
+    const tokens = &[_]Token{
+        Token.lex(TK.lit_number, 0, 1),
+        tok.createToken(TK.op_sub),
+        Token.lex(TK.lit_number, 2, 1),
+        tok.createToken(TK.op_div),
+        Token.lex(TK.lit_number, 4, 1),
+    };
+    const expected = &[_]Token{
+        tok64(0x0000000000003900),
+        tok64(0x0001000000003100),
+        tok64(0x0001000000023100),
+        tok64(0x0001000000043100),
+        tok64(0x0000000000000e00),
+        tok64(0x0000000000001000),
+    };
+    try testPrattParse(buffer, tokens, 0, expected);
+}
+
+test "chained adds" {
+    const buffer = "1+2+3";
+    const tokens = &[_]Token{
+        Token.lex(TK.lit_number, 0, 1),
+        tok.createToken(TK.op_add),
+        Token.lex(TK.lit_number, 2, 1),
+        tok.createToken(TK.op_add),
+        Token.lex(TK.lit_number, 4, 1),
+    };
+    const expected = &[_]Token{
+        tok64(0x0000000000003900),
+        tok64(0x0001000000003100),
+        tok64(0x0001000000023100),
+        tok64(0x0000000000001200),
+        tok64(0x0001000000043100),
+        tok64(0x0000000000001200),
+    };
+    try testPrattParse(buffer, tokens, 0, expected);
+}
+
+test "comparison operators" {
+    const buffer = "1<2";
+    const tokens = &[_]Token{
+        Token.lex(TK.lit_number, 0, 1),
+        tok.createToken(TK.op_lt),
+        Token.lex(TK.lit_number, 2, 1),
+    };
+    const expected = &[_]Token{
+        tok64(0x0000000000003900),
+        tok64(0x0001000000003100),
+        tok64(0x0001000000023100),
+        tok64(0x0000000000000c00),
+    };
+    try testPrattParse(buffer, tokens, 0, expected);
+}
+
+test "equality with arithmetic" {
+    const buffer = "1+2==3";
+    const tokens = &[_]Token{
+        Token.lex(TK.lit_number, 0, 1),
+        tok.createToken(TK.op_add),
+        Token.lex(TK.lit_number, 2, 1),
+        tok.createToken(TK.op_dbl_eq),
+        Token.lex(TK.lit_number, 4, 1),
+    };
+    const expected = &[_]Token{
+        tok64(0x0000000000003900),
+        tok64(0x0001000000003100),
+        tok64(0x0001000000023100),
+        tok64(0x0000000000001200),
+        tok64(0x0001000000043100),
+        tok64(0x0000000000000100),
+    };
+    try testPrattParse(buffer, tokens, 0, expected);
+}
+
+test "logical and/or" {
+    const buffer = "a and b or c";
+    const tokens = &[_]Token{
+        Token.lex(TK.identifier, 0, 1),
+        tok.createToken(TK.op_and),
+        Token.lex(TK.identifier, 1, 1),
+        tok.createToken(TK.op_or),
+        Token.lex(TK.identifier, 2, 1),
+    };
+    const expected = &[_]Token{
+        tok64(0x0000000000003900),
+        tok64(0x0000000000002b00),
+        tok64(0x0000000000012b00),
+        tok64(0x0000000000001700),
+        tok64(0x0000000000022b00),
+        tok64(0x0000000000001800),
+    };
+    try testPrattParse(buffer, tokens, 3, expected);
+}
+
+test "assignment" {
+    const buffer = "x=1";
+    const tokens = &[_]Token{
+        Token.lex(TK.identifier, 0, 1),
+        tok.createToken(TK.op_assign_eq),
+        Token.lex(TK.lit_number, 2, 1),
+    };
+    const expected = &[_]Token{
+        tok64(0x0000000000003900),
+        tok64(0x0000000000002b02),
+        tok64(0x0001000000023100),
+        tok64(0x0000000000000b00),
+    };
+    try testPrattParse(buffer, tokens, 1, expected);
+}
+
+test "assignment with expression" {
+    const buffer = "x=1+2";
+    const tokens = &[_]Token{
+        Token.lex(TK.identifier, 0, 1),
+        tok.createToken(TK.op_assign_eq),
+        Token.lex(TK.lit_number, 2, 1),
+        tok.createToken(TK.op_add),
+        Token.lex(TK.lit_number, 4, 1),
+    };
+    const expected = &[_]Token{
+        tok64(0x0000000000003900),
+        tok64(0x0000000000002b02),
+        tok64(0x0001000000023100),
+        tok64(0x0001000000043100),
+        tok64(0x0000000000001200),
+        tok64(0x0000000000000b00),
+    };
+    try testPrattParse(buffer, tokens, 1, expected);
+}
+
+test "multiple expressions with newline" {
+    const buffer = "1+2\n3+4";
+    const tokens = &[_]Token{
+        Token.lex(TK.lit_number, 0, 1),
+        tok.createToken(TK.op_add),
+        Token.lex(TK.lit_number, 2, 1),
+        tok.createToken(TK.sep_newline),
+        Token.lex(TK.lit_number, 4, 1),
+        tok.createToken(TK.op_add),
+        Token.lex(TK.lit_number, 6, 1),
+    };
+    const expected = &[_]Token{
+        tok64(0x0000000000003900),
+        tok64(0x0001000000003100),
+        tok64(0x0001000000023100),
+        tok64(0x0000000000001200),
+        tok64(0x0001000000043100),
+        tok64(0x0001000000063100),
+        tok64(0x0000000000001200),
+    };
+    try testPrattParse(buffer, tokens, 0, expected);
+}
+
+test "comma separated" {
+    const buffer = "1,2,3";
+    const tokens = &[_]Token{
+        Token.lex(TK.lit_number, 0, 1),
+        tok.createToken(TK.sep_comma),
+        Token.lex(TK.lit_number, 2, 1),
+        tok.createToken(TK.sep_comma),
+        Token.lex(TK.lit_number, 4, 1),
+    };
+    const expected = &[_]Token{
+        tok64(0x0000000000003900),
+        tok64(0x0001000000003100),
+        tok64(0x0001000000023100),
+        tok64(0x0001000000043100),
+    };
+    try testPrattParse(buffer, tokens, 0, expected);
+}
+
+test "single literal" {
+    const buffer = "42";
+    const tokens = &[_]Token{
+        Token.lex(TK.lit_number, 0, 2),
+    };
+    const expected = &[_]Token{
+        tok64(0x0000000000003900),
+        tok64(0x0002000000003100),
+    };
+    try testPrattParse(buffer, tokens, 0, expected);
+}
+
+test "modulo" {
+    const buffer = "7%3";
+    const tokens = &[_]Token{
+        Token.lex(TK.lit_number, 0, 1),
+        tok.createToken(TK.op_mod),
+        Token.lex(TK.lit_number, 2, 1),
+    };
+    const expected = &[_]Token{
+        tok64(0x0000000000003900),
+        tok64(0x0001000000003100),
+        tok64(0x0001000000023100),
+        tok64(0x0000000000001400),
+    };
+    try testPrattParse(buffer, tokens, 0, expected);
+}
+
+test "mixed precedence mul add sub" {
+    const buffer = "1+2*3-4";
+    const tokens = &[_]Token{
+        Token.lex(TK.lit_number, 0, 1),
+        tok.createToken(TK.op_add),
+        Token.lex(TK.lit_number, 2, 1),
+        tok.createToken(TK.op_mul),
+        Token.lex(TK.lit_number, 4, 1),
+        tok.createToken(TK.op_sub),
+        Token.lex(TK.lit_number, 6, 1),
+    };
+    const expected = &[_]Token{
+        tok64(0x0000000000003900),
+        tok64(0x0001000000003100),
+        tok64(0x0001000000023100),
+        tok64(0x0001000000043100),
+        tok64(0x0000000000001300),
+        tok64(0x0000000000001200),
+        tok64(0x0001000000063100),
+        tok64(0x0000000000001000),
+    };
+    try testPrattParse(buffer, tokens, 0, expected);
 }

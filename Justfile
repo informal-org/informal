@@ -45,11 +45,9 @@ generate:
 	python3 ../../Tests/generate.py 10000 bench_10k.ifi
 
 pratt:
-	zig build -Dbenchmark=true -Dparser=pratt -Doptimize=ReleaseFast
+	zig build -Dbenchmark=true -Doptimize=ReleaseFast
 	cp zig-out/bin/Former zig-out/bin/Former-pratt
-	zig build -Dbenchmark=true -Dparser=default -Doptimize=ReleaseFast
-	cp zig-out/bin/Former zig-out/bin/Former-default
 
 
 bench-parser:
-	hyperfine --warmup 10 -N './zig-out/bin/Former-default bench_10k.ifi' './zig-out/bin/Former-pratt bench_10k.ifi' './zig-out/bin/Former-claude_pratt bench_10k.ifi' 2>&1
+	hyperfine --warmup 10 -N './zig-out/bin/Former-pratt bench_10k.ifi' './zig-out/bin/Former-claude_pratt bench_10k.ifi' 2>&1
