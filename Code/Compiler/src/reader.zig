@@ -1,7 +1,6 @@
 const std = @import("std");
 const lex = @import("lexer.zig");
 const parser = @import("parser.zig");
-const pratt = @import("pratt_parser.zig");
 const queue = @import("queue.zig");
 const tok = @import("token.zig");
 const codegen = @import("codegen.zig");
@@ -12,7 +11,7 @@ const constants = @import("constants.zig");
 const Allocator = std.mem.Allocator;
 const StringArrayHashMap = std.array_hash_map.StringArrayHashMap;
 
-const ParserImpl = pratt.PrattParser;
+const ParserImpl = parser.PrattParser;
 
 pub const Reader = struct {
     const Self = @This();
