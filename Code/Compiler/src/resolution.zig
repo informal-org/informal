@@ -36,7 +36,7 @@ pub const Scope = struct {
 };
 
 // Zero index is assumed to always be some root node in the parser, not a declaration
-const UNDECLARED_SENTINEL = 0;
+pub const UNDECLARED_SENTINEL = 0;
 
 pub fn calcOffset(comptime T: anytype, target: u32, index: u32) T {
     const signedTarget: i32 = @intCast(target);
@@ -214,115 +214,6 @@ pub const Resolution = struct {
     }
 };
 
-const test_allocator = std.testing.allocator;
-const expect = std.testing.expect;
-const expectEqual = std.testing.expectEqual;
-const TK = tok.TK;
-const constants = @import("constants.zig");
-
 test {
-    if (constants.DISABLE_ZIG_LAZY) {
-        @import("std").testing.refAllDecls(@This());
-    }
+    _ = @import("test/test_resolution.zig");
 }
-
-// Situations:
-// Same scope:
-// declaration
-// reference
-test "Normal declaration and reference" {
-    var parsedQ = parser.TokenQueue.init(test_allocator);
-    defer parsedQ.deinit();
-    var resolution = try Resolution.init(test_allocator, 3, &parsedQ);
-    defer resolution.deinit();
-
-    // hello = 42
-    try parsedQ.push(Token.lex(TK.lit_number, 0, 1));
-    try parsedQ.push(Token.lex(TK.identifier, 0, 5)); // Symbol ID 0 with len of 5
-    try parsedQ.push(Token.lex(TK.lit_number, 42, 2));
-    try parsedQ.push(Token.lex(TK.op_assign_eq, 0, 1));
-    // Reference hello
-    try parsedQ.push(Token.lex(TK.identifier, 0, 5));
-
-    const decResult = resolution.declare(1, parsedQ.list.items[1]);
-    try expectEqual(0, decResult.data.value.arg0);
-    try expectEqual(UNDECLARED_SENTINEL, decResult.data.value.arg1); // Nothing was defined before this.
-
-    const refResult = resolution.resolve(4, parsedQ.list.items[4]);
-    const refOffset: i16 = @bitCast(refResult.data.value.arg1);
-    try expectEqual(1 - 4, refOffset); // offset = declaration index - ref index.
-    try expectEqual(0, refResult.data.value.arg0);
-}
-
-// Sub-scope can reference previous
-// declaration
-//    reference
-
-// Scope can reference previous declarations which come after if it the scope supports forward-declarations.
-// reference
-// module-level declaration (Supports forward-declarations)
-
-// Sub-scope can reference forward-declarations if the defining scope supports it.
-// ...
-//    function sub-scope without forward-declarations
-//        reference
-// module-level declaration (supports forward declaration)
-test "Forward reference from child scope" {
-    var parsedQ = parser.TokenQueue.init(test_allocator);
-    defer parsedQ.deinit();
-    var resolution = try Resolution.init(test_allocator, 3, &parsedQ);
-    defer resolution.deinit();
-
-    // hello = 42
-    try resolution.startScope(Scope{ .start = 1, .scopeType = .module });
-    try parsedQ.push(Token.lex(TK.lit_number, 0, 1));
-    try parsedQ.push(Token.lex(TK.grp_indent, 0, 0)); // Start of some new scope
-    try resolution.startScope(Scope{ .start = 1, .scopeType = .function });
-
-    try parsedQ.push(Token.lex(TK.identifier, 0, 5)); // Reference to some unknown identifier.
-    const refResult = resolution.resolve(2, parsedQ.list.items[2]);
-    parsedQ.list.items[2] = refResult;
-    // Expect it to be unresolved.
-    try expectEqual(UNDECLARED_SENTINEL, refResult.data.value.arg1);
-    try expectEqual(2, resolution.unresolved[0]);
-
-    // Say some reference is defined after it (shadowing).
-    // The name shouldn't resolve since func scope doesn't support forward ref.
-    try parsedQ.push(Token.lex(TK.identifier, 0, 5));
-    try parsedQ.push(Token.lex(TK.lit_number, 99, 2));
-    try parsedQ.push(Token.lex(TK.op_assign_eq, 0, 1));
-
-    // Expect it to not be have a definition before.
-    try expectEqual(UNDECLARED_SENTINEL, resolution.declarations[0]);
-    const shadowDefResult = resolution.declare(3, parsedQ.list.items[3]);
-    parsedQ.list.items[3] = shadowDefResult;
-    try expectEqual(UNDECLARED_SENTINEL, shadowDefResult.data.value.arg1);
-    try expectEqual(3, resolution.declarations[0]);
-    // Expect not to resolve the unresolbed ref since this is a shadowing post-def without forward semantics.
-    try expectEqual(2, resolution.unresolved[0]);
-
-    // End function scope and declare the ref at the base module scope. Expect it to resolve.
-    try parsedQ.push(Token.lex(TK.grp_dedent, 0, 0));
-    try resolution.endScope(0);
-    try parsedQ.push(Token.lex(TK.identifier, 0, 5));
-
-    try expectEqual(UNDECLARED_SENTINEL, parsedQ.list.items[2].data.value.arg1);
-    const baseDefResult = resolution.declare(5, parsedQ.list.items[5]);
-    parsedQ.list.items[5] = baseDefResult;
-    try expectEqual(5, resolution.declarations[0]);
-    const baseDefOffset: i16 = @bitCast(baseDefResult.data.value.arg1);
-    try expectEqual(3 - 5, baseDefOffset); // Reference the shadow declaration.
-    // Expect it to be resolved now.
-    try expectEqual(UNDECLARED_SENTINEL, resolution.unresolved[0]);
-    const afterOffset: i16 = @bitCast(parsedQ.list.items[2].data.value.arg1);
-    try expectEqual(5 - 2, afterOffset); // Declared at 5 - ref at 2
-    // Expect the parsed queue to have been updated as well.
-}
-
-// Unsupported forward-declarations remain unresolved. We may want to throw a shadowing warning?
-// function scope without forward-declarations
-//    reference (should remain unresolved)
-//    some other sub-scope with forward-declarations
-//        reference (should remain unresolved)
-//    declaration
-//

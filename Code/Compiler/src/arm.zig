@@ -1777,50 +1777,21 @@ pub const LoadStoreEncoding = packed struct(u32) { _: u32 };
 //     // IMM16 = 0000000000101010 = 42!
 //     // Rd = x0
 // }
-const test_allocator = std.testing.allocator;
-const expect = std.testing.expect;
-const expectEqual = std.testing.expectEqual;
 const macho = @import("macho.zig");
-const print = std.debug.print;
-const constants = @import("constants.zig");
 const StringArrayHashMap = std.array_hash_map.StringArrayHashMap;
-test {
-    if (constants.DISABLE_ZIG_LAZY) {
-        @import("std").testing.refAllDecls(@This());
-    }
-}
 
-const exitSeq = &[_]u32{ movz(Reg.x16, 1), svc(0) };
-
-fn exitCodeTest(io: std.Io, code: []const u32) !u32 {
-    // Create an executable with the given assembly code.
-    // Execute it and check the exit code.
-
+pub fn exitCodeTest(io: std.Io, code: []const u32) !u32 {
+    const test_allocator = std.testing.allocator;
     var linker = macho.MachOLinker.init(test_allocator);
     var internedStrings = StringArrayHashMap(u64).init(test_allocator);
-    // try internedStrings.put("Hello, World!", 0);
     defer internedStrings.deinit();
 
     defer linker.deinit();
     try linker.emitBinary(io, code, &internedStrings, 0, "test.bin");
 
-    // Execute the binary file (use relative path in cwd)
     const run_result = try std.process.run(test_allocator, io, .{
         .argv = &[_][]const u8{"./test.bin"},
     });
-    // print("Terminated with : {any}\n", .{run_result.term});
-
-    defer {
-        // std.fs.cwd().deleteFile("test.bin");
-        // Free the memory for cwd
-        // test_allocator.free(cwd);
-        // if (process.stdout) |stdout| {
-        //     test_allocator.free(stdout);
-        // }
-        // if (process.stderr) |stderr| {
-        //     test_allocator.free(stderr);
-        // }
-    }
 
     switch (run_result.term) {
         .exited => |exitcode| return exitcode,
@@ -1830,30 +1801,6 @@ fn exitCodeTest(io: std.Io, code: []const u32) !u32 {
     }
 }
 
-// test "exit code test" {
-//     const exitCode = exitCodeTest(&[_]u32{
-//         movz(Reg.x0, 42),
-//         movz(Reg.x16, 1),
-//         svc(0),
-//     });
-//     try expectEqual(exitCode, 42);
-// }
-
-test "print" {
-    const printAsm = exitCodeTest(std.testing.io, &[_]u32{
-        // mov(Reg.x0, 1),  // File descriptor
-        movz(Reg.x0, 1), // File descriptor - stdout
-        // adrp(Reg.x1, 0),
-        adrp(Reg.x1, 0), // TODO: What should be this address? 0x1000_03000
-        // TODO: LDR x1, [x1, hello_world]
-        addi(Reg.x1, Reg.x1, 0xfd4), // 0xf84 -> my version
-        movz(Reg.x2, 15), // String length
-        movz(Reg.x16, 4),
-        svc(0x80),
-        movz(Reg.x0, 0x2a),
-        movz(Reg.x16, 1),
-        svc(0x80),
-    });
-
-    try expectEqual(42, printAsm);
+test {
+    _ = @import("test/test_arm.zig");
 }

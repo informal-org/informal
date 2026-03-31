@@ -2,6 +2,7 @@ const val = @import("value.zig");
 const std = @import("std");
 const print = std.debug.print;
 const bitset = @import("bitset.zig");
+const constants = @import("constants.zig");
 
 pub const Kind = enum(u8) {
     // Operators identified by the lexer.
@@ -398,7 +399,7 @@ fn getFlushBitset(kind: TK) bitset.BitSet64 {
 // LuaJit lays out the IR tokens such that it can add 1 to get its inverse. We instead layout the IR kinds to optimize lexing - to go from a character to its kind with a bitset lookup.
 // You could use a standard switch table, a lookup array or a bitset lookup table (with popcount index). But we can further take advantage of the fact that all of the comparison operators are in the first 12 Kind tokens (thus, expressible with just 4 significant bits). So a lookup table for the first 12 kinds can fit in 12 * 4 = 48 bits, and lookups become just a shift+mask. You can add 4 more ops to this if you want.
 const COMPARISON_INVERSE = getInverseComparisonLookupTable();
-fn getInverseComparisonLookupTable() u64 {
+pub fn getInverseComparisonLookupTable() u64 {
     // Compile-time table such that table at the 4bit range at an Kind's index = its inverse's kind.
     var table: u64 = 0;
     const comparison_ops = [_]TK{ TK.op_dbl_eq, TK.op_not_eq, TK.op_lt, TK.op_gte, TK.op_gt, TK.op_lte };
@@ -418,54 +419,6 @@ pub fn inverseComparison(tok: Kind) Kind {
     return @enumFromInt(inverseVal);
 }
 
-// @bitSizeOf
-const expect = std.testing.expect;
-const expectEqual = std.testing.expectEqual;
-const constants = @import("constants.zig");
-// test {
-//     if (constants.DISABLE_ZIG_LAZY) {
-//         @import("std").testing.refAllDecls(@This());
-//     }
-// }
-
-test "Test token sizes" {
-    try expect(@bitSizeOf(Token) == 64);
-    try expect(@bitSizeOf(Token) == 64);
-    // try expect(@bitSizeOf(Aux) == 64);
-    // try expect(@bitSizeOf(AuxOrToken) == 128);
-}
-
-test "Test precedence table" {
-    const dotFlush = TBL_PRECEDENCE_FLUSH[@intFromEnum(TK.op_dot_member)];
-    // print("\nDot: {b}\n", .{dotFlush.mask});
-    // try expect(dotFlush.isSet(@intFromEnum(TK.op_dot_member)));
-    // Nothing else is higher precedence.
-    try expectEqual(1, dotFlush.count());
-
-    const divFlush = TBL_PRECEDENCE_FLUSH[@intFromEnum(TK.op_div)];
-    // print("Div: {b}\n", .{divFlush.mask});
-    try expectEqual(7, divFlush.count()); // 7 higher/equal precedence operators.
-    // When you see a div, flush all of these operators (but not lower precedence ones like add, sub, etc.)
-    const divFlushExpected = bitset.token_bitset(&[_]TK{ TK.op_mod, TK.op_div, TK.op_mul, TK.op_pow, TK.op_unary_minus, TK.op_not, TK.op_dot_member });
-    try expectEqual(divFlushExpected.mask, divFlush.mask);
-
-    // Test right-associative. Should not flush itself.
-    const powFlush = TBL_PRECEDENCE_FLUSH[@intFromEnum(TK.op_pow)];
-    // print("Pow: {b}\n", .{powFlush.mask});
-    try expectEqual(3, powFlush.count());
-    const powFlushExpected = bitset.token_bitset(&[_]TK{ TK.op_dot_member, TK.op_unary_minus, TK.op_not });
-    try expectEqual(powFlushExpected.mask, powFlush.mask);
-
-    // print("Comma: {b}\n", .{TBL_PRECEDENCE_FLUSH[@intFromEnum(TK.sep_comma)].mask});
-}
-
-test "Test fast inverse comparison" {
-    const table = getInverseComparisonLookupTable();
-    try expectEqual(0x20010000a7c, table);
-    try expectEqual(inverseComparison(TK.op_dbl_eq), TK.op_not_eq);
-    try expectEqual(inverseComparison(TK.op_not_eq), TK.op_dbl_eq);
-    try expectEqual(inverseComparison(TK.op_lt), TK.op_gte);
-    try expectEqual(inverseComparison(TK.op_gte), TK.op_lt);
-    try expectEqual(inverseComparison(TK.op_gt), TK.op_lte);
-    try expectEqual(inverseComparison(TK.op_lte), TK.op_gt);
+test {
+    _ = @import("test/test_token.zig");
 }
