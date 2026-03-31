@@ -12,3 +12,5 @@ CLAUDE.md
 .ropeproject/
 .mypy_cache/
 .idea/
+Code/Compiler/zig-out/
+Code/Compiler/.zig-cache/
