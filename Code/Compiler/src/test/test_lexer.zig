@@ -12,7 +12,7 @@ const Lexer = lexer_mod.Lexer;
 const test_allocator = std.testing.allocator;
 const expect = std.testing.expect;
 const expectEqual = std.testing.expectEqual;
-const testutils = @import("../testutils.zig");
+const testutils = @import("./testutils.zig");
 const testQueueEquals = testutils.testQueueEquals;
 
 fn testToken(buffer: []u8, expected: []const Token, aux: ?[]const Token) !void {

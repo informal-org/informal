@@ -1,6 +1,6 @@
-const tok = @import("token.zig");
+const tok = @import("../token.zig");
 const std = @import("std");
-const q = @import("queue.zig");
+const q = @import("../queue.zig");
 
 // const Token = tok.Token;
 const LexToken = tok.Token;

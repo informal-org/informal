@@ -10,7 +10,7 @@ const OffsetQueue = q.Queue(u16, 0);
 const TK = Kind;
 
 const test_allocator = std.testing.allocator;
-const testutils = @import("../testutils.zig");
+const testutils = @import("./testutils.zig");
 const parser_mod = @import("../parser.zig");
 
 fn testPrattParse(buffer: []const u8, tokens: []const Token, max_symbols: u32, expected: []const Token) !void {
