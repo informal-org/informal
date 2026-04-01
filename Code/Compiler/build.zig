@@ -81,7 +81,7 @@ pub fn build(b: *std.Build) void {
     test_options.addOption(bool, "disable_zig_lazy", false);
 
     const test_module = b.createModule(.{
-        .root_source_file = b.path("src/filetest.zig"),
+        .root_source_file = b.path("src/all_tests.zig"),
         .target = target,
         .optimize = optimize,
         // .link_libc = true,
