@@ -1777,29 +1777,6 @@ pub const LoadStoreEncoding = packed struct(u32) { _: u32 };
 //     // IMM16 = 0000000000101010 = 42!
 //     // Rd = x0
 // }
-const macho = @import("macho.zig");
-const StringArrayHashMap = std.array_hash_map.StringArrayHashMap;
-
-pub fn exitCodeTest(io: std.Io, code: []const u32) !u32 {
-    const test_allocator = std.testing.allocator;
-    var linker = macho.MachOLinker.init(test_allocator);
-    var internedStrings = StringArrayHashMap(u64).init(test_allocator);
-    defer internedStrings.deinit();
-
-    defer linker.deinit();
-    try linker.emitBinary(io, code, &internedStrings, 0, "test.bin");
-
-    const run_result = try std.process.run(test_allocator, io, .{
-        .argv = &[_][]const u8{"./test.bin"},
-    });
-
-    switch (run_result.term) {
-        .exited => |exitcode| return exitcode,
-        .signal => |sig| return @intFromEnum(sig),
-        .stopped => |_| return 999,
-        .unknown => |_| return 999,
-    }
-}
 
 test {
     _ = @import("test/test_arm.zig");

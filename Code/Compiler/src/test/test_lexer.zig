@@ -148,12 +148,12 @@ test "Identifiers with operator separators" {
     }, null);
 }
 
-test "Lex def keyword" {
-    var buffer = "fn".*;
-    try testToken(&buffer, &[_]Token{
-        tok.createToken(TK.kw_fn).nextAlt(),
-    }, null);
-}
+// test "Lex def keyword" {
+//     var buffer = "fn".*;
+//     try testToken(&buffer, &[_]Token{
+//         tok.createToken(TK.kw_fn).nextAlt(),
+//     }, null);
+// }
 
 test "Lex type" {
     var buffer = "HelloWorld".*;

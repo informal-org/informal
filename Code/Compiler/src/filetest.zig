@@ -44,6 +44,8 @@ fn exitCodeTest(io: std.Io, filename: []const u8) !u32 {
 
     // Cleanup file
     // try std.fs.cwd().deleteFile("test.bin");
+    defer test_allocator.free(run_result.stdout);
+    defer test_allocator.free(run_result.stderr);
 
     switch (run_result.term) {
         .exited => |exitcode| return exitcode,
@@ -54,25 +56,21 @@ fn exitCodeTest(io: std.Io, filename: []const u8) !u32 {
 }
 
 test "add.ifi" {
-    print("Running add.ifi\n", .{});
     const exitCode = try exitCodeTest(std.testing.io, "../../Tests/FileTests/add.ifi");
     try expectEqual(42, exitCode);
 }
 
 test "identifiers.ifi" {
-    print("Running identifiers.ifi\n", .{});
     const exitCode = try exitCodeTest(std.testing.io, "../../Tests/FileTests/identifiers.ifi");
     try expectEqual(12, exitCode);
 }
 
 test "assign.ifi" {
-    print("Running assign.ifi\n", .{});
     const exitCode = try exitCodeTest(std.testing.io, "../../Tests/FileTests/assign.ifi");
     try expectEqual(2, exitCode);
 }
 
 // test "if.ifi" {
-//     print("Running if.ifi\n", .{});
 //     const exitCode = try exitCodeTest("../../Tests/FileTests/if.ifi");
 //     try expectEqual(exitCode, 1);
 // }

@@ -10,7 +10,7 @@ const build_options = @import("build_options");
 const Allocator = std.mem.Allocator;
 const StringArrayHashMap = std.array_hash_map.StringArrayHashMap;
 
-const ParserImpl = parser.PrattParser;
+const ParserImpl = parser.Parser;
 
 pub const Reader = struct {
     const Self = @This();

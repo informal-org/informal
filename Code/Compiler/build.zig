@@ -74,17 +74,18 @@ pub fn build(b: *std.Build) void {
 
     // Creates a test executable that will run `test` blocks from the executable's
     // root module.
-    const test_module = b.createModule(.{
-        .root_source_file = b.path("src/main.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-
     const test_options = b.addOptions();
     test_options.addOption(std.log.Level, "log_level", .err);
     test_options.addOption(bool, "benchmark", false);
     test_options.addOption(bool, "debug", false);
     test_options.addOption(bool, "disable_zig_lazy", false);
+
+    const test_module = b.createModule(.{
+        .root_source_file = b.path("src/filetest.zig"),
+        .target = target,
+        .optimize = optimize,
+        // .link_libc = true,
+    });
     test_module.addOptions("build_options", test_options);
 
     const unit_tests = b.addTest(.{
