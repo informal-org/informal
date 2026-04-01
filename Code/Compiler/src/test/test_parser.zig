@@ -26,7 +26,7 @@ fn testPrattParse(buffer: []const u8, tokens: []const Token, max_symbols: u32, e
     defer resolution.deinit();
 
     try testutils.pushAll(&syntaxQ, tokens);
-    var p = parser_mod.PrattParser.init(buffer, &syntaxQ, &auxQ, &parsedQ, &offsetQ, test_allocator, &resolution);
+    var p = parser_mod.Parser.init(buffer, &syntaxQ, &auxQ, &parsedQ, &offsetQ, test_allocator, &resolution);
     defer p.deinit();
     try p.startParse();
 

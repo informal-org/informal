@@ -13,7 +13,7 @@ const Allocator = std.mem.Allocator;
 
 const log = std.log.scoped(.parser);
 
-pub const PrattParser = struct {
+pub const Parser = struct {
     const Self = @This();
     buffer: []const u8,
     syntaxQ: *TokenQueue,
