@@ -70,7 +70,7 @@ test "assign.ifi" {
     try expectEqual(2, exitCode);
 }
 
-// test "if.ifi" {
-//     const exitCode = try exitCodeTest("../../Tests/FileTests/if.ifi");
-//     try expectEqual(exitCode, 1);
-// }
+test "if.ifi" {
+    const exitCode = try exitCodeTest(std.testing.io, "../../Tests/FileTests/if.ifi");
+    try expectEqual(1, exitCode);
+}

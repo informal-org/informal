@@ -47,7 +47,7 @@ pub const Parser = struct {
         }
     };
 
-    const ParserType = enum(u8) { none, literal, identifier, callExpr, unaryOp, binaryOp, binaryRightAssocOp, assignOp, colonAssocOp, separator, skipNewLine, groupParen, groupBracket, groupBrace, indentBlock };
+    const ParserType = enum(u8) { none, literal, identifier, callExpr, unaryOp, binaryOp, binaryRightAssocOp, assignOp, colonAssocOp, separator, skipNewLine, groupParen, groupBracket, groupBrace, indentBlock, kwIf, kwElse };
 
     const TokenParser = packed struct(u24) {
         // Compact pratt rule representations. Aviods storing function pointers directly, but requires an extra level of indirection.
@@ -161,7 +161,10 @@ pub const Parser = struct {
         grammar.prefix(Kind.grp_indent, .indentBlock, .None);
         // grammar.prefix(Kind.grp_dedent, .dedentBlock, .None);
 
-        // TODO: Keywords like if, for, fn, etc.
+        // Keywords
+        grammar.prefix(Kind.kw_if, .kwIf, .None);
+        grammar.prefix(Kind.kw_else, .kwElse, .None);
+
         return grammar.grammar;
     }
 
@@ -183,6 +186,8 @@ pub const Parser = struct {
         fns[@intFromEnum(ParserType.assignOp)] = assignOp;
         fns[@intFromEnum(ParserType.colonAssocOp)] = colonAssocOp;
         fns[@intFromEnum(ParserType.separator)] = separator;
+        fns[@intFromEnum(ParserType.kwIf)] = kwIf;
+        fns[@intFromEnum(ParserType.kwElse)] = kwElse;
         return fns;
     }
 
@@ -273,6 +278,33 @@ pub const Parser = struct {
         }
         try self.emit(Token.lex(Kind.grp_dedent, @truncate(startIdx), scopeId));
         try self.resolution.endScope(@truncate(self.parsedQ.list.items.len));
+    }
+
+    fn kwIf(self: *Self, token: Token) anyerror!void {
+        // Parse condition expression
+        try self.parse(Power.None.val());
+        // Emit kw_if in postfix position
+        try self.emit(token);
+        // Consume and emit op_colon_assoc
+        const colon = self.syntaxQ.pop();
+        assert(colon.kind == Kind.op_colon_assoc);
+        try self.emit(colon);
+        // Parse then-branch (will hit grp_indent → indentBlock)
+        try self.parse(Power.None.val());
+        // Check for else
+        if (self.syntaxQ.peek().kind == Kind.kw_else) {
+            const elseToken = self.syntaxQ.pop();
+            try self.emit(elseToken);
+            const colon2 = self.syntaxQ.pop();
+            assert(colon2.kind == Kind.op_colon_assoc);
+            try self.emit(colon2);
+            // Parse else-branch
+            try self.parse(Power.None.val());
+        }
+    }
+
+    fn kwElse(_: *Self, _: Token) anyerror!void {
+        return error.UnexpectedElse;
     }
 
     fn binaryOp(self: *Self, token: Token) anyerror!void {

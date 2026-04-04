@@ -306,9 +306,10 @@ pub const Codegen = struct {
                     self.br_unknown_tail_idx = try self.appendPendingBranch(arm.Cond.LE, self.br_unknown_tail_idx);
                 },
                 TK.kw_if => {
-                    // TODO, we may want to save some reference back to whatever this was previously.
                     self.ctx_current_block_kind = TK.kw_if;
-                    self.ctx_block_start = self.objCode.items.len;
+                    // In postfix order, kw_if appears after the condition code.
+                    // Set block_start before the condition's branch instructions so they get patched.
+                    self.ctx_block_start = 0;
                 },
                 TK.op_colon_assoc => {
                     // The current block type is 'ready'.

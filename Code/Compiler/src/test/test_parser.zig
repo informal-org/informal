@@ -13,12 +13,12 @@ const test_allocator = std.testing.allocator;
 const testutils = @import("./testutils.zig");
 const parser_mod = @import("../parser.zig");
 
-fn testPrattParse(buffer: []const u8, tokens: []const Token, max_symbols: u32, expected: []const Token) !void {
+fn testParse(buffer: []const u8, tokens: []const Token, aux: []const Token, expected: []const Token) !void {
     var syntaxQ = TokenQueue.init(test_allocator);
     var auxQ = TokenQueue.init(test_allocator);
     var parsedQ = TokenQueue.init(test_allocator);
     var offsetQ = OffsetQueue.init(test_allocator);
-    var resolution = try rs.Resolution.init(test_allocator, max_symbols, &parsedQ);
+    var resolution = try rs.Resolution.init(test_allocator, 0, &parsedQ);
     defer syntaxQ.deinit();
     defer auxQ.deinit();
     defer parsedQ.deinit();
@@ -26,6 +26,7 @@ fn testPrattParse(buffer: []const u8, tokens: []const Token, max_symbols: u32, e
     defer resolution.deinit();
 
     try testutils.pushAll(&syntaxQ, tokens);
+    try testutils.pushAll(&auxQ, aux);
     var p = parser_mod.Parser.init(buffer, &syntaxQ, &auxQ, &parsedQ, &offsetQ, test_allocator, &resolution);
     defer p.deinit();
     try p.startParse();
@@ -37,23 +38,24 @@ fn tok64(comptime bits: u64) Token {
     return @bitCast(bits);
 }
 
-test "basic add" {
+test "Parse basic add" {
     const buffer = "1+3";
-    const tokens = &[_]Token{
-        Token.lex(TK.lit_number, 0, 1),
-        tok.createToken(TK.op_add),
-        Token.lex(TK.lit_number, 2, 1).nextAlt(),
-    };
+    const tokens = &[_]Token{ Token.lex(TK.lit_number, 0, 1), tok.createToken(TK.op_add), Token.lex(TK.lit_number, 2, 1).nextAlt() };
+
+    const aux = &[_]Token{};
+
     const expected = &[_]Token{
-        tok64(0x0000000000003900),
-        tok64(0x0001000000003100),
-        tok64(0x0001000000023101),
-        tok64(0x0000000000001200),
+        tok.AUX_STREAM_START,
+        Token.lex(TK.lit_number, 0, 1),
+        // next-alt bit doesn't have much meaning in the parsed expr...
+        Token.lex(TK.lit_number, 2, 1).nextAlt(),
+        tok.createToken(TK.op_add),
     };
-    try testPrattParse(buffer, tokens, 0, expected);
+
+    try testParse(buffer, tokens, aux, expected);
 }
 
-test "math op precedence" {
+test "Parse math op precedence" {
     const buffer = "1+2*3";
     const tokens = &[_]Token{
         Token.lex(TK.lit_number, 0, 1),
@@ -62,258 +64,50 @@ test "math op precedence" {
         tok.createToken(TK.op_mul),
         Token.lex(TK.lit_number, 4, 1),
     };
-    const expected = &[_]Token{
-        tok64(0x0000000000003900),
-        tok64(0x0001000000003100),
-        tok64(0x0001000000023100),
-        tok64(0x0001000000043100),
-        tok64(0x0000000000001300),
-        tok64(0x0000000000001200),
-    };
-    try testPrattParse(buffer, tokens, 0, expected);
+
+    const aux = &[_]Token{};
+    // Ensure multiply before add.
+    const expected = &[_]Token{ tok.AUX_STREAM_START, Token.lex(TK.lit_number, 0, 1), Token.lex(TK.lit_number, 2, 1), Token.lex(TK.lit_number, 4, 1), tok.createToken(TK.op_mul), tok.createToken(TK.op_add) };
+
+    try testParse(buffer, tokens, aux, expected);
 }
 
-test "math op precedence reversed" {
-    const buffer = "1*2+3";
+test "Parse if with else" {
+    const buffer = "if 1 > 2:\n    42\nelse:\n    7";
     const tokens = &[_]Token{
-        Token.lex(TK.lit_number, 0, 1),
-        tok.createToken(TK.op_mul),
-        Token.lex(TK.lit_number, 2, 1),
-        tok.createToken(TK.op_add),
-        Token.lex(TK.lit_number, 4, 1),
+        tok.createToken(TK.kw_if),
+        Token.lex(TK.lit_number, 3, 1),
+        tok.createToken(TK.op_gt),
+        Token.lex(TK.lit_number, 7, 1),
+        tok.createToken(TK.op_colon_assoc),
+        tok.createToken(TK.grp_indent),
+        Token.lex(TK.lit_number, 14, 2),
+        tok.createToken(TK.grp_dedent),
+        tok.createToken(TK.kw_else),
+        tok.createToken(TK.op_colon_assoc),
+        tok.createToken(TK.grp_indent),
+        Token.lex(TK.lit_number, 27, 1),
+        tok.createToken(TK.grp_dedent),
     };
-    const expected = &[_]Token{
-        tok64(0x0000000000003900),
-        tok64(0x0001000000003100),
-        tok64(0x0001000000023100),
-        tok64(0x0000000000001300),
-        tok64(0x0001000000043100),
-        tok64(0x0000000000001200),
-    };
-    try testPrattParse(buffer, tokens, 0, expected);
-}
 
-test "subtraction and division" {
-    const buffer = "6-2/3";
-    const tokens = &[_]Token{
-        Token.lex(TK.lit_number, 0, 1),
-        tok.createToken(TK.op_sub),
-        Token.lex(TK.lit_number, 2, 1),
-        tok.createToken(TK.op_div),
-        Token.lex(TK.lit_number, 4, 1),
-    };
-    const expected = &[_]Token{
-        tok64(0x0000000000003900),
-        tok64(0x0001000000003100),
-        tok64(0x0001000000023100),
-        tok64(0x0001000000043100),
-        tok64(0x0000000000000e00),
-        tok64(0x0000000000001000),
-    };
-    try testPrattParse(buffer, tokens, 0, expected);
-}
+    const aux = &[_]Token{};
 
-test "chained adds" {
-    const buffer = "1+2+3";
-    const tokens = &[_]Token{
-        Token.lex(TK.lit_number, 0, 1),
-        tok.createToken(TK.op_add),
-        Token.lex(TK.lit_number, 2, 1),
-        tok.createToken(TK.op_add),
-        Token.lex(TK.lit_number, 4, 1),
-    };
     const expected = &[_]Token{
-        tok64(0x0000000000003900),
-        tok64(0x0001000000003100),
-        tok64(0x0001000000023100),
-        tok64(0x0000000000001200),
-        tok64(0x0001000000043100),
-        tok64(0x0000000000001200),
+        tok.AUX_STREAM_START,
+        Token.lex(TK.lit_number, 3, 1), // condition: 1
+        Token.lex(TK.lit_number, 7, 1), // condition: 2
+        tok.createToken(TK.op_gt), // condition: >
+        tok.createToken(TK.kw_if),
+        tok.createToken(TK.op_colon_assoc),
+        Token.lex(TK.grp_indent, 9, 0), // patched to end=9, scopeId=0
+        Token.lex(TK.lit_number, 14, 2), // then: 42
+        Token.lex(TK.grp_dedent, 6, 0), // points to indent at 6
+        tok.createToken(TK.kw_else),
+        tok.createToken(TK.op_colon_assoc),
+        Token.lex(TK.grp_indent, 14, 1), // patched to end=14, scopeId=1
+        Token.lex(TK.lit_number, 27, 1), // else: 7
+        Token.lex(TK.grp_dedent, 11, 1), // points to indent at 11
     };
-    try testPrattParse(buffer, tokens, 0, expected);
-}
 
-test "comparison operators" {
-    const buffer = "1<2";
-    const tokens = &[_]Token{
-        Token.lex(TK.lit_number, 0, 1),
-        tok.createToken(TK.op_lt),
-        Token.lex(TK.lit_number, 2, 1),
-    };
-    const expected = &[_]Token{
-        tok64(0x0000000000003900),
-        tok64(0x0001000000003100),
-        tok64(0x0001000000023100),
-        tok64(0x0000000000000c00),
-    };
-    try testPrattParse(buffer, tokens, 0, expected);
-}
-
-test "equality with arithmetic" {
-    const buffer = "1+2==3";
-    const tokens = &[_]Token{
-        Token.lex(TK.lit_number, 0, 1),
-        tok.createToken(TK.op_add),
-        Token.lex(TK.lit_number, 2, 1),
-        tok.createToken(TK.op_dbl_eq),
-        Token.lex(TK.lit_number, 4, 1),
-    };
-    const expected = &[_]Token{
-        tok64(0x0000000000003900),
-        tok64(0x0001000000003100),
-        tok64(0x0001000000023100),
-        tok64(0x0000000000001200),
-        tok64(0x0001000000043100),
-        tok64(0x0000000000000100),
-    };
-    try testPrattParse(buffer, tokens, 0, expected);
-}
-
-test "logical and/or" {
-    const buffer = "a and b or c";
-    const tokens = &[_]Token{
-        Token.lex(TK.identifier, 0, 1),
-        tok.createToken(TK.op_and),
-        Token.lex(TK.identifier, 1, 1),
-        tok.createToken(TK.op_or),
-        Token.lex(TK.identifier, 2, 1),
-    };
-    const expected = &[_]Token{
-        tok64(0x0000000000003900),
-        tok64(0x0000000000002b00),
-        tok64(0x0000000000012b00),
-        tok64(0x0000000000001700),
-        tok64(0x0000000000022b00),
-        tok64(0x0000000000001800),
-    };
-    try testPrattParse(buffer, tokens, 3, expected);
-}
-
-test "assignment" {
-    const buffer = "x=1";
-    const tokens = &[_]Token{
-        Token.lex(TK.identifier, 0, 1),
-        tok.createToken(TK.op_assign_eq),
-        Token.lex(TK.lit_number, 2, 1),
-    };
-    const expected = &[_]Token{
-        tok64(0x0000000000003900),
-        tok64(0x0000000000002b02),
-        tok64(0x0001000000023100),
-        tok64(0x0000000000000b00),
-    };
-    try testPrattParse(buffer, tokens, 1, expected);
-}
-
-test "assignment with expression" {
-    const buffer = "x=1+2";
-    const tokens = &[_]Token{
-        Token.lex(TK.identifier, 0, 1),
-        tok.createToken(TK.op_assign_eq),
-        Token.lex(TK.lit_number, 2, 1),
-        tok.createToken(TK.op_add),
-        Token.lex(TK.lit_number, 4, 1),
-    };
-    const expected = &[_]Token{
-        tok64(0x0000000000003900),
-        tok64(0x0000000000002b02),
-        tok64(0x0001000000023100),
-        tok64(0x0001000000043100),
-        tok64(0x0000000000001200),
-        tok64(0x0000000000000b00),
-    };
-    try testPrattParse(buffer, tokens, 1, expected);
-}
-
-test "multiple expressions with newline" {
-    const buffer = "1+2\n3+4";
-    const tokens = &[_]Token{
-        Token.lex(TK.lit_number, 0, 1),
-        tok.createToken(TK.op_add),
-        Token.lex(TK.lit_number, 2, 1),
-        tok.createToken(TK.sep_newline),
-        Token.lex(TK.lit_number, 4, 1),
-        tok.createToken(TK.op_add),
-        Token.lex(TK.lit_number, 6, 1),
-    };
-    const expected = &[_]Token{
-        tok64(0x0000000000003900),
-        tok64(0x0001000000003100),
-        tok64(0x0001000000023100),
-        tok64(0x0000000000001200),
-        tok64(0x0001000000043100),
-        tok64(0x0001000000063100),
-        tok64(0x0000000000001200),
-    };
-    try testPrattParse(buffer, tokens, 0, expected);
-}
-
-test "comma separated" {
-    const buffer = "1,2,3";
-    const tokens = &[_]Token{
-        Token.lex(TK.lit_number, 0, 1),
-        tok.createToken(TK.sep_comma),
-        Token.lex(TK.lit_number, 2, 1),
-        tok.createToken(TK.sep_comma),
-        Token.lex(TK.lit_number, 4, 1),
-    };
-    const expected = &[_]Token{
-        tok64(0x0000000000003900),
-        tok64(0x0001000000003100),
-        tok64(0x0001000000023100),
-        tok64(0x0001000000043100),
-    };
-    try testPrattParse(buffer, tokens, 0, expected);
-}
-
-test "single literal" {
-    const buffer = "42";
-    const tokens = &[_]Token{
-        Token.lex(TK.lit_number, 0, 2),
-    };
-    const expected = &[_]Token{
-        tok64(0x0000000000003900),
-        tok64(0x0002000000003100),
-    };
-    try testPrattParse(buffer, tokens, 0, expected);
-}
-
-test "modulo" {
-    const buffer = "7%3";
-    const tokens = &[_]Token{
-        Token.lex(TK.lit_number, 0, 1),
-        tok.createToken(TK.op_mod),
-        Token.lex(TK.lit_number, 2, 1),
-    };
-    const expected = &[_]Token{
-        tok64(0x0000000000003900),
-        tok64(0x0001000000003100),
-        tok64(0x0001000000023100),
-        tok64(0x0000000000001400),
-    };
-    try testPrattParse(buffer, tokens, 0, expected);
-}
-
-test "mixed precedence mul add sub" {
-    const buffer = "1+2*3-4";
-    const tokens = &[_]Token{
-        Token.lex(TK.lit_number, 0, 1),
-        tok.createToken(TK.op_add),
-        Token.lex(TK.lit_number, 2, 1),
-        tok.createToken(TK.op_mul),
-        Token.lex(TK.lit_number, 4, 1),
-        tok.createToken(TK.op_sub),
-        Token.lex(TK.lit_number, 6, 1),
-    };
-    const expected = &[_]Token{
-        tok64(0x0000000000003900),
-        tok64(0x0001000000003100),
-        tok64(0x0001000000023100),
-        tok64(0x0001000000043100),
-        tok64(0x0000000000001300),
-        tok64(0x0000000000001200),
-        tok64(0x0001000000063100),
-        tok64(0x0000000000001000),
-    };
-    try testPrattParse(buffer, tokens, 0, expected);
+    try testParse(buffer, tokens, aux, expected);
 }

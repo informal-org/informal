@@ -927,7 +927,7 @@ pub const Lexer = struct {
                         continue;
                     }
 
-                    try self.token_identifier(self.index);
+                    try self.token_keyword_or_identifier();
                 },
             }
         }
