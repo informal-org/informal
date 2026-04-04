@@ -47,7 +47,7 @@ pub const Parser = struct {
         }
     };
 
-    const ParserType = enum(u8) { none, literal, identifier, callExpr, unaryOp, binaryOp, binaryRightAssocOp, assignOp, colonAssocOp, separator, skipNewLine, groupParen, groupBracket, groupBrace, indentBlock, kwIf, kwElse };
+    const ParserType = enum(u8) { none, literal, identifier, callExpr, unaryOp, binaryOp, binaryRightAssocOp, assignOp, colonAssocOp, separator, skipNewLine, groupParen, groupBracket, groupBrace, indentBlock, kwIf, kwElse, kwFn };
 
     const TokenParser = packed struct(u24) {
         // Compact pratt rule representations. Aviods storing function pointers directly, but requires an extra level of indirection.
@@ -164,6 +164,7 @@ pub const Parser = struct {
         // Keywords
         grammar.prefix(Kind.kw_if, .kwIf, .None);
         grammar.prefix(Kind.kw_else, .kwElse, .None);
+        grammar.prefix(Kind.kw_fn, .kwFn, .None);
 
         return grammar.grammar;
     }
@@ -188,6 +189,7 @@ pub const Parser = struct {
         fns[@intFromEnum(ParserType.separator)] = separator;
         fns[@intFromEnum(ParserType.kwIf)] = kwIf;
         fns[@intFromEnum(ParserType.kwElse)] = kwElse;
+        fns[@intFromEnum(ParserType.kwFn)] = kwFn;
         return fns;
     }
 
@@ -305,6 +307,41 @@ pub const Parser = struct {
 
     fn kwElse(_: *Self, _: Token) anyerror!void {
         return error.UnexpectedElse;
+    }
+
+    fn kwFn(self: *Self, _: Token) anyerror!void {
+        // 1. Function name - pop identifier, declare it
+        const nameToken = self.syntaxQ.pop();
+        const declName = self.resolution.declare(@truncate(self.parsedQ.list.items.len), nameToken);
+        try self.emit(declName);
+
+        // 2. fn_header placeholder (arg0=bodyLength, arg1=paramCount - patched later)
+        const headerIdx: u32 = @truncate(self.parsedQ.list.items.len);
+        try self.emit(Token.lex(Kind.kw_fn, 0, 0));
+
+        // 3. Parameters
+        assert(self.syntaxQ.pop().kind == Kind.grp_open_paren);
+        try self.resolution.startScope(rs.Scope{ .start = headerIdx, .scopeType = .function });
+        var paramCount: u16 = 0;
+        while (self.syntaxQ.peek().kind != Kind.grp_close_paren) {
+            if (self.syntaxQ.peek().kind == Kind.sep_comma) _ = self.syntaxQ.pop();
+            const paramToken = self.syntaxQ.pop();
+            const declParam = self.resolution.declare(@truncate(self.parsedQ.list.items.len), paramToken);
+            try self.emit(declParam);
+            paramCount += 1;
+        }
+        _ = self.syntaxQ.pop(); // close paren
+        _ = self.syntaxQ.pop(); // op_colon_assoc
+
+        // 4. Parse body
+        try self.parse(Power.None.val());
+
+        // 5. Pop scope
+        try self.resolution.endScope(@truncate(self.parsedQ.list.items.len));
+
+        // 6. Patch fn_header with body length and param count
+        const bodyLength: u32 = @truncate(self.parsedQ.list.items.len - headerIdx - 1);
+        self.parsedQ.list.items[headerIdx] = Token.lex(Kind.kw_fn, bodyLength, paramCount);
     }
 
     fn binaryOp(self: *Self, token: Token) anyerror!void {

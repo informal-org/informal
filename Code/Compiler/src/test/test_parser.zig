@@ -18,7 +18,7 @@ fn testParse(buffer: []const u8, tokens: []const Token, aux: []const Token, expe
     var auxQ = TokenQueue.init(test_allocator);
     var parsedQ = TokenQueue.init(test_allocator);
     var offsetQ = OffsetQueue.init(test_allocator);
-    var resolution = try rs.Resolution.init(test_allocator, 0, &parsedQ);
+    var resolution = try rs.Resolution.init(test_allocator, 64, &parsedQ);
     defer syntaxQ.deinit();
     defer auxQ.deinit();
     defer parsedQ.deinit();
@@ -107,6 +107,40 @@ test "Parse if with else" {
         Token.lex(TK.grp_indent, 14, 1), // patched to end=14, scopeId=1
         Token.lex(TK.lit_number, 27, 1), // else: 7
         Token.lex(TK.grp_dedent, 11, 1), // points to indent at 11
+    };
+
+    try testParse(buffer, tokens, aux, expected);
+}
+
+test "Parse fn definition" {
+    // fn add(a, b): a + b
+    // Symbol IDs: add=0, a=1, b=2
+    const buffer = "fn add(a, b): a + b";
+    const tokens = &[_]Token{
+        tok.createToken(TK.kw_fn),
+        Token.lex(TK.identifier, 0, 0), // add
+        tok.createToken(TK.grp_open_paren),
+        Token.lex(TK.identifier, 1, 0), // a
+        tok.createToken(TK.sep_comma),
+        Token.lex(TK.identifier, 2, 0), // b
+        tok.createToken(TK.grp_close_paren),
+        tok.createToken(TK.op_colon_assoc),
+        Token.lex(TK.identifier, 1, 0), // a (body)
+        tok.createToken(TK.op_add),
+        Token.lex(TK.identifier, 2, 0), // b (body)
+    };
+
+    const aux = &[_]Token{};
+
+    const expected = &[_]Token{
+        tok.AUX_STREAM_START,
+        Token.lex(TK.identifier, 0, 0).newDeclaration(0), // add declaration
+        Token.lex(TK.kw_fn, 5, 2), // fn header: bodyLength=5, paramCount=2
+        Token.lex(TK.identifier, 1, 0).newDeclaration(0), // a param decl
+        Token.lex(TK.identifier, 2, 0).newDeclaration(0), // b param decl
+        Token.lex(TK.identifier, 1, 0xFFFE), // a resolved (offset -2)
+        Token.lex(TK.identifier, 2, 0xFFFE), // b resolved (offset -2)
+        tok.createToken(TK.op_add),
     };
 
     try testParse(buffer, tokens, aux, expected);
