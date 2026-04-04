@@ -309,6 +309,9 @@ pub const Codegen = struct {
                     self.ctx_current_block_kind = TK.kw_if;
                     // In postfix order, kw_if appears after the condition code.
                     // Set block_start before the condition's branch instructions so they get patched.
+                    // TODO: Unclear what this should be.
+                    // self.ctx_block_start = self.objCode.items.len;
+                    // self.ctx_block_start = self.objCode.items.len - 2;
                     self.ctx_block_start = 0;
                 },
                 TK.op_colon_assoc => {
