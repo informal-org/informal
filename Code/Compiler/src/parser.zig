@@ -47,7 +47,7 @@ pub const Parser = struct {
         }
     };
 
-    const ParserType = enum(u8) { none, literal, identifier, callExpr, unaryOp, binaryOp, binaryRightAssocOp, assignOp, colonAssocOp, separator, skipNewLine, groupParen, groupBracket, groupBrace, indentBlock, kwIf, kwElse, kwFn };
+    const ParserType = enum(u8) { none, literal, identifier, callExpr, unaryOp, binaryOp, binaryRightAssocOp, assignOp, colonAssocOp, separator, skipNewLine, groupParen, groupBracket, groupBrace, indentBlock, kwIf, kwElse, kwFn, opIdentifierInfix };
 
     const TokenParser = packed struct(u24) {
         // Compact pratt rule representations. Aviods storing function pointers directly, but requires an extra level of indirection.
@@ -110,7 +110,7 @@ pub const Parser = struct {
         grammar.prefix(Kind.lit_bool, .literal, .None);
         grammar.prefix(Kind.lit_null, .literal, .None);
         grammar.prefix(Kind.identifier, .identifier, .None);
-        grammar.prefix(Kind.const_identifier, .identifier, .None);
+        grammar.grammar[@intFromEnum(Kind.const_identifier)] = TokenParser{ .prefix = .identifier, .infix = .opIdentifierInfix, .power = .Comparison };
         grammar.prefix(Kind.call_identifier, .callExpr, .None);
 
         // Unary ops (prefix only)
@@ -140,7 +140,7 @@ pub const Parser = struct {
         grammar.infix(Kind.op_in, .binaryOp, .Comparison);
         grammar.infix(Kind.op_is, .binaryOp, .Comparison);
         grammar.infix(Kind.op_as, .binaryOp, .Comparison);
-        grammar.infix(Kind.op_identifier, .binaryOp, .Comparison);
+        grammar.infix(Kind.op_identifier, .opIdentifierInfix, .Comparison);
         grammar.infix(Kind.op_dot_member, .binaryOp, .Member);
 
         // Assignment
@@ -190,6 +190,7 @@ pub const Parser = struct {
         fns[@intFromEnum(ParserType.kwIf)] = kwIf;
         fns[@intFromEnum(ParserType.kwElse)] = kwElse;
         fns[@intFromEnum(ParserType.kwFn)] = kwFn;
+        fns[@intFromEnum(ParserType.opIdentifierInfix)] = opIdentifierInfix;
         return fns;
     }
 
@@ -374,6 +375,123 @@ pub const Parser = struct {
         const lazyFlag: u16 = if (isLazy) 1 else 0;
         const metadata: u16 = (lazyFlag << 15) | paramCount;
         self.parsedQ.list.items[headerIdx] = Token.lex(Kind.kw_fn, bodyLength, metadata);
+    }
+
+    fn opIdentifierInfix(self: *Self, token: Token) anyerror!void {
+        const resolved = self.resolution.resolve(@truncate(self.parsedQ.list.items.len), token);
+        const offset = resolved.data.value.arg1;
+
+        // Check if this resolves to a function declaration.
+        if (offset == rs.UNDECLARED_SENTINEL) {
+            // Unresolved — fall back to binary op.
+            try self.parse(self.power(token) + 1);
+            try self.emit(resolved);
+            return;
+        }
+
+        const declIndex = rs.applyOffset(i16, @truncate(self.parsedQ.list.items.len), offset);
+
+        // Verify the declaration is followed by a kw_fn header.
+        if (declIndex + 1 >= self.parsedQ.list.items.len or
+            self.parsedQ.list.items[declIndex + 1].kind != Kind.kw_fn)
+        {
+            // Not a function — fall back to binary op.
+            try self.parse(self.power(token) + 1);
+            try self.emit(resolved);
+            return;
+        }
+
+        const fnHeader = self.parsedQ.list.items[declIndex + 1];
+        const bodyLength = fnHeader.data.value.arg0;
+        const metadata = fnHeader.data.value.arg1;
+        const isLazy = (metadata & 0x8000) != 0;
+        const paramCount: u32 = metadata & 0xFF;
+        assert(paramCount == 2);
+
+        const param1 = self.parsedQ.list.items[declIndex + 2];
+        const param2 = self.parsedQ.list.items[declIndex + 3];
+
+        if (isLazy) {
+            // Lazy expansion: one eager param bound to left operand, splice lazy param from syntaxQ.
+            const eagerSymbolId = if (param1.kind == Kind.identifier) param1.data.value.arg0 else param2.data.value.arg0;
+            const savedDecl = self.resolution.declarations[eagerSymbolId];
+
+            // Declare eager param with splice flag (binds to stack-top in codegen).
+            var eagerDecl = self.resolution.declare(@truncate(self.parsedQ.list.items.len), Token.lex(Kind.identifier, eagerSymbolId, 0));
+            eagerDecl.aux.splice = true;
+            try self.emit(eagerDecl);
+
+            // Walk body template.
+            const bodyStart: u32 = declIndex + 2 + paramCount;
+            const bodyEnd: u32 = declIndex + 1 + bodyLength;
+            try self.walkBodyTemplate(bodyStart, bodyEnd, token);
+
+            // Restore eager declaration.
+            self.resolution.declarations[eagerSymbolId] = savedDecl;
+        } else {
+            // Eager expansion: bind both params, then walk body.
+            const sym1 = param1.data.value.arg0;
+            const sym2 = param2.data.value.arg0;
+            const saved1 = self.resolution.declarations[sym1];
+            const saved2 = self.resolution.declarations[sym2];
+
+            // Bind first param to left operand.
+            var decl1 = self.resolution.declare(@truncate(self.parsedQ.list.items.len), Token.lex(Kind.identifier, sym1, 0));
+            decl1.aux.splice = true;
+            try self.emit(decl1);
+
+            // Parse right operand.
+            try self.parse(self.power(token) + 1);
+
+            // Bind second param to right operand.
+            var decl2 = self.resolution.declare(@truncate(self.parsedQ.list.items.len), Token.lex(Kind.identifier, sym2, 0));
+            decl2.aux.splice = true;
+            try self.emit(decl2);
+
+            // Walk body template.
+            const bodyStart: u32 = declIndex + 2 + paramCount;
+            const bodyEnd: u32 = declIndex + 1 + bodyLength;
+            try self.walkBodyTemplate(bodyStart, bodyEnd, token);
+
+            // Restore declarations.
+            self.resolution.declarations[sym1] = saved1;
+            self.resolution.declarations[sym2] = saved2;
+        }
+    }
+
+    fn walkBodyTemplate(self: *Self, bodyStart: u32, bodyEnd: u32, opToken: Token) anyerror!void {
+        var fixupStack: [4]u32 = undefined;
+        var fixupDepth: u8 = 0;
+
+        var i: u32 = bodyStart;
+        while (i <= bodyEnd) : (i += 1) {
+            // Re-index each iteration — emit() may reallocate parsedQ.
+            const templateToken = self.parsedQ.list.items[i];
+
+            if (templateToken.aux.splice) {
+                // Splice: parse right operand from syntaxQ.
+                try self.parse(self.power(opToken) + 1);
+            } else if (templateToken.kind == Kind.identifier or templateToken.kind == Kind.const_identifier) {
+                // Re-resolve against current scope.
+                const freshToken = Token.lex(templateToken.kind, templateToken.data.value.arg0, 0);
+                const reResolved = self.resolution.resolve(@truncate(self.parsedQ.list.items.len), freshToken);
+                try self.emit(reResolved);
+            } else if (templateToken.kind == Kind.grp_indent) {
+                const emitIdx: u32 = @truncate(self.parsedQ.list.items.len);
+                try self.emit(Token.lex(Kind.grp_indent, 0, self.resolution.scopeId));
+                fixupStack[fixupDepth] = emitIdx;
+                fixupDepth += 1;
+            } else if (templateToken.kind == Kind.grp_dedent) {
+                fixupDepth -= 1;
+                const indentIdx = fixupStack[fixupDepth];
+                const emitIdx: u32 = @truncate(self.parsedQ.list.items.len);
+                try self.emit(Token.lex(Kind.grp_dedent, indentIdx, self.resolution.scopeId));
+                self.parsedQ.list.items[indentIdx] = Token.lex(Kind.grp_indent, emitIdx, self.resolution.scopeId);
+            } else {
+                // Copy as-is (operators, kw_if, kw_else, op_colon_assoc, literals, etc.)
+                try self.emit(templateToken);
+            }
+        }
     }
 
     fn binaryOp(self: *Self, token: Token) anyerror!void {

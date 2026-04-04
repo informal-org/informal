@@ -1,2 +1,2 @@
-fn add(a, b): a + b
-3 add 4
+fn ADD(a, b): a + b
+3 ADD 4

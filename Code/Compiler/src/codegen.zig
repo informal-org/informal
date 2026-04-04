@@ -239,7 +239,7 @@ pub const Codegen = struct {
                     tokenQueue[index] = Token.lex(token.kind, @truncate(placeholderIndex), @truncate(tokenQueueOffset));
                     self.strConstRefTail = index;
                 },
-                TK.identifier, TK.call_identifier => {
+                TK.identifier, TK.const_identifier, TK.call_identifier => {
                     if (token.kind == TK.call_identifier and !token.aux.declaration) {
                         // Syscall handling.
                         // TODO: Support for our own functions.
@@ -253,7 +253,12 @@ pub const Codegen = struct {
                         continue;
                     }
                     if (token.aux.declaration) {
-                        reg = self.getFreeReg();
+                        if (token.aux.splice) {
+                            // Inline expansion: bind to the operand already on the stack.
+                            reg = self.popReg();
+                        } else {
+                            reg = self.getFreeReg();
+                        }
                         self.pushReg(reg);
                         // Save which register this identifier is associated with to the parsed queue so future refs can look it up.
                         tokenQueue[index] = token.assignReg(@intFromEnum(reg));
