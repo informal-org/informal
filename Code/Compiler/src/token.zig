@@ -256,19 +256,19 @@ pub const AUX_STREAM_START = createToken(Kind.aux_stream_start);
 pub const AUX_STREAM_END = createToken(Kind.aux_stream_end);
 
 pub fn print_token_queue(queue: []Token, buffer: []const u8) void {
-    print("Tokens: {d}\n", .{queue.len});
+    std.log.debug("Tokens: {d}\n", .{queue.len});
     for (queue) |token| {
         print_token("{any}\n", token, buffer);
     }
 }
 
 pub fn print_token(comptime fmt: []const u8, token: Token, buffer: []const u8) void {
-    print(fmt, .{TokenWriter{ .token = token, .buffer = buffer }});
+    std.log.debug(fmt, .{TokenWriter{ .token = token, .buffer = buffer }});
 }
 
 pub fn debug_token(comptime fmt: []const u8, token: Token, buffer: []const u8) void {
     if (build_options.debug) {
-        print(fmt, .{TokenWriter{ .token = token, .buffer = buffer }});
+        std.log.debug(fmt, .{TokenWriter{ .token = token, .buffer = buffer }});
     }
 }
 

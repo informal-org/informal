@@ -70,7 +70,11 @@ test "assign.ifi" {
     try expectEqual(2, exitCode);
 }
 
+// Testing the scenario where you jump over the branch requires
+// Requires Step 6 (scope restoration) — final `x` resolves to inner declaration with uninitialized register.
+
 test "if.ifi" {
+    // Fallthrough case
     const exitCode = try exitCodeTest(std.testing.io, "../../Tests/FileTests/if.ifi");
-    try expectEqual(1, exitCode);
+    try expectEqual(2, exitCode);
 }

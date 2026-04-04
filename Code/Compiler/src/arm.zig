@@ -155,15 +155,20 @@ pub fn subi(rd: Reg, rn: Reg, imm12: u12) u32 {
     return ImmAddSub.init(rd, rn, imm12, AddSubOp.SUB);
 }
 
-// Alias of sub-set flags
-pub fn cmp(rd: Reg, rn: Reg) u32 {
-    return (ImmAddSub{
-        .rd = WZR,
-        .rn = rd,
-        .imm12 = @intFromEnum(rn),
-        .set_flags = 1,
-        .op = AddSubOp.SUB,
-    }).encode();
+// // Original - Alias of sub-set flags
+// pub fn cmp(rd: Reg, imm12: u12) u32 {
+//     return (ImmAddSub{
+//         .rd = WZR,
+//         .rn = rd,
+//         .imm12 = @intFromEnum(rn),
+//         .set_flags = 1,
+//         .op = AddSubOp.SUB,
+//     }).encode();
+// }
+
+// Compare registers
+pub fn cmp(rn: Reg, rm: Reg) u32 {
+    return subs(WZR, rn, rm);
 }
 
 pub const ImmAddSubTags = packed struct(u32) {

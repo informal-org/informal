@@ -213,10 +213,10 @@ pub const Codegen = struct {
                     const constId = token.data.value.arg0;
                     const constLen = token.data.value.arg1;
                     const lenReg = self.getFreeReg();
-                    print("Const id {d}, len {d} lenreg {any}\n", .{ constId, constLen, lenReg });
+                    std.log.debug("Const id {d}, len {d} lenreg {any}\n", .{ constId, constLen, lenReg });
 
                     if (constLen > (2 << 13)) {
-                        print("Compiler internal error - string constant len overflows current encoding: {any}\n", .{constLen});
+                        std.log.debug("Compiler internal error - string constant len overflows current encoding: {any}\n", .{constLen});
                     }
                     self.pushReg(lenReg);
                     try self.objCode.append(arm.movz(lenReg, @truncate(constLen)));
@@ -230,7 +230,7 @@ pub const Codegen = struct {
                     const tokenQueueOffset = index - self.strConstRefTail;
                     if (tokenQueueOffset > (2 << 16)) {
                         // TODO: We can handle this better in the future - use an overflow queue, and a sentinel value to indicate to look there.
-                        print("Compiler internal error - String constant offset is too large: {any}\n", .{tokenQueueOffset});
+                        std.log.debug("Compiler internal error - String constant offset is too large: {any}\n", .{tokenQueueOffset});
                     }
                     tokenQueue[index] = Token.lex(token.kind, @truncate(placeholderIndex), @truncate(tokenQueueOffset));
                     self.strConstRefTail = index;
@@ -298,7 +298,7 @@ pub const Codegen = struct {
                     try self.objCode.append(arm.cmp(rd, rn));
                     self.pushReg(rd);
 
-                    print("Compiling GT. Current index {any} unknown tail {any}\n", .{ self.objCode.items.len, self.br_unknown_tail_idx });
+                    std.log.debug("Compiling GT. Current index {any} unknown tail {any}\n", .{ self.objCode.items.len, self.br_unknown_tail_idx });
 
                     // Branch condition would ultimately go here. We want the inverse condition.
                     // TODO: Optimization: We can make this map to the same condition using the inverse condition logic.
@@ -316,26 +316,26 @@ pub const Codegen = struct {
                     // For loops, we probably want back-refs to come back here.
                     // Change unknown to tail.
                     const prev_fail = self.br_fail_tail_idx;
-                    print("Colon - prev fail {any}\n", .{prev_fail});
+                    std.log.debug("Colon - prev fail {any}\n", .{prev_fail});
                     if (prev_fail != 0) {
                         // TODO: Chain
-                        print("Unimplemented - Prev fail - TODO: Chain", .{});
+                        std.log.debug("Unimplemented - Prev fail - TODO: Chain", .{});
                     } else {
-                        print("Colon - setting fail to unknown {any}\n", .{self.br_unknown_tail_idx});
+                        std.log.debug("Colon - setting fail to unknown {any}\n", .{self.br_unknown_tail_idx});
                         self.br_fail_tail_idx = self.br_unknown_tail_idx;
                         self.br_unknown_tail_idx = 0;
                     }
                 },
                 TK.grp_indent => {
                     // Anything which was looking for the success branch should go here - i.e. short-circuiting OR.
-                    print("Ignoring unknown indent type", .{});
+                    std.log.debug("Ignoring unknown indent type\n", .{});
                 },
                 TK.grp_dedent => {
                     // Resolve all of the 'fail' branches. This is the index they were looking for.
                     // We need to set the end as well here. And then peek one to see if the next thing (if it exists) is a condition-continuing thing.
                     if (self.ctx_current_block_kind == TK.kw_if or self.ctx_current_block_kind == TK.kw_else) {
                         const currentLoc = self.objCode.items.len;
-                        print("Resolving fail branches from {any} to {any} for block from {any}\n", .{ self.br_fail_tail_idx, currentLoc, self.ctx_block_start });
+                        std.log.debug("Resolving fail branches from {any} to {any} for block from {any}\n", .{ self.br_fail_tail_idx, currentLoc, self.ctx_block_start });
                         self.br_fail_tail_idx = self.resolveBranchLabels(self.br_fail_tail_idx, currentLoc);
 
                         // Dedent while in an if-block means this conditional block is over, which means a jump to an end (unless its already the end)
@@ -343,13 +343,13 @@ pub const Codegen = struct {
                         if (index + 1 < tokenQueue.len and tokenQueue[index + 1].kind == TK.kw_else) {
                             // There's more conditions after this, so reserve a placeholder end and then queue it up to be corrected.
                             self.br_end_tail_idx = try self.appendPendingBranch(arm.Cond.AL, self.br_end_tail_idx);
-                            print("Unimplemented - Dedent while in an if-block, and the next token is an else", .{});
+                            std.log.debug("Unimplemented - Dedent while in an if-block, and the next token is an else", .{});
                         } else {
                             // This is the ultimate end we've been waiting for. Resolve all of the end tokens.
                             self.br_end_tail_idx = self.resolveBranchLabels(self.br_end_tail_idx, currentLoc);
                         }
                     } else {
-                        print("Ignoring unknown dedent type", .{});
+                        std.log.debug("Ignoring unknown dedent type", .{});
                     }
                 },
                 TK.aux_stream_start => {},
@@ -362,7 +362,7 @@ pub const Codegen = struct {
         try self.emit_syscall(Syscall.exit, reg);
         try self.fixupConstRefs(tokenQueue, strConsts);
 
-        // print("Total instructions")
+        // std.log.debug("Total instructions")
     }
 };
 
