@@ -315,33 +315,65 @@ pub const Parser = struct {
         const declName = self.resolution.declare(@truncate(self.parsedQ.list.items.len), nameToken);
         try self.emit(declName);
 
-        // 2. fn_header placeholder (arg0=bodyLength, arg1=paramCount - patched later)
+        // 2. fn_header placeholder (arg0=bodyLength, arg1=metadata - patched later)
         const headerIdx: u32 = @truncate(self.parsedQ.list.items.len);
         try self.emit(Token.lex(Kind.kw_fn, 0, 0));
 
-        // 3. Parameters
+        // 3. Parameters — track kinds for lazy detection
         assert(self.syntaxQ.pop().kind == Kind.grp_open_paren);
         try self.resolution.startScope(rs.Scope{ .start = headerIdx, .scopeType = .function });
         var paramCount: u16 = 0;
+        var lazyParamSymbol: u32 = 0;
+        var lazyCount: u16 = 0;
+        var eagerCount: u16 = 0;
         while (self.syntaxQ.peek().kind != Kind.grp_close_paren) {
             if (self.syntaxQ.peek().kind == Kind.sep_comma) _ = self.syntaxQ.pop();
             const paramToken = self.syntaxQ.pop();
             const declParam = self.resolution.declare(@truncate(self.parsedQ.list.items.len), paramToken);
             try self.emit(declParam);
+            if (paramToken.kind == Kind.const_identifier) {
+                lazyParamSymbol = paramToken.data.value.arg0;
+                lazyCount += 1;
+            } else {
+                eagerCount += 1;
+            }
             paramCount += 1;
         }
         _ = self.syntaxQ.pop(); // close paren
         _ = self.syntaxQ.pop(); // op_colon_assoc
 
-        // 4. Parse body
-        try self.parse(Power.None.val());
+        // 4. Parse body — use Separator power to stop at newlines for single-line bodies.
+        const bodyStart: u32 = @truncate(self.parsedQ.list.items.len);
+        try self.parse(Power.Separator.val());
 
         // 5. Pop scope
         try self.resolution.endScope(@truncate(self.parsedQ.list.items.len));
 
-        // 6. Patch fn_header with body length and param count
+        // 6. Lazy detection: exactly 1 eager + 1 lazy param → scan body for splice points
+        const isLazy = eagerCount == 1 and lazyCount == 1;
+        if (isLazy) {
+            const bodyEnd: u32 = @truncate(self.parsedQ.list.items.len);
+            var spliceCount: u32 = 0;
+            var i: u32 = bodyStart;
+            while (i < bodyEnd) : (i += 1) {
+                const bodyToken = self.parsedQ.list.items[i];
+                if (bodyToken.data.value.arg0 == lazyParamSymbol and
+                    (bodyToken.kind == Kind.identifier or bodyToken.kind == Kind.const_identifier or bodyToken.kind == Kind.op_identifier))
+                {
+                    var patched = bodyToken;
+                    patched.aux.splice = true;
+                    self.parsedQ.list.items[i] = patched;
+                    spliceCount += 1;
+                }
+            }
+            assert(spliceCount == 1);
+        }
+
+        // 7. Patch fn_header: arg0=bodyLength, arg1=(lazyFlag << 15) | paramCount
         const bodyLength: u32 = @truncate(self.parsedQ.list.items.len - headerIdx - 1);
-        self.parsedQ.list.items[headerIdx] = Token.lex(Kind.kw_fn, bodyLength, paramCount);
+        const lazyFlag: u16 = if (isLazy) 1 else 0;
+        const metadata: u16 = (lazyFlag << 15) | paramCount;
+        self.parsedQ.list.items[headerIdx] = Token.lex(Kind.kw_fn, bodyLength, metadata);
     }
 
     fn binaryOp(self: *Self, token: Token) anyerror!void {

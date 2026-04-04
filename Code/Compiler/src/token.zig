@@ -129,12 +129,13 @@ pub const SequenceData = Data.Triple;
 pub const Flags = packed struct(u8) {
     alt: bool = false, // Indicates the next token is in the other queue.
     declaration: bool = false, // TODO: Do we really need a flag for this or can we do this with data types?
+    splice: bool = false, // Lazy parameter splice point for inline expansion.
 
     // continue-sibling node
     // is-child
     // parent-target - Must have
 
-    _reserved: u6 = 0,
+    _reserved: u5 = 0,
 
     pub fn empty() Flags {
         return Flags{

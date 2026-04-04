@@ -145,3 +145,43 @@ test "Parse fn definition" {
 
     try testParse(buffer, tokens, aux, expected);
 }
+
+test "Parse lazy fn with splice detection" {
+    // fn APPLY(first, SECOND): first SECOND
+    // Symbol IDs: APPLY=0, first=1, SECOND=2
+    // 'first' is identifier (eager), 'SECOND' is const_identifier (lazy)
+    // In the body, SECOND appears as op_identifier (infix use)
+    const buffer = "fn APPLY(first, SECOND): first SECOND";
+    const tokens = &[_]Token{
+        tok.createToken(TK.kw_fn),
+        Token.lex(TK.identifier, 0, 0), // APPLY
+        tok.createToken(TK.grp_open_paren),
+        Token.lex(TK.identifier, 1, 0), // first (eager)
+        tok.createToken(TK.sep_comma),
+        Token.lex(TK.const_identifier, 2, 0), // SECOND (lazy)
+        tok.createToken(TK.grp_close_paren),
+        tok.createToken(TK.op_colon_assoc),
+        Token.lex(TK.identifier, 1, 0), // first (body ref)
+        Token.lex(TK.op_identifier, 2, 0), // SECOND (body ref, infix)
+    };
+
+    const aux = &[_]Token{};
+
+    // Expected: fn_header arg1 = (1 << 15) | 2 = 0x8002 (lazy flag set, 2 params)
+    // bodyLength = paramCount + bodyTokens = 2 + 2 = 4
+    // The SECOND ref in body should have splice=true
+    var expectedSplice = Token.lex(TK.op_identifier, 2, 0); // unresolved op_identifier
+    expectedSplice.aux.splice = true;
+
+    const expected = &[_]Token{
+        tok.AUX_STREAM_START,
+        Token.lex(TK.identifier, 0, 0).newDeclaration(0), // APPLY declaration
+        Token.lex(TK.kw_fn, 4, 0x8002), // bodyLength=4, arg1=(1<<15)|2
+        Token.lex(TK.identifier, 1, 0).newDeclaration(0), // first param decl
+        Token.lex(TK.const_identifier, 2, 0).newDeclaration(0), // SECOND param decl
+        Token.lex(TK.identifier, 1, 0xFFFE), // first resolved (offset -2)
+        expectedSplice, // SECOND resolved with splice=true
+    };
+
+    try testParse(buffer, tokens, aux, expected);
+}

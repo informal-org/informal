@@ -86,3 +86,32 @@ test "Forward reference from child scope" {
     try expectEqual(5 - 2, afterOffset); // Declared at 5 - ref at 2
     // Expect the parsed queue to have been updated as well.
 }
+
+test "Function scope restoration on endScope" {
+    var parsedQ = parser.TokenQueue.init(test_allocator);
+    defer parsedQ.deinit();
+    var resolution = try Resolution.init(test_allocator, 3, &parsedQ);
+    defer resolution.deinit();
+
+    // Outer declaration of symbol 1 ('a') at index 0
+    try parsedQ.push(Token.lex(TK.identifier, 1, 0));
+    const outerDecl = resolution.declare(0, parsedQ.list.items[0]);
+    parsedQ.list.items[0] = outerDecl;
+    try expectEqual(0, resolution.declarations[1]);
+
+    // Start function scope at parsedQ index 1 (kw_fn header)
+    try parsedQ.push(Token.lex(TK.kw_fn, 0, 0));
+    try resolution.startScope(Scope{ .start = 1, .scopeType = .function });
+
+    // Inner declaration of same symbol 1 at parsedQ index 2 (param 'a')
+    try parsedQ.push(Token.lex(TK.identifier, 1, 0));
+    const innerDecl = resolution.declare(2, parsedQ.list.items[2]);
+    parsedQ.list.items[2] = innerDecl;
+    try expectEqual(2, resolution.declarations[1]);
+
+    // End function scope at index 3
+    try resolution.endScope(3);
+
+    // After endScope, declarations[1] should be restored to 0 (the outer declaration)
+    try expectEqual(0, resolution.declarations[1]);
+}

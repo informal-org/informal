@@ -60,6 +60,7 @@ pub const Codegen = struct {
 
     ctx_current_block_kind: TK = TK.aux, // Context - sets
     ctx_block_start: usize = 0,
+    skip_count: u32 = 0, // Tokens remaining to skip (for fn body skip-over).
 
     pub fn init(allocator: Allocator, buffer: []const u8) Self {
         return Self{ .objCode = std.array_list.AlignedManaged(u32, null).init(allocator), .buffer = buffer, .regStack = 0, .allocator = allocator };
@@ -191,7 +192,10 @@ pub const Codegen = struct {
 
         var reg = arm.Reg.x0;
         for (tokenQueue, 0..) |token, index| {
-            // try self.emit(token);
+            if (self.skip_count > 0) {
+                self.skip_count -= 1;
+                continue;
+            }
             switch (token.kind) {
                 TK.lit_number => {
                     // regStack = (regStack << 5) | @intFromEnum(reg); // Push the current register.
@@ -235,7 +239,19 @@ pub const Codegen = struct {
                     tokenQueue[index] = Token.lex(token.kind, @truncate(placeholderIndex), @truncate(tokenQueueOffset));
                     self.strConstRefTail = index;
                 },
-                TK.identifier => {
+                TK.identifier, TK.call_identifier => {
+                    if (token.kind == TK.call_identifier and !token.aux.declaration) {
+                        // Syscall handling.
+                        // TODO: Support for our own functions.
+                        const arg2 = self.popReg();
+                        const arg1 = self.popReg();
+                        try self.objCode.append(arm.mov(arm.Reg.x2, arg2));
+                        try self.objCode.append(arm.mov(arm.Reg.x1, arg1));
+                        try self.objCode.append(arm.movz(arm.Reg.x0, 1));
+                        try self.objCode.append(arm.movz(arm.Reg.x16, 4));
+                        try self.objCode.append(arm.svc(0x80));
+                        continue;
+                    }
                     if (token.aux.declaration) {
                         reg = self.getFreeReg();
                         self.pushReg(reg);
@@ -255,18 +271,6 @@ pub const Codegen = struct {
                         // Save that register to this identifier's location.
                         tokenQueue[index] = token.assignReg(@intFromEnum(reg));
                     }
-                },
-                TK.call_identifier => {
-                    // TODO: Support for our own functions.
-                    // For now, this code is just dealing with syscalls.
-                    // TODO: lookup the syscall and how many arguments it requires in a small table by syscall ID.
-                    const arg2 = self.popReg();
-                    const arg1 = self.popReg();
-                    try self.objCode.append(arm.mov(arm.Reg.x2, arg2));
-                    try self.objCode.append(arm.mov(arm.Reg.x1, arg1));
-                    try self.objCode.append(arm.movz(arm.Reg.x0, 1));
-                    try self.objCode.append(arm.movz(arm.Reg.x16, 4));
-                    try self.objCode.append(arm.svc(0x80));
                 },
                 TK.op_assign_eq => {
                     const value = self.popReg();
@@ -304,6 +308,10 @@ pub const Codegen = struct {
                     // TODO: Optimization: We can make this map to the same condition using the inverse condition logic.
                     // Starts as a branch type unknown since we don't know if this is followed by an and/or, etc.
                     self.br_unknown_tail_idx = try self.appendPendingBranch(arm.Cond.LE, self.br_unknown_tail_idx);
+                },
+                TK.kw_fn => {
+                    // Skip over the function body — it's a template for inline expansion, not executable code.
+                    self.skip_count = token.data.value.arg0;
                 },
                 TK.kw_if => {
                     self.ctx_current_block_kind = TK.kw_if;

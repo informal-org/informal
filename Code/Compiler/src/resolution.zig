@@ -109,10 +109,30 @@ pub const Resolution = struct {
 
     pub fn endScope(self: *Self, index: u32) !void {
         const scope = self.scopeStack.pop() orelse return;
-        // Go and patch the start in the parsed queue to point to the end.
-        // Return back the token which should be inserted.
+
+        // Restore declarations for function scopes so parameters don't leak into outer scope.
+        // TODO: There should be a more efficient way of doing this without full iteration.
+        if (scope.scopeType == .function) {
+            var i: u32 = scope.start;
+            while (i < index) : (i += 1) {
+                const token = self.parsedQ.list.items[i];
+                if (token.aux.declaration) {
+                    const symbolId = token.data.value.arg0;
+                    const prevDeclOffset = token.data.value.arg1;
+                    if (prevDeclOffset == UNDECLARED_SENTINEL) {
+                        self.declarations[symbolId] = UNDECLARED_SENTINEL;
+                    } else {
+                        self.declarations[symbolId] = applyOffset(i16, i, prevDeclOffset);
+                    }
+                }
+            }
+        }
+
+        // Patch start token to point to end — only for grp_indent scope markers.
         const startNode = self.parsedQ.list.items[scope.start];
-        self.parsedQ.list.items[scope.start] = tok.Token.lex(startNode.kind, index, startNode.data.value.arg1);
+        if (startNode.kind == tok.Kind.grp_indent) {
+            self.parsedQ.list.items[scope.start] = tok.Token.lex(startNode.kind, index, startNode.data.value.arg1);
+        }
     }
 
     fn getCurrentScope(self: *Self) Scope {
