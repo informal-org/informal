@@ -113,11 +113,12 @@ Tokens are encoded in one of three formats, which vary by kind.
 **Flags byte** (bits 7:0):
 ```
   7  6  5  4  3  2  1  0
-┌──────────────────┬──┬──┐
-│   reserved (6)   │dc│al│
-└──────────────────┴──┴──┘
+┌───────────────┬──┬──┬──┐
+│ reserved (5)  │sp│dc│al│
+└───────────────┴──┴──┴──┘
   al = alt bit (next token is in other queue)
   dc = declaration (identifier is a declaration site)
+  sp = splice (marks lazy parameter expansion point in function bodies)
 ```
 
 
@@ -289,6 +290,24 @@ Indentation is semantically meningful and represented in the output queue with i
   aux_stream_end kind = 255 (sentinel for queue termination)
 ```
 
+#### Keywords
+
+```
+ 63       48 47                    16 15        8 7         0
+┌───────────┬────────────────────────┬───────────┬──────────┐
+│  0x0000   │       0x00000000       │ kind (8)  │ flags    │
+└───────────┴────────────────────────┴───────────┴──────────┘
+  No payload. Token kind alone identifies the keyword.
+```
+
+| Kind         | Keyword | Notes                                           |
+|--------------|---------|--------------------------------------------------|
+| `kw_if`      | `if`    | Conditional branch                               |
+| `kw_else`    | `else`  | Else branch (always follows an if block)         |
+| `kw_fn`      | `fn`    | Function declaration                             |
+
+Keywords are recognized by `token_keyword_or_identifier()` when a lowercase identifier matches a known keyword and is followed by a delimiter character. Unrecognized sequences fall through to `token_identifier()`.
+
 #### Comments (TODO: Improve)
 
 - Line comments: `//` to end of line
@@ -312,11 +331,23 @@ switch (ch):
     '.':  token_dot()  // Member access OR number OR range
     '0'..'9': token_number()
     'A'..'Z': token_upperstart(prevIdentifier=false)
-    'a'..'z', '_': token_identifier()
+    'a'..'z', '_': token_keyword_or_identifier()
     '"': token_string()
     SYMBOLS: emit single/multi-char operator
     GROUPING: emit grouping token
 ```
+
+### Keyword Recognition
+
+`token_keyword_or_identifier()` checks the first few characters against known keywords before falling back to general identifier lexing:
+
+```
+2-char: "if" → kw_if, "fn" → kw_fn
+4-char: "else" → kw_else
+other:  → token_identifier()
+```
+
+Keywords must be followed by a delimiter character (space, symbol, grouping, etc.) to be distinguished from identifiers.
 
 ---
 

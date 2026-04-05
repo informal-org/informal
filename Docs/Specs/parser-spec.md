@@ -90,6 +90,9 @@ Call         = 120  (reserved, not yet wired)
 | `groupBracket` | `grp_open_bracket` | `parse(None)`; pop & assert `grp_close_bracket` |
 | `groupBrace` | `grp_open_brace` | `parse(None)`; pop & assert `grp_close_brace` |
 | `indentBlock` | `grp_indent` | See Indentation Blocks below |
+| `kwIf` | `kw_if` | See Conditionals below |
+| `kwElse` | `kw_else` | Errors if encountered as standalone prefix (must be consumed by `kwIf`) |
+| `kwFn` | `kw_fn` | See Functions below |
 
 ### Infix Handlers
 
@@ -100,6 +103,7 @@ Call         = 120  (reserved, not yet wired)
 | `assignOp` | `op_assign_eq`, `op_plus_eq`, `op_minus_eq`, `op_mul_eq`, `op_div_eq` | Retroactively declare LHS; `parse(Assign)`; emit operator |
 | `colonAssocOp` | `op_colon_assoc` | `parse(Separator)`; emit token |
 | `separator` | `sep_comma`, `sep_newline` (infix) | `parse(Separator)` — continues expression after separator |
+| `opIdentifierInfix` | `const_identifier`, `op_identifier` | See Function Expansion below |
 
 ---
 
@@ -119,9 +123,90 @@ The `grp_indent` token in `parsedQ` thus encodes: `arg0 = end_index` (patched at
 
 ---
 
+## Conditionals
+
+Conditionals use `if`/`else` with colon-delimited branches. The condition is emitted first in postfix order, followed by the branch bodies.
+
+**Syntax:**
+```
+if <condition>:
+    <then-body>
+else:
+    <else-body>
+```
+
+The `else` branch is optional. Nested conditionals are expressed by placing `if` inside an `else` branch.
+
+**parsedQ layout:**
+```
+[condition...] kw_if op_colon_assoc [then-branch...] [kw_else op_colon_assoc [else-branch...]]
+```
+
+**Example:** `if 1 > 2: 42 else: 7` emits:
+```
+lit(1) lit(2) op_gt kw_if op_colon_assoc
+grp_indent lit(42) grp_dedent
+kw_else op_colon_assoc
+grp_indent lit(7) grp_dedent
+```
+
+A standalone `else` without a preceding `if` is an error.
+
+---
+
+## Functions
+
+### Declaration
+
+Functions are declared with `fn`, a name, parenthesized parameters, a colon, and a body expression. The function name is declared in the enclosing scope. Parameters are declared in a new `function` scope that is closed after parsing the body.
+
+**Syntax:**
+```
+fn name(param1, param2): body_expression
+```
+
+**parsedQ layout:**
+```
+name_decl kw_fn[bodyLength, metadata] param1_decl param2_decl ... [body tokens...]
+```
+
+The `kw_fn` header token encodes:
+- `arg0` = body length (token count)
+- `arg1` = `(isLazy << 15) | paramCount` — bit 15 flags lazy functions, bits 0-14 hold parameter count
+
+**Example:** `fn add(a, b): a + b` emits:
+```
+decl(add) kw_fn[bodyLen=5, params=2] decl(a) decl(b) ref(a) ref(b) op_add
+```
+
+### Eager vs Lazy
+
+Parameters use naming convention to determine evaluation strategy:
+- **Lowercase** identifiers → eager (evaluated before expansion)
+- **ALL_CAPS** `const_identifier` → lazy (a splice point where the operand is parsed during expansion)
+
+A function with exactly one eager and one lazy parameter is a **lazy function**. All other functions are eager.
+
+### Inline Expansion
+
+Functions are not called at runtime — they are **expanded inline** at the call site. When an infix identifier resolves to a function declaration, the parser:
+
+1. Binds operands to parameter declarations (marked with `splice=true`)
+2. Walks the function body template, re-resolving identifiers against the current scope
+3. For lazy functions, splice points in the body trigger parsing of the right operand from `syntaxQ` at expansion time rather than pre-evaluating it
+
+**Example:** `3 add 4` (where `add` is `fn add(a, b): a + b`) emits:
+```
+lit(3) decl(a,splice) lit(4) decl(b,splice) ref(a) ref(b) op_add
+```
+
+Codegen skips function declaration bodies using `bodyLength` — they serve only as templates.
+
+---
+
 ## Symbol Resolution
 
-Resolution is performed inline by the `Resolution` module. No separate pass.
+Resolution is performed inline by the `Resolution` module. No separate pass. See [Resolution Spec](resolution-spec.md) for full details.
 
 ### Token Encoding (identifiers in `parsedQ`)
 
@@ -193,11 +278,11 @@ arg1: u16  — signed i16 offset (identifiers) or scope_id (grp_indent)
 | Area | Status |
 |------|--------|
 | Unary ops (`NOT`, unary `-`) | `unaryOp` handler exists; parsing works but lacks full semantic wiring |
-| Keyword blocks (`if`, `else`, `for`, `fn`) | Token kinds defined; no handlers registered |
+| `if`/`else` | Implemented. Nested `elif` requires nesting `if` inside `else` — no dedicated `elif` token |
+| `fn` declarations | Implemented. Inline expansion for eager and lazy functions |
+| `for` loops | Token kind defined; no handler registered |
 | Paren sub-expressions `(expr)` | `groupParen` handles it as prefix; commas inside not yet handled |
 | `type_identifier` | Not in grammar table; currently unhandled |
-| `op_colon_assoc` | `colonAssocOp` exists but flush-until-keyword behavior is a stub |
 | `TBL_PRECEDENCE_FLUSH` | Defined in `token.zig` (shunting-yard artifact); not used by the Pratt parser |
-| Separator metadata | `sep()` token method exists for linked-list threading; not called by parser |
 | Error recovery | Parse errors bubble up as Zig errors; no continuation |
 | `offsetQ` correctness | `emit` offset calculation has a TODO — may not produce correct source mapping |
