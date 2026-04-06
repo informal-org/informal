@@ -324,16 +324,17 @@ pub const Parser = struct {
         assert(self.syntaxQ.pop().kind == Kind.grp_open_paren);
         try self.resolution.startScope(rs.Scope{ .start = headerIdx, .scopeType = .function });
         var paramCount: u16 = 0;
-        var lazyParamSymbol: u32 = 0;
+        var lazyParamDeclIdx: u32 = 0;
         var lazyCount: u16 = 0;
         var eagerCount: u16 = 0;
         while (self.syntaxQ.peek().kind != Kind.grp_close_paren) {
             if (self.syntaxQ.peek().kind == Kind.sep_comma) _ = self.syntaxQ.pop();
             const paramToken = self.syntaxQ.pop();
-            const declParam = self.resolution.declare(@truncate(self.parsedQ.list.items.len), paramToken);
+            const paramIdx: u32 = @truncate(self.parsedQ.list.items.len);
+            const declParam = self.resolution.declare(paramIdx, paramToken);
             try self.emit(declParam);
             if (paramToken.kind == Kind.const_identifier) {
-                lazyParamSymbol = paramToken.data.value.arg0;
+                lazyParamDeclIdx = paramIdx;
                 lazyCount += 1;
             } else {
                 eagerCount += 1;
@@ -351,6 +352,7 @@ pub const Parser = struct {
         try self.resolution.endScope(@truncate(self.parsedQ.list.items.len));
 
         // 6. Lazy detection: exactly 1 eager + 1 lazy param → scan body for splice points
+        //    Identify references to the lazy param by following arg1 offset to the declaration index.
         const isLazy = eagerCount == 1 and lazyCount == 1;
         if (isLazy) {
             const bodyEnd: u32 = @truncate(self.parsedQ.list.items.len);
@@ -358,13 +360,16 @@ pub const Parser = struct {
             var i: u32 = bodyStart;
             while (i < bodyEnd) : (i += 1) {
                 const bodyToken = self.parsedQ.list.items[i];
-                if (bodyToken.data.value.arg0 == lazyParamSymbol and
+                if (!bodyToken.aux.declaration and
                     (bodyToken.kind == Kind.identifier or bodyToken.kind == Kind.const_identifier or bodyToken.kind == Kind.op_identifier))
                 {
-                    var patched = bodyToken;
-                    patched.aux.splice = true;
-                    self.parsedQ.list.items[i] = patched;
-                    spliceCount += 1;
+                    const refDeclIdx = rs.applyOffset(i16, i, bodyToken.data.value.arg1);
+                    if (refDeclIdx == lazyParamDeclIdx) {
+                        var patched = bodyToken;
+                        patched.aux.splice = true;
+                        self.parsedQ.list.items[i] = patched;
+                        spliceCount += 1;
+                    }
                 }
             }
             assert(spliceCount == 1);
@@ -413,7 +418,8 @@ pub const Parser = struct {
 
         if (isLazy) {
             // Lazy expansion: one eager param bound to left operand, splice lazy param from syntaxQ.
-            const eagerSymbolId = if (param1.kind == Kind.identifier) param1.data.value.arg0 else param2.data.value.arg0;
+            // Mask off fn_depth from upper 8 bits of declaration arg0 to recover symbolId.
+            const eagerSymbolId = if (param1.kind == Kind.identifier) param1.data.value.arg0 & 0xFFFFFF else param2.data.value.arg0 & 0xFFFFFF;
             const savedDecl = self.resolution.declarations[eagerSymbolId];
 
             // Declare eager param with splice flag (binds to stack-top in codegen).
@@ -430,8 +436,9 @@ pub const Parser = struct {
             self.resolution.declarations[eagerSymbolId] = savedDecl;
         } else {
             // Eager expansion: bind both params, then walk body.
-            const sym1 = param1.data.value.arg0;
-            const sym2 = param2.data.value.arg0;
+            // Mask off fn_depth from upper 8 bits of declaration arg0 to recover symbolId.
+            const sym1 = param1.data.value.arg0 & 0xFFFFFF;
+            const sym2 = param2.data.value.arg0 & 0xFFFFFF;
             const saved1 = self.resolution.declarations[sym1];
             const saved2 = self.resolution.declarations[sym2];
 
@@ -473,7 +480,14 @@ pub const Parser = struct {
                 try self.parse(self.power(opToken) + 1);
             } else if (templateToken.kind == Kind.identifier or templateToken.kind == Kind.const_identifier) {
                 // Re-resolve against current scope.
-                const freshToken = Token.lex(templateToken.kind, templateToken.data.value.arg0, 0);
+                // Recover symbolId: declarations have fn_depth|symbolId in arg0, references have forward chain pointer.
+                const symbolId = if (templateToken.aux.declaration)
+                    templateToken.data.value.arg0 & 0xFFFFFF
+                else blk: {
+                    const declIdx = rs.applyOffset(i16, i, templateToken.data.value.arg1);
+                    break :blk self.parsedQ.list.items[declIdx].data.value.arg0 & 0xFFFFFF;
+                };
+                const freshToken = Token.lex(templateToken.kind, symbolId, 0);
                 const reResolved = self.resolution.resolve(@truncate(self.parsedQ.list.items.len), freshToken);
                 try self.emit(reResolved);
             } else if (templateToken.kind == Kind.grp_indent) {
