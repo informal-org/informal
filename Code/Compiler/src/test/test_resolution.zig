@@ -62,11 +62,11 @@ test "Forward reference from child scope" {
     try parsedQ.push(Token.lex(TK.op_assign_eq, 0, 1));
 
     // Expect it to not be have a definition before.
-    try expectEqual(0, Resolution.getDeclIndex(resolution.declarations[0]));
+    try expectEqual(0, resolution.declarations[0].decl_index);
     const shadowDefResult = resolution.declare(3, parsedQ.list.items[3]);
     parsedQ.list.items[3] = shadowDefResult;
     try expectEqual(UNDECLARED_SENTINEL, shadowDefResult.data.value.arg1);
-    try expectEqual(3, Resolution.getDeclIndex(resolution.declarations[0]));
+    try expectEqual(3, resolution.declarations[0].decl_index);
     // Expect not to resolve the unresolbed ref since this is a shadowing post-def without forward semantics.
     try expectEqual(2, resolution.unresolved[0]);
 
@@ -78,7 +78,7 @@ test "Forward reference from child scope" {
     try expectEqual(UNDECLARED_SENTINEL, parsedQ.list.items[2].data.value.arg1);
     const baseDefResult = resolution.declare(5, parsedQ.list.items[5]);
     parsedQ.list.items[5] = baseDefResult;
-    try expectEqual(5, Resolution.getDeclIndex(resolution.declarations[0]));
+    try expectEqual(5, resolution.declarations[0].decl_index);
     const baseDefOffset: i16 = @bitCast(baseDefResult.data.value.arg1);
     try expectEqual(3 - 5, baseDefOffset); // Reference the shadow declaration.
     // Expect it to be resolved now.
@@ -101,8 +101,8 @@ test "Function scope lazy staleness on endScope" {
     try parsedQ.push(Token.lex(TK.identifier, 1, 0));
     const outerDecl = resolution.declare(1, parsedQ.list.items[1]);
     parsedQ.list.items[1] = outerDecl;
-    try expectEqual(1, Resolution.getDeclIndex(resolution.declarations[1]));
-    try expectEqual(0, Resolution.getFnDepth(resolution.declarations[1]));
+    try expectEqual(1, resolution.declarations[1].decl_index);
+    try expectEqual(0, resolution.declarations[1].fn_depth);
 
     // Start function scope at parsedQ index 2 (kw_fn header)
     try parsedQ.push(Token.lex(TK.kw_fn, 0, 0));
@@ -113,16 +113,16 @@ test "Function scope lazy staleness on endScope" {
     try parsedQ.push(Token.lex(TK.identifier, 1, 0));
     const innerDecl = resolution.declare(3, parsedQ.list.items[3]);
     parsedQ.list.items[3] = innerDecl;
-    try expectEqual(3, Resolution.getDeclIndex(resolution.declarations[1]));
-    try expectEqual(1, Resolution.getFnDepth(resolution.declarations[1]));
+    try expectEqual(3, resolution.declarations[1].decl_index);
+    try expectEqual(1, resolution.declarations[1].fn_depth);
 
     // End function scope at index 4 — lazy staleness, no cleanup
     try resolution.endScope(4);
     try expectEqual(0, resolution.current_fn_depth);
 
     // declarations[1] is NOT immediately restored — it's still stale (points to inner decl)
-    try expectEqual(3, Resolution.getDeclIndex(resolution.declarations[1]));
-    try expectEqual(1, Resolution.getFnDepth(resolution.declarations[1]));
+    try expectEqual(3, resolution.declarations[1].decl_index);
+    try expectEqual(1, resolution.declarations[1].fn_depth);
 
     // Now resolve symbol 1 at index 4 — triggers lazy staleness detection
     try parsedQ.push(Token.lex(TK.identifier, 1, 0));
@@ -134,8 +134,8 @@ test "Function scope lazy staleness on endScope" {
     try expectEqual(0, refResult.data.value.arg0); // arg0 = 0 (no next use)
 
     // After lazy cleanup, declarations[1] now points to the outer declaration
-    try expectEqual(1, Resolution.getDeclIndex(resolution.declarations[1]));
-    try expectEqual(0, Resolution.getFnDepth(resolution.declarations[1]));
+    try expectEqual(1, resolution.declarations[1].decl_index);
+    try expectEqual(0, resolution.declarations[1].fn_depth);
 }
 
 test "Sequential functions shadowing same name" {
@@ -197,7 +197,7 @@ test "Sequential functions shadowing same name" {
     const ref4 = resolution.resolve(9, parsedQ.list.items[9]);
     const ref4Offset: i16 = @bitCast(ref4.data.value.arg1);
     try expectEqual(1 - 9, ref4Offset); // Also resolves to outer x@1
-    try expectEqual(0, Resolution.getFnDepth(resolution.declarations[1])); // Clean entry
+    try expectEqual(0, resolution.declarations[1].fn_depth); // Clean entry
 }
 
 test "Forward use-chain links references" {
@@ -292,5 +292,5 @@ test "Stale entry with no valid outer declaration" {
     try parsedQ.push(Token.lex(TK.identifier, 1, 0));
     const ref1 = resolution.resolve(2, parsedQ.list.items[2]);
     try expectEqual(UNDECLARED_SENTINEL, ref1.data.value.arg1); // Unresolved
-    try expectEqual(0, Resolution.getDeclIndex(resolution.declarations[1])); // Marked undeclared
+    try expectEqual(0, resolution.declarations[1].decl_index); // Marked undeclared
 }

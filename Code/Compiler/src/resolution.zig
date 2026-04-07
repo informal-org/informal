@@ -51,17 +51,20 @@ pub fn applyOffset(comptime signedOffsetT: anytype, index: u32, offset: anytype)
     return @bitCast(signedIndex + signedOffset); // Assert - this should always be positive.
 }
 
-pub const Resolution = struct {
-    // declarations[] is a u64 array packed as:
-    //   bits 63:56  fn_depth (u8)    — function depth when this declaration was made
-    //   bits 55:32  chain_tail (u24) — parsedQ index of last reference in forward chain (0 = none)
-    //   bits 31:0   decl_index (u32) — parsedQ index of most recent declaration (0 = UNDECLARED)
+pub const DeclEntry = packed struct(u64) {
+    decl_index: u32,
+    chain_tail: u24,
+    fn_depth: u8,
 
+    const ZERO: DeclEntry = .{ .decl_index = 0, .chain_tail = 0, .fn_depth = 0 };
+};
+
+pub const Resolution = struct {
     const Self = @This();
     allocator: std.mem.Allocator,
 
-    // Map from a symbol ID -> packed u64 entry for that symbol's declaration state.
-    declarations: []u64,
+    // Map from a symbol ID -> declaration state.
+    declarations: []DeclEntry,
 
     // Symbol ID -> tail of the last unresolved reference for each general symbol name.
     unresolved: []u32,
@@ -75,27 +78,9 @@ pub const Resolution = struct {
 
     parsedQ: *parser.TokenQueue,
 
-    // --- Pack/unpack helpers for declarations[] entries ---
-
-    pub fn getDeclIndex(entry: u64) u32 {
-        return @truncate(entry);
-    }
-
-    pub fn getChainTail(entry: u64) u32 {
-        return @as(u32, @truncate(entry >> 32)) & 0xFFFFFF;
-    }
-
-    pub fn getFnDepth(entry: u64) u8 {
-        return @truncate(entry >> 56);
-    }
-
-    fn packEntry(decl_index: u32, chain_tail: u32, fn_depth: u8) u64 {
-        return (@as(u64, fn_depth) << 56) | (@as(u64, chain_tail & 0xFFFFFF) << 32) | @as(u64, decl_index);
-    }
-
     pub fn init(allocator: std.mem.Allocator, maxSymbols: u32, parsedQ: *parser.TokenQueue) !Self {
-        const declarations = try allocator.alloc(u64, maxSymbols);
-        @memset(declarations, 0); // 0 = undeclared (decl_index=0, chain_tail=0, fn_depth=0)
+        const declarations = try allocator.alloc(DeclEntry, maxSymbols);
+        @memset(declarations, DeclEntry.ZERO);
 
         const unresolved = try allocator.alloc(u32, maxSymbols);
         @memset(unresolved, UNDECLARED_SENTINEL);
@@ -171,7 +156,7 @@ pub const Resolution = struct {
         };
 
         // Update declarations[]: this is the new decl, no references yet.
-        self.declarations[sym_id] = packEntry(index, 0, self.current_fn_depth);
+        self.declarations[sym_id] = .{ .decl_index = index, .chain_tail = 0, .fn_depth = self.current_fn_depth };
 
         std.log.debug("Declared [{any}] at {any} depth={d}", .{ token, index, self.current_fn_depth });
 
@@ -184,7 +169,7 @@ pub const Resolution = struct {
         // Internal helper to add a new declaration for a given symbol
         const symbol = token.data.value.arg0;
         const entry = self.declarations[symbol];
-        const prevDeclIdx = getDeclIndex(entry);
+        const prevDeclIdx = entry.decl_index;
         // Index - Current parser index where this variable is being declared.
         // Symbol - Normalized Symbol ID for the variable name.
         if (prevDeclIdx == UNDECLARED_SENTINEL) {
@@ -239,7 +224,7 @@ pub const Resolution = struct {
     pub fn resolve(self: *Self, index: u32, token: tok.Token) tok.Token {
         const sym_id = token.data.value.arg0;
         const entry = self.declarations[sym_id];
-        const decl_idx = getDeclIndex(entry);
+        const decl_idx = entry.decl_index;
 
         if (decl_idx == UNDECLARED_SENTINEL) {
             // No declarations found, add to unresolved list.
@@ -254,7 +239,7 @@ pub const Resolution = struct {
 
         // Staleness check: if the declaration was made at a deeper fn_depth than current,
         // it belongs to a function scope that has since closed.
-        if (getFnDepth(entry) > self.current_fn_depth) {
+        if (entry.fn_depth > self.current_fn_depth) {
             return self.resolveStale(index, token, sym_id, entry);
         }
 
@@ -262,7 +247,7 @@ pub const Resolution = struct {
         const offset = calcOffset(u16, decl_idx, index);
 
         // Forward chain: patch previous tail's arg0 to point to this reference.
-        const tail = getChainTail(entry);
+        const tail = entry.chain_tail;
         if (tail != 0) {
             const prev = self.parsedQ.list.items[tail];
             self.parsedQ.list.items[tail] = tok.Token{
@@ -273,7 +258,7 @@ pub const Resolution = struct {
         }
 
         // Advance chain tail, preserve decl_index and fn_depth.
-        self.declarations[sym_id] = packEntry(decl_idx, index, getFnDepth(entry));
+        self.declarations[sym_id] = .{ .decl_index = decl_idx, .chain_tail = @intCast(index), .fn_depth = entry.fn_depth };
 
         const signedOffset: i16 = @bitCast(offset);
         std.log.debug("Resolved [{any}] to offset {any}", .{ token, signedOffset });
@@ -286,10 +271,10 @@ pub const Resolution = struct {
         };
     }
 
-    fn resolveStale(self: *Self, index: u32, token: tok.Token, sym_id: u32, stale_entry: u64) tok.Token {
+    fn resolveStale(self: *Self, index: u32, token: tok.Token, sym_id: u32, stale_entry: DeclEntry) tok.Token {
         // Cold path: walk the declaration chain backward to find a valid (non-stale) declaration.
         // Each declaration's arg0 has fn_depth in upper 8 bits. We look for fn_depth <= current_fn_depth.
-        var decl_idx = getDeclIndex(stale_entry);
+        var decl_idx: u32 = stale_entry.decl_index;
 
         while (true) {
             const decl_token = self.parsedQ.list.items[decl_idx];
@@ -297,7 +282,7 @@ pub const Resolution = struct {
 
             if (prev_offset == UNDECLARED_SENTINEL) {
                 // Hit the end of the chain — no valid declaration in scope.
-                self.declarations[sym_id] = 0; // mark undeclared
+                self.declarations[sym_id] = DeclEntry.ZERO; // mark undeclared
                 std.log.debug("resolveStale: no valid decl for sym {d}", .{sym_id});
                 return tok.Token{
                     .kind = token.kind,
@@ -315,7 +300,7 @@ pub const Resolution = struct {
                 const offset = calcOffset(u16, decl_idx, index);
 
                 // Lazy cleanup: update declarations[] so future lookups are clean.
-                self.declarations[sym_id] = packEntry(decl_idx, index, prev_fn_depth);
+                self.declarations[sym_id] = .{ .decl_index = decl_idx, .chain_tail = @intCast(index), .fn_depth = prev_fn_depth };
 
                 const signedOffset: i16 = @bitCast(offset);
                 std.log.debug("resolveStale: found valid decl at {d} depth={d} offset={any}", .{ decl_idx, prev_fn_depth, signedOffset });
