@@ -357,7 +357,59 @@ test "Block scope cleanup" {
     try expectEqual(1, resolution.declarations[1].decl_index);
 }
 
-test "Shadowing disallowed mode" {
+test "Shadowing disallowed mode — parent scope shadow errors" {
+    const DisallowResolution = rs.ResolutionImpl(.disallow);
+    var parsedQ = parser.TokenQueue.init(test_allocator);
+    defer parsedQ.deinit();
+    var resolution = try DisallowResolution.init(test_allocator, 3, &parsedQ);
+    defer resolution.deinit();
+
+    try parsedQ.push(Token.lex(TK.aux_stream_start, 0, 0));
+
+    // Outer declaration of symbol 1 at index 1.
+    try parsedQ.push(Token.lex(TK.identifier, 1, 0));
+    _ = try resolution.declare(1, parsedQ.list.items[1]);
+
+    // Inner scope tries to declare same symbol — should error.
+    try parsedQ.push(Token.lex(TK.kw_fn, 0, 0)); // index 2
+    try resolution.startScope(Scope{ .start = 2, .scopeType = .function });
+
+    try parsedQ.push(Token.lex(TK.identifier, 1, 0)); // index 3
+    const result = resolution.declare(3, parsedQ.list.items[3]);
+    try std.testing.expectError(error.ShadowingDisallowed, result);
+
+    try resolution.endScope(4);
+}
+
+test "Shadowing disallowed mode — sibling scopes reuse names" {
+    const DisallowResolution = rs.ResolutionImpl(.disallow);
+    var parsedQ = parser.TokenQueue.init(test_allocator);
+    defer parsedQ.deinit();
+    var resolution = try DisallowResolution.init(test_allocator, 3, &parsedQ);
+    defer resolution.deinit();
+
+    try parsedQ.push(Token.lex(TK.aux_stream_start, 0, 0));
+
+    // First function declares 'i' (symbol 1).
+    try parsedQ.push(Token.lex(TK.kw_fn, 0, 0)); // index 1
+    try resolution.startScope(Scope{ .start = 1, .scopeType = .function });
+
+    try parsedQ.push(Token.lex(TK.identifier, 1, 0)); // index 2
+    _ = try resolution.declare(2, parsedQ.list.items[2]);
+
+    try resolution.endScope(3);
+
+    // Second function also declares 'i' — should succeed.
+    try parsedQ.push(Token.lex(TK.kw_fn, 0, 0)); // index 3
+    try resolution.startScope(Scope{ .start = 3, .scopeType = .function });
+
+    try parsedQ.push(Token.lex(TK.identifier, 1, 0)); // index 4
+    _ = try resolution.declare(4, parsedQ.list.items[4]);
+
+    try resolution.endScope(5);
+}
+
+test "Shadowing disallowed mode — same scope redeclaration errors" {
     const DisallowResolution = rs.ResolutionImpl(.disallow);
     var parsedQ = parser.TokenQueue.init(test_allocator);
     defer parsedQ.deinit();
@@ -370,7 +422,7 @@ test "Shadowing disallowed mode" {
     try parsedQ.push(Token.lex(TK.identifier, 1, 0));
     _ = try resolution.declare(1, parsedQ.list.items[1]);
 
-    // Second declaration of same symbol should error.
+    // Second declaration of same symbol in same scope should error.
     try parsedQ.push(Token.lex(TK.identifier, 1, 0));
     const result = resolution.declare(2, parsedQ.list.items[2]);
     try std.testing.expectError(error.ShadowingDisallowed, result);

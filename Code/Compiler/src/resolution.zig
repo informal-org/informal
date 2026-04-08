@@ -70,7 +70,7 @@ pub fn ResolutionImpl(comptime shadow_mode: ShadowMode) type {
         declarations: []DeclEntry,
         unresolved: []u32,
 
-        shadow_masks: if (shadow_mode == .allow) []u64 else void,
+        shadow_masks: []u64,
 
         scopeStack: std.array_list.AlignedManaged(Scope, null),
 
@@ -88,12 +88,12 @@ pub fn ResolutionImpl(comptime shadow_mode: ShadowMode) type {
             var scopeStack = std.array_list.AlignedManaged(Scope, null).init(allocator);
             try scopeStack.append(Scope{ .start = 0, .scopeType = .base });
 
-            const shadow_masks = if (shadow_mode == .allow) blk: {
+            const shadow_masks = blk: {
                 const num_words = (parsedQ.list.capacity + 63) / 64;
                 const masks = try allocator.alloc(u64, if (num_words == 0) 1 else num_words);
                 @memset(masks, 0);
                 break :blk masks;
-            } else {};
+            };
 
             return Self{
                 .allocator = allocator,
@@ -109,9 +109,7 @@ pub fn ResolutionImpl(comptime shadow_mode: ShadowMode) type {
         pub fn deinit(self: *Self) void {
             self.allocator.free(self.declarations);
             self.allocator.free(self.unresolved);
-            if (shadow_mode == .allow) {
-                self.allocator.free(self.shadow_masks);
-            }
+            self.allocator.free(self.shadow_masks);
             self.scopeStack.deinit();
         }
 
@@ -129,9 +127,7 @@ pub fn ResolutionImpl(comptime shadow_mode: ShadowMode) type {
                 self.parsedQ.list.items[scope.start] = tok.Token.lex(startNode.kind, index, startNode.data.value.arg1);
             }
 
-            if (shadow_mode == .allow) {
-                self.revertShadows(scope.start, index);
-            }
+            self.revertShadows(scope.start, index);
         }
 
         fn revertShadows(self: *Self, start: u32, end: u32) void {
@@ -191,7 +187,6 @@ pub fn ResolutionImpl(comptime shadow_mode: ShadowMode) type {
         }
 
         fn setShadowBit(self: *Self, index: u32) void {
-            if (shadow_mode != .allow) return;
             const word_idx = index / 64;
             // Grow shadow_masks if needed.
             if (word_idx >= self.shadow_masks.len) {
@@ -220,6 +215,9 @@ pub fn ResolutionImpl(comptime shadow_mode: ShadowMode) type {
                     return error.ShadowingDisallowed;
                 }
                 arg1 = calcOffset(u16, prev_decl_idx, index);
+                self.setShadowBit(index);
+            } else if (shadow_mode == .disallow) {
+                // Track all declarations for scope cleanup so sibling scopes can reuse names.
                 self.setShadowBit(index);
             }
 
