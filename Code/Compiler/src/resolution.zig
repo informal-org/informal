@@ -124,7 +124,7 @@ pub fn ResolutionImpl(comptime shadow_mode: ShadowMode) type {
             // Patch grp_indent start token to point to end.
             const startNode = self.parsedQ.list.items[scope.start];
             if (startNode.kind == tok.Kind.grp_indent) {
-                self.parsedQ.list.items[scope.start] = tok.Token.lex(startNode.kind, index, startNode.data.value.arg1);
+                self.parsedQ.list.items[scope.start] = tok.Token.lex(startNode.kind, index, startNode.data.scope.scope_id);
             }
 
             self.revertShadows(scope.start, index);
@@ -158,8 +158,8 @@ pub fn ResolutionImpl(comptime shadow_mode: ShadowMode) type {
                     word &= word - 1; // clear lowest set bit
 
                     const decl_token = self.parsedQ.list.items[i];
-                    const sym_id = decl_token.data.value.arg0;
-                    const prev_offset = decl_token.data.value.arg1;
+                    const sym_id = decl_token.data.ident.symbol_id;
+                    const prev_offset = decl_token.data.ident.offset;
 
                     if (prev_offset == UNDECLARED_SENTINEL) {
                         self.declarations[sym_id] = DeclEntry.ZERO;
@@ -203,7 +203,7 @@ pub fn ResolutionImpl(comptime shadow_mode: ShadowMode) type {
             index: u32,
             token: tok.Token,
         ) if (shadow_mode == .disallow) error{ShadowingDisallowed}!tok.Token else tok.Token {
-            const sym_id = token.data.value.arg0;
+            const sym_id = token.data.ident.symbol_id;
             const entry = self.declarations[sym_id];
             const prev_decl_idx = entry.decl_index;
 
@@ -243,7 +243,7 @@ pub fn ResolutionImpl(comptime shadow_mode: ShadowMode) type {
 
                         self.parsedQ.list.items[unresolvedRefIdx] = tok.Token{
                             .kind = ref.kind,
-                            .data = .{ .value = .{ .arg0 = 0, .arg1 = @truncate(offset) } },
+                            .data = .{ .ident = .{ .symbol_id = 0, .offset = @truncate(offset) } },
                             .flags = ref.flags,
                         };
 
@@ -253,17 +253,17 @@ pub fn ResolutionImpl(comptime shadow_mode: ShadowMode) type {
                             const prev = self.parsedQ.list.items[entry.chain_tail];
                             self.parsedQ.list.items[entry.chain_tail] = tok.Token{
                                 .kind = prev.kind,
-                                .data = .{ .value = .{ .arg0 = unresolvedRefIdx, .arg1 = prev.data.value.arg1 } },
+                                .data = .{ .ident = .{ .symbol_id = unresolvedRefIdx, .offset = prev.data.ident.offset } },
                                 .flags = prev.flags,
                             };
                         }
                         self.declarations[sym_id] = .{ .decl_index = declarationIndex, .chain_tail = @intCast(unresolvedRefIdx) };
 
-                        if (ref.data.value.arg1 == UNDECLARED_SENTINEL) {
-                            unresolvedRefIdx = ref.data.value.arg1;
+                        if (ref.data.ident.offset == UNDECLARED_SENTINEL) {
+                            unresolvedRefIdx = ref.data.ident.offset;
                             break;
                         } else {
-                            unresolvedRefIdx = applyOffset(i16, unresolvedRefIdx, ref.data.value.arg1);
+                            unresolvedRefIdx = applyOffset(i16, unresolvedRefIdx, ref.data.ident.offset);
                         }
                     } else {
                         break;
@@ -274,7 +274,7 @@ pub fn ResolutionImpl(comptime shadow_mode: ShadowMode) type {
         }
 
         pub fn resolve(self: *Self, index: u32, token: tok.Token) tok.Token {
-            const sym_id = token.data.value.arg0;
+            const sym_id = token.data.ident.symbol_id;
             const entry = self.declarations[sym_id];
             const decl_idx = entry.decl_index;
 
@@ -290,7 +290,7 @@ pub fn ResolutionImpl(comptime shadow_mode: ShadowMode) type {
                 std.log.debug("Resolved [{any}] unresolved", .{token});
                 return tok.Token{
                     .kind = token.kind,
-                    .data = .{ .value = .{ .arg0 = sym_id, .arg1 = chain_offset } },
+                    .data = .{ .ident = .{ .symbol_id = sym_id, .offset = chain_offset } },
                     .flags = token.flags,
                 };
             }
@@ -304,7 +304,7 @@ pub fn ResolutionImpl(comptime shadow_mode: ShadowMode) type {
                 const prev = self.parsedQ.list.items[tail];
                 self.parsedQ.list.items[tail] = tok.Token{
                     .kind = prev.kind,
-                    .data = .{ .value = .{ .arg0 = index, .arg1 = prev.data.value.arg1 } },
+                    .data = .{ .ident = .{ .symbol_id = index, .offset = prev.data.ident.offset } },
                     .flags = prev.flags,
                 };
             }
@@ -316,7 +316,7 @@ pub fn ResolutionImpl(comptime shadow_mode: ShadowMode) type {
 
             return tok.Token{
                 .kind = token.kind,
-                .data = .{ .value = .{ .arg0 = 0, .arg1 = offset } },
+                .data = .{ .ident = .{ .symbol_id = 0, .offset = offset } },
                 .flags = token.flags,
             };
         }

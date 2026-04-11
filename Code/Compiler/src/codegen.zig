@@ -141,8 +141,8 @@ pub const Codegen = struct {
         while (self.strConstRefTail != 0) {
             // Arg0 is absolute binary location. Arg1 is relative offset to previous const in parser queue.
             const tailNode = parsedQueue[self.strConstRefTail];
-            const objIndex = tailNode.data.value.arg0;
-            self.strConstRefTail = self.strConstRefTail - tailNode.data.value.arg1;
+            const objIndex = tailNode.data.literal.value;
+            self.strConstRefTail = self.strConstRefTail - tailNode.data.literal.length;
             // TODO: Future - need additional bounds safety checking here.
             const constId = self.objCode.items[objIndex];
 
@@ -202,7 +202,7 @@ pub const Codegen = struct {
                     reg = self.getFreeReg();
                     self.pushReg(reg);
                     // const value = self.buffer[token.data.range.offset .. token.data.range.offset + token.data.range.length];
-                    const imm16: u16 = @truncate(token.data.value.arg0);
+                    const imm16: u16 = @truncate(token.data.literal.value);
                     // const imm16 = std.fmt.parseInt(u16, value, 10) catch unreachable;
                     try self.objCode.append(arm.movz(reg, imm16));
                 },
@@ -214,8 +214,8 @@ pub const Codegen = struct {
                     // Instead, we save the constant ID as a placeholder into the bytecode.
                     // In the parser queue, save the bytecode index and a relative offset to the previous string constant.
                     // The absolute positions will be fixed up after codegen is complete.
-                    const constId = token.data.value.arg0;
-                    const constLen = token.data.value.arg1;
+                    const constId = token.data.literal.value;
+                    const constLen = token.data.literal.length;
                     const lenReg = self.getFreeReg();
                     std.log.debug("Const id {d}, len {d} lenreg {any}\n", .{ constId, constLen, lenReg });
 
@@ -266,9 +266,9 @@ pub const Codegen = struct {
                         std.log.debug("DECL @{any}, {s}", .{ index, @tagName(reg) });
                     } else {
                         // Find what register this identifier is at by following the usage chain.
-                        const offset = token.data.value.arg1;
+                        const offset = token.data.ident.offset;
                         const prevRefDecIndex = resolution.applyOffset(i16, @truncate(index), offset);
-                        const register = tokenQueue[prevRefDecIndex].data.value.arg0;
+                        const register = tokenQueue[prevRefDecIndex].data.ident.symbol_id;
                         const signedOffset: i16 = @bitCast(offset);
                         std.log.debug("REF @{any}, x{any} offset {any}", .{ prevRefDecIndex, register, signedOffset });
                         reg = @enumFromInt(register);
@@ -317,7 +317,7 @@ pub const Codegen = struct {
                 },
                 TK.kw_fn => {
                     // Skip over the function body — it's a template for inline expansion, not executable code.
-                    self.skip_count = token.data.value.arg0;
+                    self.skip_count = token.data.fn_header.body_length;
                 },
                 TK.kw_if => {
                     self.ctx_current_block_kind = TK.kw_if;

@@ -99,32 +99,77 @@ pub const Kind = enum(u8) {
 };
 
 pub const Data = packed union {
-    const Value = packed struct(u48) {
-        arg0: u32,
-        arg1: u16,
-    };
-
-    const Split = packed struct(u48) {
-        arg0: u24,
-        arg1: u24,
-    };
-
-    const Triple = packed struct(u48) {
-        arg0: u16,
-        arg1: u16,
-        arg2: u16,
-    };
+    // All u32+u16 variants share the same bit layout and can be read interchangeably.
+    // Use the variant that matches the token's semantic context.
 
     raw: u48,
-    value: Value,
-    split: Split,
-    triple: Triple,
+
+    // Identifiers: symbol table index + offset.
+    // Lexer: offset = source length. Resolution: offset = signed i16 to declaration.
+    ident: Ident,
+
+    // Literal values (lit_number, lit_string).
+    // Numbers: value = inline int or pool index, length = digit count (0 = pooled).
+    // Strings: value = interned string index, length = string length.
+    literal: Literal,
+
+    // Function header (kw_fn in parsedQ).
+    fn_header: FnHeader,
+
+    // Scope boundaries (grp_indent / grp_dedent).
+    // grp_indent: index = end_index (patched at close). grp_dedent: index = start_index.
+    scope: Scope,
+
+    // Syntax queue newline cross-reference to aux queue.
+    newline: Newline,
+
+    // Aux token source positions (whitespace, newline, indentation).
+    aux: Aux,
+
+    // Sequence data for grouping/separator tokens (3×u16 layout).
+    sequence: Sequence,
+
+    pub const Ident = packed struct(u48) {
+        symbol_id: u32,
+        offset: u16,
+    };
+
+    pub const Literal = packed struct(u48) {
+        value: u32,
+        length: u16,
+    };
+
+    pub const FnHeader = packed struct(u48) {
+        body_length: u32,
+        metadata: u16,
+    };
+
+    pub const Scope = packed struct(u48) {
+        index: u32,
+        scope_id: u16,
+    };
+
+    pub const Newline = packed struct(u48) {
+        aux_index: u32,
+        prev_offset: u16,
+    };
+
+    pub const Aux = packed struct(u48) {
+        position: u32,
+        length: u16,
+    };
+
+    pub const Sequence = packed struct(u48) {
+        prev_group: u16,
+        prev_sep: u16,
+        next_sep: u16,
+    };
 };
 
 // Unsigned offsets. All 'previous' ones are assumed as negative. 0 indicates not-present.
 // Previous Grouping Start, Previous Separator, Next Separator
 // Used for ( ) [ ] ,
-pub const SequenceData = Data.Triple;
+pub const SequenceData = Data.Sequence;
 
 pub const Flags = packed struct(u8) {
     alt: bool = false, // Indicates the next token is in the other queue.
@@ -152,7 +197,7 @@ pub const Token = packed struct(u64) {
     pub fn lex(kind: Kind, value: u32, offset: u16) Token {
         return Token{
             .kind = kind,
-            .data = Data{ .value = .{ .arg0 = value, .arg1 = offset } },
+            .data = .{ .literal = .{ .value = value, .length = offset } },
             .flags = Flags.empty(),
         };
     }
@@ -166,13 +211,11 @@ pub const Token = packed struct(u64) {
         std.debug.assert(prevSep <= std.math.maxInt(u16));
         return Token{
             .kind = self.kind,
-            .data = SequenceData{
-                .triple = .{
-                    .arg0 = @truncate(prevGrpStart),
-                    .arg1 = @truncate(prevSep),
-                    .arg2 = 0,
-                },
-            },
+            .data = .{ .sequence = .{
+                .prev_group = @truncate(prevGrpStart),
+                .prev_sep = @truncate(prevSep),
+                .next_sep = 0,
+            } },
             .flags = self.flags,
         };
     }
@@ -188,7 +231,7 @@ pub const Token = packed struct(u64) {
     pub fn newDeclaration(self: Token, offset: u16) Token {
         return Token{
             .kind = self.kind,
-            .data = .{ .value = .{ .arg0 = self.data.value.arg0, .arg1 = offset } },
+            .data = .{ .ident = .{ .symbol_id = self.data.ident.symbol_id, .offset = offset } },
             .flags = Flags{ .declaration = true },
         };
     }
@@ -196,7 +239,7 @@ pub const Token = packed struct(u64) {
     pub fn assignReg(self: Token, reg: u16) Token {
         return Token{
             .kind = self.kind,
-            .data = .{ .value = .{ .arg0 = reg, .arg1 = self.data.value.arg1 } },
+            .data = .{ .ident = .{ .symbol_id = reg, .offset = self.data.ident.offset } },
             .flags = self.flags,
         };
     }
@@ -216,16 +259,14 @@ pub const TokenWriter = struct {
 
         switch (value.kind) {
             TK.lit_number, TK.lit_string, TK.identifier => {
-                // Previous format where it referenced the buffer...
-                // try std.fmt.format(writer, "{s} {s} {s}", .{ buffer[value.data.range.offset .. value.data.range.offset + value.data.range.length], @tagName(value.kind), alt });
-                const signedOffset: i16 = @bitCast(value.data.value.arg1);
-                try std.fmt.format(writer, "{d} {s} {s} [{d}]", .{ value.data.value.arg0, @tagName(value.kind), alt, signedOffset });
+                const signedOffset: i16 = @bitCast(value.data.ident.offset);
+                try std.fmt.format(writer, "{d} {s} {s} [{d}]", .{ value.data.ident.symbol_id, @tagName(value.kind), alt, signedOffset });
             },
             TK.aux, TK.aux_comment, TK.aux_whitespace, TK.aux_newline, TK.aux_indentation, TK.aux_stream_start, TK.aux_stream_end => {
-                try std.fmt.format(writer, "{s} {s} - {d} {d}", .{ @tagName(value.kind), alt, value.data.value.arg0, value.data.value.arg1 });
+                try std.fmt.format(writer, "{s} {s} - {d} {d}", .{ @tagName(value.kind), alt, value.data.aux.position, value.data.aux.length });
             },
             TK.sep_newline => {
-                try std.fmt.format(writer, "{s} {d}, {d} {s}", .{ @tagName(value.kind), value.data.value.arg0, value.data.value.arg1, alt });
+                try std.fmt.format(writer, "{s} {d}, {d} {s}", .{ @tagName(value.kind), value.data.newline.aux_index, value.data.newline.prev_offset, alt });
             },
             else => {
                 try std.fmt.format(writer, "{s} {s}", .{ @tagName(value.kind), alt });
