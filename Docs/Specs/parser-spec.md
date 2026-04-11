@@ -259,7 +259,7 @@ All tokens are 64-bit packed structs:
 
 ```zig
 Token = packed struct(u64) {
-    aux:  Flags,  //  8 bits
+    flags:  Flags,  //  8 bits
     kind: Kind,   //  8 bits
     data: Data,   // 48 bits (union of Value, Split, Triple layouts)
 }

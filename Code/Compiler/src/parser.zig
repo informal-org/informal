@@ -360,13 +360,13 @@ pub const Parser = struct {
             var i: u32 = bodyStart;
             while (i < bodyEnd) : (i += 1) {
                 const bodyToken = self.parsedQ.list.items[i];
-                if (!bodyToken.aux.declaration and
+                if (!bodyToken.flags.declaration and
                     (bodyToken.kind == Kind.identifier or bodyToken.kind == Kind.const_identifier or bodyToken.kind == Kind.op_identifier))
                 {
                     const refDeclIdx = rs.applyOffset(i16, i, bodyToken.data.value.arg1);
                     if (refDeclIdx == lazyParamDeclIdx) {
                         var patched = bodyToken;
-                        patched.aux.splice = true;
+                        patched.flags.splice = true;
                         self.parsedQ.list.items[i] = patched;
                         spliceCount += 1;
                     }
@@ -424,7 +424,7 @@ pub const Parser = struct {
 
             // Declare eager param with splice flag (binds to stack-top in codegen).
             var eagerDecl = self.resolution.declare(@truncate(self.parsedQ.list.items.len), Token.lex(Kind.identifier, eagerSymbolId, 0));
-            eagerDecl.aux.splice = true;
+            eagerDecl.flags.splice = true;
             try self.emit(eagerDecl);
 
             // Walk body template.
@@ -444,7 +444,7 @@ pub const Parser = struct {
 
             // Bind first param to left operand.
             var decl1 = self.resolution.declare(@truncate(self.parsedQ.list.items.len), Token.lex(Kind.identifier, sym1, 0));
-            decl1.aux.splice = true;
+            decl1.flags.splice = true;
             try self.emit(decl1);
 
             // Parse right operand.
@@ -452,7 +452,7 @@ pub const Parser = struct {
 
             // Bind second param to right operand.
             var decl2 = self.resolution.declare(@truncate(self.parsedQ.list.items.len), Token.lex(Kind.identifier, sym2, 0));
-            decl2.aux.splice = true;
+            decl2.flags.splice = true;
             try self.emit(decl2);
 
             // Walk body template.
@@ -475,13 +475,13 @@ pub const Parser = struct {
             // Re-index each iteration — emit() may reallocate parsedQ.
             const templateToken = self.parsedQ.list.items[i];
 
-            if (templateToken.aux.splice) {
+            if (templateToken.flags.splice) {
                 // Splice: parse right operand from syntaxQ.
                 try self.parse(self.power(opToken) + 1);
             } else if (templateToken.kind == Kind.identifier or templateToken.kind == Kind.const_identifier) {
                 // Re-resolve against current scope.
                 // Recover symbolId: declarations have fn_depth|symbolId in arg0, references have forward chain pointer.
-                const symbolId = if (templateToken.aux.declaration)
+                const symbolId = if (templateToken.flags.declaration)
                     templateToken.data.value.arg0 & 0xFFFFFF
                 else blk: {
                     const declIdx = rs.applyOffset(i16, i, templateToken.data.value.arg1);

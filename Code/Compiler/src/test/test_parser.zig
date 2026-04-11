@@ -172,7 +172,7 @@ test "Parse lazy fn with splice detection" {
     // bodyLength = paramCount + bodyTokens = 2 + 2 = 4
     // The SECOND ref in body should have splice=true
     var expectedSplice = Token.lex(TK.op_identifier, 0, 0xFFFE); // arg0=0 (forward chain), offset -2
-    expectedSplice.aux.splice = true;
+    expectedSplice.flags.splice = true;
 
     const expected = &[_]Token{
         tok.AUX_STREAM_START,
@@ -217,9 +217,9 @@ test "Parse eager fn inline expansion" {
     // After expansion: decl(a) splice, lit(4), decl(b) splice, id(a) re-resolved, id(b) re-resolved, op_add
     // Inline expansion declarations chain to previous decl (shadows restored by endScope).
     var declA = Token.lex(TK.identifier, 1, 0).newDeclaration(0xFFFA); // chains to a@3 (offset -6)
-    declA.aux.splice = true;
+    declA.flags.splice = true;
     var declB = Token.lex(TK.identifier, 2, 0).newDeclaration(0xFFF9); // chains to b@4 (offset -7)
-    declB.aux.splice = true;
+    declB.flags.splice = true;
 
     const expected = &[_]Token{
         tok.AUX_STREAM_START,
@@ -271,12 +271,12 @@ test "Parse lazy fn inline expansion" {
 
     // Expanded: decl(first) splice, then splice parses lit(42)
     var declFirst = Token.lex(TK.identifier, 1, 0).newDeclaration(0xFFFC); // chains to first@3 (offset -4)
-    declFirst.aux.splice = true;
+    declFirst.flags.splice = true;
 
     // Body token at index 5 gets splice=true from kwFn detection
     // arg0=0 (forward chain), arg1=0xFFFF (offset -1 to SECOND param decl@4)
     var bodySplice = Token.lex(TK.const_identifier, 0, 0xFFFF);
-    bodySplice.aux.splice = true;
+    bodySplice.flags.splice = true;
 
     const expected = &[_]Token{
         tok.AUX_STREAM_START,

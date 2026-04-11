@@ -218,7 +218,7 @@ fn opIdentifierInfix(self, token):
         // IMPORTANT: read from parsedQ each iteration (not a cached slice)
         templateToken = self.parsedQ.list.items[i]
         
-        if templateToken.aux.splice:
+        if templateToken.flags.splice:
             // Splice: parse right operand from syntaxQ
             parse(Power.Comparison.val())
         else if templateToken.kind == identifier or templateToken.kind == const_identifier:

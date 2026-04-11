@@ -244,7 +244,7 @@ pub fn ResolutionImpl(comptime shadow_mode: ShadowMode) type {
                         self.parsedQ.list.items[unresolvedRefIdx] = tok.Token{
                             .kind = ref.kind,
                             .data = .{ .value = .{ .arg0 = 0, .arg1 = @truncate(offset) } },
-                            .aux = ref.aux,
+                            .flags = ref.flags,
                         };
 
                         // Patch use-chain: this resolved ref becomes part of the chain.
@@ -254,7 +254,7 @@ pub fn ResolutionImpl(comptime shadow_mode: ShadowMode) type {
                             self.parsedQ.list.items[entry.chain_tail] = tok.Token{
                                 .kind = prev.kind,
                                 .data = .{ .value = .{ .arg0 = unresolvedRefIdx, .arg1 = prev.data.value.arg1 } },
-                                .aux = prev.aux,
+                                .flags = prev.flags,
                             };
                         }
                         self.declarations[sym_id] = .{ .decl_index = declarationIndex, .chain_tail = @intCast(unresolvedRefIdx) };
@@ -291,7 +291,7 @@ pub fn ResolutionImpl(comptime shadow_mode: ShadowMode) type {
                 return tok.Token{
                     .kind = token.kind,
                     .data = .{ .value = .{ .arg0 = sym_id, .arg1 = chain_offset } },
-                    .aux = token.aux,
+                    .flags = token.flags,
                 };
             }
 
@@ -305,7 +305,7 @@ pub fn ResolutionImpl(comptime shadow_mode: ShadowMode) type {
                 self.parsedQ.list.items[tail] = tok.Token{
                     .kind = prev.kind,
                     .data = .{ .value = .{ .arg0 = index, .arg1 = prev.data.value.arg1 } },
-                    .aux = prev.aux,
+                    .flags = prev.flags,
                 };
             }
 
@@ -317,7 +317,7 @@ pub fn ResolutionImpl(comptime shadow_mode: ShadowMode) type {
             return tok.Token{
                 .kind = token.kind,
                 .data = .{ .value = .{ .arg0 = 0, .arg1 = offset } },
-                .aux = token.aux,
+                .flags = token.flags,
             };
         }
     };

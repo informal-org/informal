@@ -240,9 +240,10 @@ pub const Codegen = struct {
                     self.strConstRefTail = index;
                 },
                 TK.identifier, TK.const_identifier, TK.call_identifier => {
-                    if (token.kind == TK.call_identifier and !token.aux.declaration) {
+                    if (token.kind == TK.call_identifier and !token.flags.declaration) {
                         // Syscall handling.
                         // TODO: Support for our own functions.
+                        // TODO: lookup the syscall and how many arguments it requires in a small table by syscall ID.
                         const arg2 = self.popReg();
                         const arg1 = self.popReg();
                         try self.objCode.append(arm.mov(arm.Reg.x2, arg2));
@@ -252,8 +253,8 @@ pub const Codegen = struct {
                         try self.objCode.append(arm.svc(0x80));
                         continue;
                     }
-                    if (token.aux.declaration) {
-                        if (token.aux.splice) {
+                    if (token.flags.declaration) {
+                        if (token.flags.splice) {
                             // Inline expansion: bind to the operand already on the stack.
                             reg = self.popReg();
                         } else {

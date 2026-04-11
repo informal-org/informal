@@ -155,10 +155,10 @@ pub const Lexer = struct {
         std.log.debug("flushPrev: kind={s} isSyntax={} nextSyntax={} alt={}", .{ @tagName(self.prevToken.kind), isSyntax, nextSyntax, if (isSyntax) !nextSyntax else nextSyntax });
 
         if (isSyntax) {
-            self.prevToken.aux.alt = !nextSyntax;
+            self.prevToken.flags.alt = !nextSyntax;
             try self.syntaxQ.push(self.prevToken);
         } else {
-            self.prevToken.aux.alt = nextSyntax;
+            self.prevToken.flags.alt = nextSyntax;
             try self.auxQ.push(self.prevToken);
         }
     }

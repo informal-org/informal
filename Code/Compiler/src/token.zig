@@ -145,7 +145,7 @@ pub const Flags = packed struct(u8) {
 };
 
 pub const Token = packed struct(u64) {
-    aux: Flags,
+    flags: Flags,
     kind: Kind,
     data: Data,
 
@@ -153,7 +153,7 @@ pub const Token = packed struct(u64) {
         return Token{
             .kind = kind,
             .data = Data{ .value = .{ .arg0 = value, .arg1 = offset } },
-            .aux = Flags.empty(),
+            .flags = Flags.empty(),
         };
     }
 
@@ -173,7 +173,7 @@ pub const Token = packed struct(u64) {
                     .arg2 = 0,
                 },
             },
-            .aux = self.aux,
+            .flags = self.flags,
         };
     }
 
@@ -181,7 +181,7 @@ pub const Token = packed struct(u64) {
         return Token{
             .kind = self.kind,
             .data = self.data,
-            .aux = Flags{ .alt = true },
+            .flags = Flags{ .alt = true },
         };
     }
 
@@ -189,7 +189,7 @@ pub const Token = packed struct(u64) {
         return Token{
             .kind = self.kind,
             .data = .{ .value = .{ .arg0 = self.data.value.arg0, .arg1 = offset } },
-            .aux = Flags{ .declaration = true },
+            .flags = Flags{ .declaration = true },
         };
     }
 
@@ -197,7 +197,7 @@ pub const Token = packed struct(u64) {
         return Token{
             .kind = self.kind,
             .data = .{ .value = .{ .arg0 = reg, .arg1 = self.data.value.arg1 } },
-            .aux = self.aux,
+            .flags = self.flags,
         };
     }
 };
@@ -212,7 +212,7 @@ pub const TokenWriter = struct {
 
         const value = wrapper.token;
         // const buffer = wrapper.buffer;
-        const alt = if (value.aux.alt) "ALT" else "";
+        const alt = if (value.flags.alt) "ALT" else "";
 
         switch (value.kind) {
             TK.lit_number, TK.lit_string, TK.identifier => {
