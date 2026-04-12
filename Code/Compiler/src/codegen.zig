@@ -347,7 +347,7 @@ pub const Codegen = struct {
                     // Starts as a branch type unknown since we don't know if this is followed by an and/or, etc.
                     self.br_unknown_tail_idx = try self.appendPendingBranch(arm.Cond.LE, self.br_unknown_tail_idx);
                 },
-                TK.kw_fn => {
+                TK.kw_fn, TK.kw_lazy_fn => {
                     // Skip over the function body — it's a template for inline expansion, not executable code.
                     self.skip_count = token.data.fn_header.body_length;
                 },

@@ -145,12 +145,12 @@ test "Parse fn definition" {
     const expected = &[_]Token{
         tok.AUX_STREAM_START,
         Token.lex(TK.identifier, 0, 0).newDeclaration(0), // add declaration (no refs)
-        Token.lex(TK.kw_fn, 8, 2), // bodyLength=8, paramCount=2
-        Token.groupOpen(TK.grp_open_paren, 2, 2, 4),
+        Token.fnHeader(TK.kw_fn, 8, 6), // body_length=8, body_offset=6 (close@7 + 1 - header@2)
+        Token.groupOpen(TK.grp_open_paren),
         a_decl,
-        Token.groupSep(1, back(2), 2),
+        Token.groupSep(1),
         b_decl,
-        Token.groupClose(TK.grp_close_paren, back(4), back(2)),
+        Token.groupClose(TK.grp_close_paren),
         Token.ident(TK.identifier, 1, back(4), 0), // a resolved (prev -4)
         Token.ident(TK.identifier, 2, back(3), 0), // b resolved (prev -3)
         tok.createToken(TK.op_add),
@@ -194,12 +194,12 @@ test "Parse lazy fn with splice detection" {
     const expected = &[_]Token{
         tok.AUX_STREAM_START,
         Token.lex(TK.identifier, 0, 0).newDeclaration(0), // APPLY declaration (no refs)
-        Token.lex(TK.kw_fn, 7, 0x8002), // bodyLength=7, arg1=(1<<15)|2
-        Token.groupOpen(TK.grp_open_paren, 2, 2, 4),
+        Token.fnHeader(TK.kw_lazy_fn, 7, 6), // body_length=7, body_offset=6
+        Token.groupOpen(TK.grp_open_paren),
         first_decl,
-        Token.groupSep(1, back(2), 2),
+        Token.groupSep(1),
         second_decl,
-        Token.groupClose(TK.grp_close_paren, back(4), back(2)),
+        Token.groupClose(TK.grp_close_paren),
         Token.ident(TK.identifier, 1, back(4), 0), // first resolved (prev -4)
         expectedSplice, // SECOND resolved with splice=true
     };
@@ -267,12 +267,12 @@ test "Parse eager fn inline expansion" {
         tok.AUX_STREAM_START,
         // fn definition
         add_decl,
-        Token.lex(TK.kw_fn, 8, 2), // bodyLength=8, paramCount=2
-        Token.groupOpen(TK.grp_open_paren, 2, 2, 4),
+        Token.fnHeader(TK.kw_fn, 8, 6), // body_length=8, body_offset=6
+        Token.groupOpen(TK.grp_open_paren),
         a_param,
-        Token.groupSep(1, back(2), 2),
+        Token.groupSep(1),
         b_param,
-        Token.groupClose(TK.grp_close_paren, back(4), back(2)),
+        Token.groupClose(TK.grp_close_paren),
         Token.ident(TK.identifier, 1, back(4), 0), // a resolved in body (prev -4)
         Token.ident(TK.identifier, 2, back(3), 0), // b resolved in body (prev -3)
         tok.createToken(TK.op_add),
@@ -298,11 +298,11 @@ test "Parse nullary paren group" {
     };
     const aux = &[_]Token{};
 
-    // [0] stream_start [1] group_open(arg_cnt=0, next_sep=+1, close=+1) [2] group_close
+    // [0] stream_start [1] group_open [2] group_close
     const expected = &[_]Token{
         tok.AUX_STREAM_START,
-        Token.groupOpen(TK.grp_open_paren, 0, 1, 1),
-        Token.groupClose(TK.grp_close_paren, back(1), back(1)),
+        Token.groupOpen(TK.grp_open_paren),
+        Token.groupClose(TK.grp_close_paren),
     };
     try testParse(buffer, tokens, aux, expected);
 }
@@ -317,13 +317,12 @@ test "Parse unary paren group" {
     };
     const aux = &[_]Token{};
 
-    // [0] stream_start [1] group_open(arg_cnt=1, next_sep=+2, close=+2)
-    // [2] lit(1)       [3] group_close(open=-2, prev_sep=-2)
+    // [0] stream_start [1] group_open [2] lit(1) [3] group_close
     const expected = &[_]Token{
         tok.AUX_STREAM_START,
-        Token.groupOpen(TK.grp_open_paren, 1, 2, 2),
+        Token.groupOpen(TK.grp_open_paren),
         Token.lex(TK.lit_number, 1, 1),
-        Token.groupClose(TK.grp_close_paren, back(2), back(2)),
+        Token.groupClose(TK.grp_close_paren),
     };
     try testParse(buffer, tokens, aux, expected);
 }
@@ -343,19 +342,17 @@ test "Parse ternary paren group" {
     const aux = &[_]Token{};
 
     // Layout: [0] stream_start [1] open [2] lit [3] sep [4] lit [5] sep [6] lit [7] close
-    // open.arg_cnt=3, next_sep=+2, close_offset=+6
-    // sep@3: arg_idx=1, prev=-2, next=+2
-    // sep@5: arg_idx=2, prev=-2, next=+2
-    // close@7: open_offset=-6, prev_sep=-2
+    // sep@3: arg_idx=1 (precedes arg index 1)
+    // sep@5: arg_idx=2 (precedes arg index 2)
     const expected = &[_]Token{
         tok.AUX_STREAM_START,
-        Token.groupOpen(TK.grp_open_paren, 3, 2, 6),
+        Token.groupOpen(TK.grp_open_paren),
         Token.lex(TK.lit_number, 1, 1),
-        Token.groupSep(1, back(2), 2),
+        Token.groupSep(1),
         Token.lex(TK.lit_number, 4, 1),
-        Token.groupSep(2, back(2), 2),
+        Token.groupSep(2),
         Token.lex(TK.lit_number, 7, 1),
-        Token.groupClose(TK.grp_close_paren, back(6), back(2)),
+        Token.groupClose(TK.grp_close_paren),
     };
     try testParse(buffer, tokens, aux, expected);
 }
@@ -375,21 +372,16 @@ test "Parse nested paren group" {
     const aux = &[_]Token{};
 
     // Layout: [0] stream_start [1] outer_open [2] inner_open [3] lit(2) [4] inner_close
-    //         [5] sep [6] lit(6) [7] outer_close
-    // outer_open.arg_cnt=2, next_sep=+4, close=+6
-    // inner_open.arg_cnt=1, next_sep=+2, close=+2
-    // inner_close.open=-2, prev_sep=-2
-    // sep@5: arg_idx=1, prev=-4, next=+2
-    // outer_close@7: open=-6, prev=-2
+    //         [5] sep(arg_idx=1) [6] lit(6) [7] outer_close
     const expected = &[_]Token{
         tok.AUX_STREAM_START,
-        Token.groupOpen(TK.grp_open_paren, 2, 4, 6),
-        Token.groupOpen(TK.grp_open_paren, 1, 2, 2),
+        Token.groupOpen(TK.grp_open_paren),
+        Token.groupOpen(TK.grp_open_paren),
         Token.lex(TK.lit_number, 2, 1),
-        Token.groupClose(TK.grp_close_paren, back(2), back(2)),
-        Token.groupSep(1, back(4), 2),
+        Token.groupClose(TK.grp_close_paren),
+        Token.groupSep(1),
         Token.lex(TK.lit_number, 6, 1),
-        Token.groupClose(TK.grp_close_paren, back(6), back(2)),
+        Token.groupClose(TK.grp_close_paren),
     };
     try testParse(buffer, tokens, aux, expected);
 }
@@ -408,11 +400,11 @@ test "Parse bracket group" {
 
     const expected = &[_]Token{
         tok.AUX_STREAM_START,
-        Token.groupOpen(TK.grp_open_bracket, 2, 2, 4),
+        Token.groupOpen(TK.grp_open_bracket),
         Token.lex(TK.lit_number, 1, 1),
-        Token.groupSep(1, back(2), 2),
+        Token.groupSep(1),
         Token.lex(TK.lit_number, 4, 1),
-        Token.groupClose(TK.grp_close_bracket, back(4), back(2)),
+        Token.groupClose(TK.grp_close_bracket),
     };
     try testParse(buffer, tokens, aux, expected);
 }
@@ -429,9 +421,9 @@ test "Parse brace group" {
 
     const expected = &[_]Token{
         tok.AUX_STREAM_START,
-        Token.groupOpen(TK.grp_open_brace, 1, 2, 2),
+        Token.groupOpen(TK.grp_open_brace),
         Token.lex(TK.lit_number, 1, 1),
-        Token.groupClose(TK.grp_close_brace, back(2), back(2)),
+        Token.groupClose(TK.grp_close_brace),
     };
     try testParse(buffer, tokens, aux, expected);
 }
@@ -487,12 +479,12 @@ test "Parse lazy fn inline expansion" {
         tok.AUX_STREAM_START,
         // fn definition
         pick_decl,
-        Token.lex(TK.kw_fn, 6, 0x8002), // bodyLength=6, lazy flag + 2 params
-        Token.groupOpen(TK.grp_open_paren, 2, 2, 4),
+        Token.fnHeader(TK.kw_lazy_fn, 6, 6), // body_length=6, body_offset=6
+        Token.groupOpen(TK.grp_open_paren),
         Token.lex(TK.identifier, 1, 0).newDeclaration(0), // first param decl (no refs)
-        Token.groupSep(1, back(2), 2),
+        Token.groupSep(1),
         second_decl,
-        Token.groupClose(TK.grp_close_paren, back(4), back(2)),
+        Token.groupClose(TK.grp_close_paren),
         bodySplice,
         // call site
         Token.lex(TK.lit_number, 0, 0), // left operand
@@ -500,5 +492,109 @@ test "Parse lazy fn inline expansion" {
         Token.lex(TK.lit_number, 42, 0), // right operand parsed at splice point
     };
 
+    try testParse(buffer, tokens, aux, expected);
+}
+
+test "Parse nested calls: arg_counter is locally scoped" {
+    // f(g(1, 2), h(3, 4))
+    // Verifies each call's local arg_counter doesn't cross-contaminate.
+    // Symbol IDs: f=0, g=1, h=2.
+    const buffer = "f(g(1, 2), h(3, 4))";
+    const tokens = &[_]Token{
+        Token.lex(TK.call_identifier, 0, 0), // f
+        tok.createToken(TK.grp_open_paren),
+        Token.lex(TK.call_identifier, 1, 0), // g
+        tok.createToken(TK.grp_open_paren),
+        Token.lex(TK.lit_number, 1, 1),
+        tok.createToken(TK.sep_comma),
+        Token.lex(TK.lit_number, 2, 1),
+        tok.createToken(TK.grp_close_paren),
+        tok.createToken(TK.sep_comma),
+        Token.lex(TK.call_identifier, 2, 0), // h
+        tok.createToken(TK.grp_open_paren),
+        Token.lex(TK.lit_number, 3, 1),
+        tok.createToken(TK.sep_comma),
+        Token.lex(TK.lit_number, 4, 1),
+        tok.createToken(TK.grp_close_paren),
+        tok.createToken(TK.grp_close_paren),
+    };
+    const aux = &[_]Token{};
+
+    // Layout:
+    //   [0] start     [1] f_open    [2] g_open   [3] lit(1)   [4] sep(1)
+    //   [5] lit(2)    [6] g_close   [7] g        [8] sep(1)   [9] h_open
+    //   [10] lit(3)   [11] sep(1)   [12] lit(4)  [13] h_close [14] h
+    //   [15] f_close  [16] f
+    // The first sep_comma in each inner call has arg_idx=1 (not 2 or 3),
+    // proving the arg_counter resets per call.
+    const expected = &[_]Token{
+        tok.AUX_STREAM_START,
+        Token.groupOpen(TK.grp_open_paren), // f's open
+        Token.groupOpen(TK.grp_open_paren), // g's open
+        Token.lex(TK.lit_number, 1, 1),
+        Token.groupSep(1), // g's first comma — arg_idx=1
+        Token.lex(TK.lit_number, 2, 1),
+        Token.groupClose(TK.grp_close_paren), // g's close
+        Token.lex(TK.call_identifier, 1, 0), // g emitted post-group
+        Token.groupSep(1), // f's first comma — arg_idx=1 (not 2, despite g's comma above)
+        Token.groupOpen(TK.grp_open_paren), // h's open
+        Token.lex(TK.lit_number, 3, 1),
+        Token.groupSep(1), // h's first comma — arg_idx=1
+        Token.lex(TK.lit_number, 4, 1),
+        Token.groupClose(TK.grp_close_paren), // h's close
+        Token.lex(TK.call_identifier, 2, 0), // h emitted post-group
+        Token.groupClose(TK.grp_close_paren), // f's close
+        Token.lex(TK.call_identifier, 0, 0), // f emitted post-group
+    };
+    try testParse(buffer, tokens, aux, expected);
+}
+
+test "Parse fn body_offset points to first body token" {
+    // fn f(a, b, c): a
+    // Verifies body_offset = close_paren_idx + 1 - header_idx.
+    // Symbol IDs: f=0, a=1, b=2, c=3.
+    const buffer = "fn f(a, b, c): a";
+    const tokens = &[_]Token{
+        tok.createToken(TK.kw_fn),
+        Token.lex(TK.identifier, 0, 0), // f
+        tok.createToken(TK.grp_open_paren),
+        Token.lex(TK.identifier, 1, 0), // a
+        tok.createToken(TK.sep_comma),
+        Token.lex(TK.identifier, 2, 0), // b
+        tok.createToken(TK.sep_comma),
+        Token.lex(TK.identifier, 3, 0), // c
+        tok.createToken(TK.grp_close_paren),
+        tok.createToken(TK.op_colon_assoc),
+        Token.lex(TK.identifier, 1, 0), // a (body)
+    };
+    const aux = &[_]Token{};
+
+    // parsedQ layout:
+    //   [0] start  [1] decl(f)  [2] kw_fn  [3] open
+    //   [4] decl(a)  [5] sep(1)  [6] decl(b)  [7] sep(2)  [8] decl(c)  [9] close
+    //   [10] ref(a)
+    // header_idx=2, close_paren_idx=9, body_offset=9+1-2=8.
+    // body_length = parsedQ.len - header_idx - 1 = 11 - 2 - 1 = 8.
+    // header_idx + body_offset = 2 + 8 = 10 → ref(a), the first body token.
+    var a_decl = Token.ident(TK.identifier, 1, 0, 6); // next→ref@10 (10-4=6)
+    a_decl.flags.declaration = true;
+    var b_decl = Token.ident(TK.identifier, 2, 0, 0); // unused in body
+    b_decl.flags.declaration = true;
+    var c_decl = Token.ident(TK.identifier, 3, 0, 0); // unused in body
+    c_decl.flags.declaration = true;
+
+    const expected = &[_]Token{
+        tok.AUX_STREAM_START,
+        Token.lex(TK.identifier, 0, 0).newDeclaration(0), // decl(f)
+        Token.fnHeader(TK.kw_fn, 8, 8), // body_length=8, body_offset=8
+        Token.groupOpen(TK.grp_open_paren),
+        a_decl,
+        Token.groupSep(1),
+        b_decl,
+        Token.groupSep(2),
+        c_decl,
+        Token.groupClose(TK.grp_close_paren),
+        Token.ident(TK.identifier, 1, back(6), 0), // ref(a), prev→decl@4
+    };
     try testParse(buffer, tokens, aux, expected);
 }
