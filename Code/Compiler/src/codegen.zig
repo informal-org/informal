@@ -266,7 +266,7 @@ pub const Codegen = struct {
                         std.log.debug("DECL @{any}, {s}", .{ index, @tagName(reg) });
                     } else {
                         // Find what register this identifier is at by following the usage chain.
-                        const offset = token.data.ident.offset;
+                        const offset = token.data.ident.prev_offset;
                         const prevRefDecIndex = resolution.applyOffset(i16, @truncate(index), offset);
                         const register = tokenQueue[prevRefDecIndex].data.ident.symbol_id;
                         const signedOffset: i16 = @bitCast(offset);

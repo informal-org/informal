@@ -26,13 +26,21 @@ test "Normal declaration and reference" {
     try parsedQ.push(Token.lex(TK.identifier, 0, 5));
 
     const decResult = resolution.declare(1, parsedQ.list.items[1]);
+    parsedQ.list.items[1] = decResult;
     try expectEqual(0, decResult.data.ident.symbol_id); // symbolId preserved
-    try expectEqual(UNDECLARED_SENTINEL, decResult.data.ident.offset); // First declaration.
+    try expectEqual(UNDECLARED_SENTINEL, decResult.data.ident.prev_offset); // First declaration.
+    try expectEqual(0, decResult.data.ident.next_offset); // No references yet.
 
     const refResult = resolution.resolve(4, parsedQ.list.items[4]);
-    const refOffset: i16 = @bitCast(refResult.data.ident.offset);
-    try expectEqual(1 - 4, refOffset); // offset = declaration index - ref index.
-    try expectEqual(0, refResult.data.ident.symbol_id); // arg0 = 0 (no next use)
+    parsedQ.list.items[4] = refResult;
+    const refOffset: i16 = @bitCast(refResult.data.ident.prev_offset);
+    try expectEqual(1 - 4, refOffset); // prev_offset = declaration index - ref index.
+    try expectEqual(0, refResult.data.ident.symbol_id); // symbolId preserved (symbol 0)
+    try expectEqual(0, refResult.data.ident.next_offset); // Last use, no next.
+
+    // Declaration's next_offset should now point to the reference.
+    const declNextOff: i16 = @bitCast(parsedQ.list.items[1].data.ident.next_offset);
+    try expectEqual(4 - 1, declNextOff);
 }
 
 test "Forward reference from child scope" {
@@ -49,7 +57,7 @@ test "Forward reference from child scope" {
     try parsedQ.push(Token.lex(TK.identifier, 0, 5));
     const refResult = resolution.resolve(2, parsedQ.list.items[2]);
     parsedQ.list.items[2] = refResult;
-    try expectEqual(UNDECLARED_SENTINEL, refResult.data.ident.offset);
+    try expectEqual(UNDECLARED_SENTINEL, refResult.data.ident.prev_offset);
     try expectEqual(2, resolution.unresolved[0]);
 
     // Declaration inside function scope — shouldn't resolve the forward ref.
@@ -60,7 +68,7 @@ test "Forward reference from child scope" {
     try expectEqual(0, resolution.declarations[0].decl_index);
     const shadowDefResult = resolution.declare(3, parsedQ.list.items[3]);
     parsedQ.list.items[3] = shadowDefResult;
-    try expectEqual(UNDECLARED_SENTINEL, shadowDefResult.data.ident.offset);
+    try expectEqual(UNDECLARED_SENTINEL, shadowDefResult.data.ident.prev_offset);
     try expectEqual(3, resolution.declarations[0].decl_index);
     try expectEqual(2, resolution.unresolved[0]);
 
@@ -69,14 +77,14 @@ test "Forward reference from child scope" {
     try resolution.endScope(0);
     try parsedQ.push(Token.lex(TK.identifier, 0, 5));
 
-    try expectEqual(UNDECLARED_SENTINEL, parsedQ.list.items[2].data.ident.offset);
+    try expectEqual(UNDECLARED_SENTINEL, parsedQ.list.items[2].data.ident.prev_offset);
     const baseDefResult = resolution.declare(5, parsedQ.list.items[5]);
     parsedQ.list.items[5] = baseDefResult;
     try expectEqual(5, resolution.declarations[0].decl_index);
-    const baseDefOffset: i16 = @bitCast(baseDefResult.data.ident.offset);
+    const baseDefOffset: i16 = @bitCast(baseDefResult.data.ident.prev_offset);
     try expectEqual(3 - 5, baseDefOffset); // Chains to the shadowed decl inside fn.
     try expectEqual(UNDECLARED_SENTINEL, resolution.unresolved[0]);
-    const afterOffset: i16 = @bitCast(parsedQ.list.items[2].data.ident.offset);
+    const afterOffset: i16 = @bitCast(parsedQ.list.items[2].data.ident.prev_offset);
     try expectEqual(5 - 2, afterOffset); // Forward ref resolved to decl at 5.
 }
 
@@ -105,7 +113,7 @@ test "Shadow cleanup on endScope" {
     parsedQ.list.items[3] = innerDecl;
     try expectEqual(3, resolution.declarations[1].decl_index);
     // arg1 should chain back to outer decl
-    const innerOffset: i16 = @bitCast(innerDecl.data.ident.offset);
+    const innerOffset: i16 = @bitCast(innerDecl.data.ident.prev_offset);
     try expectEqual(1 - 3, innerOffset);
 
     // End function scope — shadow should be cleaned up eagerly.
@@ -117,9 +125,10 @@ test "Shadow cleanup on endScope" {
     // Resolve symbol 1 — should point to outer decl at index 1 directly.
     try parsedQ.push(Token.lex(TK.identifier, 1, 0));
     const refResult = resolution.resolve(4, parsedQ.list.items[4]);
-    const refOffset: i16 = @bitCast(refResult.data.ident.offset);
+    const refOffset: i16 = @bitCast(refResult.data.ident.prev_offset);
     try expectEqual(1 - 4, refOffset);
-    try expectEqual(0, refResult.data.ident.symbol_id); // arg0 = 0 (no next use)
+    try expectEqual(1, refResult.data.ident.symbol_id); // symbolId preserved
+    try expectEqual(0, refResult.data.ident.next_offset); // No next use
 }
 
 test "Sequential functions shadowing same name" {
@@ -140,7 +149,7 @@ test "Sequential functions shadowing same name" {
     try parsedQ.push(Token.lex(TK.identifier, 1, 0));
     const ref1 = resolution.resolve(2, parsedQ.list.items[2]);
     parsedQ.list.items[2] = ref1;
-    const ref1Offset: i16 = @bitCast(ref1.data.ident.offset);
+    const ref1Offset: i16 = @bitCast(ref1.data.ident.prev_offset);
     try expectEqual(1 - 2, ref1Offset);
 
     // fn foo(x): ...
@@ -155,7 +164,7 @@ test "Sequential functions shadowing same name" {
     try parsedQ.push(Token.lex(TK.identifier, 1, 0));
     const ref2 = resolution.resolve(5, parsedQ.list.items[5]);
     parsedQ.list.items[5] = ref2;
-    const ref2Offset: i16 = @bitCast(ref2.data.ident.offset);
+    const ref2Offset: i16 = @bitCast(ref2.data.ident.prev_offset);
     try expectEqual(4 - 5, ref2Offset); // Resolves to foo's param
 
     try resolution.endScope(6); // Shadow cleaned up
@@ -176,14 +185,21 @@ test "Sequential functions shadowing same name" {
     // ref(x) at index 8 — should resolve to outer x@1 directly, no chain walk.
     try parsedQ.push(Token.lex(TK.identifier, 1, 0));
     const ref3 = resolution.resolve(8, parsedQ.list.items[8]);
-    const ref3Offset: i16 = @bitCast(ref3.data.ident.offset);
+    parsedQ.list.items[8] = ref3;
+    const ref3Offset: i16 = @bitCast(ref3.data.ident.prev_offset);
     try expectEqual(1 - 8, ref3Offset);
 
     // Subsequent resolve also clean.
     try parsedQ.push(Token.lex(TK.identifier, 1, 0)); // index 9
     const ref4 = resolution.resolve(9, parsedQ.list.items[9]);
-    const ref4Offset: i16 = @bitCast(ref4.data.ident.offset);
+    parsedQ.list.items[9] = ref4;
+    const ref4Offset: i16 = @bitCast(ref4.data.ident.prev_offset);
     try expectEqual(1 - 9, ref4Offset);
+
+    // Forward chain: ref@8 should point to ref@9 via next_offset.
+    const ref3NextOff: i16 = @bitCast(parsedQ.list.items[8].data.ident.next_offset);
+    try expectEqual(9 - 8, ref3NextOff);
+    try expectEqual(0, ref4.data.ident.next_offset); // Last use.
 }
 
 test "Forward use-chain links references" {
@@ -204,26 +220,40 @@ test "Forward use-chain links references" {
     try parsedQ.push(Token.lex(TK.identifier, 1, 0));
     const ref1 = resolution.resolve(2, parsedQ.list.items[2]);
     parsedQ.list.items[2] = ref1;
-    try expectEqual(0, ref1.data.ident.symbol_id); // No next use yet
+    try expectEqual(1, ref1.data.ident.symbol_id); // symbolId preserved
+    try expectEqual(0, ref1.data.ident.next_offset); // No next use yet
+
+    // Declaration's next_offset should now point to ref@2.
+    const declNextOff1: i16 = @bitCast(parsedQ.list.items[1].data.ident.next_offset);
+    try expectEqual(2 - 1, declNextOff1);
 
     // ref(x) at index 3
     try parsedQ.push(Token.lex(TK.identifier, 1, 0));
     const ref2 = resolution.resolve(3, parsedQ.list.items[3]);
     parsedQ.list.items[3] = ref2;
-    try expectEqual(0, ref2.data.ident.symbol_id); // No next use yet
+    try expectEqual(1, ref2.data.ident.symbol_id); // symbolId preserved
+    try expectEqual(0, ref2.data.ident.next_offset); // No next use yet
 
-    // Forward chain: ref@2 should now point to ref@3
-    try expectEqual(3, parsedQ.list.items[2].data.ident.symbol_id);
+    // Forward chain: ref@2's next_offset should now point to ref@3 (offset +1).
+    const ref1NextOff: i16 = @bitCast(parsedQ.list.items[2].data.ident.next_offset);
+    try expectEqual(3 - 2, ref1NextOff);
 
     // ref(x) at index 4
     try parsedQ.push(Token.lex(TK.identifier, 1, 0));
     const ref3 = resolution.resolve(4, parsedQ.list.items[4]);
     parsedQ.list.items[4] = ref3;
 
-    // Forward chain: ref@3 should now point to ref@4
-    try expectEqual(3, parsedQ.list.items[2].data.ident.symbol_id); // Still points to 3
-    try expectEqual(4, parsedQ.list.items[3].data.ident.symbol_id); // Now points to 4
-    try expectEqual(0, parsedQ.list.items[4].data.ident.symbol_id); // Last use, no next
+    // Forward chain via next_offset: ref@2 → ref@3 → ref@4 → 0
+    const r2next: i16 = @bitCast(parsedQ.list.items[2].data.ident.next_offset);
+    const r3next: i16 = @bitCast(parsedQ.list.items[3].data.ident.next_offset);
+    try expectEqual(3 - 2, r2next); // ref@2 still points to ref@3
+    try expectEqual(4 - 3, r3next); // ref@3 now points to ref@4
+    try expectEqual(0, parsedQ.list.items[4].data.ident.next_offset); // Last use, no next
+
+    // All refs preserve symbol_id.
+    try expectEqual(1, parsedQ.list.items[2].data.ident.symbol_id);
+    try expectEqual(1, parsedQ.list.items[3].data.ident.symbol_id);
+    try expectEqual(1, parsedQ.list.items[4].data.ident.symbol_id);
 }
 
 test "No shadowing — clean resolution through function scope" {
@@ -253,7 +283,7 @@ test "No shadowing — clean resolution through function scope" {
     // ref(x) at index 4 — x was never shadowed, resolves directly.
     try parsedQ.push(Token.lex(TK.identifier, 1, 0));
     const ref1 = resolution.resolve(4, parsedQ.list.items[4]);
-    const ref1Offset: i16 = @bitCast(ref1.data.ident.offset);
+    const ref1Offset: i16 = @bitCast(ref1.data.ident.prev_offset);
     try expectEqual(1 - 4, ref1Offset);
 }
 
@@ -270,7 +300,7 @@ test "Inner-only declaration with no outer — endScope cleans up" {
     try parsedQ.push(Token.lex(TK.identifier, 1, 0)); // index 1
     const innerDecl = resolution.declare(1, parsedQ.list.items[1]);
     parsedQ.list.items[1] = innerDecl;
-    try expectEqual(UNDECLARED_SENTINEL, innerDecl.data.ident.offset); // First ever, no shadow.
+    try expectEqual(UNDECLARED_SENTINEL, innerDecl.data.ident.prev_offset); // First ever, no shadow.
 
     try resolution.endScope(2);
 
@@ -326,7 +356,7 @@ test "Nested shadow restore ordering" {
     // ref(x) at index 7 — resolves to outer decl at 1
     try parsedQ.push(Token.lex(TK.identifier, 1, 0));
     const ref = resolution.resolve(7, parsedQ.list.items[7]);
-    const refOffset: i16 = @bitCast(ref.data.ident.offset);
+    const refOffset: i16 = @bitCast(ref.data.ident.prev_offset);
     try expectEqual(1 - 7, refOffset);
 }
 

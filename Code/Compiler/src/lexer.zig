@@ -439,8 +439,9 @@ pub const Lexer = struct {
         const constIdxEntry = self.symbolTable.getOrPutValue(name, self.symbolTable.count()) catch unreachable;
         const constIdx: u64 = constIdxEntry.value_ptr.*;
 
-        // Post: returned index is valid
+        // Post: returned index is valid and fits in u16 (Ident.symbol_id width).
         std.debug.assert(constIdx < self.symbolTable.count() or constIdx == self.symbolTable.count() - 1);
+        std.debug.assert(constIdx <= std.math.maxInt(u16));
 
         return constIdx;
     }

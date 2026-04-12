@@ -132,15 +132,20 @@ test "Parse fn definition" {
 
     const aux = &[_]Token{};
 
-    // Reference arg0 = 0 (forward chain, no next use).
+    // Declarations get next_offset patched when their references resolve.
+    var a_decl = Token.ident(TK.identifier, 1, 0, 2); // next_offset=2 → ref at index 5
+    a_decl.flags.declaration = true;
+    var b_decl = Token.ident(TK.identifier, 2, 0, 2); // next_offset=2 → ref at index 6
+    b_decl.flags.declaration = true;
+
     const expected = &[_]Token{
         tok.AUX_STREAM_START,
-        Token.lex(TK.identifier, 0, 0).newDeclaration(0), // add declaration (depth 0)
+        Token.lex(TK.identifier, 0, 0).newDeclaration(0), // add declaration (no refs)
         Token.lex(TK.kw_fn, 5, 2), // fn header: bodyLength=5, paramCount=2
-        Token.lex(TK.identifier, 1, 0).newDeclaration(0), // a param decl
-        Token.lex(TK.identifier, 2, 0).newDeclaration(0), // b param decl
-        Token.lex(TK.identifier, 0, 0xFFFE), // a resolved (arg0=0, offset -2)
-        Token.lex(TK.identifier, 0, 0xFFFE), // b resolved (arg0=0, offset -2)
+        a_decl,
+        b_decl,
+        Token.ident(TK.identifier, 1, 0xFFFE, 0), // a resolved (prev_offset -2, no next)
+        Token.ident(TK.identifier, 2, 0xFFFE, 0), // b resolved (prev_offset -2, no next)
         tok.createToken(TK.op_add),
     };
 
@@ -171,16 +176,20 @@ test "Parse lazy fn with splice detection" {
     // Expected: fn_header arg1 = (1 << 15) | 2 = 0x8002 (lazy flag set, 2 params)
     // bodyLength = paramCount + bodyTokens = 2 + 2 = 4
     // The SECOND ref in body should have splice=true
-    var expectedSplice = Token.lex(TK.op_identifier, 0, 0xFFFE); // arg0=0 (forward chain), offset -2
+    var first_decl = Token.ident(TK.identifier, 1, 0, 2); // next_offset=2 → ref at index 5
+    first_decl.flags.declaration = true;
+    var second_decl = Token.ident(TK.const_identifier, 2, 0, 2); // next_offset=2 → ref at index 6
+    second_decl.flags.declaration = true;
+    var expectedSplice = Token.ident(TK.op_identifier, 2, 0xFFFE, 0);
     expectedSplice.flags.splice = true;
 
     const expected = &[_]Token{
         tok.AUX_STREAM_START,
-        Token.lex(TK.identifier, 0, 0).newDeclaration(0), // APPLY declaration (depth 0)
+        Token.lex(TK.identifier, 0, 0).newDeclaration(0), // APPLY declaration (no refs)
         Token.lex(TK.kw_fn, 4, 0x8002), // bodyLength=4, arg1=(1<<15)|2
-        Token.lex(TK.identifier, 1, 0).newDeclaration(0), // first param decl
-        Token.lex(TK.const_identifier, 2, 0).newDeclaration(0), // SECOND param decl
-        Token.lex(TK.identifier, 0, 0xFFFE), // first resolved (arg0=0, offset -2)
+        first_decl,
+        second_decl,
+        Token.ident(TK.identifier, 1, 0xFFFE, 0), // first resolved (prev_offset -2, no next)
         expectedSplice, // SECOND resolved with splice=true
     };
 
@@ -216,28 +225,42 @@ test "Parse eager fn inline expansion" {
 
     // After expansion: decl(a) splice, lit(4), decl(b) splice, id(a) re-resolved, id(b) re-resolved, op_add
     // Inline expansion declarations chain to previous decl (shadows restored by endScope).
-    var declA = Token.lex(TK.identifier, 1, 0).newDeclaration(0xFFFA); // chains to a@3 (offset -6)
+
+    // add decl@1: next_offset patched by phantom resolve in opIdentifierInfix (resolve at index 9).
+    var add_decl = Token.ident(TK.identifier, 0, 0, 8);
+    add_decl.flags.declaration = true;
+
+    // fn body decls: a@3 next→5 (+2), b@4 next→6 (+2)
+    var a_param = Token.ident(TK.identifier, 1, 0, 2);
+    a_param.flags.declaration = true;
+    var b_param = Token.ident(TK.identifier, 2, 0, 2);
+    b_param.flags.declaration = true;
+
+    // Inline expansion shadow decls: a@9 next→12 (+3), b@11 next→13 (+2)
+    var declA = Token.ident(TK.identifier, 1, 0xFFFA, 3); // prev chains to a@3 (offset -6)
+    declA.flags.declaration = true;
     declA.flags.splice = true;
-    var declB = Token.lex(TK.identifier, 2, 0).newDeclaration(0xFFF9); // chains to b@4 (offset -7)
+    var declB = Token.ident(TK.identifier, 2, 0xFFF9, 2); // prev chains to b@4 (offset -7)
+    declB.flags.declaration = true;
     declB.flags.splice = true;
 
     const expected = &[_]Token{
         tok.AUX_STREAM_START,
         // fn definition
-        Token.lex(TK.identifier, 0, 0).newDeclaration(0), // add declaration (depth 0)
+        add_decl,
         Token.lex(TK.kw_fn, 5, 2), // fn header: bodyLength=5, paramCount=2
-        Token.lex(TK.identifier, 1, 0).newDeclaration(0), // a param decl
-        Token.lex(TK.identifier, 2, 0).newDeclaration(0), // b param decl
-        Token.lex(TK.identifier, 0, 0xFFFE), // a resolved (arg0=0, offset -2)
-        Token.lex(TK.identifier, 0, 0xFFFE), // b resolved (arg0=0, offset -2)
+        a_param,
+        b_param,
+        Token.ident(TK.identifier, 1, 0xFFFE, 0), // a resolved (prev -2, no next)
+        Token.ident(TK.identifier, 2, 0xFFFE, 0), // b resolved (prev -2, no next)
         tok.createToken(TK.op_add),
         // call site
         Token.lex(TK.lit_number, 3, 0), // left operand
         declA, // decl(a) splice — binds to left operand
         Token.lex(TK.lit_number, 4, 0), // right operand parsed
         declB, // decl(b) splice — binds to right operand
-        Token.lex(TK.identifier, 0, 0xFFFD), // a re-resolved (arg0=0, offset -3 → index 9)
-        Token.lex(TK.identifier, 0, 0xFFFE), // b re-resolved (arg0=0, offset -2 → index 11)
+        Token.ident(TK.identifier, 1, 0xFFFD, 0), // a re-resolved (prev -3 → index 9)
+        Token.ident(TK.identifier, 2, 0xFFFE, 0), // b re-resolved (prev -2 → index 11)
         tok.createToken(TK.op_add), // copied from body
     };
 
@@ -269,23 +292,30 @@ test "Parse lazy fn inline expansion" {
 
     const aux = &[_]Token{};
 
-    // Expanded: decl(first) splice, then splice parses lit(42)
+    // PICK decl@1: next_offset patched by phantom resolve in opIdentifierInfix.
+    var pick_decl = Token.ident(TK.identifier, 0, 0, 6);
+    pick_decl.flags.declaration = true;
+
+    // SECOND param decl@4: next_offset=1 → ref@5.
+    var second_decl = Token.ident(TK.const_identifier, 2, 0, 1);
+    second_decl.flags.declaration = true;
+
+    // Body SECOND ref at index 5: splice=true from kwFn detection.
+    var bodySplice = Token.ident(TK.const_identifier, 2, 0xFFFF, 0);
+    bodySplice.flags.splice = true;
+
+    // Expanded: decl(first) splice, then splice parses lit(42).
     var declFirst = Token.lex(TK.identifier, 1, 0).newDeclaration(0xFFFC); // chains to first@3 (offset -4)
     declFirst.flags.splice = true;
-
-    // Body token at index 5 gets splice=true from kwFn detection
-    // arg0=0 (forward chain), arg1=0xFFFF (offset -1 to SECOND param decl@4)
-    var bodySplice = Token.lex(TK.const_identifier, 0, 0xFFFF);
-    bodySplice.flags.splice = true;
 
     const expected = &[_]Token{
         tok.AUX_STREAM_START,
         // fn definition
-        Token.lex(TK.identifier, 0, 0).newDeclaration(0), // PICK declaration (depth 0)
+        pick_decl,
         Token.lex(TK.kw_fn, 3, 0x8002), // bodyLength=3, lazy flag + 2 params
-        Token.lex(TK.identifier, 1, 0).newDeclaration(0), // first param decl
-        Token.lex(TK.const_identifier, 2, 0).newDeclaration(0), // SECOND param decl
-        bodySplice, // body: SECOND resolved (arg0=0) with splice=true
+        Token.lex(TK.identifier, 1, 0).newDeclaration(0), // first param decl (no refs)
+        second_decl,
+        bodySplice,
         // call site
         Token.lex(TK.lit_number, 0, 0), // left operand
         declFirst, // decl(first) splice — binds to left operand

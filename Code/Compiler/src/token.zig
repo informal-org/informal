@@ -130,8 +130,9 @@ pub const Data = packed union {
     sequence: Sequence,
 
     pub const Ident = packed struct(u48) {
-        symbol_id: u32,
-        offset: u16,
+        symbol_id: u16,
+        prev_offset: u16,
+        next_offset: u16,
     };
 
     pub const Literal = packed struct(u48) {
@@ -228,10 +229,10 @@ pub const Token = packed struct(u64) {
         };
     }
 
-    pub fn newDeclaration(self: Token, offset: u16) Token {
+    pub fn newDeclaration(self: Token, prev_offset: u16) Token {
         return Token{
             .kind = self.kind,
-            .data = .{ .ident = .{ .symbol_id = self.data.ident.symbol_id, .offset = offset } },
+            .data = .{ .ident = .{ .symbol_id = self.data.ident.symbol_id, .prev_offset = prev_offset, .next_offset = 0 } },
             .flags = Flags{ .declaration = true },
         };
     }
@@ -239,8 +240,16 @@ pub const Token = packed struct(u64) {
     pub fn assignReg(self: Token, reg: u16) Token {
         return Token{
             .kind = self.kind,
-            .data = .{ .ident = .{ .symbol_id = reg, .offset = self.data.ident.offset } },
+            .data = .{ .ident = .{ .symbol_id = reg, .prev_offset = self.data.ident.prev_offset, .next_offset = self.data.ident.next_offset } },
             .flags = self.flags,
+        };
+    }
+
+    pub fn ident(kind: Kind, symbol_id: u16, prev_offset: u16, next_offset: u16) Token {
+        return Token{
+            .kind = kind,
+            .data = .{ .ident = .{ .symbol_id = symbol_id, .prev_offset = prev_offset, .next_offset = next_offset } },
+            .flags = Flags.empty(),
         };
     }
 };
@@ -258,9 +267,13 @@ pub const TokenWriter = struct {
         const alt = if (value.flags.alt) "ALT" else "";
 
         switch (value.kind) {
-            TK.lit_number, TK.lit_string, TK.identifier => {
-                const signedOffset: i16 = @bitCast(value.data.ident.offset);
-                try std.fmt.format(writer, "{d} {s} {s} [{d}]", .{ value.data.ident.symbol_id, @tagName(value.kind), alt, signedOffset });
+            TK.identifier, TK.const_identifier, TK.call_identifier, TK.type_identifier, TK.op_identifier => {
+                const prevOff: i16 = @bitCast(value.data.ident.prev_offset);
+                const nextOff: i16 = @bitCast(value.data.ident.next_offset);
+                try std.fmt.format(writer, "{d} {s} {s} [<{d} >{d}]", .{ value.data.ident.symbol_id, @tagName(value.kind), alt, prevOff, nextOff });
+            },
+            TK.lit_number, TK.lit_string => {
+                try std.fmt.format(writer, "{d} {s} {s} [{d}]", .{ value.data.literal.value, @tagName(value.kind), alt, value.data.literal.length });
             },
             TK.aux, TK.aux_comment, TK.aux_whitespace, TK.aux_newline, TK.aux_indentation, TK.aux_stream_start, TK.aux_stream_end => {
                 try std.fmt.format(writer, "{s} {s} - {d} {d}", .{ @tagName(value.kind), alt, value.data.aux.position, value.data.aux.length });

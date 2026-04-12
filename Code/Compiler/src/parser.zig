@@ -363,7 +363,7 @@ pub const Parser = struct {
                 if (!bodyToken.flags.declaration and
                     (bodyToken.kind == Kind.identifier or bodyToken.kind == Kind.const_identifier or bodyToken.kind == Kind.op_identifier))
                 {
-                    const refDeclIdx = rs.applyOffset(i16, i, bodyToken.data.ident.offset);
+                    const refDeclIdx = rs.applyOffset(i16, i, bodyToken.data.ident.prev_offset);
                     if (refDeclIdx == lazyParamDeclIdx) {
                         var patched = bodyToken;
                         patched.flags.splice = true;
@@ -384,7 +384,7 @@ pub const Parser = struct {
 
     fn opIdentifierInfix(self: *Self, token: Token) anyerror!void {
         const resolved = self.resolution.resolve(@truncate(self.parsedQ.list.items.len), token);
-        const offset = resolved.data.ident.offset;
+        const offset = resolved.data.ident.prev_offset;
 
         // Check if this resolves to a function declaration.
         if (offset == rs.UNDECLARED_SENTINEL) {
@@ -419,7 +419,7 @@ pub const Parser = struct {
         if (isLazy) {
             // Lazy expansion: one eager param bound to left operand, splice lazy param from syntaxQ.
             // Mask off fn_depth from upper 8 bits of declaration arg0 to recover symbolId.
-            const eagerSymbolId = if (param1.kind == Kind.identifier) param1.data.ident.symbol_id & 0xFFFFFF else param2.data.ident.symbol_id & 0xFFFFFF;
+            const eagerSymbolId = if (param1.kind == Kind.identifier) param1.data.ident.symbol_id else param2.data.ident.symbol_id;
             const savedDecl = self.resolution.declarations[eagerSymbolId];
 
             // Declare eager param with splice flag (binds to stack-top in codegen).
@@ -437,8 +437,8 @@ pub const Parser = struct {
         } else {
             // Eager expansion: bind both params, then walk body.
             // Mask off fn_depth from upper 8 bits of declaration arg0 to recover symbolId.
-            const sym1 = param1.data.ident.symbol_id & 0xFFFFFF;
-            const sym2 = param2.data.ident.symbol_id & 0xFFFFFF;
+            const sym1 = param1.data.ident.symbol_id;
+            const sym2 = param2.data.ident.symbol_id;
             const saved1 = self.resolution.declarations[sym1];
             const saved2 = self.resolution.declarations[sym2];
 
@@ -482,10 +482,10 @@ pub const Parser = struct {
                 // Re-resolve against current scope.
                 // Recover symbolId: declarations have fn_depth|symbolId in arg0, references have forward chain pointer.
                 const symbolId = if (templateToken.flags.declaration)
-                    templateToken.data.ident.symbol_id & 0xFFFFFF
+                    templateToken.data.ident.symbol_id
                 else blk: {
-                    const declIdx = rs.applyOffset(i16, i, templateToken.data.ident.offset);
-                    break :blk self.parsedQ.list.items[declIdx].data.ident.symbol_id & 0xFFFFFF;
+                    const declIdx = rs.applyOffset(i16, i, templateToken.data.ident.prev_offset);
+                    break :blk self.parsedQ.list.items[declIdx].data.ident.symbol_id;
                 };
                 const freshToken = Token.lex(templateToken.kind, symbolId, 0);
                 const reResolved = self.resolution.resolve(@truncate(self.parsedQ.list.items.len), freshToken);
