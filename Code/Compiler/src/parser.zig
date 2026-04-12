@@ -345,34 +345,21 @@ pub const Parser = struct {
         _ = self.syntaxQ.pop(); // op_colon_assoc
 
         // 4. Parse body — use Separator power to stop at newlines for single-line bodies.
-        const bodyStart: u32 = @truncate(self.parsedQ.list.items.len);
         try self.parse(Power.Separator.val());
 
         // 5. Pop scope
         try self.resolution.endScope(@truncate(self.parsedQ.list.items.len));
 
-        // 6. Lazy detection: exactly 1 eager + 1 lazy param → scan body for splice points
-        //    Identify references to the lazy param by following arg1 offset to the declaration index.
+        // 6. Lazy detection: exactly 1 eager + 1 lazy param. The macro spec guarantees exactly
+        //    one reference to the lazy param in the body, reachable in one hop from the
+        //    declaration's next_offset.
         const isLazy = eagerCount == 1 and lazyCount == 1;
         if (isLazy) {
-            const bodyEnd: u32 = @truncate(self.parsedQ.list.items.len);
-            var spliceCount: u32 = 0;
-            var i: u32 = bodyStart;
-            while (i < bodyEnd) : (i += 1) {
-                const bodyToken = self.parsedQ.list.items[i];
-                if (!bodyToken.flags.declaration and
-                    (bodyToken.kind == Kind.identifier or bodyToken.kind == Kind.const_identifier or bodyToken.kind == Kind.op_identifier))
-                {
-                    const refDeclIdx = rs.applyOffset(i16, i, bodyToken.data.ident.prev_offset);
-                    if (refDeclIdx == lazyParamDeclIdx) {
-                        var patched = bodyToken;
-                        patched.flags.splice = true;
-                        self.parsedQ.list.items[i] = patched;
-                        spliceCount += 1;
-                    }
-                }
-            }
-            assert(spliceCount == 1);
+            const nextOff = self.parsedQ.list.items[lazyParamDeclIdx].data.ident.next_offset;
+            assert(nextOff != 0); // spec: exactly one use
+            const spliceIdx = rs.applyOffset(i16, lazyParamDeclIdx, nextOff);
+            self.parsedQ.list.items[spliceIdx].flags.splice = true;
+            assert(self.parsedQ.list.items[spliceIdx].data.ident.next_offset == 0); // spec: no further uses
         }
 
         // 7. Patch fn_header: arg0=bodyLength, arg1=(lazyFlag << 15) | paramCount

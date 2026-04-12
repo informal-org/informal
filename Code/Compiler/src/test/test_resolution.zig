@@ -65,11 +65,11 @@ test "Forward reference from child scope" {
     try parsedQ.push(Token.lex(TK.lit_number, 99, 2));
     try parsedQ.push(Token.lex(TK.op_assign_eq, 0, 1));
 
-    try expectEqual(0, resolution.declarations[0].decl_index);
+    try expectEqual(0, resolution.declarations[0]);
     const shadowDefResult = resolution.declare(3, parsedQ.list.items[3]);
     parsedQ.list.items[3] = shadowDefResult;
     try expectEqual(UNDECLARED_SENTINEL, shadowDefResult.data.ident.prev_offset);
-    try expectEqual(3, resolution.declarations[0].decl_index);
+    try expectEqual(3, resolution.declarations[0]);
     try expectEqual(2, resolution.unresolved[0]);
 
     // End function scope, declare at module level — forward ref should resolve.
@@ -80,9 +80,10 @@ test "Forward reference from child scope" {
     try expectEqual(UNDECLARED_SENTINEL, parsedQ.list.items[2].data.ident.prev_offset);
     const baseDefResult = resolution.declare(5, parsedQ.list.items[5]);
     parsedQ.list.items[5] = baseDefResult;
-    try expectEqual(5, resolution.declarations[0].decl_index);
+    // Tail is the forward ref at 2 (linked into the chain during forward resolution).
+    try expectEqual(2, resolution.declarations[0]);
     const baseDefOffset: i16 = @bitCast(baseDefResult.data.ident.prev_offset);
-    try expectEqual(3 - 5, baseDefOffset); // Chains to the shadowed decl inside fn.
+    try expectEqual(3 - 5, baseDefOffset); // Chains to the shadowed decl inside fn (still the tail at declare-time).
     try expectEqual(UNDECLARED_SENTINEL, resolution.unresolved[0]);
     const afterOffset: i16 = @bitCast(parsedQ.list.items[2].data.ident.prev_offset);
     try expectEqual(5 - 2, afterOffset); // Forward ref resolved to decl at 5.
@@ -101,7 +102,7 @@ test "Shadow cleanup on endScope" {
     try parsedQ.push(Token.lex(TK.identifier, 1, 0));
     const outerDecl = resolution.declare(1, parsedQ.list.items[1]);
     parsedQ.list.items[1] = outerDecl;
-    try expectEqual(1, resolution.declarations[1].decl_index);
+    try expectEqual(1, resolution.declarations[1]);
 
     // Start function scope
     try parsedQ.push(Token.lex(TK.kw_fn, 0, 0));
@@ -111,16 +112,16 @@ test "Shadow cleanup on endScope" {
     try parsedQ.push(Token.lex(TK.identifier, 1, 0));
     const innerDecl = resolution.declare(3, parsedQ.list.items[3]);
     parsedQ.list.items[3] = innerDecl;
-    try expectEqual(3, resolution.declarations[1].decl_index);
-    // arg1 should chain back to outer decl
+    try expectEqual(3, resolution.declarations[1]);
+    // arg1 should chain back to outer tail (which is the decl here since there were no uses)
     const innerOffset: i16 = @bitCast(innerDecl.data.ident.prev_offset);
     try expectEqual(1 - 3, innerOffset);
 
     // End function scope — shadow should be cleaned up eagerly.
     try resolution.endScope(4);
 
-    // declarations[1] should now be restored to the outer declaration.
-    try expectEqual(1, resolution.declarations[1].decl_index);
+    // declarations[1] should now be restored to the outer tail (= outer decl here).
+    try expectEqual(1, resolution.declarations[1]);
 
     // Resolve symbol 1 — should point to outer decl at index 1 directly.
     try parsedQ.push(Token.lex(TK.identifier, 1, 0));
@@ -169,8 +170,9 @@ test "Sequential functions shadowing same name" {
 
     try resolution.endScope(6); // Shadow cleaned up
 
-    // After endScope, declarations[1] restored to outer x@1.
-    try expectEqual(1, resolution.declarations[1].decl_index);
+    // After endScope, declarations[1] restored to the outer tail, which is the use at @2
+    // (the last thing appended to outer x's chain before the shadow started).
+    try expectEqual(2, resolution.declarations[1]);
 
     // fn bar(x): ...
     try parsedQ.push(Token.lex(TK.kw_fn, 0, 0)); // index 6
@@ -200,6 +202,13 @@ test "Sequential functions shadowing same name" {
     const ref3NextOff: i16 = @bitCast(parsedQ.list.items[8].data.ident.next_offset);
     try expectEqual(9 - 8, ref3NextOff);
     try expectEqual(0, ref4.data.ident.next_offset); // Last use.
+
+    // Regression: the outer chain must survive the shadow+revert cycle.
+    // decl@1 → ref1@2 → ref3@8 → ref4@9 must all be linked via next_offset.
+    const declNextOff: i16 = @bitCast(parsedQ.list.items[1].data.ident.next_offset);
+    try expectEqual(2 - 1, declNextOff); // decl@1 still points to first use @2
+    const ref1NextOff: i16 = @bitCast(parsedQ.list.items[2].data.ident.next_offset);
+    try expectEqual(8 - 2, ref1NextOff); // ref@2 now points forward to ref@8
 }
 
 test "Forward use-chain links references" {
@@ -310,7 +319,7 @@ test "Inner-only declaration with no outer — endScope cleans up" {
     // However, without fn_depth staleness or full cleanup, it will resolve to the stale inner decl.
     // This is acceptable: in valid programs, you don't reference a function-local variable outside the function.
     // The language's type system / semantic checker would catch this.
-    try expectEqual(1, resolution.declarations[1].decl_index);
+    try expectEqual(1, resolution.declarations[1]);
 }
 
 test "Nested shadow restore ordering" {
@@ -333,7 +342,7 @@ test "Nested shadow restore ordering" {
     // decl(x) at depth 1, index 3 — shadows depth 0
     try parsedQ.push(Token.lex(TK.identifier, 1, 0));
     parsedQ.list.items[3] = resolution.declare(3, parsedQ.list.items[3]);
-    try expectEqual(3, resolution.declarations[1].decl_index);
+    try expectEqual(3, resolution.declarations[1]);
 
     // Inner block scope
     try parsedQ.push(Token.lex(TK.grp_indent, 0, 0)); // index 4
@@ -342,16 +351,16 @@ test "Nested shadow restore ordering" {
     // decl(x) at depth 2, index 5 — shadows depth 1
     try parsedQ.push(Token.lex(TK.identifier, 1, 0));
     parsedQ.list.items[5] = resolution.declare(5, parsedQ.list.items[5]);
-    try expectEqual(5, resolution.declarations[1].decl_index);
+    try expectEqual(5, resolution.declarations[1]);
 
-    // End inner block scope — restores to depth 1's decl at index 3
+    // End inner block scope — restores to depth 1's tail at index 3
     try resolution.endScope(6);
-    try expectEqual(3, resolution.declarations[1].decl_index);
+    try expectEqual(3, resolution.declarations[1]);
 
-    // End outer function scope — restores to depth 0's decl at index 1
+    // End outer function scope — restores to depth 0's tail at index 1
     try parsedQ.push(Token.lex(TK.grp_dedent, 0, 0)); // index 6
     try resolution.endScope(7);
-    try expectEqual(1, resolution.declarations[1].decl_index);
+    try expectEqual(1, resolution.declarations[1]);
 
     // ref(x) at index 7 — resolves to outer decl at 1
     try parsedQ.push(Token.lex(TK.identifier, 1, 0));
@@ -379,12 +388,12 @@ test "Block scope cleanup" {
 
     try parsedQ.push(Token.lex(TK.identifier, 1, 0)); // index 3: shadow x
     parsedQ.list.items[3] = resolution.declare(3, parsedQ.list.items[3]);
-    try expectEqual(3, resolution.declarations[1].decl_index);
+    try expectEqual(3, resolution.declarations[1]);
 
     try resolution.endScope(4);
 
     // Restored to outer x@1
-    try expectEqual(1, resolution.declarations[1].decl_index);
+    try expectEqual(1, resolution.declarations[1]);
 }
 
 test "Shadowing disallowed mode — parent scope shadow errors" {

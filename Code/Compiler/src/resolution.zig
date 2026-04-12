@@ -50,14 +50,6 @@ pub fn applyOffset(comptime signedOffsetT: anytype, index: u32, offset: anytype)
     return @bitCast(signedIndex + signedOffset);
 }
 
-pub const DeclEntry = packed struct(u64) {
-    decl_index: u32,
-    chain_tail: u24,
-    _padding: u8 = 0,
-
-    const ZERO: DeclEntry = .{ .decl_index = 0, .chain_tail = 0, ._padding = 0 };
-};
-
 pub const ShadowMode = enum { allow, disallow };
 
 pub const Resolution = ResolutionImpl(.allow);
@@ -67,7 +59,10 @@ pub fn ResolutionImpl(comptime shadow_mode: ShadowMode) type {
         const Self = @This();
         allocator: std.mem.Allocator,
 
-        declarations: []DeclEntry,
+        // Per symbol-id: index of the current chain tail, or UNDECLARED_SENTINEL.
+        // The tail is either the declaration itself (flags.declaration set, no uses yet)
+        // or the most recent resolved use, whose prev_offset lands on the declaration in one hop.
+        declarations: []u32,
         unresolved: []u32,
 
         shadow_masks: []u64,
@@ -79,8 +74,8 @@ pub fn ResolutionImpl(comptime shadow_mode: ShadowMode) type {
         scopeId: u16,
 
         pub fn init(allocator: std.mem.Allocator, maxSymbols: u32, parsedQ: *parser.TokenQueue) !Self {
-            const declarations = try allocator.alloc(DeclEntry, maxSymbols);
-            @memset(declarations, DeclEntry.ZERO);
+            const declarations = try allocator.alloc(u32, maxSymbols);
+            @memset(declarations, UNDECLARED_SENTINEL);
 
             const unresolved = try allocator.alloc(u32, maxSymbols);
             @memset(unresolved, UNDECLARED_SENTINEL);
@@ -162,10 +157,11 @@ pub fn ResolutionImpl(comptime shadow_mode: ShadowMode) type {
                     const prev_offset = decl_token.data.ident.prev_offset;
 
                     if (prev_offset == UNDECLARED_SENTINEL) {
-                        self.declarations[sym_id] = DeclEntry.ZERO;
+                        self.declarations[sym_id] = UNDECLARED_SENTINEL;
                     } else {
-                        const prev_decl_index = applyOffset(i16, i, prev_offset);
-                        self.declarations[sym_id] = .{ .decl_index = prev_decl_index, .chain_tail = 0 };
+                        // prev_offset on a shadowing declaration points to the outer-scope tail
+                        // (declaration or most recent use) that was active when this shadow started.
+                        self.declarations[sym_id] = applyOffset(i16, i, prev_offset);
                     }
                 }
 
@@ -204,17 +200,17 @@ pub fn ResolutionImpl(comptime shadow_mode: ShadowMode) type {
             token: tok.Token,
         ) if (shadow_mode == .disallow) error{ShadowingDisallowed}!tok.Token else tok.Token {
             const sym_id = token.data.ident.symbol_id;
-            const entry = self.declarations[sym_id];
-            const prev_decl_idx = entry.decl_index;
+            const prev_tail = self.declarations[sym_id];
 
             var arg1: u16 = UNDECLARED_SENTINEL;
 
-            if (prev_decl_idx != UNDECLARED_SENTINEL) {
-                // Shadowing a previous declaration.
+            if (prev_tail != UNDECLARED_SENTINEL) {
+                // Shadowing a previous declaration. Encode the outer tail so revertShadows
+                // restores the full chain, not just the outer declaration.
                 if (shadow_mode == .disallow) {
                     return error.ShadowingDisallowed;
                 }
-                arg1 = calcOffset(u16, prev_decl_idx, index);
+                arg1 = calcOffset(u16, prev_tail, index);
                 self.setShadowBit(index);
             } else if (shadow_mode == .disallow) {
                 // Track all declarations for scope cleanup so sibling scopes can reuse names.
@@ -223,7 +219,7 @@ pub fn ResolutionImpl(comptime shadow_mode: ShadowMode) type {
 
             const result = token.newDeclaration(arg1);
 
-            self.declarations[sym_id] = .{ .decl_index = index, .chain_tail = 0 };
+            self.declarations[sym_id] = index;
 
             std.log.debug("Declared [{any}] at {any}", .{ token, index });
 
@@ -238,31 +234,23 @@ pub fn ResolutionImpl(comptime shadow_mode: ShadowMode) type {
 
                 while (unresolvedRefIdx != UNDECLARED_SENTINEL) {
                     if (unresolvedRefIdx >= currentScope.start) {
-                        const ref = self.parsedQ.list.items[unresolvedRefIdx];
+                        const nextUnresolved_prev_offset = self.parsedQ.list.items[unresolvedRefIdx].data.ident.prev_offset;
+
                         const offset = calcOffset(u16, declarationIndex, unresolvedRefIdx);
+                        self.parsedQ.list.items[unresolvedRefIdx].data.ident.symbol_id = sym_id;
+                        self.parsedQ.list.items[unresolvedRefIdx].data.ident.prev_offset = offset;
+                        self.parsedQ.list.items[unresolvedRefIdx].data.ident.next_offset = 0;
 
-                        self.parsedQ.list.items[unresolvedRefIdx] = tok.Token{
-                            .kind = ref.kind,
-                            .data = .{ .ident = .{ .symbol_id = sym_id, .prev_offset = @truncate(offset), .next_offset = 0 } },
-                            .flags = ref.flags,
-                        };
+                        // Patch use-chain: previous tail's next_offset points to this resolved ref.
+                        const tail = self.declarations[sym_id];
+                        self.parsedQ.list.items[tail].data.ident.next_offset = calcOffset(u16, unresolvedRefIdx, tail);
+                        self.declarations[sym_id] = unresolvedRefIdx;
 
-                        // Patch use-chain: this resolved ref becomes part of the chain.
-                        const entry = self.declarations[sym_id];
-                        const prev_index = if (entry.chain_tail != 0) entry.chain_tail else declarationIndex;
-                        const prev = self.parsedQ.list.items[prev_index];
-                        self.parsedQ.list.items[prev_index] = tok.Token{
-                            .kind = prev.kind,
-                            .data = .{ .ident = .{ .symbol_id = prev.data.ident.symbol_id, .prev_offset = prev.data.ident.prev_offset, .next_offset = calcOffset(u16, unresolvedRefIdx, prev_index) } },
-                            .flags = prev.flags,
-                        };
-                        self.declarations[sym_id] = .{ .decl_index = declarationIndex, .chain_tail = @intCast(unresolvedRefIdx) };
-
-                        if (ref.data.ident.prev_offset == UNDECLARED_SENTINEL) {
-                            unresolvedRefIdx = ref.data.ident.prev_offset;
+                        if (nextUnresolved_prev_offset == UNDECLARED_SENTINEL) {
+                            unresolvedRefIdx = UNDECLARED_SENTINEL;
                             break;
                         } else {
-                            unresolvedRefIdx = applyOffset(i16, unresolvedRefIdx, ref.data.ident.prev_offset);
+                            unresolvedRefIdx = applyOffset(i16, unresolvedRefIdx, nextUnresolved_prev_offset);
                         }
                     } else {
                         break;
@@ -274,10 +262,9 @@ pub fn ResolutionImpl(comptime shadow_mode: ShadowMode) type {
 
         pub fn resolve(self: *Self, index: u32, token: tok.Token) tok.Token {
             const sym_id = token.data.ident.symbol_id;
-            const entry = self.declarations[sym_id];
-            const decl_idx = entry.decl_index;
+            const tail = self.declarations[sym_id];
 
-            if (decl_idx == UNDECLARED_SENTINEL) {
+            if (tail == UNDECLARED_SENTINEL) {
                 // No declaration found. Chain into unresolved list.
                 const prev_unresolved = self.unresolved[sym_id];
                 const chain_offset: u16 = if (prev_unresolved != UNDECLARED_SENTINEL)
@@ -294,21 +281,20 @@ pub fn ResolutionImpl(comptime shadow_mode: ShadowMode) type {
                 };
             }
 
-            // Normal resolution.
+            // Derive the declaration from the tail: it either is the declaration (no uses yet)
+            // or a resolved use whose prev_offset points straight at the declaration.
+            const tailToken = self.parsedQ.list.items[tail];
+            const decl_idx = if (tailToken.flags.declaration)
+                tail
+            else
+                applyOffset(i16, tail, tailToken.data.ident.prev_offset);
+
             const prev_offset = calcOffset(u16, decl_idx, index);
 
             // Patch use-chain: previous tail's next_offset points to this reference.
-            const tail = if (entry.chain_tail != 0) entry.chain_tail else decl_idx;
-            if (tail != 0) {
-                const prev = self.parsedQ.list.items[tail];
-                self.parsedQ.list.items[tail] = tok.Token{
-                    .kind = prev.kind,
-                    .data = .{ .ident = .{ .symbol_id = prev.data.ident.symbol_id, .prev_offset = prev.data.ident.prev_offset, .next_offset = calcOffset(u16, index, tail) } },
-                    .flags = prev.flags,
-                };
-            }
+            self.parsedQ.list.items[tail].data.ident.next_offset = calcOffset(u16, index, tail);
 
-            self.declarations[sym_id] = .{ .decl_index = decl_idx, .chain_tail = @intCast(index) };
+            self.declarations[sym_id] = index;
 
             const signedOffset: i16 = @bitCast(prev_offset);
             std.log.debug("Resolved [{any}] to offset {any}", .{ token, signedOffset });

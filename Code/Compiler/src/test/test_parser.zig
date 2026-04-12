@@ -236,11 +236,14 @@ test "Parse eager fn inline expansion" {
     var b_param = Token.ident(TK.identifier, 2, 0, 2);
     b_param.flags.declaration = true;
 
-    // Inline expansion shadow decls: a@9 next→12 (+3), b@11 next→13 (+2)
-    var declA = Token.ident(TK.identifier, 1, 0xFFFA, 3); // prev chains to a@3 (offset -6)
+    // Inline expansion shadow decls: a@9 next→12 (+3), b@11 next→13 (+2).
+    // prev_offset chains to the previous tail of the symbol chain, not the original decl:
+    //   a's chain tail after the body is the body ref a@5; declA@9 chains there (offset -4).
+    //   b's chain tail is the body ref b@6; declB@11 chains there (offset -5).
+    var declA = Token.ident(TK.identifier, 1, 0xFFFC, 3); // prev chains to a@5 (offset -4)
     declA.flags.declaration = true;
     declA.flags.splice = true;
-    var declB = Token.ident(TK.identifier, 2, 0xFFF9, 2); // prev chains to b@4 (offset -7)
+    var declB = Token.ident(TK.identifier, 2, 0xFFFB, 2); // prev chains to b@6 (offset -5)
     declB.flags.declaration = true;
     declB.flags.splice = true;
 
