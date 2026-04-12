@@ -1,3 +1,24 @@
+// Lexer — see Docs/Specs/lexer-spec.md for the full specification.
+//
+// Turns source bytes into two parallel token streams:
+//   syntaxQ — semantic tokens the parser consumes (identifiers, literals, operators, indent/dedent).
+//   auxQ   — formatting/metadata tokens (whitespace, comments, newline cross-refs) for formatter + errors.
+// Streams are synchronized via a 1-bit `alt` flag: when set, the next token lives in the other queue,
+// so a single-pass walk can visit both in order.
+//
+// Tokens are 64 bits: [kind 8][flags 8][payload 48]. Payload layouts vary by kind
+// (value, split, or triple) — see token.zig and the spec's Token Structure section.
+// Identifiers/strings/numbers/floats are interned at lex time; tokens carry indices, not text.
+//
+// Input arrives as chunks. Lines never split across chunks, so no mid-token state is carried;
+// the lexer yields after each line (IDE-incremental). Indentation uses a u64 "tiny stack"
+// (3 bits × 21 levels, ≤7 spaces per level; tabs are errors). Newlines appear in both queues
+// and cross-index each other: syntax newline → aux index + prev-token count; aux newline → line number + char index.
+//
+// Dispatch is a switch on the first character of each token (digits, letters, quote, symbols, grouping).
+// Keywords (`if`, `else`, `fn`) are recognized in token_keyword_or_identifier before falling through
+// to general identifier lexing.
+
 const std = @import("std");
 const tok = @import("token.zig");
 const q = @import("queue.zig");

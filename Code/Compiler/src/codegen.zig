@@ -1,3 +1,35 @@
+// Codegen — see Docs/Specs/codegen-spec.md for the full specification.
+//
+// Walks the parser's postfix parsedQ in a single linear pass and emits AArch64 (ARM64)
+// machine code directly into `objCode: []u32` — no IR. Targets macOS/Darwin syscall ABI.
+//
+// Register allocation is stack-based and tracked with two fields:
+//   regStack (u64)     — a packed stack of 5-bit register IDs. Operands push; operators pop.
+//   registerMap (u32)  — bitmap of live registers; getFreeReg allocates the lowest free one.
+// x0/x1/x2 are reserved at start (syscall args + string const addressing).
+//
+// Token handling:
+//   Literals          — MOVZ the inline value (lit_number) or length + ADRP placeholder (lit_string).
+//   Identifier decl   — allocate a reg (or pop, if splice=true for inline-expansion bindings)
+//                       and write the reg ID back into the parsedQ token so later refs can read it.
+//   Identifier ref    — follow arg1 back to the declaration token, read its stored reg ID, push it.
+//   Operators         — pop operand regs, emit ADD/MUL/CMP, push result.
+//   kw_fn             — skip the next `bodyLength` tokens; function bodies are templates already
+//                       inlined at call sites by the parser.
+//   Conditionals      — see branch fixup below.
+//
+// Branch fixup (conditional targets aren't known at emit time):
+//   Each pending branch is stored in objCode as a BranchLabel{ cond:4, offset:28 } where `offset`
+//   points to the previous pending branch — a singly-linked list threaded through the instruction
+//   stream itself. Four tails track lists: unknown, fail, end, pass.
+//   Flow: op_gt emits → unknown · op_colon_assoc moves unknown → fail · grp_dedent resolves fail
+//   to current index and (if kw_else follows) pushes an AL jump onto end · final grp_dedent
+//   resolves end. Resolution rewrites each BranchLabel into a real b.cond.
+//
+// Constant pool fixup: string constants are placed after code, page-aligned (16KB). During emit
+// a placeholder + linked-list link is stashed in the parsedQ token; a post-pass walks the chain
+// and rewrites placeholders with ADDI using the final pool address.
+
 const std = @import("std");
 const arm = @import("arm.zig");
 const tok = @import("token.zig");

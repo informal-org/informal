@@ -1,3 +1,33 @@
+// Parser — see Docs/Specs/parser-spec.md for the full specification.
+//
+// Recursive Pratt (top-down operator precedence) parser. Single-pass, no backtracking,
+// one-token lookahead. Consumes the lexer's syntaxQ and emits `parsedQ` in postfix order
+// (operands before operators) — no heap AST, the flat queue feeds codegen directly.
+// `parsedQ[0]` is always aux_stream_start and acts as the null sentinel for symbol resolution.
+// A parallel `offsetQ` (u16 per token) records each parsed token's distance back to its syntaxQ origin.
+//
+// Dispatch uses two compile-time tables keyed by token Kind (first 64 kinds only; aux tokens are skipped):
+//   tokenParsers[Kind] → { prefix: ParserType, infix: ParserType, power: Power }   (packed u24)
+//   parseFns[ParserType] → handler fn
+// The handler recurses via `parse(minBindingPower)` for sub-expressions. Binding powers run
+// None(0) · Separator(10) · Assign(20) · Or(30) · And(40) · Equality(50) · Comparison(60)
+// · Additive(70) · Multiplicative(80) · Exp(90) · Unary(100) · Member(110) · Call(120).
+//
+// Symbol resolution is interleaved: every identifier goes through resolution.resolve/declare,
+// which writes a signed i16 offset (arg1) from each reference to its declaration.
+// See resolution.zig / resolution-spec.md.
+//
+// Special shapes:
+//   grp_indent / grp_dedent — emitted around blocks; start token's arg0 is patched with the block's end index.
+//   kw_if / kw_else        — condition is emitted first (postfix), then branch bodies via colon_assoc.
+//   kw_fn                  — declares the name in enclosing scope, opens a function scope for params,
+//                            header token stores arg0=bodyLength, arg1=(isLazy<<15)|paramCount.
+//                            Functions are inlined at call sites (see inline-expansion-spec.md);
+//                            bodies in parsedQ are templates and skipped by codegen.
+//
+// Assumptions from the lexer: unary minus is pre-normalized to op_unary_minus; `call_identifier`
+// guarantees the next token is grp_open_paren; indentation is already indent/dedent tokens.
+
 const tok = @import("token.zig");
 const Kind = tok.Kind;
 const std = @import("std");
