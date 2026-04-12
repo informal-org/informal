@@ -83,6 +83,10 @@ Registers x0, x1, x2 are reserved at codegen start (used for syscall arguments a
 
 **`kw_fn`**: Set `skip_count = bodyLength` (from `arg0`). The next `bodyLength` tokens are skipped — function bodies are inlined by the parser at call sites, not executed in place.
 
+### Grouping chain tokens
+
+**`grp_open_paren`, `grp_close_paren`, `sep_comma`, `grp_open_bracket`, `grp_close_bracket`, `grp_open_brace`, `grp_close_brace`**: No-op. These tokens carry structural metadata (arg count, chain offsets) used by the parser for inline expansion. They do not emit code.
+
 ### Conditionals
 
 **`kw_if`**: Set `ctx_current_block_kind = kw_if`. The condition's comparison and branch instructions have already been emitted (postfix order — condition precedes `kw_if`).

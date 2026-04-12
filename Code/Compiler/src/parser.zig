@@ -57,6 +57,16 @@ pub const Parser = struct {
     // For each token in the parsedQ, indicates where to find it in the syntaxQ.
     offsetQ: *OffsetQueue,
 
+    // Grouping chain emission state. Each open pushes a frame; close pops and patches.
+    group_stack: [16]GroupFrame = undefined,
+    group_depth: u8 = 0,
+
+    const GroupFrame = struct {
+        open_idx: u32,
+        last_sep_idx: u32, // index of group_open or most recent sep_comma
+        arg_cnt: u16, // count of seps seen so far; final arg_cnt is computed on close
+    };
+
     const Power = enum(u8) {
         None = 0,
         Separator = 10,
@@ -261,15 +271,84 @@ pub const Parser = struct {
         try self.emit(resolved);
     }
 
+    fn emitGroupOpen(self: *Self, kind: Kind) !void {
+        assert(self.group_depth < self.group_stack.len);
+        const idx: u32 = @truncate(self.parsedQ.list.items.len);
+        self.group_stack[self.group_depth] = .{
+            .open_idx = idx,
+            .last_sep_idx = idx,
+            .arg_cnt = 0,
+        };
+        self.group_depth += 1;
+        try self.emit(Token.groupOpen(kind, 0, 0, 0));
+    }
+
+    fn emitGroupSep(self: *Self) !void {
+        assert(self.group_depth > 0);
+        const frame = &self.group_stack[self.group_depth - 1];
+        const sep_idx: u32 = @truncate(self.parsedQ.list.items.len);
+        frame.arg_cnt += 1;
+
+        // Patch previous link's next_sep.
+        const next_from_prev = rs.calcOffset(u16, sep_idx, frame.last_sep_idx);
+        if (frame.last_sep_idx == frame.open_idx) {
+            self.parsedQ.list.items[frame.last_sep_idx].data.group_open.next_sep = next_from_prev;
+        } else {
+            self.parsedQ.list.items[frame.last_sep_idx].data.group_sep.next_sep = next_from_prev;
+        }
+
+        const prev_sep_off = rs.calcOffset(u16, frame.last_sep_idx, sep_idx);
+        try self.emit(Token.groupSep(frame.arg_cnt, prev_sep_off, 0));
+        frame.last_sep_idx = sep_idx;
+    }
+
+    fn emitGroupClose(self: *Self, kind: Kind) !void {
+        assert(self.group_depth > 0);
+        self.group_depth -= 1;
+        const frame = self.group_stack[self.group_depth];
+        const close_idx: u32 = @truncate(self.parsedQ.list.items.len);
+
+        // Non-nullary iff any tokens were emitted between open and close.
+        const saw_args = close_idx > frame.open_idx + 1;
+        const arg_cnt: u16 = if (saw_args) frame.arg_cnt + 1 else 0;
+
+        // Patch last link's next_sep → close.
+        const next_from_prev = rs.calcOffset(u16, close_idx, frame.last_sep_idx);
+        if (frame.last_sep_idx == frame.open_idx) {
+            self.parsedQ.list.items[frame.last_sep_idx].data.group_open.next_sep = next_from_prev;
+        } else {
+            self.parsedQ.list.items[frame.last_sep_idx].data.group_sep.next_sep = next_from_prev;
+        }
+
+        // Patch open's arg_cnt and close_offset.
+        const close_off = rs.calcOffset(u16, close_idx, frame.open_idx);
+        self.parsedQ.list.items[frame.open_idx].data.group_open.arg_cnt = arg_cnt;
+        self.parsedQ.list.items[frame.open_idx].data.group_open.close_offset = close_off;
+
+        const open_off = rs.calcOffset(u16, frame.open_idx, close_idx);
+        const prev_sep_off = rs.calcOffset(u16, frame.last_sep_idx, close_idx);
+        try self.emit(Token.groupClose(kind, open_off, prev_sep_off));
+    }
+
     fn callExpr(self: *Self, token: Token) anyerror!void {
         const openParen = self.syntaxQ.pop();
-        // TODO: Do we need to be handling the parentheses here?
         std.debug.assert(openParen.kind == Kind.grp_open_paren);
-        try self.parse(Power.None.val());
+        try self.emitGroupOpen(Kind.grp_open_paren);
+        if (self.syntaxQ.peek().kind != Kind.grp_close_paren) {
+            while (true) {
+                try self.parse(Power.Separator.val());
+                const next = self.syntaxQ.peek();
+                if (next.kind == Kind.sep_comma) {
+                    _ = self.syntaxQ.pop();
+                    try self.emitGroupSep();
+                } else break;
+            }
+        }
         const closeParen = self.syntaxQ.peek();
         if (closeParen.kind == Kind.grp_close_paren) {
             _ = self.syntaxQ.pop();
         }
+        try self.emitGroupClose(Kind.grp_close_paren);
         try self.emit(token);
     }
 
@@ -284,19 +363,51 @@ pub const Parser = struct {
     }
 
     fn groupParen(self: *Self, _: Token) anyerror!void {
-        try self.parse(Power.None.val());
-        // TODO: There needs to be additional handling for commas in an inner loop here probably.
+        try self.emitGroupOpen(Kind.grp_open_paren);
+        if (self.syntaxQ.peek().kind != Kind.grp_close_paren) {
+            while (true) {
+                try self.parse(Power.Separator.val());
+                const next = self.syntaxQ.peek();
+                if (next.kind == Kind.sep_comma) {
+                    _ = self.syntaxQ.pop();
+                    try self.emitGroupSep();
+                } else break;
+            }
+        }
         assert(self.syntaxQ.pop().kind == Kind.grp_close_paren);
+        try self.emitGroupClose(Kind.grp_close_paren);
     }
 
     fn groupBracket(self: *Self, _: Token) anyerror!void {
-        try self.parse(Power.None.val());
+        try self.emitGroupOpen(Kind.grp_open_bracket);
+        if (self.syntaxQ.peek().kind != Kind.grp_close_bracket) {
+            while (true) {
+                try self.parse(Power.Separator.val());
+                const next = self.syntaxQ.peek();
+                if (next.kind == Kind.sep_comma) {
+                    _ = self.syntaxQ.pop();
+                    try self.emitGroupSep();
+                } else break;
+            }
+        }
         assert(self.syntaxQ.pop().kind == Kind.grp_close_bracket);
+        try self.emitGroupClose(Kind.grp_close_bracket);
     }
 
     fn groupBrace(self: *Self, _: Token) anyerror!void {
-        try self.parse(Power.None.val());
+        try self.emitGroupOpen(Kind.grp_open_brace);
+        if (self.syntaxQ.peek().kind != Kind.grp_close_brace) {
+            while (true) {
+                try self.parse(Power.Separator.val());
+                const next = self.syntaxQ.peek();
+                if (next.kind == Kind.sep_comma) {
+                    _ = self.syntaxQ.pop();
+                    try self.emitGroupSep();
+                } else break;
+            }
+        }
         assert(self.syntaxQ.pop().kind == Kind.grp_close_brace);
+        try self.emitGroupClose(Kind.grp_close_brace);
     }
 
     fn indentBlock(self: *Self, _: Token) anyerror!void {
@@ -350,28 +461,37 @@ pub const Parser = struct {
         const headerIdx: u32 = @truncate(self.parsedQ.list.items.len);
         try self.emit(Token.lex(Kind.kw_fn, 0, 0));
 
-        // 3. Parameters — track kinds for lazy detection
+        // 3. Parameters — track kinds for lazy detection. Emit the param list
+        //    as a group chain (open, decls with seps, close).
         assert(self.syntaxQ.pop().kind == Kind.grp_open_paren);
         try self.resolution.startScope(rs.Scope{ .start = headerIdx, .scopeType = .function });
+        try self.emitGroupOpen(Kind.grp_open_paren);
         var paramCount: u16 = 0;
         var lazyParamDeclIdx: u32 = 0;
         var lazyCount: u16 = 0;
         var eagerCount: u16 = 0;
-        while (self.syntaxQ.peek().kind != Kind.grp_close_paren) {
-            if (self.syntaxQ.peek().kind == Kind.sep_comma) _ = self.syntaxQ.pop();
-            const paramToken = self.syntaxQ.pop();
-            const paramIdx: u32 = @truncate(self.parsedQ.list.items.len);
-            const declParam = self.resolution.declare(paramIdx, paramToken);
-            try self.emit(declParam);
-            if (paramToken.kind == Kind.const_identifier) {
-                lazyParamDeclIdx = paramIdx;
-                lazyCount += 1;
-            } else {
-                eagerCount += 1;
+        if (self.syntaxQ.peek().kind != Kind.grp_close_paren) {
+            while (true) {
+                const paramToken = self.syntaxQ.pop();
+                const paramIdx: u32 = @truncate(self.parsedQ.list.items.len);
+                const declParam = self.resolution.declare(paramIdx, paramToken);
+                try self.emit(declParam);
+                if (paramToken.kind == Kind.const_identifier) {
+                    lazyParamDeclIdx = paramIdx;
+                    lazyCount += 1;
+                } else {
+                    eagerCount += 1;
+                }
+                paramCount += 1;
+                const next = self.syntaxQ.peek();
+                if (next.kind == Kind.sep_comma) {
+                    _ = self.syntaxQ.pop();
+                    try self.emitGroupSep();
+                } else break;
             }
-            paramCount += 1;
         }
         _ = self.syntaxQ.pop(); // close paren
+        try self.emitGroupClose(Kind.grp_close_paren);
         _ = self.syntaxQ.pop(); // op_colon_assoc
 
         // 4. Parse body — use Separator power to stop at newlines for single-line bodies.
@@ -430,8 +550,14 @@ pub const Parser = struct {
         const paramCount: u32 = metadata & 0xFF;
         assert(paramCount == 2);
 
-        const param1 = self.parsedQ.list.items[declIndex + 2];
-        const param2 = self.parsedQ.list.items[declIndex + 3];
+        // Param list is emitted as a group chain: group_open at declIndex+2,
+        // followed by the first param decl, sep_comma, second param decl, group_close.
+        const openIdx: u32 = declIndex + 2;
+        const openToken = self.parsedQ.list.items[openIdx];
+        const closeIdx: u32 = rs.applyOffset(i16, openIdx, openToken.data.group_open.close_offset);
+        const sepIdx: u32 = rs.applyOffset(i16, openIdx, openToken.data.group_open.next_sep);
+        const param1 = self.parsedQ.list.items[openIdx + 1];
+        const param2 = self.parsedQ.list.items[sepIdx + 1];
 
         if (isLazy) {
             // Lazy expansion: one eager param bound to left operand, splice lazy param from syntaxQ.
@@ -444,8 +570,8 @@ pub const Parser = struct {
             eagerDecl.flags.splice = true;
             try self.emit(eagerDecl);
 
-            // Walk body template.
-            const bodyStart: u32 = declIndex + 2 + paramCount;
+            // Walk body template. Body starts right after the param group's close.
+            const bodyStart: u32 = closeIdx + 1;
             const bodyEnd: u32 = declIndex + 1 + bodyLength;
             try self.walkBodyTemplate(bodyStart, bodyEnd, token);
 
@@ -472,8 +598,8 @@ pub const Parser = struct {
             decl2.flags.splice = true;
             try self.emit(decl2);
 
-            // Walk body template.
-            const bodyStart: u32 = declIndex + 2 + paramCount;
+            // Walk body template. Body starts right after the param group's close.
+            const bodyStart: u32 = closeIdx + 1;
             const bodyEnd: u32 = declIndex + 1 + bodyLength;
             try self.walkBodyTemplate(bodyStart, bodyEnd, token);
 

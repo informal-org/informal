@@ -402,6 +402,7 @@ pub const Codegen = struct {
                     }
                 },
                 TK.aux_stream_start => {},
+                TK.grp_open_paren, TK.grp_close_paren, TK.sep_comma, TK.grp_open_bracket, TK.grp_close_bracket, TK.grp_open_brace, TK.grp_close_brace => {},
                 else => {
                     tok.print_token("Unhandled token in Codegen: {any}\n", token, self.buffer);
                 },

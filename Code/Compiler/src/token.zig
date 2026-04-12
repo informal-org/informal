@@ -126,8 +126,12 @@ pub const Data = packed union {
     // Aux token source positions (whitespace, newline, indentation).
     aux: Aux,
 
-    // Sequence data for grouping/separator tokens (3×u16 layout).
-    sequence: Sequence,
+    // Grouping chain tokens (grp_open_*, sep_comma, grp_close_*).
+    // Every element of a group chain carries directional links so an
+    // expansion site can navigate args in O(1).
+    group_open: GroupOpen,
+    group_sep: GroupSep,
+    group_close: GroupClose,
 
     pub const Ident = packed struct(u48) {
         symbol_id: u16,
@@ -160,17 +164,24 @@ pub const Data = packed union {
         length: u16,
     };
 
-    pub const Sequence = packed struct(u48) {
-        prev_group: u16,
-        prev_sep: u16,
-        next_sep: u16,
+    pub const GroupOpen = packed struct(u48) {
+        arg_cnt: u16, // total args (0 = nullary)
+        next_sep: u16, // fwd offset to first sep_comma (or close if arg_cnt <= 1)
+        close_offset: u16, // fwd offset to matching close (O(1) skip)
+    };
+
+    pub const GroupSep = packed struct(u48) {
+        arg_idx: u16, // 0-based index of the argument this comma precedes
+        prev_sep: u16, // back offset to previous sep_comma or group open
+        next_sep: u16, // fwd offset to next sep_comma or group close
+    };
+
+    pub const GroupClose = packed struct(u48) {
+        open_offset: u16, // back offset to matching group open
+        prev_sep: u16, // back offset to last sep_comma (or open if arg_cnt <= 1)
+        _reserved: u16 = 0,
     };
 };
-
-// Unsigned offsets. All 'previous' ones are assumed as negative. 0 indicates not-present.
-// Previous Grouping Start, Previous Separator, Next Separator
-// Used for ( ) [ ] ,
-pub const SequenceData = Data.Sequence;
 
 pub const Flags = packed struct(u8) {
     alt: bool = false, // Indicates the next token is in the other queue.
@@ -200,24 +211,6 @@ pub const Token = packed struct(u64) {
             .kind = kind,
             .data = .{ .literal = .{ .value = value, .length = offset } },
             .flags = Flags.empty(),
-        };
-    }
-
-    pub fn sep(self: Token, index: u32, sepIndex: u32, grpIndex: u32) Token {
-        // Flip the substractions to get positive results.
-        const prevGrpStart = if (grpIndex != 0) index - grpIndex else 0;
-        const prevSep = if (sepIndex != 0) index - sepIndex else 0;
-
-        std.debug.assert(prevGrpStart <= std.math.maxInt(u16));
-        std.debug.assert(prevSep <= std.math.maxInt(u16));
-        return Token{
-            .kind = self.kind,
-            .data = .{ .sequence = .{
-                .prev_group = @truncate(prevGrpStart),
-                .prev_sep = @truncate(prevSep),
-                .next_sep = 0,
-            } },
-            .flags = self.flags,
         };
     }
 
@@ -252,6 +245,30 @@ pub const Token = packed struct(u64) {
             .flags = Flags.empty(),
         };
     }
+
+    pub fn groupOpen(kind: Kind, arg_cnt: u16, next_sep: u16, close_offset: u16) Token {
+        return Token{
+            .kind = kind,
+            .data = .{ .group_open = .{ .arg_cnt = arg_cnt, .next_sep = next_sep, .close_offset = close_offset } },
+            .flags = Flags.empty(),
+        };
+    }
+
+    pub fn groupSep(arg_idx: u16, prev_sep: u16, next_sep: u16) Token {
+        return Token{
+            .kind = Kind.sep_comma,
+            .data = .{ .group_sep = .{ .arg_idx = arg_idx, .prev_sep = prev_sep, .next_sep = next_sep } },
+            .flags = Flags.empty(),
+        };
+    }
+
+    pub fn groupClose(kind: Kind, open_offset: u16, prev_sep: u16) Token {
+        return Token{
+            .kind = kind,
+            .data = .{ .group_close = .{ .open_offset = open_offset, .prev_sep = prev_sep } },
+            .flags = Flags.empty(),
+        };
+    }
 };
 
 pub const TokenWriter = struct {
@@ -280,6 +297,21 @@ pub const TokenWriter = struct {
             },
             TK.sep_newline => {
                 try std.fmt.format(writer, "{s} {d}, {d} {s}", .{ @tagName(value.kind), value.data.newline.aux_index, value.data.newline.prev_offset, alt });
+            },
+            TK.grp_open_paren, TK.grp_open_bracket, TK.grp_open_brace => {
+                const nextSep: i16 = @bitCast(value.data.group_open.next_sep);
+                const closeOff: i16 = @bitCast(value.data.group_open.close_offset);
+                try std.fmt.format(writer, "{s} {s} [args={d} next_sep={d} close={d}]", .{ @tagName(value.kind), alt, value.data.group_open.arg_cnt, nextSep, closeOff });
+            },
+            TK.sep_comma => {
+                const prevSep: i16 = @bitCast(value.data.group_sep.prev_sep);
+                const nextSep: i16 = @bitCast(value.data.group_sep.next_sep);
+                try std.fmt.format(writer, "{s} {s} [arg_idx={d} prev_sep={d} next_sep={d}]", .{ @tagName(value.kind), alt, value.data.group_sep.arg_idx, prevSep, nextSep });
+            },
+            TK.grp_close_paren, TK.grp_close_bracket, TK.grp_close_brace => {
+                const openOff: i16 = @bitCast(value.data.group_close.open_offset);
+                const prevSep: i16 = @bitCast(value.data.group_close.prev_sep);
+                try std.fmt.format(writer, "{s} {s} [open={d} prev_sep={d}]", .{ @tagName(value.kind), alt, openOff, prevSep });
             },
             else => {
                 try std.fmt.format(writer, "{s} {s}", .{ @tagName(value.kind), alt });

@@ -83,12 +83,12 @@ Call         = 120  (reserved, not yet wired)
 |---------|--------|----------|
 | `literal` | `lit_number`, `lit_string`, `lit_bool`, `lit_null` | Emit token directly |
 | `identifier` | `identifier`, `const_identifier` | Call `resolution.resolve()`; emit resolved token |
-| `callExpr` | `call_identifier` | Pop & assert `grp_open_paren`; `parse(None)`; pop `grp_close_paren`; emit identifier |
+| `callExpr` | `call_identifier` | Emit paren group chain (`grp_open_paren`, args separated by `sep_comma`, `grp_close_paren`); emit identifier afterwards |
 | `unaryOp` | `op_not`, `op_unary_minus` | `parse(Unary)`; emit operator (postfix) |
 | `skipNewLine` | `sep_newline` | `parse(None)` — newline at expression start is skipped |
-| `groupParen` | `grp_open_paren` | `parse(None)`; pop & assert `grp_close_paren` |
-| `groupBracket` | `grp_open_bracket` | `parse(None)`; pop & assert `grp_close_bracket` |
-| `groupBrace` | `grp_open_brace` | `parse(None)`; pop & assert `grp_close_brace` |
+| `groupParen` | `grp_open_paren` | Emit `grp_open_paren`; loop `parse(Separator)` + emit `sep_comma` until `grp_close_paren`; emit `grp_close_paren` |
+| `groupBracket` | `grp_open_bracket` | Same shape as `groupParen` with bracket tokens |
+| `groupBrace` | `grp_open_brace` | Same shape as `groupParen` with brace tokens |
 | `indentBlock` | `grp_indent` | See Indentation Blocks below |
 | `kwIf` | `kw_if` | See Conditionals below |
 | `kwElse` | `kw_else` | Errors if encountered as standalone prefix (must be consumed by `kwIf`) |
@@ -106,6 +106,38 @@ Call         = 120  (reserved, not yet wired)
 | `opIdentifierInfix` | `const_identifier`, `op_identifier` | Fexpr-style macro expansion — see Inline Expansion below |
 
 ---
+
+## Grouping Chain Emission
+
+Every `(…)`, `[…]`, and `{…}` group in `parsedQ` is a bidirectionally linked
+chain of tokens: the opener, each top-level `sep_comma` between args, and the
+matching close. Handlers emit tokens via three helpers:
+
+- `emitGroupOpen(kind)`: push a stack frame with the emit index; emit a
+  `group_open` token with placeholder `arg_cnt`, `next_sep`, `close_offset`.
+- `emitGroupSep()`: patch the last link's `next_sep` to point at the new
+  `sep_comma`; emit a `sep_comma` with `arg_idx` (1-based post of the
+  preceding arg), `prev_sep` back to the last link, and zero `next_sep`.
+- `emitGroupClose(kind)`: patch the last link's `next_sep` to point at the
+  close; patch the opener's `arg_cnt` and `close_offset`; emit a
+  `group_close` with `open_offset` and `prev_sep`.
+
+A parser frame (`GroupFrame { open_idx, last_sep_idx, arg_cnt }`) is kept on
+a fixed-size `[16]` stack; depth beyond 16 is a hard error. `arg_cnt` is
+incremented on each separator and one more on close iff the group was
+non-nullary (nullary is detected by seeing the close token as the first
+emission after the open).
+
+All three grouping handlers — `groupParen`, `groupBracket`, `groupBrace` —
+share the same loop shape: emit open, conditionally parse at `Separator`
+power, on top-level `,` pop and `emitGroupSep`, on close pop and
+`emitGroupClose`. `callExpr` follows the same shape (after popping its
+leading `grp_open_paren`) and then emits the trailing `call_identifier`.
+`kwFn` uses the same helpers around its parameter list so definition-site
+and call-site chains are structurally identical.
+
+Top-level commas outside any group still dispatch to the ordinary
+`separator` infix handler.
 
 ## Indentation Blocks
 
@@ -167,8 +199,13 @@ fn name(param1, param2): body_expression
 
 **parsedQ layout:**
 ```
-name_decl kw_fn[body_length, metadata] param1_decl param2_decl ... [body tokens...]
+name_decl kw_fn[body_length, metadata] group_open param1_decl [sep_comma param_decl]* group_close [body tokens...]
 ```
+
+The parameter list is emitted as a grouping chain (see *Grouping Chain
+Emission*); the group's `arg_cnt` carries the parameter count and
+`close_offset` lets handlers skip from the opener to just before the body
+in O(1).
 
 The `kw_fn` header token uses the `Data.FnHeader` layout:
 - `body_length: u32` — token count of everything that follows the header up to and including the final body token. Used by codegen to skip over the template.
@@ -178,7 +215,9 @@ The `kw_fn` header token uses the `Data.FnHeader` layout:
 
 **Example:** `fn add(a, b): a + b` emits:
 ```
-decl(add) kw_fn[body_length=5, metadata=2] decl(a) decl(b) ref(a) ref(b) op_add
+decl(add) kw_fn[body_length=8, metadata=2]
+group_open(arg_cnt=2) decl(a) sep_comma(arg_idx=1) decl(b) group_close
+ref(a) ref(b) op_add
 ```
 
 ### Eager vs Lazy
@@ -220,7 +259,13 @@ Otherwise, read the `kw_fn` header at `declIndex + 1`:
 - `metadata` from `fn_header.metadata`; extract `isLazy = (metadata & 0x8000) != 0` and `paramCount = metadata & 0xFF`
 - Assert `paramCount == 2` (only two-parameter infix operators are wired)
 
-Parameter declarations are at `declIndex + 2` and `declIndex + 3`; eager vs lazy is distinguished by `kind` (`identifier` = eager, `const_identifier` = lazy).
+Parameter declarations are inside the param-list group at `declIndex + 2`
+(the `group_open`). For a 2-parameter infix operator, `param1` lives at
+`declIndex + 3` (right after the opener) and `param2` at `sep_idx + 1`,
+where `sep_idx = declIndex + 2 + group_open.next_sep`. `body_start` is
+`close_idx + 1` where `close_idx = declIndex + 2 + group_open.close_offset`.
+Eager vs lazy is distinguished by `kind` (`identifier` = eager,
+`const_identifier` = lazy).
 
 ### Step 2 — Bind parameters
 
@@ -385,7 +430,9 @@ Token = packed struct(u64) {
 | `Scope` | `grp_indent`, `grp_dedent` | `index: u32`, `scope_id: u16` |
 | `Newline` | Syntax-queue `sep_newline` | `aux_index: u32`, `prev_offset: u16` |
 | `Aux` | Aux tokens | `position: u32`, `length: u16` |
-| `Sequence` | Grouping/separators | `prev_group: u16`, `prev_sep: u16`, `next_sep: u16` |
+| `GroupOpen` | `grp_open_paren`, `grp_open_bracket`, `grp_open_brace` | `arg_cnt: u16`, `next_sep: u16` (to first sep or close), `close_offset: u16` (to matching close) |
+| `GroupSep` | `sep_comma` (inside a group) | `arg_idx: u16`, `prev_sep: u16`, `next_sep: u16` |
+| `GroupClose` | `grp_close_paren`, `grp_close_bracket`, `grp_close_brace` | `open_offset: u16`, `prev_sep: u16`, `_reserved: u16` |
 
 ---
 
