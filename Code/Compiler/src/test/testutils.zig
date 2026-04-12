@@ -47,3 +47,9 @@ pub fn pushAll(queue: *TokenQueue, tokens: []const LexToken) !void {
         try queue.push(token);
     }
 }
+
+/// Encode a backward offset of N positions as a u16 (two's-complement of -N).
+/// `back(2)` → 0xFFFE, `back(4)` → 0xFFFC, etc.
+pub fn back(n: u16) u16 {
+    return 0 -% n;
+}

@@ -12,6 +12,7 @@ const TK = Kind;
 const test_allocator = std.testing.allocator;
 const testutils = @import("./testutils.zig");
 const parser_mod = @import("../parser.zig");
+const back = testutils.back;
 
 fn testParse(buffer: []const u8, tokens: []const Token, aux: []const Token, expected: []const Token) !void {
     var syntaxQ = TokenQueue.init(test_allocator);
@@ -147,11 +148,11 @@ test "Parse fn definition" {
         Token.lex(TK.kw_fn, 8, 2), // bodyLength=8, paramCount=2
         Token.groupOpen(TK.grp_open_paren, 2, 2, 4),
         a_decl,
-        Token.groupSep(1, 0xFFFE, 2),
+        Token.groupSep(1, back(2), 2),
         b_decl,
-        Token.groupClose(TK.grp_close_paren, 0xFFFC, 0xFFFE),
-        Token.ident(TK.identifier, 1, 0xFFFC, 0), // a resolved (prev -4)
-        Token.ident(TK.identifier, 2, 0xFFFD, 0), // b resolved (prev -3)
+        Token.groupClose(TK.grp_close_paren, back(4), back(2)),
+        Token.ident(TK.identifier, 1, back(4), 0), // a resolved (prev -4)
+        Token.ident(TK.identifier, 2, back(3), 0), // b resolved (prev -3)
         tok.createToken(TK.op_add),
     };
 
@@ -187,7 +188,7 @@ test "Parse lazy fn with splice detection" {
     first_decl.flags.declaration = true;
     var second_decl = Token.ident(TK.const_identifier, 2, 0, 3); // next=3 → ref@9
     second_decl.flags.declaration = true;
-    var expectedSplice = Token.ident(TK.op_identifier, 2, 0xFFFD, 0); // prev=-3
+    var expectedSplice = Token.ident(TK.op_identifier, 2, back(3), 0); // prev=-3
     expectedSplice.flags.splice = true;
 
     const expected = &[_]Token{
@@ -196,10 +197,10 @@ test "Parse lazy fn with splice detection" {
         Token.lex(TK.kw_fn, 7, 0x8002), // bodyLength=7, arg1=(1<<15)|2
         Token.groupOpen(TK.grp_open_paren, 2, 2, 4),
         first_decl,
-        Token.groupSep(1, 0xFFFE, 2),
+        Token.groupSep(1, back(2), 2),
         second_decl,
-        Token.groupClose(TK.grp_close_paren, 0xFFFC, 0xFFFE),
-        Token.ident(TK.identifier, 1, 0xFFFC, 0), // first resolved (prev -4)
+        Token.groupClose(TK.grp_close_paren, back(4), back(2)),
+        Token.ident(TK.identifier, 1, back(4), 0), // first resolved (prev -4)
         expectedSplice, // SECOND resolved with splice=true
     };
 
@@ -251,14 +252,14 @@ test "Parse eager fn inline expansion" {
     b_param.flags.declaration = true;
 
     // Shadow decls chain to previous chain tails:
-    //   a tail was ref(a)@8; declA@12 chains there (calcOffset(8,12) = -4 = 0xFFFC).
-    //   b tail was ref(b)@9; declB@14 chains there (calcOffset(9,14) = -5 = 0xFFFB).
+    //   a tail was ref(a)@8; declA@12 chains there (calcOffset(8,12) = -4 = back(4)).
+    //   b tail was ref(b)@9; declB@14 chains there (calcOffset(9,14) = -5 = back(5)).
     // next_offset on declA = 15-12 = 3 (patched by re-resolve).
     // next_offset on declB = 16-14 = 2 (patched by re-resolve).
-    var declA = Token.ident(TK.identifier, 1, 0xFFFC, 3);
+    var declA = Token.ident(TK.identifier, 1, back(4), 3);
     declA.flags.declaration = true;
     declA.flags.splice = true;
-    var declB = Token.ident(TK.identifier, 2, 0xFFFB, 2);
+    var declB = Token.ident(TK.identifier, 2, back(5), 2);
     declB.flags.declaration = true;
     declB.flags.splice = true;
 
@@ -269,19 +270,19 @@ test "Parse eager fn inline expansion" {
         Token.lex(TK.kw_fn, 8, 2), // bodyLength=8, paramCount=2
         Token.groupOpen(TK.grp_open_paren, 2, 2, 4),
         a_param,
-        Token.groupSep(1, 0xFFFE, 2),
+        Token.groupSep(1, back(2), 2),
         b_param,
-        Token.groupClose(TK.grp_close_paren, 0xFFFC, 0xFFFE),
-        Token.ident(TK.identifier, 1, 0xFFFC, 0), // a resolved in body (prev -4)
-        Token.ident(TK.identifier, 2, 0xFFFD, 0), // b resolved in body (prev -3)
+        Token.groupClose(TK.grp_close_paren, back(4), back(2)),
+        Token.ident(TK.identifier, 1, back(4), 0), // a resolved in body (prev -4)
+        Token.ident(TK.identifier, 2, back(3), 0), // b resolved in body (prev -3)
         tok.createToken(TK.op_add),
         // call site
         Token.lex(TK.lit_number, 3, 0), // left operand
         declA, // decl(a) splice — binds to left operand
         Token.lex(TK.lit_number, 4, 0), // right operand parsed
         declB, // decl(b) splice — binds to right operand
-        Token.ident(TK.identifier, 1, 0xFFFD, 0), // a re-resolved (prev -3 → declA@12)
-        Token.ident(TK.identifier, 2, 0xFFFE, 0), // b re-resolved (prev -2 → declB@14)
+        Token.ident(TK.identifier, 1, back(3), 0), // a re-resolved (prev -3 → declA@12)
+        Token.ident(TK.identifier, 2, back(2), 0), // b re-resolved (prev -2 → declB@14)
         tok.createToken(TK.op_add), // copied from body
     };
 
@@ -301,7 +302,7 @@ test "Parse nullary paren group" {
     const expected = &[_]Token{
         tok.AUX_STREAM_START,
         Token.groupOpen(TK.grp_open_paren, 0, 1, 1),
-        Token.groupClose(TK.grp_close_paren, 0xFFFF, 0xFFFF),
+        Token.groupClose(TK.grp_close_paren, back(1), back(1)),
     };
     try testParse(buffer, tokens, aux, expected);
 }
@@ -322,7 +323,7 @@ test "Parse unary paren group" {
         tok.AUX_STREAM_START,
         Token.groupOpen(TK.grp_open_paren, 1, 2, 2),
         Token.lex(TK.lit_number, 1, 1),
-        Token.groupClose(TK.grp_close_paren, 0xFFFE, 0xFFFE),
+        Token.groupClose(TK.grp_close_paren, back(2), back(2)),
     };
     try testParse(buffer, tokens, aux, expected);
 }
@@ -350,11 +351,11 @@ test "Parse ternary paren group" {
         tok.AUX_STREAM_START,
         Token.groupOpen(TK.grp_open_paren, 3, 2, 6),
         Token.lex(TK.lit_number, 1, 1),
-        Token.groupSep(1, 0xFFFE, 2),
+        Token.groupSep(1, back(2), 2),
         Token.lex(TK.lit_number, 4, 1),
-        Token.groupSep(2, 0xFFFE, 2),
+        Token.groupSep(2, back(2), 2),
         Token.lex(TK.lit_number, 7, 1),
-        Token.groupClose(TK.grp_close_paren, 0xFFFA, 0xFFFE),
+        Token.groupClose(TK.grp_close_paren, back(6), back(2)),
     };
     try testParse(buffer, tokens, aux, expected);
 }
@@ -385,10 +386,10 @@ test "Parse nested paren group" {
         Token.groupOpen(TK.grp_open_paren, 2, 4, 6),
         Token.groupOpen(TK.grp_open_paren, 1, 2, 2),
         Token.lex(TK.lit_number, 2, 1),
-        Token.groupClose(TK.grp_close_paren, 0xFFFE, 0xFFFE),
-        Token.groupSep(1, 0xFFFC, 2),
+        Token.groupClose(TK.grp_close_paren, back(2), back(2)),
+        Token.groupSep(1, back(4), 2),
         Token.lex(TK.lit_number, 6, 1),
-        Token.groupClose(TK.grp_close_paren, 0xFFFA, 0xFFFE),
+        Token.groupClose(TK.grp_close_paren, back(6), back(2)),
     };
     try testParse(buffer, tokens, aux, expected);
 }
@@ -409,9 +410,9 @@ test "Parse bracket group" {
         tok.AUX_STREAM_START,
         Token.groupOpen(TK.grp_open_bracket, 2, 2, 4),
         Token.lex(TK.lit_number, 1, 1),
-        Token.groupSep(1, 0xFFFE, 2),
+        Token.groupSep(1, back(2), 2),
         Token.lex(TK.lit_number, 4, 1),
-        Token.groupClose(TK.grp_close_bracket, 0xFFFC, 0xFFFE),
+        Token.groupClose(TK.grp_close_bracket, back(4), back(2)),
     };
     try testParse(buffer, tokens, aux, expected);
 }
@@ -430,7 +431,7 @@ test "Parse brace group" {
         tok.AUX_STREAM_START,
         Token.groupOpen(TK.grp_open_brace, 1, 2, 2),
         Token.lex(TK.lit_number, 1, 1),
-        Token.groupClose(TK.grp_close_brace, 0xFFFE, 0xFFFE),
+        Token.groupClose(TK.grp_close_brace, back(2), back(2)),
     };
     try testParse(buffer, tokens, aux, expected);
 }
@@ -474,12 +475,12 @@ test "Parse lazy fn inline expansion" {
     second_decl.flags.declaration = true;
 
     // Body SECOND ref at index 8: splice=true from kwFn detection. prev=-2 to decl@6.
-    var bodySplice = Token.ident(TK.const_identifier, 2, 0xFFFE, 0);
+    var bodySplice = Token.ident(TK.const_identifier, 2, back(2), 0);
     bodySplice.flags.splice = true;
 
     // declFirst@10 shadow-chains to decl(first)@4 (tail of the chain since first unused in body).
-    // calcOffset(4, 10) = -6 = 0xFFFA.
-    var declFirst = Token.lex(TK.identifier, 1, 0).newDeclaration(0xFFFA);
+    // calcOffset(4, 10) = -6 = back(6).
+    var declFirst = Token.lex(TK.identifier, 1, 0).newDeclaration(back(6));
     declFirst.flags.splice = true;
 
     const expected = &[_]Token{
@@ -489,9 +490,9 @@ test "Parse lazy fn inline expansion" {
         Token.lex(TK.kw_fn, 6, 0x8002), // bodyLength=6, lazy flag + 2 params
         Token.groupOpen(TK.grp_open_paren, 2, 2, 4),
         Token.lex(TK.identifier, 1, 0).newDeclaration(0), // first param decl (no refs)
-        Token.groupSep(1, 0xFFFE, 2),
+        Token.groupSep(1, back(2), 2),
         second_decl,
-        Token.groupClose(TK.grp_close_paren, 0xFFFC, 0xFFFE),
+        Token.groupClose(TK.grp_close_paren, back(4), back(2)),
         bodySplice,
         // call site
         Token.lex(TK.lit_number, 0, 0), // left operand
