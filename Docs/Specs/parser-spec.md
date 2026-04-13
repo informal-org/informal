@@ -199,24 +199,24 @@ fn name(param1, param2): body_expression
 
 **parsedQ layout:**
 ```
-name_decl kw_fn[body_length, metadata] group_open param1_decl [sep_comma param_decl]* group_close [body tokens...]
+name_decl kw_fn_or_kw_lazy_fn[body_length, body_offset] group_open param1_decl [sep_comma param_decl]* group_close [body tokens...]
 ```
 
 The parameter list is emitted as a grouping chain (see *Grouping Chain
-Emission*); the group's `arg_cnt` carries the parameter count and
-`close_offset` lets handlers skip from the opener to just before the body
-in O(1).
+Emission*).
 
-The `kw_fn` header token uses the `Data.FnHeader` layout:
+The header token uses the `Data.FnHeader` layout:
 - `body_length: u32` — token count of everything that follows the header up to and including the final body token. Used by codegen to skip over the template.
-- `metadata: u16` — `(isLazy << 15) | paramCount`; bit 15 flags lazy functions, bits 0–14 hold the parameter count.
+- `body_offset: u16` — distance from the header to the first body token (one past the matching `grp_close_paren`).
 
-**Adjacency invariant:** `kw_fn` is always at `parsedQ[declaration_index + 1]` where `declaration_index` is the function name's identifier token. Nothing is emitted between the two. Inline expansion relies on this to read the header from the name's declaration site.
+The header's **kind** carries the lazy/eager distinction: `kw_lazy_fn` if the function has ≥1 lazy parameter, otherwise `kw_fn`. Parameter count is not stored — derive it by walking the param-list chain if needed.
+
+**Adjacency invariant:** the header is always at `parsedQ[declaration_index + 1]` where `declaration_index` is the function name's identifier token. Nothing is emitted between the two. Inline expansion relies on this to read the header from the name's declaration site.
 
 **Example:** `fn add(a, b): a + b` emits:
 ```
-decl(add) kw_fn[body_length=8, metadata=2]
-group_open(arg_cnt=2) decl(a) sep_comma(arg_idx=1) decl(b) group_close
+decl(add) kw_fn[body_length=8, body_offset=6]
+group_open decl(a) sep_comma(arg_idx=1) decl(b) group_close
 ref(a) ref(b) op_add
 ```
 
@@ -226,11 +226,13 @@ Parameters use naming convention to determine evaluation strategy:
 - **Lowercase** identifiers (`identifier` kind) → eager (evaluated before expansion)
 - **ALL_CAPS** `const_identifier` kind → lazy (a splice point where the operand is parsed during expansion)
 
-A function with exactly one eager and one lazy parameter is a **lazy function** (a fexpr-style macro); all other shapes are eager. The `kw_fn` handler detects lazy functions by counting param kinds during the parameter loop and setting bit 15 of `metadata` if the test passes.
+A function with ≥1 `const_identifier` parameter is a **lazy function**; `kwFn` emits its header with kind `kw_lazy_fn` (instead of `kw_fn`). The lazy/eager distinction lives in the header kind itself — no metadata bit.
 
-### Splice Flag
+### Splice Kind
 
-For lazy functions, the `kw_fn` handler locates the single use of the lazy parameter in the body via the resolution use-chain: starting from the lazy param's declaration, `next_offset` points directly at its first (and only) use. The handler asserts the use exists (`next_offset != 0`) and that no further uses exist (the use's own `next_offset == 0`), then sets `flags.splice = true` on that token. The splice flag is the sole dispatch signal during body walking.
+For each lazy parameter, `kwFn` tracks the slot via a `bitset.BitSet64`. After the body parse completes, it walks the use-chain from each lazy param's declaration: `next_offset` points directly at its single body-use. The handler asserts the use exists (`next_offset != 0`) and that no further uses exist (the use's own `next_offset == 0`), then rewrites the use's `kind` from `const_identifier` to `ident_splice`. `symbol_id`, `prev_offset`, `next_offset`, and `flags` are preserved verbatim.
+
+During body walking, `kind == ident_splice` is the sole dispatch signal. Violations are reported as `error.LazyParamUnused` (no references) or `error.LazyParamUsedMoreThanOnce` (multiple references).
 
 This use-chain-driven detection is why `next_offset` exists on identifier tokens — it turns splice-point detection into O(1).
 
@@ -242,60 +244,44 @@ User-defined infix operators are backed by two-parameter functions. When the par
 
 This is **fexpr-style macro expansion**: for lazy operators, the right operand is captured as unevaluated syntax and spliced into the body template. The left operand is always eager (already in `parsedQ` by the time the infix handler runs).
 
-**Why no new data structures:** the whole macro machinery piggy-backs on what is already in `parsedQ`. The body template is the function definition itself; the splice point is a single flag bit; identifier re-resolution uses the existing `resolution.resolve()`. Expansion uses 24 bytes of stack-local state. No heap allocation, no separate symbol table entry for the macro, no AST.
+**Why no new data structures:** the whole macro machinery piggy-backs on what is already in `parsedQ`. The body template is the function definition itself; the splice point is an identifier-family kind (`ident_splice`); identifier re-resolution uses the existing `resolution.resolve()`. Expansion uses a few bytes of stack-local state. No heap allocation, no separate symbol table entry for the macro, no AST.
 
 ### Input to expansion
 
 - **Left operand:** already emitted to `parsedQ` before the infix handler ran. Its result sits on top of the evaluation stack.
-- **Right operand:** unconsumed tokens in `syntaxQ` after the `op_identifier`. For eager functions they are parsed immediately; for lazy functions they are parsed when the walk hits the splice point.
-- **Body template:** a read-only region of `parsedQ` produced by `kw_fn` at definition time. Contains postfix tokens; for lazy functions, exactly one token has `flags.splice = 1`.
+- **Right operand:** unconsumed tokens in `syntaxQ` after the `op_identifier`. Parsed when the walk hits the body's `ident_splice` token.
+- **Body template:** a read-only region of `parsedQ` produced by `kwFn` at definition time. Each lazy parameter's single body-use has `kind == ident_splice`.
 
 ### Step 1 — Resolve and dispatch
 
-Call `resolution.resolve()` on the operator token. If `prev_offset == UNDECLARED_SENTINEL`, no declaration exists — fall back to ordinary `binaryOp` semantics (`parse(power+1)`, emit the token). Same fallback applies if the resolved declaration is not immediately followed by a `kw_fn` header (the adjacency invariant lets this be a single index check).
+Call `resolution.resolve()` on the operator token. If `prev_offset == UNDECLARED_SENTINEL`, no declaration exists — fall back to ordinary `binaryOp` semantics (`parse(power+1)`, emit the token). Same fallback applies if the resolved declaration is not immediately followed by a `kw_lazy_fn` header. Pure-eager `kw_fn` functions also fall back (infix inline expansion requires a lazy param; eager-only bodies would duplicate operand evaluation).
 
-Otherwise, read the `kw_fn` header at `declIndex + 1`:
+Read the `kw_lazy_fn` header at `declIndex + 1`:
 - `body_length` from `fn_header.body_length`
-- `metadata` from `fn_header.metadata`; extract `isLazy = (metadata & 0x8000) != 0` and `paramCount = metadata & 0xFF`
-- Assert `paramCount == 2` (only two-parameter infix operators are wired)
+- `body_offset` from `fn_header.body_offset`
 
-Parameter declarations are inside the param-list group at `declIndex + 2`
-(the `group_open`). For a 2-parameter infix operator, `param1` lives at
-`declIndex + 3` (right after the opener) and `param2` at `sep_idx + 1`,
-where `sep_idx = declIndex + 2 + group_open.next_sep`. `body_start` is
-`close_idx + 1` where `close_idx = declIndex + 2 + group_open.close_offset`.
-Eager vs lazy is distinguished by `kind` (`identifier` = eager,
-`const_identifier` = lazy).
+Param-list layout (Phase A group chain): `[open@declIndex+2, param1@+3, sep_comma@+4, param2@+5, close@+6]`. Build a 2-slot `bitset.BitSet64` from the param decls' kinds (`const_identifier` → set that slot). Infix inline is valid only when slot 0 is clear and slot 1 is set (first eager, second lazy). Any other shape falls back to binary op — first-param-lazy in infix would require retroactive left-operand patching, which the design explicitly disallows.
 
-### Step 2 — Bind parameters
+### Step 2 — Bind the eager parameter
 
-The macro runs inside the enclosing scope (no new scope is pushed — the inline bindings are ordinary declarations that `endScope`'s shadow-bitset revert on the *enclosing* scope's end). Before introducing a binding, the handler saves `declarations[symbolId]` so it can be restored after expansion; after saving, it calls `resolution.declare()` and sets `flags.splice = true` on the resulting token.
+The macro runs inside the enclosing scope (no new scope is pushed — the inline bindings are ordinary declarations that `endScope`'s shadow-bitset reverts on the *enclosing* scope's end). Before introducing the binding, the handler saves `declarations[eagerSymbolId]` so it can be restored after expansion; then it calls `resolution.declare()` on a fresh token with `kind = ident_splice`.
 
-The `splice` flag on the synthesized parameter declaration tells codegen to bind the declaration to the stack-top value (the preceding operand already in `parsedQ`) instead of allocating a fresh register. That is how the declaration "captures" an expression result without any copy or move.
+`resolution.declare` preserves the kind through `newDeclaration`, so the emitted token carries both `kind == ident_splice` and `flags.declaration = true`. Codegen's identifier-family arm sees "ident_splice declaration" → pop the stack-top register (already holding the evaluated left operand) rather than allocating a fresh one.
 
-**Lazy path (`isLazy == true`):** only the eager parameter is bound here. The lazy operand stays unconsumed in `syntaxQ` until the body walk hits the splice point.
+The lazy operand stays unconsumed in `syntaxQ` until the body walk hits the `ident_splice` token.
 
 1. Save `declarations[eagerSymbolId]`.
-2. Declare the eager parameter at the current `parsedQ` position with `flags.splice = true`. Emit.
+2. `resolution.declare(pos, Token.lex(Kind.ident_splice, eagerSymbolId, 0))`. Emit.
 3. `walkBodyTemplate(bodyStart, bodyEnd, opToken)`.
 4. Restore `declarations[eagerSymbolId]`.
 
-**Eager path (`isLazy == false`):** both operands are fully evaluated and bound as locals before the body walks.
-
-1. Save `declarations[sym1]` and `declarations[sym2]`.
-2. Declare param1 (bound to the already-emitted left operand) with `flags.splice = true`. Emit.
-3. `parse(power(opToken) + 1)` — consume and evaluate the right operand, leaving its postfix tokens in `parsedQ`.
-4. Declare param2 (bound to that right operand) with `flags.splice = true`. Emit.
-5. `walkBodyTemplate(bodyStart, bodyEnd, opToken)`.
-6. Restore both `declarations[]` entries.
-
 ### Step 3 — Walk the body template (`walkBodyTemplate`)
 
-Iterate body tokens `[bodyStart, bodyEnd]` inclusive. `bodyStart = declIndex + 2 + paramCount`, `bodyEnd = declIndex + 1 + body_length`. For each template token:
+Iterate body tokens `[bodyStart, bodyEnd]` inclusive. `bodyStart = declIndex + 1 + body_offset`, `bodyEnd = declIndex + 1 + body_length`. For each template token:
 
 | Condition | Action |
 |-----------|--------|
-| `flags.splice == 1` | **Splice (lazy only)**: call `parse(power(opToken) + 1)` to consume the right operand from `syntaxQ`. The Pratt parser emits the operand's postfix tokens directly into `parsedQ` at the current write position. Do not copy this template token. |
+| `kind == ident_splice` | **Splice**: call `parse(power(opToken) + 1)` to consume the right operand from `syntaxQ`. The Pratt parser emits the operand's postfix tokens directly into `parsedQ` at the current write position. Do not copy this template token. |
 | `kind == identifier or const_identifier` | **Re-resolve**: recover the `symbol_id` (from the declaration token if it's a decl, else via a one-hop through `prev_offset` on the template ref to its original declaration), build a fresh identifier token, and call `resolution.resolve()` against the current scope. Emit. |
 | `kind == grp_indent` | **Indent fixup**: emit with `index = 0` (placeholder) and the current `scopeId`. Push the emit index onto a stack-local fixup stack (capacity 4). |
 | `kind == grp_dedent` | **Dedent fixup**: pop the fixup stack, emit `grp_dedent` with `index = indentIdx`, then patch the earlier `grp_indent` token's `index` to point at the current position. |
@@ -312,24 +298,24 @@ Call site: `x OR y + 1`
 
 The left operand `x` is already in `parsedQ`. The parser encounters `op_identifier("OR")` with binding power Comparison (60).
 
-- Resolve "OR" → declaration at N. Read `kw_fn` at N+1: `body_length = 12`, `isLazy = 1`, `paramCount = 2`.
-- Read N+2 (`identifier "first"`) → `eagerSymbolId = S_first`. Read N+3 (`const_identifier "SECOND"`) → `lazySymbolId = S_second`.
-- Save `declarations[S_first]`. Declare `first` at the current position with `flags.splice = 1`. Emit.
-- Walk body N+4 … N+15:
+- Resolve "OR" → declaration at N. Read `kw_lazy_fn` at N+1.
+- Build `paramMask` from the decls inside the param-list chain: slot 0 (`first`) eager, slot 1 (`SECOND`) lazy. Passes the infix-inline shape check.
+- Save `declarations[S_first]`. Declare `first` at the current position with `kind = ident_splice`. Emit.
+- Walk body tokens:
   - `identifier("first")` → re-resolve → points to the just-emitted decl.
   - `call_identifier("bool")`, `kw_if` → copy.
   - `grp_indent` → placeholder; push fixup.
   - `identifier("first")` → re-resolve.
   - `grp_dedent` → patch indent.
   - `kw_else`, `op_colon_assoc`, `grp_indent` → copy / fixup.
-  - `const_identifier("SECOND")` with `flags.splice = 1` → **splice**: `parse(60)` from `syntaxQ` consumes `y + 1` and emits `identifier(y), lit_number(1), op_add`.
+  - `ident_splice("SECOND")` → **splice**: `parse(60)` from `syntaxQ` consumes `y + 1` and emits `identifier(y), lit_number(1), op_add`.
   - `grp_dedent` → patch indent.
 - Restore `declarations[S_first]`.
 
 Result (call site):
 ```
 identifier(x)
-decl(first, splice=1)       // binds stack-top
+decl(first, kind=ident_splice)  // binds stack-top
 identifier(first) → decl
 call_bool
 kw_if
@@ -338,7 +324,7 @@ kw_if
   grp_dedent
 kw_else
   grp_indent
-  identifier(y)             // spliced right operand
+  identifier(y)                  // spliced right operand
   lit_number(1)
   op_add
   grp_dedent
@@ -348,8 +334,8 @@ Postfix-valid, correct identifier offsets against the call site, correct indent/
 
 ### Notes and constraints
 
-- **Lazy invariant:** exactly one token in the body has `flags.splice = 1`, enforced at definition time. Zero or two+ uses of the lazy parameter is a parse error.
-- **Splice-flag overload at the call site:** the flag is also set on the synthesized parameter declarations emitted during expansion. That is a distinct use from the body-template splice and is read by codegen, not by the walker.
+- **Lazy invariant:** for each lazy parameter, exactly one token in the body has `kind == ident_splice` (rewritten from `const_identifier` by `kwFn`). Zero or two+ references is a parse error (`LazyParamUnused`, `LazyParamUsedMoreThanOnce`).
+- **Ident_splice at the call site:** the synthesised eager-param declaration also carries `kind = ident_splice` (with `flags.declaration = 1`). That signals codegen to pop the stack-top register for the binding. The body-template splice (reference-side, `flags.declaration = 0`) is handled by the walker before codegen ever sees it.
 - **No expansion-site scope:** the handler does not push a scope. It saves/restores `declarations[]` for exactly the parameter symbols. This is simpler than the earlier spec draft and avoids edge cases around `endScope` running on a scope the handler itself created.
 - **Right-operand binding power:** the splice calls `parse(power(opToken) + 1)`. With Comparison (60), `a OR b + 1` absorbs the whole `b + 1` (Additive is higher), which matches user expectation for "OR" binding less tightly than `+`.
 - **No runtime call** — the expansion *is* the call. Function bodies in `parsedQ` are templates; codegen skips them using `body_length`.
@@ -377,10 +363,9 @@ Identifiers use `Data.Ident` (48 bits):
                   reference: offset to the declaration (always negative, one hop)
   next_offset = signed i16 to next use in chain (0 = last)
   flags.declaration = 1 at declaration sites
-  flags.splice      = 1 at inline-expansion splice points (lazy body + synthesized param decls)
 ```
 
-Every identifier token sits in a **doubly-linked use-def chain**: you can walk backward from any use to its declaration in one hop, or forward from the declaration through all resolved uses via `next_offset`. The forward walk is what `kw_fn` uses to locate a lazy parameter's single use when stamping the splice flag.
+Every identifier token sits in a **doubly-linked use-def chain**: you can walk backward from any use to its declaration in one hop, or forward from the declaration through all resolved uses via `next_offset`. The forward walk is what `kwFn` uses to locate a lazy parameter's single use so it can rewrite that use's kind to `ident_splice`.
 
 ### Declarations
 
@@ -426,7 +411,7 @@ Token = packed struct(u64) {
 |---------|-----|--------|
 | `Ident` | Identifiers | `symbol_id: u16`, `prev_offset: u16`, `next_offset: u16` |
 | `Literal` | `lit_number`, `lit_string` | `value: u32`, `length: u16` |
-| `FnHeader` | `kw_fn` in `parsedQ` | `body_length: u32`, `metadata: u16` |
+| `FnHeader` | `kw_fn`/`kw_lazy_fn` in `parsedQ` | `body_length: u32`, `body_offset: u16` |
 | `Scope` | `grp_indent`, `grp_dedent` | `index: u32`, `scope_id: u16` |
 | `Newline` | Syntax-queue `sep_newline` | `aux_index: u32`, `prev_offset: u16` |
 | `Aux` | Aux tokens | `position: u32`, `length: u16` |
@@ -442,7 +427,7 @@ Token = packed struct(u64) {
 |------|--------|
 | Unary ops (`NOT`, unary `-`) | `unaryOp` handler exists; parsing works but lacks full semantic wiring |
 | `if`/`else` | Implemented. Nested `elif` requires nesting `if` inside `else` — no dedicated `elif` token |
-| `fn` declarations | Implemented. Lazy detection via use-chain (next_offset); splice flag set from the lazy param's single use |
+| `fn` declarations | Implemented. Lazy detection via `bitset.BitSet64` across param slots; each lazy param's single body-use has its kind rewritten from `const_identifier` to `ident_splice` after body parse |
 | Inline expansion | Both eager and lazy paths implemented in `opIdentifierInfix`. Fixed to 2-parameter functions; asserts on `paramCount == 2` |
 | Walk fixup stack | `[4]u32` — hard limit of 4 nested indent levels in a body template |
 | No expansion-site scope | Expansion uses save/restore on `declarations[]` instead of push/pop scope. Simpler, but revisit if macros ever need their own lexical scope for locals |

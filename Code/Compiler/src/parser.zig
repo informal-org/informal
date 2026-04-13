@@ -36,6 +36,7 @@ const debug = std.debug;
 const assert = debug.assert;
 const q = @import("queue.zig");
 const rs = @import("resolution.zig");
+const bitset = @import("bitset.zig");
 
 const Token = tok.Token;
 pub const TokenQueue = q.Queue(Token, tok.AUX_STREAM_END);
@@ -357,14 +358,13 @@ pub const Parser = struct {
         const headerIdx: u32 = @truncate(self.parsedQ.list.items.len);
         try self.emit(Token.fnHeader(Kind.kw_fn, 0, 0));
 
-        // 3. Parameters — track kinds for lazy detection.
+        // 3. Parameters — track per-slot laziness via a bitset (slot i = 1 iff param i is lazy).
         assert(self.syntaxQ.pop().kind == Kind.grp_open_paren);
         try self.resolution.startScope(rs.Scope{ .start = headerIdx, .scopeType = .function });
+        const openIdx: u32 = @truncate(self.parsedQ.list.items.len);
         try self.emit(Token.groupOpen(Kind.grp_open_paren));
         var arg_counter: u16 = 0;
-        var lazyParamDeclIdx: u32 = 0;
-        var lazyCount: u16 = 0;
-        var eagerCount: u16 = 0;
+        var lazyMask = bitset.BitSet64.initEmpty();
         if (self.syntaxQ.peek().kind != Kind.grp_close_paren) {
             while (true) {
                 const paramToken = self.syntaxQ.pop();
@@ -372,10 +372,8 @@ pub const Parser = struct {
                 const declParam = self.resolution.declare(paramIdx, paramToken);
                 try self.emit(declParam);
                 if (paramToken.kind == Kind.const_identifier) {
-                    lazyParamDeclIdx = paramIdx;
-                    lazyCount += 1;
-                } else {
-                    eagerCount += 1;
+                    assert(arg_counter < 64);
+                    lazyMask.set(arg_counter);
                 }
                 const next = self.syntaxQ.peek();
                 if (next.kind == Kind.sep_comma) {
@@ -393,25 +391,30 @@ pub const Parser = struct {
 
         // 4. Parse body — use Separator power to stop at newlines for single-line bodies.
         try self.parse(Power.Separator.val());
+        // TODO: Multi-line function-body support.
 
         // 5. Pop scope
         try self.resolution.endScope(@truncate(self.parsedQ.list.items.len));
 
-        // 6. Lazy detection: exactly 1 eager + 1 lazy param. The macro spec guarantees exactly
-        //    one reference to the lazy param in the body, reachable in one hop from the
-        //    declaration's next_offset.
-        const isLazy = eagerCount == 1 and lazyCount == 1;
-        if (isLazy) {
-            const nextOff = self.parsedQ.list.items[lazyParamDeclIdx].data.ident.next_offset;
-            assert(nextOff != 0); // spec: exactly one use
-            const spliceIdx = rs.applyOffset(i16, lazyParamDeclIdx, nextOff);
-            self.parsedQ.list.items[spliceIdx].flags.splice = true;
-            assert(self.parsedQ.list.items[spliceIdx].data.ident.next_offset == 0); // spec: no further uses
+        // 6. Validate each lazy param: exactly one body-use, reachable via next_offset.
+        //    Rewrite that use's kind to ident_splice so the body walker dispatches by kind alone.
+        //    Param i's decl is at openIdx + 1 + 2*i (open, decl0, sep, decl1, sep, decl2, ..., close).
+        var it = lazyMask.iterator(.{});
+        while (it.next()) |slot| {
+            // TODO: This indexing won't work long term once we add in optional type declarations, default value expressions, etc.
+            // Instead, use comma-chaining to walk the params.
+            const declIdx: u32 = openIdx + 1 + 2 * @as(u32, @truncate(slot));
+            const nextOff = self.parsedQ.list.items[declIdx].data.ident.next_offset;
+            if (nextOff == 0) return error.LazyParamUnused;
+            const spliceIdx = rs.applyOffset(i16, declIdx, nextOff);
+            if (self.parsedQ.list.items[spliceIdx].data.ident.next_offset != 0)
+                return error.LazyParamUsedMoreThanOnce;
+            self.parsedQ.list.items[spliceIdx].kind = Kind.ident_splice;
         }
 
         // 7. Patch fn_header: kind (lazy vs eager), body_length, body_offset.
         const bodyLength: u32 = @truncate(self.parsedQ.list.items.len - headerIdx - 1);
-        const headerKind: Kind = if (isLazy) Kind.kw_lazy_fn else Kind.kw_fn;
+        const headerKind: Kind = if (lazyMask.count() > 0) Kind.kw_lazy_fn else Kind.kw_fn;
         self.parsedQ.list.items[headerIdx] = Token.fnHeader(headerKind, bodyLength, body_offset);
     }
 
@@ -419,9 +422,8 @@ pub const Parser = struct {
         const resolved = self.resolution.resolve(@truncate(self.parsedQ.list.items.len), token);
         const offset = resolved.data.ident.prev_offset;
 
-        // Check if this resolves to a function declaration.
+        // Check if this resolves to a kw_lazy_fn declaration. Pure-eager fns no longer inline (D6).
         if (offset == rs.UNDECLARED_SENTINEL) {
-            // Unresolved — fall back to binary op.
             try self.parse(self.power(token) + 1);
             try self.emit(resolved);
             return;
@@ -429,15 +431,32 @@ pub const Parser = struct {
 
         const declIndex = rs.applyOffset(i16, @truncate(self.parsedQ.list.items.len), offset);
 
-        // Verify the declaration is followed by a fn header.
         if (declIndex + 1 >= self.parsedQ.list.items.len) {
             try self.parse(self.power(token) + 1);
             try self.emit(resolved);
             return;
         }
         const headerKind = self.parsedQ.list.items[declIndex + 1].kind;
-        if (headerKind != Kind.kw_fn and headerKind != Kind.kw_lazy_fn) {
-            // Not a function — fall back to binary op.
+        if (headerKind != Kind.kw_lazy_fn) {
+            try self.parse(self.power(token) + 1);
+            try self.emit(resolved);
+            return;
+        }
+
+        // Param list layout (2-param infix): [open, param1, sep, param2, close].
+        const openIdx: u32 = declIndex + 2;
+        assert(self.parsedQ.list.items[openIdx].kind == Kind.grp_open_paren);
+        assert(self.parsedQ.list.items[openIdx + 4].kind == Kind.grp_close_paren);
+        const param1 = self.parsedQ.list.items[openIdx + 1];
+        const param2 = self.parsedQ.list.items[openIdx + 3];
+
+        // Infix-inline requires slot 0 eager, slot 1 lazy. First-lazy would require retroactive
+        // left-operand patching, which the design explicitly disallows. Fall back to binary op
+        // on any other shape.
+        var paramMask = bitset.BitSet64.initEmpty();
+        if (param1.kind == Kind.const_identifier) paramMask.set(0);
+        if (param2.kind == Kind.const_identifier) paramMask.set(1);
+        if (paramMask.isSet(0) or !paramMask.isSet(1)) {
             try self.parse(self.power(token) + 1);
             try self.emit(resolved);
             return;
@@ -446,59 +465,22 @@ pub const Parser = struct {
         const fnHeader = self.parsedQ.list.items[declIndex + 1];
         const bodyLength = fnHeader.data.fn_header.body_length;
         const bodyOffset = fnHeader.data.fn_header.body_offset;
-        const isLazy = headerKind == Kind.kw_lazy_fn;
 
-        // Param list layout (always 2 params here): [open, param1, sep, param2, close].
-        const openIdx: u32 = declIndex + 2;
-        const param1 = self.parsedQ.list.items[openIdx + 1];
-        const param2 = self.parsedQ.list.items[openIdx + 3];
+        // Lazy expansion: bind eager param 1 to the left operand (already emitted); splice
+        // parses the right operand from syntaxQ when walkBodyTemplate hits the lazy param's use.
+        const eagerSymbolId = param1.data.ident.symbol_id;
+        const savedDecl = self.resolution.declarations[eagerSymbolId];
 
-        if (isLazy) {
-            // Lazy expansion: one eager param bound to left operand, splice lazy param from syntaxQ.
-            // Mask off fn_depth from upper 8 bits of declaration arg0 to recover symbolId.
-            const eagerSymbolId = if (param1.kind == Kind.identifier) param1.data.ident.symbol_id else param2.data.ident.symbol_id;
-            const savedDecl = self.resolution.declarations[eagerSymbolId];
+        // Synthesised eager-param binding: kind = ident_splice so codegen pops the register
+        // (operand already on the stack) instead of allocating a fresh one.
+        const eagerDecl = self.resolution.declare(@truncate(self.parsedQ.list.items.len), Token.lex(Kind.ident_splice, eagerSymbolId, 0));
+        try self.emit(eagerDecl);
 
-            // Declare eager param with splice flag (binds to stack-top in codegen).
-            var eagerDecl = self.resolution.declare(@truncate(self.parsedQ.list.items.len), Token.lex(Kind.identifier, eagerSymbolId, 0));
-            eagerDecl.flags.splice = true;
-            try self.emit(eagerDecl);
+        const bodyStart: u32 = declIndex + 1 + bodyOffset;
+        const bodyEnd: u32 = declIndex + 1 + bodyLength;
+        try self.walkBodyTemplate(bodyStart, bodyEnd, token);
 
-            const bodyStart: u32 = declIndex + 1 + bodyOffset;
-            const bodyEnd: u32 = declIndex + 1 + bodyLength;
-            try self.walkBodyTemplate(bodyStart, bodyEnd, token);
-
-            // Restore eager declaration.
-            self.resolution.declarations[eagerSymbolId] = savedDecl;
-        } else {
-            // Eager expansion: bind both params, then walk body.
-            // Mask off fn_depth from upper 8 bits of declaration arg0 to recover symbolId.
-            const sym1 = param1.data.ident.symbol_id;
-            const sym2 = param2.data.ident.symbol_id;
-            const saved1 = self.resolution.declarations[sym1];
-            const saved2 = self.resolution.declarations[sym2];
-
-            // Bind first param to left operand.
-            var decl1 = self.resolution.declare(@truncate(self.parsedQ.list.items.len), Token.lex(Kind.identifier, sym1, 0));
-            decl1.flags.splice = true;
-            try self.emit(decl1);
-
-            // Parse right operand.
-            try self.parse(self.power(token) + 1);
-
-            // Bind second param to right operand.
-            var decl2 = self.resolution.declare(@truncate(self.parsedQ.list.items.len), Token.lex(Kind.identifier, sym2, 0));
-            decl2.flags.splice = true;
-            try self.emit(decl2);
-
-            const bodyStart: u32 = declIndex + 1 + bodyOffset;
-            const bodyEnd: u32 = declIndex + 1 + bodyLength;
-            try self.walkBodyTemplate(bodyStart, bodyEnd, token);
-
-            // Restore declarations.
-            self.resolution.declarations[sym1] = saved1;
-            self.resolution.declarations[sym2] = saved2;
-        }
+        self.resolution.declarations[eagerSymbolId] = savedDecl;
     }
 
     fn walkBodyTemplate(self: *Self, bodyStart: u32, bodyEnd: u32, opToken: Token) anyerror!void {
@@ -510,7 +492,7 @@ pub const Parser = struct {
             // Re-index each iteration — emit() may reallocate parsedQ.
             const templateToken = self.parsedQ.list.items[i];
 
-            if (templateToken.flags.splice) {
+            if (templateToken.kind == Kind.ident_splice) {
                 // Splice: parse right operand from syntaxQ.
                 try self.parse(self.power(opToken) + 1);
             } else if (templateToken.kind == Kind.identifier or templateToken.kind == Kind.const_identifier) {
