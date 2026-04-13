@@ -570,3 +570,81 @@ test "Parse fn body_offset points to first body token" {
     };
     try testParse(buffer, tokens, aux, expected);
 }
+
+test "Parse N-ary prefix inline expansion" {
+    // fn add2(a, B): a + B
+    // add2(3, 4)
+    // Symbol IDs: add2=0, a=1, B=2.
+    // Eager slot 0 (a), lazy slot 1 (B). Prefix call routes through callExprInline.
+    const buffer = "fn add2(a, B): a + B\nadd2(3, 4)";
+    const tokens = &[_]Token{
+        // fn definition
+        tok.createToken(TK.kw_fn),
+        Token.lex(TK.call_identifier, 0, 0), // add2 (lexer emits call_identifier when followed by '(')
+        tok.createToken(TK.grp_open_paren),
+        Token.lex(TK.identifier, 1, 0), // a (eager)
+        tok.createToken(TK.sep_comma),
+        Token.lex(TK.const_identifier, 2, 0), // B (lazy)
+        tok.createToken(TK.grp_close_paren),
+        tok.createToken(TK.op_colon_assoc),
+        Token.lex(TK.identifier, 1, 0), // a (body)
+        tok.createToken(TK.op_add),
+        Token.lex(TK.const_identifier, 2, 0), // B (body)
+        tok.createToken(TK.sep_newline),
+        // call: add2(3, 4)
+        Token.lex(TK.call_identifier, 0, 0), // add2
+        tok.createToken(TK.grp_open_paren),
+        Token.lex(TK.lit_number, 3, 0),
+        tok.createToken(TK.sep_comma),
+        Token.lex(TK.lit_number, 4, 0),
+        tok.createToken(TK.grp_close_paren),
+    };
+    const aux = &[_]Token{};
+
+    // parsedQ layout:
+    //   [0] start  [1] decl(add2)  [2] kw_lazy_fn  [3] open
+    //   [4] decl(a)  [5] sep(1)  [6] decl(B)  [7] close
+    //   body postfix order: a, B, +
+    //   [8] body ref(a)  [9] body splice(B) — kind rewritten from const_identifier by kwFn
+    //   [10] body op_add
+    //   -- callExprInline emits below; no group_open/close/sep/call_identifier for the call --
+    //   [11] lit(3)  [12] synth decl(a)  [13] skip shim(kw_fn, body_length=1)  [14] lit(4) [skipped]
+    //   [15] resolved ref(a)  [16] splice copy lit(4)  [17] op_add
+    var add2_decl = Token.ident(TK.call_identifier, 0, 0, 0);
+    add2_decl.flags.declaration = true;
+
+    var a_decl_param = Token.ident(TK.identifier, 1, 0, 4); // body ref(a) @8 sets next=4
+    a_decl_param.flags.declaration = true;
+    var b_decl_param = Token.ident(TK.const_identifier, 2, 0, 3); // body splice(B) @9 sets next=3
+    b_decl_param.flags.declaration = true;
+
+    // synth_a @12: declare(@12, ident_splice sym=1). kwFn's body resolve left declarations[1]
+    // pointing at body ref(a) @8 (resolve doesn't set shadow bits, so kwFn endScope doesn't
+    // revert it). So this declare shadows @8: prev_offset = back(4). Re-resolve at @15 patches
+    // synth_a's next_offset to 3.
+    var synth_a = Token.lex(TK.ident_splice, 1, 0).newDeclaration(back(4));
+    synth_a.data.ident.next_offset = 3;
+
+    const expected = &[_]Token{
+        tok.AUX_STREAM_START,
+        add2_decl,
+        Token.fnHeader(TK.kw_lazy_fn, 8, 6),
+        Token.groupOpen(TK.grp_open_paren),
+        a_decl_param,
+        Token.groupSep(1),
+        b_decl_param,
+        Token.groupClose(TK.grp_close_paren),
+        Token.ident(TK.identifier, 1, back(4), 0), // body ref(a) @8
+        Token.ident(TK.ident_splice, 2, back(3), 0), // body splice(B) @9
+        tok.createToken(TK.op_add), // body op_add @10
+        // call expansion (no paren chain or call_identifier emitted for the call itself):
+        Token.lex(TK.lit_number, 3, 0), // eager arg 0 @11
+        synth_a, // synthesised decl binds sym=a to TOS reg @12
+        Token.fnHeader(TK.kw_fn, 1, 0), // skip shim for lazy arg 1 @13
+        Token.lex(TK.lit_number, 4, 0), // lazy arg 1, codegen-skipped @14
+        Token.ident(TK.identifier, 1, back(3), 0), // body re-resolved ref(a) → synth_a @15
+        Token.lex(TK.lit_number, 4, 0), // splice copy of lazy arg 1 @16
+        tok.createToken(TK.op_add), // @17
+    };
+    try testParse(buffer, tokens, aux, expected);
+}

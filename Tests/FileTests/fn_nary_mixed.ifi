@@ -1,0 +1,2 @@
+fn select(a, B, c): a + B + c
+select(1, 42, 100)

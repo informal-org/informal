@@ -1,0 +1,2 @@
+fn cond(C, T, E): C * T + E
+cond(1, 42, 0)
