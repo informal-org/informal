@@ -280,9 +280,6 @@ pub const Parser = struct {
     }
 
     fn callExpr(self: *Self, token: Token) anyerror!void {
-        // Dispatch: if the target resolves to a kw_lazy_fn, inline-expand the call in place of
-        // the paren chain and call_identifier. Pure-eager kw_fn and unresolved names continue
-        // through the legacy path (today's syscall shortcut).
         const sym_id = token.data.ident.symbol_id;
         if (self.peekFnDecl(sym_id)) |decl_idx| {
             if (decl_idx + 1 < self.parsedQ.list.items.len and
@@ -300,7 +297,6 @@ pub const Parser = struct {
         try self.emit(token);
     }
 
-    // Resolve a call identifier's declaration index without mutating the chain.
     fn peekFnDecl(self: *Self, sym_id: u16) ?u32 {
         const tail = self.resolution.declarations[sym_id];
         if (tail == rs.UNDECLARED_SENTINEL) return null;
@@ -313,10 +309,13 @@ pub const Parser = struct {
 
     const LazyArgRange = struct { start: u32, end: u32 };
 
-    // N-ary inline expansion for prefix calls. Consumes the call's paren syntax from syntaxQ
-    // and emits, in place of the call, the bound eager args + the body template with lazy args
-    // spliced in. No grp_open_paren / grp_close_paren / sep_comma / call_identifier tokens are
-    // emitted for the call itself — the expansion replaces them.
+    // Body-walker dispatch for ident_splice: infix parses the right operand from syntaxQ,
+    // nary copies a pre-parsed lazy arg from its call-site skip region.
+    const SpliceHandler = union(enum) {
+        infix: Token,
+        nary: struct { ranges: []const LazyArgRange, def_open_idx: u32 },
+    };
+
     fn callExprInline(self: *Self, decl_idx: u32) anyerror!void {
         const header_idx = decl_idx + 1;
         const fn_header = self.parsedQ.list.items[header_idx];
@@ -324,20 +323,17 @@ pub const Parser = struct {
         const body_offset = fn_header.data.fn_header.body_offset;
         const def_open_idx: u32 = decl_idx + 2;
 
-        // Param-list layout emitted by kwFn: [open, decl0, sep1, decl1, sep2, ..., declK, close].
-        // body_offset = close_idx + 1 - header_idx = 2*K + 2, so arg_cnt = (body_offset - 2) / 2.
+        // Param layout emitted by kwFn: [open, decl0, sep1, decl1, ..., declK, close].
+        // body_offset = 2*K + 2, so arg_cnt = (body_offset - 2) / 2. Max matches kwFn's BitSet64.
         const arg_cnt: u32 = (body_offset - 2) / 2;
-        assert(arg_cnt <= 16);
+        assert(arg_cnt < 64);
 
-        // Consume the call's open paren.
         assert(self.syntaxQ.pop().kind == Kind.grp_open_paren);
 
-        // Block scope covers synth decls and body-walk decls; endScope reverts via the
-        // resolution shadow bitset in O(shadows), no per-expansion allocation.
         const scope_start: u32 = @truncate(self.parsedQ.list.items.len);
         try self.resolution.startScope(rs.Scope{ .start = scope_start, .scopeType = .block });
 
-        var lazy_ranges: [16]LazyArgRange = undefined;
+        var lazy_ranges: [64]LazyArgRange = undefined;
 
         var slot: u32 = 0;
         while (slot < arg_cnt) : (slot += 1) {
@@ -345,11 +341,9 @@ pub const Parser = struct {
             const param_tok = self.parsedQ.list.items[param_decl_idx];
 
             if (param_tok.kind == Kind.const_identifier) {
-                // Lazy slot: parse the arg at call-site scope for hygiene, wrap in a codegen
-                // skip shim so the tokens don't execute here. The shim reuses kw_fn's existing
-                // body_length skip mechanism in codegen (codegen.zig:352-355). The parsed tokens
-                // are copied into the body via spliceLazyArg when walkBodyTemplateN hits the
-                // matching ident_splice.
+                // Parse the lazy arg at call-site scope for hygiene, then wrap in a kw_fn shim
+                // so codegen skips it via the existing fn_header body_length skip (codegen.zig).
+                // spliceLazyArg copies these tokens into the body when the walker hits ident_splice.
                 const shim_idx: u32 = @truncate(self.parsedQ.list.items.len);
                 try self.emit(Token.fnHeader(Kind.kw_fn, 0, 0));
                 const arg_start: u32 = @truncate(self.parsedQ.list.items.len);
@@ -358,9 +352,8 @@ pub const Parser = struct {
                 self.parsedQ.list.items[shim_idx] = Token.fnHeader(Kind.kw_fn, arg_end - arg_start, 0);
                 lazy_ranges[slot] = LazyArgRange{ .start = arg_start, .end = arg_end };
             } else {
-                // Eager slot: parse the arg (codegen pushes its result), then emit a synthesised
-                // ident_splice decl so codegen binds the param sym to the top-of-stack register
-                // via popReg (codegen.zig:288-298).
+                // Eager: parse arg (codegen pushes result), then synth ident_splice decl so
+                // codegen binds the param sym to TOS via popReg instead of allocating a new reg.
                 try self.parse(Power.Separator.val());
                 const sym_id = param_tok.data.ident.symbol_id;
                 const synth = self.resolution.declare(
@@ -379,113 +372,63 @@ pub const Parser = struct {
 
         const body_start: u32 = header_idx + body_offset;
         const body_end: u32 = header_idx + body_length;
-        try self.walkBodyTemplateN(body_start, body_end, &lazy_ranges, def_open_idx);
+        try self.walkBodyTemplate(body_start, body_end, .{ .nary = .{
+            .ranges = lazy_ranges[0..arg_cnt],
+            .def_open_idx = def_open_idx,
+        } });
 
         try self.resolution.endScope(@truncate(self.parsedQ.list.items.len));
     }
 
-    // N-ary body walker. Mirrors walkBodyTemplateInfix but dispatches ident_splice to
-    // spliceLazyArg (copies the pre-parsed lazy arg from the call site into the body).
-    fn walkBodyTemplateN(self: *Self, bodyStart: u32, bodyEnd: u32, lazy_ranges: []const LazyArgRange, def_open_idx: u32) anyerror!void {
-        var fixup = IndentFixup{};
-        var i: u32 = bodyStart;
-        while (i <= bodyEnd) : (i += 1) {
-            const templateToken = self.parsedQ.list.items[i];
-
-            if (templateToken.kind == Kind.ident_splice) {
-                try self.spliceLazyArg(i, lazy_ranges, def_open_idx);
-            } else if (templateToken.kind == Kind.identifier or templateToken.kind == Kind.const_identifier) {
-                try self.reResolveAndEmit(templateToken, i);
-            } else if (templateToken.kind == Kind.grp_indent) {
-                try self.emitIndentFixup(&fixup);
-            } else if (templateToken.kind == Kind.grp_dedent) {
-                try self.emitDedentFixup(&fixup);
-            } else {
-                try self.emit(templateToken);
-            }
-        }
-    }
-
     // Copy a pre-parsed lazy arg from its skip region at the call site into the current emit
-    // position, patching identifier/scope offsets so cross-range references stay correct.
-    //
-    // For each copied ident-family token: in-range prev/next offsets are unchanged (source and
-    // target both shift by delta), out-of-range offsets are adjusted by -delta. Copied grp_indent
-    // / grp_dedent scope.index values are absolute and get += delta. External sources whose
-    // forward chain (next_offset) pointed into the copied range get their next_offset += delta
-    // so the chain lands on the new copy instead of the skipped original. declarations[sym] is
-    // redirected to the copy — critical because the skipped original's symbol_id is never
-    // rewritten to a register by codegen.
-    fn spliceLazyArg(self: *Self, template_idx: u32, lazy_ranges: []const LazyArgRange, def_open_idx: u32) anyerror!void {
-        const template_tok = self.parsedQ.list.items[template_idx];
-        const param_decl_idx = rs.applyOffset(i16, template_idx, template_tok.data.ident.prev_offset);
-        const slot: u32 = (param_decl_idx - def_open_idx - 1) / 2;
-        const range = lazy_ranges[slot];
-
+    // position, patching offsets so cross-range references (into/out of the copy) stay correct.
+    // declarations[sym] is redirected to the copy so subsequent outer refs chain through a
+    // codegen-processed token rather than the skipped original.
+    fn spliceLazyArg(self: *Self, range: LazyArgRange) anyerror!void {
         const dst_start: u32 = @truncate(self.parsedQ.list.items.len);
         const signed_delta: i32 = @as(i32, @intCast(dst_start)) - @as(i32, @intCast(range.start));
+        const delta_i16: i16 = @truncate(signed_delta);
 
-        // Copy tokens. We do it one at a time so we can also push matching offsetQ entries.
         var k: u32 = range.start;
         while (k < range.end) : (k += 1) {
-            try self.emit(self.parsedQ.list.items[k]);
-        }
-
-        // Second pass: patch offsets, refresh declarations, stitch external forward chains,
-        // and fix absolute scope indices on grp_indent / grp_dedent.
-        k = range.start;
-        while (k < range.end) : (k += 1) {
+            // Re-read each iteration — emit() may reallocate parsedQ.
+            const src_tok = self.parsedQ.list.items[k];
+            try self.emit(src_tok);
             const new_idx: u32 = @intCast(@as(i32, @intCast(k)) + signed_delta);
-            const tok_at_new = self.parsedQ.list.items[new_idx];
-            const kind = tok_at_new.kind;
+            const kind = src_tok.kind;
 
             if (kind == Kind.identifier or kind == Kind.const_identifier or
                 kind == Kind.call_identifier or kind == Kind.ident_splice)
             {
-                var prev_off = tok_at_new.data.ident.prev_offset;
-                var next_off = tok_at_new.data.ident.next_offset;
+                var prev_off = src_tok.data.ident.prev_offset;
+                var next_off = src_tok.data.ident.next_offset;
 
-                // prev_offset: if source is in-range, unchanged; else subtract delta.
                 if (prev_off != 0) {
-                    const src: i32 = @as(i32, @intCast(k)) + @as(i32, @as(i16, @bitCast(prev_off)));
-                    if (src < @as(i32, @intCast(range.start)) or src >= @as(i32, @intCast(range.end))) {
-                        const new_signed: i16 = @truncate(@as(i32, @as(i16, @bitCast(prev_off))) - signed_delta);
-                        prev_off = @bitCast(new_signed);
+                    const src = rs.applyOffset(i16, k, prev_off);
+                    if (src < range.start or src >= range.end) {
+                        prev_off = @bitCast(@as(i16, @bitCast(prev_off)) -% delta_i16);
 
-                        // Stitch: the external source's forward chain (next_offset) pointed at
-                        // this copy's original (K); redirect to new copy position.
-                        const src_u: u32 = @intCast(src);
-                        const src_next = self.parsedQ.list.items[src_u].data.ident.next_offset;
-                        if (src_next != 0) {
-                            const src_next_target: i32 = @as(i32, @intCast(src_u)) + @as(i32, @as(i16, @bitCast(src_next)));
-                            if (src_next_target == @as(i32, @intCast(k))) {
-                                const new_next: i16 = @truncate(@as(i32, @intCast(new_idx)) - @as(i32, @intCast(src_u)));
-                                self.parsedQ.list.items[src_u].data.ident.next_offset = @bitCast(new_next);
-                            }
+                        // The external source's forward chain pointed at the skipped original;
+                        // redirect to the copy so the chain lands on codegen-processed tokens.
+                        const src_next = self.parsedQ.list.items[src].data.ident.next_offset;
+                        if (src_next != 0 and rs.applyOffset(i16, src, src_next) == k) {
+                            self.parsedQ.list.items[src].data.ident.next_offset = rs.calcOffset(u16, new_idx, src);
                         }
                     }
                 }
                 if (next_off != 0) {
-                    const dst_old: i32 = @as(i32, @intCast(k)) + @as(i32, @as(i16, @bitCast(next_off)));
-                    if (dst_old < @as(i32, @intCast(range.start)) or dst_old >= @as(i32, @intCast(range.end))) {
-                        const new_signed: i16 = @truncate(@as(i32, @as(i16, @bitCast(next_off))) - signed_delta);
-                        next_off = @bitCast(new_signed);
+                    const dst_old = rs.applyOffset(i16, k, next_off);
+                    if (dst_old < range.start or dst_old >= range.end) {
+                        next_off = @bitCast(@as(i16, @bitCast(next_off)) -% delta_i16);
                     }
                 }
 
                 self.parsedQ.list.items[new_idx].data.ident.prev_offset = prev_off;
                 self.parsedQ.list.items[new_idx].data.ident.next_offset = next_off;
-
-                // Redirect the outer declarations[] tail to the copy so subsequent outer
-                // references chain through a codegen-processed token rather than the skipped
-                // original (whose symbol_id was never rewritten to a register number).
-                const sym_id = tok_at_new.data.ident.symbol_id;
-                self.resolution.declarations[sym_id] = new_idx;
+                self.resolution.declarations[src_tok.data.ident.symbol_id] = new_idx;
             } else if (kind == Kind.grp_indent or kind == Kind.grp_dedent) {
-                const abs_idx = tok_at_new.data.scope.index;
-                const scope_id = tok_at_new.data.scope.scope_id;
-                const new_abs: u32 = @intCast(@as(i32, @intCast(abs_idx)) + signed_delta);
-                self.parsedQ.list.items[new_idx] = Token.lex(kind, new_abs, scope_id);
+                const new_abs: u32 = @intCast(@as(i32, @intCast(src_tok.data.scope.index)) + signed_delta);
+                self.parsedQ.list.items[new_idx] = Token.lex(kind, new_abs, src_tok.data.scope.scope_id);
             }
         }
     }
@@ -677,15 +620,15 @@ pub const Parser = struct {
         const scopeStart: u32 = @truncate(self.parsedQ.list.items.len);
         try self.resolution.startScope(rs.Scope{ .start = scopeStart, .scopeType = .block });
 
-        // Synthesised eager-param binding: kind = ident_splice so codegen pops the register
-        // (the left operand is already on the stack) instead of allocating a fresh one.
+        // ident_splice binds the left operand (already on stack) to the eager param via popReg
+        // instead of allocating a new register.
         const eagerSymbolId = param1.data.ident.symbol_id;
         const eagerDecl = self.resolution.declare(@truncate(self.parsedQ.list.items.len), Token.lex(Kind.ident_splice, eagerSymbolId, 0));
         try self.emit(eagerDecl);
 
         const bodyStart: u32 = declIndex + 1 + bodyOffset;
         const bodyEnd: u32 = declIndex + 1 + bodyLength;
-        try self.walkBodyTemplateInfix(bodyStart, bodyEnd, token);
+        try self.walkBodyTemplate(bodyStart, bodyEnd, .{ .infix = token });
 
         try self.resolution.endScope(@truncate(self.parsedQ.list.items.len));
     }
@@ -695,8 +638,6 @@ pub const Parser = struct {
         depth: u8 = 0,
     };
 
-    // Re-resolve a template identifier/const_identifier against the current scope and emit it.
-    // Declarations carry symbol_id directly; references recover it by walking prev_offset back to the decl.
     fn reResolveAndEmit(self: *Self, templateToken: Token, i: u32) anyerror!void {
         const symbolId = if (templateToken.flags.declaration)
             templateToken.data.ident.symbol_id
@@ -724,25 +665,26 @@ pub const Parser = struct {
         self.parsedQ.list.items[indentIdx] = Token.lex(Kind.grp_indent, emitIdx, self.resolution.scopeId);
     }
 
-    fn walkBodyTemplateInfix(self: *Self, bodyStart: u32, bodyEnd: u32, opToken: Token) anyerror!void {
+    fn walkBodyTemplate(self: *Self, bodyStart: u32, bodyEnd: u32, splice: SpliceHandler) anyerror!void {
         var fixup = IndentFixup{};
         var i: u32 = bodyStart;
         while (i <= bodyEnd) : (i += 1) {
             // Re-index each iteration — emit() may reallocate parsedQ.
             const templateToken = self.parsedQ.list.items[i];
 
-            if (templateToken.kind == Kind.ident_splice) {
-                // Splice: parse right operand from syntaxQ.
-                try self.parse(self.power(opToken) + 1);
-            } else if (templateToken.kind == Kind.identifier or templateToken.kind == Kind.const_identifier) {
-                try self.reResolveAndEmit(templateToken, i);
-            } else if (templateToken.kind == Kind.grp_indent) {
-                try self.emitIndentFixup(&fixup);
-            } else if (templateToken.kind == Kind.grp_dedent) {
-                try self.emitDedentFixup(&fixup);
-            } else {
-                // Copy as-is (operators, kw_if, kw_else, op_colon_assoc, literals, etc.)
-                try self.emit(templateToken);
+            switch (templateToken.kind) {
+                Kind.ident_splice => switch (splice) {
+                    .infix => |op| try self.parse(self.power(op) + 1),
+                    .nary => |n| {
+                        const param_decl_idx = rs.applyOffset(i16, i, templateToken.data.ident.prev_offset);
+                        const slot: u32 = (param_decl_idx - n.def_open_idx - 1) / 2;
+                        try self.spliceLazyArg(n.ranges[slot]);
+                    },
+                },
+                Kind.identifier, Kind.const_identifier => try self.reResolveAndEmit(templateToken, i),
+                Kind.grp_indent => try self.emitIndentFixup(&fixup),
+                Kind.grp_dedent => try self.emitDedentFixup(&fixup),
+                else => try self.emit(templateToken),
             }
         }
     }
