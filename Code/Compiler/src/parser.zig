@@ -298,15 +298,9 @@ pub const Parser = struct {
             rs.applyOffset(i16, tail, tailToken.data.ident.prev_offset);
     }
 
-    // Splice dispatch at ident_splice during body template walk.
-    const SpliceMode = union(enum) {
-        infix: u8, // binding power for parsing right operand from syntaxQ
-        nary: struct { call_args_start: usize, def_open_idx: u32 },
-    };
-
-    /// Skip one expression in syntaxQ, respecting balanced grouping.
+    /// Skip one argument expression in syntaxQ, respecting balanced grouping.
     /// Stops before the next comma or close-paren at depth 0.
-    fn skipSyntaxExpr(self: *Self) void {
+    fn skipArg(self: *Self) void {
         var depth: u32 = 0;
         while (true) {
             const t = self.syntaxQ.peek();
@@ -320,16 +314,6 @@ pub const Parser = struct {
         }
     }
 
-    /// Seek syntaxQ to the start of a specific call arg slot by re-scanning from call_args_start.
-    fn seekToCallArg(self: *Self, call_args_start: usize, target_slot: u32) void {
-        self.syntaxQ.head = call_args_start;
-        var s: u32 = 0;
-        while (s < target_slot) : (s += 1) {
-            self.skipSyntaxExpr();
-            assert(self.syntaxQ.pop().kind == Kind.sep_comma);
-        }
-    }
-
     fn callExprInline(self: *Self, decl_idx: u32) anyerror!void {
         const header_idx = decl_idx + 1;
         const fn_header = self.parsedQ.list.items[header_idx];
@@ -339,19 +323,19 @@ pub const Parser = struct {
         const arg_cnt: u32 = (body_offset - 2) / 2;
 
         assert(self.syntaxQ.pop().kind == Kind.grp_open_paren);
-        const call_args_start = self.syntaxQ.head;
+        const args_start = self.syntaxQ.head;
 
         const scope_start: u32 = @truncate(self.parsedQ.list.items.len);
         try self.resolution.startScope(rs.Scope{ .start = scope_start, .scopeType = .block });
 
-        // Parse eager args, skip lazy args in syntaxQ.
+        // Pass 1: parse eager args, skip lazy args in syntaxQ.
         var slot: u32 = 0;
         while (slot < arg_cnt) : (slot += 1) {
             const param_decl_idx: u32 = def_open_idx + 1 + 2 * slot;
             const param_tok = self.parsedQ.list.items[param_decl_idx];
 
             if (param_tok.kind == Kind.const_identifier) {
-                self.skipSyntaxExpr();
+                self.skipArg();
             } else {
                 try self.parse(Power.Separator.val());
                 const sym_id = param_tok.data.ident.symbol_id;
@@ -368,17 +352,15 @@ pub const Parser = struct {
         }
 
         assert(self.syntaxQ.pop().kind == Kind.grp_close_paren);
-        const saved_head = self.syntaxQ.head;
+        const post_call = self.syntaxQ.head;
 
-        // Walk body, replaying lazy args from syntaxQ at splice points.
+        // Pass 2: walk body template, splicing lazy args via monotonic re-advance.
+        self.syntaxQ.head = args_start;
         const body_start: u32 = header_idx + body_offset;
         const body_end: u32 = header_idx + body_length;
-        try self.walkBodyTemplate(body_start, body_end, .{ .nary = .{
-            .call_args_start = call_args_start,
-            .def_open_idx = def_open_idx,
-        } });
+        try self.walkBodyBlock(body_start, body_end, def_open_idx);
 
-        self.syntaxQ.head = saved_head;
+        self.syntaxQ.head = post_call;
         try self.resolution.endScope(@truncate(self.parsedQ.list.items.len));
     }
 
@@ -552,7 +534,7 @@ pub const Parser = struct {
 
         const bodyStart: u32 = declIndex + 1 + bodyOffset;
         const bodyEnd: u32 = declIndex + 1 + bodyLength;
-        try self.walkBodyTemplate(bodyStart, bodyEnd, .{ .infix = self.power(token) + 1 });
+        try self.walkBodyInfix(bodyStart, bodyEnd, self.power(token) + 1);
 
         try self.resolution.endScope(@truncate(self.parsedQ.list.items.len));
     }
@@ -594,26 +576,49 @@ pub const Parser = struct {
         self.parsedQ.list.items[indentIdx] = Token.lex(Kind.grp_indent, emitIdx, self.resolution.scopeId);
     }
 
-    fn walkBodyTemplate(self: *Self, bodyStart: u32, bodyEnd: u32, splice: SpliceMode) anyerror!void {
-        var fixup = IndentFixup{};
-        var i: u32 = bodyStart;
-        while (i <= bodyEnd) : (i += 1) {
-            const templateToken = self.parsedQ.list.items[i];
+    fn emitTemplateToken(self: *Self, t: Token, i: u32, fixup: *IndentFixup) anyerror!void {
+        switch (t.kind) {
+            Kind.identifier, Kind.const_identifier => try self.reResolveAndEmit(t, i),
+            Kind.grp_indent => try self.emitIndentFixup(fixup),
+            Kind.grp_dedent => try self.emitDedentFixup(fixup),
+            else => try self.emit(t),
+        }
+    }
 
-            switch (templateToken.kind) {
-                Kind.ident_splice => switch (splice) {
-                    .infix => |bp| try self.parse(bp),
-                    .nary => |n| {
-                        const param_decl_idx = rs.applyOffset(i16, i, templateToken.data.ident.prev_offset);
-                        const target_slot: u32 = (param_decl_idx - n.def_open_idx - 1) / 2;
-                        self.seekToCallArg(n.call_args_start, target_slot);
-                        try self.parse(Power.Separator.val());
-                    },
-                },
-                Kind.identifier, Kind.const_identifier => try self.reResolveAndEmit(templateToken, i),
-                Kind.grp_indent => try self.emitIndentFixup(&fixup),
-                Kind.grp_dedent => try self.emitDedentFixup(&fixup),
-                else => try self.emit(templateToken),
+    fn walkBodyInfix(self: *Self, body_start: u32, body_end: u32, splice_power: u8) anyerror!void {
+        var fixup = IndentFixup{};
+        var i: u32 = body_start;
+        while (i <= body_end) : (i += 1) {
+            const t = self.parsedQ.list.items[i];
+            if (t.kind == Kind.ident_splice) {
+                try self.parse(splice_power);
+            } else {
+                try self.emitTemplateToken(t, i, &fixup);
+            }
+        }
+    }
+
+    fn walkBodyBlock(self: *Self, body_start: u32, body_end: u32, def_open_idx: u32) anyerror!void {
+        var fixup = IndentFixup{};
+        var slot_cursor: u32 = 0;
+        var i: u32 = body_start;
+        while (i <= body_end) : (i += 1) {
+            const t = self.parsedQ.list.items[i];
+            if (t.kind == Kind.ident_splice) {
+                const param_decl_idx = rs.applyOffset(i16, i, t.data.ident.prev_offset);
+                const target_slot: u32 = (param_decl_idx - def_open_idx - 1) / 2;
+
+                // Advance past intervening slots (eager args already parsed in pass 1).
+                var s = slot_cursor;
+                while (s < target_slot) : (s += 1) {
+                    if (s > 0) assert(self.syntaxQ.pop().kind == Kind.sep_comma);
+                    self.skipArg();
+                }
+                if (target_slot > 0) assert(self.syntaxQ.pop().kind == Kind.sep_comma);
+                try self.parse(Power.Separator.val());
+                slot_cursor = target_slot + 1;
+            } else {
+                try self.emitTemplateToken(t, i, &fixup);
             }
         }
     }
