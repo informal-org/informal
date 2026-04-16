@@ -222,6 +222,15 @@ pub const Parser = struct {
         try self.offsetQ.push(@truncate(self.offsetQ.list.items.len - self.index)); // TODO: This is probably not the correct offset. Need to double-check.
     }
 
+    inline fn parsedLen(self: *Self) u32 {
+        return @truncate(self.parsedQ.list.items.len);
+    }
+
+    fn isLazyFnAt(self: *Self, decl_idx: u32) bool {
+        return decl_idx + 1 < self.parsedLen() and
+            self.parsedQ.list.items[decl_idx + 1].kind == Kind.kw_lazy_fn;
+    }
+
     fn currentBindingPower(self: *Self) u8 {
         const token = self.syntaxQ.peek();
         const kindVal = @intFromEnum(token.kind);
@@ -250,7 +259,7 @@ pub const Parser = struct {
     }
 
     fn identifier(self: *Self, token: Token) anyerror!void {
-        const resolved = self.resolution.resolve(@truncate(self.parsedQ.list.items.len), token);
+        const resolved = self.resolution.resolve(self.parsedLen(), token);
         try self.emit(resolved);
     }
 
@@ -273,16 +282,10 @@ pub const Parser = struct {
     fn callExpr(self: *Self, token: Token) anyerror!void {
         const sym_id = token.data.ident.symbol_id;
         if (self.peekFnDecl(sym_id)) |decl_idx| {
-            if (decl_idx + 1 < self.parsedQ.list.items.len and
-                self.parsedQ.list.items[decl_idx + 1].kind == Kind.kw_lazy_fn)
-            {
+            if (self.isLazyFnAt(decl_idx)) {
                 return self.callExprInline(decl_idx);
             }
         }
-        return self.callExprEager(token);
-    }
-
-    fn callExprEager(self: *Self, token: Token) anyerror!void {
         assert(self.syntaxQ.pop().kind == Kind.grp_open_paren);
         try self.groupDelim(Kind.grp_open_paren, Kind.grp_close_paren);
         try self.emit(token);
@@ -325,7 +328,7 @@ pub const Parser = struct {
         assert(self.syntaxQ.pop().kind == Kind.grp_open_paren);
         const args_start = self.syntaxQ.head;
 
-        const scope_start: u32 = @truncate(self.parsedQ.list.items.len);
+        const scope_start = self.parsedLen();
         try self.resolution.startScope(rs.Scope{ .start = scope_start, .scopeType = .block });
 
         // Pass 1: parse eager args, skip lazy args in syntaxQ.
@@ -340,7 +343,7 @@ pub const Parser = struct {
                 try self.parse(Power.Separator.val());
                 const sym_id = param_tok.data.ident.symbol_id;
                 const synth = self.resolution.declare(
-                    @truncate(self.parsedQ.list.items.len),
+                    self.parsedLen(),
                     Token.lex(Kind.ident_splice, sym_id, 0),
                 );
                 try self.emit(synth);
@@ -361,7 +364,7 @@ pub const Parser = struct {
         try self.walkBodyBlock(body_start, body_end, def_open_idx);
 
         self.syntaxQ.head = post_call;
-        try self.resolution.endScope(@truncate(self.parsedQ.list.items.len));
+        try self.resolution.endScope(self.parsedLen());
     }
 
     fn unaryOp(self: *Self, token: Token) anyerror!void {
@@ -388,16 +391,15 @@ pub const Parser = struct {
 
     fn indentBlock(self: *Self, _: Token) anyerror!void {
         const scopeId = self.resolution.scopeId;
-        const startIdx = self.parsedQ.list.items.len;
+        const startIdx = self.parsedLen();
         try self.emit(Token.lex(Kind.grp_indent, 0, scopeId));
-        try self.resolution.startScope(rs.Scope{ .start = @truncate(startIdx), .scopeType = .block });
+        try self.resolution.startScope(rs.Scope{ .start = startIdx, .scopeType = .block });
         try self.parse(Power.None.val());
-        const dedentToken = self.syntaxQ.peek();
-        if (dedentToken.kind == Kind.grp_dedent) {
+        if (self.syntaxQ.peek().kind == Kind.grp_dedent) {
             _ = self.syntaxQ.pop();
         }
-        try self.emit(Token.lex(Kind.grp_dedent, @truncate(startIdx), scopeId));
-        try self.resolution.endScope(@truncate(self.parsedQ.list.items.len));
+        try self.emit(Token.lex(Kind.grp_dedent, startIdx, scopeId));
+        try self.resolution.endScope(self.parsedLen());
     }
 
     fn kwIf(self: *Self, token: Token) anyerror!void {
@@ -430,24 +432,24 @@ pub const Parser = struct {
     fn kwFn(self: *Self, _: Token) anyerror!void {
         // 1. Function name - pop identifier, declare it
         const nameToken = self.syntaxQ.pop();
-        const declName = self.resolution.declare(@truncate(self.parsedQ.list.items.len), nameToken);
+        const declName = self.resolution.declare(self.parsedLen(), nameToken);
         try self.emit(declName);
 
         // 2. fn_header placeholder — kind/body_length/body_offset patched later.
-        const headerIdx: u32 = @truncate(self.parsedQ.list.items.len);
+        const headerIdx = self.parsedLen();
         try self.emit(Token.fnHeader(Kind.kw_fn, 0, 0));
 
         // 3. Parameters — track per-slot laziness via a bitset (slot i = 1 iff param i is lazy).
         assert(self.syntaxQ.pop().kind == Kind.grp_open_paren);
         try self.resolution.startScope(rs.Scope{ .start = headerIdx, .scopeType = .function });
-        const openIdx: u32 = @truncate(self.parsedQ.list.items.len);
+        const openIdx = self.parsedLen();
         try self.emit(Token.groupOpen(Kind.grp_open_paren));
         var arg_counter: u16 = 0;
         var lazyMask = bitset.BitSet64.initEmpty();
         if (self.syntaxQ.peek().kind != Kind.grp_close_paren) {
             while (true) {
                 const paramToken = self.syntaxQ.pop();
-                const paramIdx: u32 = @truncate(self.parsedQ.list.items.len);
+                const paramIdx = self.parsedLen();
                 const declParam = self.resolution.declare(paramIdx, paramToken);
                 try self.emit(declParam);
                 if (paramToken.kind == Kind.const_identifier) {
@@ -462,18 +464,18 @@ pub const Parser = struct {
                 } else break;
             }
         }
-        _ = self.syntaxQ.pop(); // close paren
+        assert(self.syntaxQ.pop().kind == Kind.grp_close_paren);
         try self.emit(Token.groupClose(Kind.grp_close_paren));
         // body_offset lands on the token immediately after the close paren.
-        const body_offset: u16 = @truncate(self.parsedQ.list.items.len - headerIdx);
-        _ = self.syntaxQ.pop(); // op_colon_assoc
+        const body_offset: u16 = @truncate(self.parsedLen() - headerIdx);
+        assert(self.syntaxQ.pop().kind == Kind.op_colon_assoc);
 
         // 4. Parse body — use Separator power to stop at newlines for single-line bodies.
         try self.parse(Power.Separator.val());
         // TODO: Multi-line function-body support.
 
         // 5. Pop scope
-        try self.resolution.endScope(@truncate(self.parsedQ.list.items.len));
+        try self.resolution.endScope(self.parsedLen());
 
         // 6. Validate each lazy param: exactly one body-use, reachable via next_offset.
         //    Rewrite that use's kind to ident_splice so the body walker dispatches by kind alone.
@@ -492,23 +494,22 @@ pub const Parser = struct {
         }
 
         // 7. Patch fn_header: kind (lazy vs eager), body_length, body_offset.
-        const bodyLength: u32 = @truncate(self.parsedQ.list.items.len - headerIdx - 1);
+        const bodyLength = self.parsedLen() - headerIdx - 1;
         const headerKind: Kind = if (lazyMask.count() > 0) Kind.kw_lazy_fn else Kind.kw_fn;
         self.parsedQ.list.items[headerIdx] = Token.fnHeader(headerKind, bodyLength, body_offset);
     }
 
     fn opIdentifierInfix(self: *Self, token: Token) anyerror!void {
-        const resolved = self.resolution.resolve(@truncate(self.parsedQ.list.items.len), token);
+        const resolved = self.resolution.resolve(self.parsedLen(), token);
         const offset = resolved.data.ident.prev_offset;
 
         // Only inline lazy fns with shape: slot 0 eager, slot 1 lazy.
         const declIndex = if (offset != rs.UNDECLARED_SENTINEL)
-            rs.applyOffset(i16, @truncate(self.parsedQ.list.items.len), offset)
+            rs.applyOffset(i16, self.parsedLen(), offset)
         else
             return self.binaryOpResolved(token, resolved);
 
-        if (declIndex + 1 >= self.parsedQ.list.items.len or
-            self.parsedQ.list.items[declIndex + 1].kind != Kind.kw_lazy_fn)
+        if (!self.isLazyFnAt(declIndex))
             return self.binaryOpResolved(token, resolved);
 
         const openIdx: u32 = declIndex + 2;
@@ -525,18 +526,18 @@ pub const Parser = struct {
         const bodyLength = fnHeader.data.fn_header.body_length;
         const bodyOffset = fnHeader.data.fn_header.body_offset;
 
-        const scopeStart: u32 = @truncate(self.parsedQ.list.items.len);
+        const scopeStart = self.parsedLen();
         try self.resolution.startScope(rs.Scope{ .start = scopeStart, .scopeType = .block });
 
         // Bind left operand (already on stack) to eager param via ident_splice.
-        const eagerDecl = self.resolution.declare(@truncate(self.parsedQ.list.items.len), Token.lex(Kind.ident_splice, param1.data.ident.symbol_id, 0));
+        const eagerDecl = self.resolution.declare(self.parsedLen(), Token.lex(Kind.ident_splice, param1.data.ident.symbol_id, 0));
         try self.emit(eagerDecl);
 
         const bodyStart: u32 = declIndex + 1 + bodyOffset;
         const bodyEnd: u32 = declIndex + 1 + bodyLength;
         try self.walkBodyInfix(bodyStart, bodyEnd, self.power(token) + 1);
 
-        try self.resolution.endScope(@truncate(self.parsedQ.list.items.len));
+        try self.resolution.endScope(self.parsedLen());
     }
 
     fn binaryOpResolved(self: *Self, token: Token, resolved: Token) anyerror!void {
@@ -557,12 +558,12 @@ pub const Parser = struct {
             break :blk self.parsedQ.list.items[declIdx].data.ident.symbol_id;
         };
         const freshToken = Token.lex(templateToken.kind, symbolId, 0);
-        const reResolved = self.resolution.resolve(@truncate(self.parsedQ.list.items.len), freshToken);
+        const reResolved = self.resolution.resolve(self.parsedLen(), freshToken);
         try self.emit(reResolved);
     }
 
     fn emitIndentFixup(self: *Self, fixup: *IndentFixup) anyerror!void {
-        const emitIdx: u32 = @truncate(self.parsedQ.list.items.len);
+        const emitIdx = self.parsedLen();
         try self.emit(Token.lex(Kind.grp_indent, 0, self.resolution.scopeId));
         fixup.stack[fixup.depth] = emitIdx;
         fixup.depth += 1;
@@ -571,7 +572,7 @@ pub const Parser = struct {
     fn emitDedentFixup(self: *Self, fixup: *IndentFixup) anyerror!void {
         fixup.depth -= 1;
         const indentIdx = fixup.stack[fixup.depth];
-        const emitIdx: u32 = @truncate(self.parsedQ.list.items.len);
+        const emitIdx = self.parsedLen();
         try self.emit(Token.lex(Kind.grp_dedent, indentIdx, self.resolution.scopeId));
         self.parsedQ.list.items[indentIdx] = Token.lex(Kind.grp_indent, emitIdx, self.resolution.scopeId);
     }
@@ -633,15 +634,10 @@ pub const Parser = struct {
         try self.emit(token);
     }
 
-    // Infix operations
-
     fn assignOp(self: *Self, token: Token) anyerror!void {
-        // Assume - the token to the left was the identifier.
-        // When we add destructuring in the future, this will need to change.
-        // TODO: This is fairly brittle since the previous val may not be an identifier or it might be a more complex definition.
-        // Replace the previous token with the declared version.
-        const ident = self.resolution.declare(@truncate(self.parsedQ.list.items.len - 1), self.parsedQ.list.getLast());
-        self.parsedQ.list.items[self.parsedQ.list.items.len - 1] = ident;
+        // TODO: Brittle — assumes previous token is an identifier. Needs rework for destructuring.
+        const ident = self.resolution.declare(self.parsedLen() - 1, self.parsedQ.list.getLast());
+        self.parsedQ.list.items[self.parsedLen() - 1] = ident;
 
         try self.parse(Power.Assign.val());
         try self.emit(token);
