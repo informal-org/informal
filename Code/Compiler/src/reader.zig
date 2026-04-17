@@ -105,8 +105,6 @@ pub fn process_chunk(chunk: []u8, reader: *Reader, allocator: Allocator, io: std
     defer resolution.deinit();
 
     var p = ParserImpl.init(chunk, reader.syntaxQ, reader.auxQ, reader.parsedQ, reader.offsetQ, allocator, &resolution);
-    defer p.deinit();
-
     try p.startParse();
     std.log.debug("\n------------- Parsed Queue --------------- \n", .{});
     std.log.debug("Parsed queue: {any}", .{reader.parsedQ.list.items});

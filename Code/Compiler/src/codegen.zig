@@ -271,7 +271,7 @@ pub const Codegen = struct {
                     tokenQueue[index] = Token.lex(token.kind, @truncate(placeholderIndex), @truncate(tokenQueueOffset));
                     self.strConstRefTail = index;
                 },
-                TK.identifier, TK.const_identifier, TK.call_identifier => {
+                TK.identifier, TK.const_identifier, TK.call_identifier, TK.ident_splice => {
                     if (token.kind == TK.call_identifier and !token.flags.declaration) {
                         // Syscall handling.
                         // TODO: Support for our own functions.
@@ -286,7 +286,7 @@ pub const Codegen = struct {
                         continue;
                     }
                     if (token.flags.declaration) {
-                        if (token.flags.splice) {
+                        if (token.kind == TK.ident_splice) {
                             // Inline expansion: bind to the operand already on the stack.
                             reg = self.popReg();
                         } else {
@@ -297,6 +297,8 @@ pub const Codegen = struct {
                         tokenQueue[index] = token.assignReg(@intFromEnum(reg));
                         std.log.debug("DECL @{any}, {s}", .{ index, @tagName(reg) });
                     } else {
+                        // ident_splice references are always rewritten to regular identifier refs during body-template replay.
+                        std.debug.assert(token.kind != TK.ident_splice);
                         // Find what register this identifier is at by following the usage chain.
                         const offset = token.data.ident.prev_offset;
                         const prevRefDecIndex = resolution.applyOffset(i16, @truncate(index), offset);

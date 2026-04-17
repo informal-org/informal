@@ -81,6 +81,7 @@ pub const Kind = enum(u8) {
     const_identifier,
     type_identifier,
     call_identifier,
+    ident_splice,
     lit_string,
     lit_bool,
     lit_number,
@@ -174,13 +175,12 @@ pub const Data = packed union {
 pub const Flags = packed struct(u8) {
     alt: bool = false, // Indicates the next token is in the other queue.
     declaration: bool = false, // TODO: Do we really need a flag for this or can we do this with data types?
-    splice: bool = false, // Lazy parameter splice point for inline expansion.
 
     // continue-sibling node
     // is-child
     // parent-target - Must have
 
-    _reserved: u5 = 0,
+    _reserved: u6 = 0,
 
     pub fn empty() Flags {
         return Flags{
@@ -280,7 +280,7 @@ pub const TokenWriter = struct {
         const alt = if (value.flags.alt) "ALT" else "";
 
         switch (value.kind) {
-            TK.identifier, TK.const_identifier, TK.call_identifier, TK.type_identifier, TK.op_identifier => {
+            TK.identifier, TK.const_identifier, TK.call_identifier, TK.type_identifier, TK.op_identifier, TK.ident_splice => {
                 const prevOff: i16 = @bitCast(value.data.ident.prev_offset);
                 const nextOff: i16 = @bitCast(value.data.ident.next_offset);
                 try std.fmt.format(writer, "{d} {s} {s} [<{d} >{d}]", .{ value.data.ident.symbol_id, @tagName(value.kind), alt, prevOff, nextOff });
@@ -352,7 +352,7 @@ pub const LITERALS = bitset.token_bitset(&[_]TK{ TK.lit_string, TK.lit_number, T
 pub const UNARY_OPS = bitset.token_bitset(&[_]TK{ TK.op_not, TK.op_unary_minus });
 pub const GROUP_START = bitset.token_bitset(&[_]TK{ TK.grp_indent, TK.grp_open_paren, TK.grp_open_brace, TK.grp_open_bracket });
 pub const GROUP_END = bitset.token_bitset(&[_]TK{ TK.grp_close_brace, TK.grp_close_paren, TK.grp_close_bracket });
-pub const IDENTIFIER = bitset.token_bitset(&[_]TK{ TK.identifier, TK.const_identifier, TK.call_identifier });
+pub const IDENTIFIER = bitset.token_bitset(&[_]TK{ TK.identifier, TK.const_identifier, TK.call_identifier, TK.ident_splice });
 pub const KEYWORD_START = bitset.token_bitset(&[_]TK{ TK.kw_if, TK.kw_for, TK.kw_fn, TK.kw_else });
 pub const PAREN_START = bitset.token_bitset(&[_]TK{TK.grp_open_paren});
 pub const BINARY_OPS = bitset.token_bitset(&[_]TK{

@@ -55,7 +55,7 @@ Registers x0, x1, x2 are reserved at codegen start (used for syscall arguments a
 ### Identifiers
 
 **Declaration** (`flags.declaration = true`):
-- If `splice=true` (inline expansion binding): pop the operand register from the stack (operand was already pushed by caller)
+- If `kind == ident_splice` (inline expansion binding at a `kw_lazy_fn` call site): pop the operand register from the stack (operand was already pushed by the caller)
 - Otherwise: allocate a new register
 - Write the assigned register ID back into the `parsedQ` token at this index so future references can look it up
 - Push register
@@ -81,7 +81,7 @@ Registers x0, x1, x2 are reserved at codegen start (used for syscall arguments a
 
 ### Functions
 
-**`kw_fn`**: Set `skip_count = bodyLength` (from `arg0`). The next `bodyLength` tokens are skipped — function bodies are inlined by the parser at call sites, not executed in place.
+**`kw_fn`, `kw_lazy_fn`**: Set `skip_count = body_length` (from `fn_header.body_length`). The next `body_length` tokens are skipped — function bodies are inlined by the parser at call sites, not executed in place. Both header kinds are handled identically at codegen.
 
 ### Grouping chain tokens
 

@@ -1,0 +1,2 @@
+fn add2(a, B): a + B
+add2(3, 4)

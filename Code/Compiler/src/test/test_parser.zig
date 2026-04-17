@@ -29,7 +29,6 @@ fn testParse(buffer: []const u8, tokens: []const Token, aux: []const Token, expe
     try testutils.pushAll(&syntaxQ, tokens);
     try testutils.pushAll(&auxQ, aux);
     var p = parser_mod.Parser.init(buffer, &syntaxQ, &auxQ, &parsedQ, &offsetQ, test_allocator, &resolution);
-    defer p.deinit();
     try p.startParse();
 
     try testutils.testQueueEquals(buffer, &parsedQ, expected);
@@ -163,7 +162,7 @@ test "Parse lazy fn with splice detection" {
     // fn APPLY(first, SECOND): first SECOND
     // Symbol IDs: APPLY=0, first=1, SECOND=2
     // 'first' is identifier (eager), 'SECOND' is const_identifier (lazy)
-    // In the body, SECOND appears as op_identifier (infix use)
+    // In the body, SECOND appears as op_identifier (infix use); kwFn rewrites its kind to ident_splice.
     const buffer = "fn APPLY(first, SECOND): first SECOND";
     const tokens = &[_]Token{
         tok.createToken(TK.kw_fn),
@@ -183,13 +182,12 @@ test "Parse lazy fn with splice detection" {
     // parsedQ layout:
     //   [0] stream_start  [1] decl(APPLY)   [2] kw_fn  [3] group_open
     //   [4] decl(first)   [5] sep_comma     [6] decl(SECOND) [7] group_close
-    //   [8] ref(first)    [9] op_identifier(SECOND)+splice
+    //   [8] ref(first)    [9] ident_splice(SECOND)
     var first_decl = Token.ident(TK.identifier, 1, 0, 4); // next=4 → ref@8
     first_decl.flags.declaration = true;
     var second_decl = Token.ident(TK.const_identifier, 2, 0, 3); // next=3 → ref@9
     second_decl.flags.declaration = true;
-    var expectedSplice = Token.ident(TK.op_identifier, 2, back(3), 0); // prev=-3
-    expectedSplice.flags.splice = true;
+    const expectedSplice = Token.ident(TK.ident_splice, 2, back(3), 0); // prev=-3, kind rewritten by kwFn
 
     const expected = &[_]Token{
         tok.AUX_STREAM_START,
@@ -201,92 +199,64 @@ test "Parse lazy fn with splice detection" {
         second_decl,
         Token.groupClose(TK.grp_close_paren),
         Token.ident(TK.identifier, 1, back(4), 0), // first resolved (prev -4)
-        expectedSplice, // SECOND resolved with splice=true
+        expectedSplice, // SECOND rewritten to ident_splice
     };
 
     try testParse(buffer, tokens, aux, expected);
 }
 
-test "Parse eager fn inline expansion" {
-    // fn add(a, b): a + b
-    // 3 add 4
-    // Symbol IDs: add=0, a=1, b=2
-    const buffer = "fn add(a, b): a + b\n3 add 4";
+// Removed: "Parse eager fn inline expansion" — per design D6, pure-eager infix no longer
+// inlines (fn ADD(a,b): a+b ; 3 ADD 4 falls through to the binary-op path). Lazy inline
+// expansion is covered by "Parse lazy fn inline expansion" below.
+
+fn testParseError(buffer: []const u8, tokens: []const Token, aux: []const Token, expected_err: anyerror) !void {
+    var syntaxQ = TokenQueue.init(test_allocator);
+    var auxQ = TokenQueue.init(test_allocator);
+    var parsedQ = TokenQueue.init(test_allocator);
+    var offsetQ = OffsetQueue.init(test_allocator);
+    var resolution = try rs.Resolution.init(test_allocator, 64, &parsedQ);
+    defer syntaxQ.deinit();
+    defer auxQ.deinit();
+    defer parsedQ.deinit();
+    defer offsetQ.deinit();
+    defer resolution.deinit();
+
+    try testutils.pushAll(&syntaxQ, tokens);
+    try testutils.pushAll(&auxQ, aux);
+    var p = parser_mod.Parser.init(buffer, &syntaxQ, &auxQ, &parsedQ, &offsetQ, test_allocator, &resolution);
+    try std.testing.expectError(expected_err, p.startParse());
+}
+
+test "Lazy param unused raises diagnostic" {
+    // fn F(X): 0 — X is lazy but never referenced in the body.
+    const buffer = "fn F(X): 0";
     const tokens = &[_]Token{
-        // fn definition
         tok.createToken(TK.kw_fn),
-        Token.lex(TK.identifier, 0, 0), // add
+        Token.lex(TK.identifier, 0, 0), // F
         tok.createToken(TK.grp_open_paren),
-        Token.lex(TK.identifier, 1, 0), // a
-        tok.createToken(TK.sep_comma),
-        Token.lex(TK.identifier, 2, 0), // b
+        Token.lex(TK.const_identifier, 1, 0), // X (lazy)
         tok.createToken(TK.grp_close_paren),
         tok.createToken(TK.op_colon_assoc),
-        Token.lex(TK.identifier, 1, 0), // a (body)
-        tok.createToken(TK.op_add),
-        Token.lex(TK.identifier, 2, 0), // b (body)
-        tok.createToken(TK.sep_newline),
-        // call: 3 add 4
-        Token.lex(TK.lit_number, 3, 0),
-        Token.lex(TK.op_identifier, 0, 0), // add operator
-        Token.lex(TK.lit_number, 4, 0),
+        Token.lex(TK.lit_number, 0, 0),
     };
+    try testParseError(buffer, tokens, &[_]Token{}, error.LazyParamUnused);
+}
 
-    const aux = &[_]Token{};
-
-    // parsedQ layout (Phase A):
-    //   [0] stream_start  [1] decl(add)     [2] kw_fn           [3] group_open
-    //   [4] decl(a)       [5] sep_comma     [6] decl(b)         [7] group_close
-    //   [8] ref(a)        [9] ref(b)        [10] op_add
-    //   [11] lit(3)       [12] declA        [13] lit(4)         [14] declB
-    //   [15] re-ref(a)    [16] re-ref(b)    [17] op_add
-    //
-    // Phantom resolve of "add" in opIdentifierInfix happens at items.len=12,
-    // patching decl(add)@1 next_offset = 12 - 1 = 11.
-    var add_decl = Token.ident(TK.identifier, 0, 0, 11);
-    add_decl.flags.declaration = true;
-
-    var a_param = Token.ident(TK.identifier, 1, 0, 4); // next=ref@8 (8-4)
-    a_param.flags.declaration = true;
-    var b_param = Token.ident(TK.identifier, 2, 0, 3); // next=ref@9 (9-6)
-    b_param.flags.declaration = true;
-
-    // Shadow decls chain to previous chain tails:
-    //   a tail was ref(a)@8; declA@12 chains there (calcOffset(8,12) = -4 = back(4)).
-    //   b tail was ref(b)@9; declB@14 chains there (calcOffset(9,14) = -5 = back(5)).
-    // next_offset on declA = 15-12 = 3 (patched by re-resolve).
-    // next_offset on declB = 16-14 = 2 (patched by re-resolve).
-    var declA = Token.ident(TK.identifier, 1, back(4), 3);
-    declA.flags.declaration = true;
-    declA.flags.splice = true;
-    var declB = Token.ident(TK.identifier, 2, back(5), 2);
-    declB.flags.declaration = true;
-    declB.flags.splice = true;
-
-    const expected = &[_]Token{
-        tok.AUX_STREAM_START,
-        // fn definition
-        add_decl,
-        Token.fnHeader(TK.kw_fn, 8, 6), // body_length=8, body_offset=6
-        Token.groupOpen(TK.grp_open_paren),
-        a_param,
-        Token.groupSep(1),
-        b_param,
-        Token.groupClose(TK.grp_close_paren),
-        Token.ident(TK.identifier, 1, back(4), 0), // a resolved in body (prev -4)
-        Token.ident(TK.identifier, 2, back(3), 0), // b resolved in body (prev -3)
+test "Lazy param used more than once raises diagnostic" {
+    // fn F(X): X + X — X is lazy but referenced twice.
+    const buffer = "fn F(X): X + X";
+    const tokens = &[_]Token{
+        tok.createToken(TK.kw_fn),
+        Token.lex(TK.identifier, 0, 0), // F
+        tok.createToken(TK.grp_open_paren),
+        Token.lex(TK.const_identifier, 1, 0), // X (lazy)
+        tok.createToken(TK.grp_close_paren),
+        tok.createToken(TK.op_colon_assoc),
+        Token.lex(TK.const_identifier, 1, 0), // X (first use)
         tok.createToken(TK.op_add),
-        // call site
-        Token.lex(TK.lit_number, 3, 0), // left operand
-        declA, // decl(a) splice — binds to left operand
-        Token.lex(TK.lit_number, 4, 0), // right operand parsed
-        declB, // decl(b) splice — binds to right operand
-        Token.ident(TK.identifier, 1, back(3), 0), // a re-resolved (prev -3 → declA@12)
-        Token.ident(TK.identifier, 2, back(2), 0), // b re-resolved (prev -2 → declB@14)
-        tok.createToken(TK.op_add), // copied from body
+        Token.lex(TK.const_identifier, 1, 0), // X (second use)
     };
-
-    try testParse(buffer, tokens, aux, expected);
+    try testParseError(buffer, tokens, &[_]Token{}, error.LazyParamUsedMoreThanOnce);
 }
 
 test "Parse nullary paren group" {
@@ -454,9 +424,9 @@ test "Parse lazy fn inline expansion" {
     const aux = &[_]Token{};
 
     // parsedQ layout (Phase A):
-    //   [0] stream_start  [1] decl(PICK)    [2] kw_fn            [3] group_open
+    //   [0] stream_start  [1] decl(PICK)    [2] kw_lazy_fn       [3] group_open
     //   [4] decl(first)   [5] sep_comma     [6] decl(SECOND)     [7] group_close
-    //   [8] body ref(SECOND)+splice
+    //   [8] ident_splice(SECOND)
     //   [9] lit(0)        [10] declFirst    [11] lit(42)
     //
     // Phantom resolve of "PICK" at items.len=10, patches decl(PICK)@1 next_offset = 9.
@@ -466,14 +436,14 @@ test "Parse lazy fn inline expansion" {
     var second_decl = Token.ident(TK.const_identifier, 2, 0, 2); // next=2 → ref@8
     second_decl.flags.declaration = true;
 
-    // Body SECOND ref at index 8: splice=true from kwFn detection. prev=-2 to decl@6.
-    var bodySplice = Token.ident(TK.const_identifier, 2, back(2), 0);
-    bodySplice.flags.splice = true;
+    // Body SECOND ref at index 8: kind rewritten from const_identifier to ident_splice by kwFn.
+    // prev=-2 to decl@6.
+    const bodySplice = Token.ident(TK.ident_splice, 2, back(2), 0);
 
     // declFirst@10 shadow-chains to decl(first)@4 (tail of the chain since first unused in body).
-    // calcOffset(4, 10) = -6 = back(6).
-    var declFirst = Token.lex(TK.identifier, 1, 0).newDeclaration(back(6));
-    declFirst.flags.splice = true;
+    // calcOffset(4, 10) = -6 = back(6). Synthesised with kind=ident_splice so codegen pops the
+    // operand already on the stack.
+    const declFirst = Token.lex(TK.ident_splice, 1, 0).newDeclaration(back(6));
 
     const expected = &[_]Token{
         tok.AUX_STREAM_START,
@@ -488,7 +458,7 @@ test "Parse lazy fn inline expansion" {
         bodySplice,
         // call site
         Token.lex(TK.lit_number, 0, 0), // left operand
-        declFirst, // decl(first) splice — binds to left operand
+        declFirst, // decl(first) ident_splice — binds to left operand
         Token.lex(TK.lit_number, 42, 0), // right operand parsed at splice point
     };
 
@@ -595,6 +565,77 @@ test "Parse fn body_offset points to first body token" {
         c_decl,
         Token.groupClose(TK.grp_close_paren),
         Token.ident(TK.identifier, 1, back(6), 0), // ref(a), prev→decl@4
+    };
+    try testParse(buffer, tokens, aux, expected);
+}
+
+test "Parse N-ary prefix inline expansion" {
+    // fn add2(a, B): a + B
+    // add2(3, 4)
+    // Symbol IDs: add2=0, a=1, B=2.
+    // Eager slot 0 (a), lazy slot 1 (B). Prefix call routes through callExprInline.
+    const buffer = "fn add2(a, B): a + B\nadd2(3, 4)";
+    const tokens = &[_]Token{
+        // fn definition
+        tok.createToken(TK.kw_fn),
+        Token.lex(TK.call_identifier, 0, 0), // add2
+        tok.createToken(TK.grp_open_paren),
+        Token.lex(TK.identifier, 1, 0), // a (eager)
+        tok.createToken(TK.sep_comma),
+        Token.lex(TK.const_identifier, 2, 0), // B (lazy)
+        tok.createToken(TK.grp_close_paren),
+        tok.createToken(TK.op_colon_assoc),
+        Token.lex(TK.identifier, 1, 0), // a (body)
+        tok.createToken(TK.op_add),
+        Token.lex(TK.const_identifier, 2, 0), // B (body)
+        tok.createToken(TK.sep_newline),
+        // call: add2(3, 4)
+        Token.lex(TK.call_identifier, 0, 0), // add2
+        tok.createToken(TK.grp_open_paren),
+        Token.lex(TK.lit_number, 3, 0),
+        tok.createToken(TK.sep_comma),
+        Token.lex(TK.lit_number, 4, 0),
+        tok.createToken(TK.grp_close_paren),
+    };
+    const aux = &[_]Token{};
+
+    // parsedQ layout:
+    //   [0] start  [1] decl(add2)  [2] kw_lazy_fn  [3] open
+    //   [4] decl(a)  [5] sep(1)  [6] decl(B)  [7] close
+    //   [8] ref(a)  [9] splice(B)  [10] op_add
+    //   -- call expansion: eager args parsed, lazy args replayed from syntaxQ at splice --
+    //   [11] lit(3)  [12] synth decl(a)
+    //   [13] re-resolved ref(a)  [14] lit(4) from syntaxQ  [15] op_add
+    var add2_decl = Token.ident(TK.call_identifier, 0, 0, 0);
+    add2_decl.flags.declaration = true;
+
+    var a_decl_param = Token.ident(TK.identifier, 1, 0, 4); // next→ref@8
+    a_decl_param.flags.declaration = true;
+    var b_decl_param = Token.ident(TK.const_identifier, 2, 0, 3); // next→splice@9
+    b_decl_param.flags.declaration = true;
+
+    // synth_a @12: shadows body ref(a)@8. Re-resolve at @13 patches next_offset=1.
+    var synth_a = Token.lex(TK.ident_splice, 1, 0).newDeclaration(back(4));
+    synth_a.data.ident.next_offset = 1;
+
+    const expected = &[_]Token{
+        tok.AUX_STREAM_START,
+        add2_decl,
+        Token.fnHeader(TK.kw_lazy_fn, 8, 6),
+        Token.groupOpen(TK.grp_open_paren),
+        a_decl_param,
+        Token.groupSep(1),
+        b_decl_param,
+        Token.groupClose(TK.grp_close_paren),
+        Token.ident(TK.identifier, 1, back(4), 0), // body ref(a) @8
+        Token.ident(TK.ident_splice, 2, back(3), 0), // body splice(B) @9
+        tok.createToken(TK.op_add), // body op_add @10
+        // call expansion — no shims, lazy args parsed directly from syntaxQ at splice:
+        Token.lex(TK.lit_number, 3, 0), // eager arg @11
+        synth_a, // synth decl(a) @12
+        Token.ident(TK.identifier, 1, back(1), 0), // re-resolved ref(a) @13
+        Token.lex(TK.lit_number, 4, 0), // lazy arg from syntaxQ @14
+        tok.createToken(TK.op_add), // @15
     };
     try testParse(buffer, tokens, aux, expected);
 }
