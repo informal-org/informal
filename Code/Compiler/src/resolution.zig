@@ -40,8 +40,9 @@ pub const UNDECLARED_SENTINEL = 0;
 pub fn calcOffset(comptime T: anytype, target: u32, index: u32) T {
     const signedTarget: i32 = @intCast(target);
     const signedIndex: i32 = @intCast(index);
-    const offset: u32 = @bitCast(signedTarget - signedIndex);
-    return @truncate(offset);
+    const diff: i32 = signedTarget - signedIndex;
+    if (@typeInfo(T).int.signedness == .signed) return @truncate(diff);
+    return @truncate(@as(u32, @bitCast(diff)));
 }
 
 pub fn applyOffset(comptime signedOffsetT: anytype, index: u32, offset: anytype) u32 {

@@ -131,9 +131,11 @@ pub const Data = packed union {
     // Aux token source positions (whitespace, newline, indentation).
     aux: Aux,
 
-    // sep_comma inside a group — carries only arg_idx.
-    // grp_open_* and grp_close_* carry no payload.
-    group_sep: GroupSep,
+    // Grouping chain: grp_open_*, grp_close_*, and sep_comma carry a doubly-linked
+    // positional chain plus an iter-order offset meaningful only in fn param lists.
+    // grp_open_* has no predecessor, so prev_offset is overloaded to store the
+    // signed offset to the matching close (O(1) open→close lookup).
+    group_link: GroupLink,
 
     pub const Ident = packed struct(u48) {
         symbol_id: u16,
@@ -166,9 +168,10 @@ pub const Data = packed union {
         length: u16,
     };
 
-    pub const GroupSep = packed struct(u48) {
-        arg_idx: u16, // 0-based index of the argument this comma precedes
-        _reserved: u32 = 0,
+    pub const GroupLink = packed struct(u48) {
+        prev_offset: i16,
+        next_offset: i16,
+        iter_offset: i16,
     };
 };
 
@@ -242,10 +245,10 @@ pub const Token = packed struct(u64) {
         };
     }
 
-    pub fn groupSep(arg_idx: u16) Token {
+    pub fn groupSep() Token {
         return Token{
             .kind = Kind.sep_comma,
-            .data = .{ .group_sep = .{ .arg_idx = arg_idx } },
+            .data = .{ .raw = 0 },
             .flags = Flags.empty(),
         };
     }
@@ -294,8 +297,9 @@ pub const TokenWriter = struct {
             TK.sep_newline => {
                 try std.fmt.format(writer, "{s} {d}, {d} {s}", .{ @tagName(value.kind), value.data.newline.aux_index, value.data.newline.prev_offset, alt });
             },
-            TK.sep_comma => {
-                try std.fmt.format(writer, "{s} {s} [arg_idx={d}]", .{ @tagName(value.kind), alt, value.data.group_sep.arg_idx });
+            TK.sep_comma, TK.grp_open_paren, TK.grp_close_paren, TK.grp_open_bracket, TK.grp_close_bracket, TK.grp_open_brace, TK.grp_close_brace => {
+                const link = value.data.group_link;
+                try std.fmt.format(writer, "{s} {s} [<{d} >{d} ~{d}]", .{ @tagName(value.kind), alt, link.prev_offset, link.next_offset, link.iter_offset });
             },
             TK.kw_fn, TK.kw_lazy_fn => {
                 try std.fmt.format(writer, "{s} {s} [body_length={d} body_offset={d}]", .{ @tagName(value.kind), alt, value.data.fn_header.body_length, value.data.fn_header.body_offset });
