@@ -545,11 +545,6 @@ pub const Parser = struct {
         try self.emit(resolved);
     }
 
-    const IndentFixup = struct {
-        stack: [4]u32 = undefined,
-        depth: u8 = 0,
-    };
-
     fn reResolveAndEmit(self: *Self, templateToken: Token, i: u32) anyerror!void {
         const symbolId = if (templateToken.flags.declaration)
             templateToken.data.ident.symbol_id
@@ -562,45 +557,42 @@ pub const Parser = struct {
         try self.emit(reResolved);
     }
 
-    fn emitIndentFixup(self: *Self, fixup: *IndentFixup) anyerror!void {
-        const emitIdx = self.parsedLen();
-        try self.emit(Token.lex(Kind.grp_indent, 0, self.resolution.scopeId));
-        fixup.stack[fixup.depth] = emitIdx;
-        fixup.depth += 1;
+    fn emitTemplateIndent(self: *Self) anyerror!void {
+        const scopeId = self.resolution.scopeId;
+        const startIdx = self.parsedLen();
+        try self.emit(Token.lex(Kind.grp_indent, 0, scopeId));
+        try self.resolution.startScope(rs.Scope{ .start = startIdx, .scopeType = .block });
     }
 
-    fn emitDedentFixup(self: *Self, fixup: *IndentFixup) anyerror!void {
-        fixup.depth -= 1;
-        const indentIdx = fixup.stack[fixup.depth];
-        const emitIdx = self.parsedLen();
-        try self.emit(Token.lex(Kind.grp_dedent, indentIdx, self.resolution.scopeId));
-        self.parsedQ.list.items[indentIdx] = Token.lex(Kind.grp_indent, emitIdx, self.resolution.scopeId);
+    fn emitTemplateDedent(self: *Self) anyerror!void {
+        const scope = self.resolution.scopeStack.items[self.resolution.scopeStack.items.len - 1];
+        const indentToken = self.parsedQ.list.items[scope.start];
+        try self.emit(Token.lex(Kind.grp_dedent, scope.start, indentToken.data.scope.scope_id));
+        try self.resolution.endScope(self.parsedLen());
     }
 
-    fn emitTemplateToken(self: *Self, t: Token, i: u32, fixup: *IndentFixup) anyerror!void {
+    fn emitTemplateToken(self: *Self, t: Token, i: u32) anyerror!void {
         switch (t.kind) {
             Kind.identifier, Kind.const_identifier => try self.reResolveAndEmit(t, i),
-            Kind.grp_indent => try self.emitIndentFixup(fixup),
-            Kind.grp_dedent => try self.emitDedentFixup(fixup),
+            Kind.grp_indent => try self.emitTemplateIndent(),
+            Kind.grp_dedent => try self.emitTemplateDedent(),
             else => try self.emit(t),
         }
     }
 
     fn walkBodyInfix(self: *Self, body_start: u32, body_end: u32, splice_power: u8) anyerror!void {
-        var fixup = IndentFixup{};
         var i: u32 = body_start;
         while (i <= body_end) : (i += 1) {
             const t = self.parsedQ.list.items[i];
             if (t.kind == Kind.ident_splice) {
                 try self.parse(splice_power);
             } else {
-                try self.emitTemplateToken(t, i, &fixup);
+                try self.emitTemplateToken(t, i);
             }
         }
     }
 
     fn walkBodyBlock(self: *Self, body_start: u32, body_end: u32, def_open_idx: u32) anyerror!void {
-        var fixup = IndentFixup{};
         var slot_cursor: u32 = 0;
         var i: u32 = body_start;
         while (i <= body_end) : (i += 1) {
@@ -619,7 +611,7 @@ pub const Parser = struct {
                 try self.parse(Power.Separator.val());
                 slot_cursor = target_slot + 1;
             } else {
-                try self.emitTemplateToken(t, i, &fixup);
+                try self.emitTemplateToken(t, i);
             }
         }
     }
