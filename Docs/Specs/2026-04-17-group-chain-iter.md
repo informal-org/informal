@@ -14,9 +14,10 @@ Replace the position math with a linked-list structure woven through every group
 
 1. Every `grp_open_*`, `grp_close_*`, and `sep_comma` token carries three `i16` offsets: `prev_offset`, `next_offset`, `iter_offset`. Total: 48 bits — fits in the existing `Data` payload.
 2. `prev_offset` / `next_offset` form a doubly-linked chain through the group in positional order.
-   - Open paren: `prev_offset = 0` (no predecessor).
+   - Open paren: no predecessor; `prev_offset` is overloaded (see below).
    - Close paren: `next_offset = 0` (no successor).
    - Each comma has both set.
+   - **Fn open paren overload**: `open_paren.prev_offset` is repurposed two ways. (a) During param/body parse, it transiently holds the iter-chain *tail* (what handleLazyParamUse extends). (b) After the fn finishes parsing, it is reset to point at the matching close paren — the stable post-parse meaning used by `opIdentifierInfix` for O(1) open→close lookup.
 3. `iter_offset` is meaningful **only** for a `kw_fn` / `kw_lazy_fn` parameter list. Everywhere else (plain parens, brackets, braces, call arg lists) it is `0` and reserved for future use.
 4. For a fn param-list, `iter_offset` encodes iteration order:
    - **Head anchor**: the close-paren's `iter_offset` holds the offset to the first separator in iter order. `0` when the iter chain is empty.
@@ -51,28 +52,27 @@ Track a single local `prev_sep_idx: u32`:
 
 ### `kwFn` — fn param-list
 
-Extends `groupDelim` with an iter-chain cursor:
-- `iter_tail: u32 = close_paren_idx` — the close paren acts as the anchor of the iter chain head.
-- After emitting each **eager** param decl: the separator *immediately preceding* this decl (either the open paren for param 0, or the most recently emitted comma) is appended to the iter chain.
+Extends `groupDelim` with an iter-chain cursor stored entirely on parsed tokens (no parser field):
+- During param parse, track the eager iter tail in a local `iter_tail` variable. After each **eager** param decl, the separator *immediately preceding* this decl (open paren for param 0, else the most recently emitted comma) is appended:
   - Set `parsedQ[iter_tail].iter_offset = preceding_sep_idx - iter_tail`.
   - Update `iter_tail = preceding_sep_idx`.
-- Lazy params are **skipped** during the param-parse pass; they join the iter chain after body parsing.
-- Remove `lazyMask`. Lazy params are re-identified later by scanning `kind == const_identifier` tokens along the positional chain.
+- Each **lazy** param decl gets its own forward channel: patch `decl.next_offset = offset(open_paren, decl_idx)` (negative). This open-paren ref is consumed on first body reference.
+- After emitting the close paren and writing `close.iter_offset = offset(eager_head, close)` (when eagers exist), seed the iter-tail channel:
+  - `open.prev_offset = offset(initial_tail, open)` where `initial_tail = iter_tail` if eagers exist, else `closeIdx`. The no-eagers bootstrap makes the first lazy append uniformly write `close.iter_offset` (the head anchor) without a special case.
 
-The lazy segment of the iter chain is extended **in-place during body parsing**. No auxiliary array, no post-body reordering pass.
+The lazy segment of the iter chain is extended **in-place during body parsing**, with no parser field and no save/restore around nested fn bodies.
 
-- `iter_tail` persists from param parse into body parse (stored on the active function's scope entry).
-- When the parser resolves a `const_identifier` reference in the body (emitting it as `ident_splice`):
-  - Locate the referenced decl via the existing prev-chain.
-  - Find the decl's preceding separator: `sep_idx = decl_idx - 1` (simple layout; walk back along positional chain for the general case).
-  - Extend the iter chain: `parsedQ[iter_tail].iter_offset = sep_idx - iter_tail; iter_tail = sep_idx`.
-- Validation:
-  - `error.LazyParamUsedMoreThanOnce` if the decl's use-chain head (`decl.next_offset`) is already non-zero when this reference resolves.
-  - `error.LazyParamUnused` — checked after body parse by a single walk of the positional chain: any `const_identifier` decl with `next_offset == 0` was never referenced.
+- When `handleLazyParamUse` resolves a `const_identifier` body reference to a lazy param decl:
+  1. `decl_to_open = decl.next_offset` (interpreted as i16); `open_idx = decl_idx + decl_to_open`.
+  2. `tail_idx = open_idx + open.prev_offset` — the current iter tail.
+  3. `sep_idx = decl_idx - 1`.
+  4. Extend chain: `parsedQ[tail_idx].iter_offset = sep_idx - tail_idx`.
+  5. Advance tail: `open.prev_offset = sep_idx - open_idx`.
+- `Resolution.resolve` then overwrites `decl.next_offset` with the use-chain link (positive offset to the splice in the body), consuming the open-paren ref in the same step.
+- Validation: `error.LazyParamUsedMoreThanOnce` is detected via `tail_tok.flags.declaration == false` — the second body reference sees a use, not the decl, in `declarations[sym_id]`. Unused-lazy is not enforced at parse time (assume good input).
+- After body parse completes, restore `open.prev_offset = offset(close, open)` — the stable post-parse meaning.
 
-By the time body parse completes, the iter chain is fully linked. `iter_offset` on `iter_tail` stays `0` as the natural terminator.
-
-The iter-chain write lives in the parser's identifier handler (which already dispatches on kind), not in `resolution.resolve` — keeping resolution focused on symbol bookkeeping.
+By the time the fn finishes parsing: the iter chain is fully linked, `iter_offset` on the tail stays `0` as the terminator, and `open.prev_offset` is the close ref.
 
 ### `opIdentifierInfix` — infix lazy-fn detection
 
@@ -84,21 +84,21 @@ Replaces the fixed-offset shape check (`openIdx + 1`, `openIdx + 3`) with an ite
 
 ### `callExprInline` / `walkBodyBlock` — call-site splice
 
-The `syntaxQ` is a consumer queue backed by a list with a `head` cursor — prior tokens remain in the underlying storage after consumption. Seeking back is as cheap as assigning `syntaxQ.head = args_start`. This lets us drop the monotonic `slot_cursor` scheme (and its positional-order requirement on lazy body references) without any auxiliary bookkeeping.
+The `syntaxQ` is a consumer queue with a `head` cursor — prior tokens remain in storage after consumption, so seeking back is `syntaxQ.head = pos`. We use this to splice each lazy arg in O(1) at body walk: the eager pass records each lazy arg's `syntaxQ` offset on its body splice token, and the body pass reads it back.
 
 1. **Record anchors.** After popping `grp_open_paren`, record `args_start = syntaxQ.head`.
-2. **Eager pass.** Walk the fn's positional param chain in `parsedQ` (via `next_offset`, not slot math). For each param decl:
-   - If `kind == identifier` (eager): `parse(Separator)` to consume the corresponding arg from `syntaxQ`, then emit the synthesized `ident_splice` declaration.
-   - If `kind == const_identifier` (lazy): `skipArg()` — advance past the arg without parsing.
-   - Between params (except after the last): `assert(syntaxQ.pop().kind == sep_comma)`.
+2. **Eager pass.** Walk the fn's positional param chain in `parsedQ` (via `next_offset`). For each param decl:
+   - Between params (except for param 0): `assert(syntaxQ.pop().kind == sep_comma)`.
+   - If `kind == identifier` (eager): `parse(Separator)` to consume the arg, then emit the synthesized `ident_splice` decl.
+   - If `kind == const_identifier` (lazy): locate the body splice via `splice_idx = decl_idx + decl.next_offset` (use-chain link written by `Resolution.resolve` during body parse). Patch `splice.next_offset = syntaxQ.head - args_start`. Then `skipArg()`.
 3. **After eager pass.** Assert the matching `grp_close_paren` and record `post_call = syntaxQ.head`.
 4. **Body pass.** Walk body tokens. For each `ident_splice`:
-   - Compute the referenced lazy param's positional slot: from the splice's `prev_offset`, follow to the decl; from the decl, locate its preceding separator; walk that separator's `prev_offset` chain back to the open paren, counting hops → `slot`.
-   - `syntaxQ.head = args_start`. Walk forward `slot` times using `skipArg` + `pop(sep_comma)`.
+   - Read `arg_offset = splice.next_offset`. Set `syntaxQ.head = args_start + arg_offset`.
    - `parse(Separator)` to splice the arg.
+   - Reset `splice.next_offset = 0` so the next call site's eager pass sees a clean slot.
 5. **Restore.** `syntaxQ.head = post_call`.
 
-Per-splice cost is O(slot) in `syntaxQ` scan. For small arities (typical <8 params) this is negligible; we gain out-of-order lazy-reference support with zero extra state.
+Per-splice cost is O(1): one read, one seek, one parse, one zero-out. No prev-walk, no slot count. The `splice.next_offset` slot is safe to commandeer because lazy params are single-use by construction (so it's `0` after body parse), and call sites are independent (every call's eager pass writes before its body pass reads).
 
 ## Migration notes
 

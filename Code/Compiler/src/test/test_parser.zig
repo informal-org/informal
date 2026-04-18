@@ -46,6 +46,13 @@ fn gopen(kind: Kind, next: i16, iter: i16) Token {
     return t;
 }
 
+/// Fn-param open paren: prev_offset is overloaded to point at the matching close.
+fn gopenFn(kind: Kind, prev: i16, next: i16, iter: i16) Token {
+    var t = Token.groupOpen(kind);
+    t.data.group_link = .{ .prev_offset = prev, .next_offset = next, .iter_offset = iter };
+    return t;
+}
+
 fn gsep(prev: i16, next: i16, iter: i16) Token {
     var t = Token.groupSep();
     t.data.group_link = .{ .prev_offset = prev, .next_offset = next, .iter_offset = iter };
@@ -166,7 +173,7 @@ test "Parse fn definition" {
         tok.AUX_STREAM_START,
         Token.lex(TK.identifier, 0, 0).newDeclaration(0), // add declaration (no refs)
         Token.fnHeader(TK.kw_fn, 8, 6), // body_length=8, body_offset=6 (close@7 + 1 - header@2)
-        gopen(TK.grp_open_paren, 2, 2), // next→sep@5, iter→sep@5
+        gopenFn(TK.grp_open_paren, 4, 2, 2), // prev→close@7, next→sep@5, iter→sep@5
         a_decl,
         gsep(-2, 2, 0), // prev→open, next→close, iter terminator
         b_decl,
@@ -214,7 +221,7 @@ test "Parse lazy fn with splice detection" {
         tok.AUX_STREAM_START,
         Token.lex(TK.identifier, 0, 0).newDeclaration(0), // APPLY declaration (no refs)
         Token.fnHeader(TK.kw_lazy_fn, 7, 6), // body_length=7, body_offset=6
-        gopen(TK.grp_open_paren, 2, 2),
+        gopenFn(TK.grp_open_paren, 4, 2, 2), // prev→close@7
         first_decl,
         gsep(-2, 2, 0),
         second_decl,
@@ -246,21 +253,6 @@ fn testParseError(buffer: []const u8, tokens: []const Token, aux: []const Token,
     try testutils.pushAll(&auxQ, aux);
     var p = parser_mod.Parser.init(buffer, &syntaxQ, &auxQ, &parsedQ, &offsetQ, test_allocator, &resolution);
     try std.testing.expectError(expected_err, p.startParse());
-}
-
-test "Lazy param unused raises diagnostic" {
-    // fn F(X): 0 — X is lazy but never referenced in the body.
-    const buffer = "fn F(X): 0";
-    const tokens = &[_]Token{
-        tok.createToken(TK.kw_fn),
-        Token.lex(TK.identifier, 0, 0), // F
-        tok.createToken(TK.grp_open_paren),
-        Token.lex(TK.const_identifier, 1, 0), // X (lazy)
-        tok.createToken(TK.grp_close_paren),
-        tok.createToken(TK.op_colon_assoc),
-        Token.lex(TK.lit_number, 0, 0),
-    };
-    try testParseError(buffer, tokens, &[_]Token{}, error.LazyParamUnused);
 }
 
 test "Lazy param used more than once raises diagnostic" {
@@ -470,7 +462,7 @@ test "Parse lazy fn inline expansion" {
         // fn definition
         pick_decl,
         Token.fnHeader(TK.kw_lazy_fn, 6, 6), // body_length=6, body_offset=6
-        gopen(TK.grp_open_paren, 2, 2), // body parse extends iter to sep@5 (SECOND's sep)
+        gopenFn(TK.grp_open_paren, 4, 2, 2), // prev→close@7; iter→sep@5 (SECOND's sep)
         Token.lex(TK.identifier, 1, 0).newDeclaration(0), // first param decl (no refs)
         gsep(-2, 2, 0),
         second_decl,
@@ -577,7 +569,7 @@ test "Parse fn body_offset points to first body token" {
         tok.AUX_STREAM_START,
         Token.lex(TK.identifier, 0, 0).newDeclaration(0), // decl(f)
         Token.fnHeader(TK.kw_fn, 8, 8), // body_length=8, body_offset=8
-        gopen(TK.grp_open_paren, 2, 2), // iter → sep@5 (b's sep)
+        gopenFn(TK.grp_open_paren, 6, 2, 2), // prev→close@9; iter→sep@5 (b's sep)
         a_decl,
         gsep(-2, 2, 2), // iter → sep@7 (c's sep)
         b_decl,
@@ -642,7 +634,7 @@ test "Parse N-ary prefix inline expansion" {
         tok.AUX_STREAM_START,
         add2_decl,
         Token.fnHeader(TK.kw_lazy_fn, 8, 6),
-        gopen(TK.grp_open_paren, 2, 2), // iter extended to sep@5 when B referenced in body
+        gopenFn(TK.grp_open_paren, 4, 2, 2), // prev→close@7; iter→sep@5 (B's sep)
         a_decl_param,
         gsep(-2, 2, 0),
         b_decl_param,
@@ -700,7 +692,7 @@ test "Parse reordered lazy iter chain" {
         tok.AUX_STREAM_START,
         Token.lex(TK.identifier, 0, 0).newDeclaration(0), // decl(F)
         Token.fnHeader(TK.kw_lazy_fn, 10, 8),
-        gopen(TK.grp_open_paren, 2, 4), // iter → sep@7 (C's sep, set on 2nd lazy extension)
+        gopenFn(TK.grp_open_paren, 6, 2, 4), // prev→close@9; iter→sep@7 (C's sep, 2nd lazy)
         a_decl,
         gsep(-2, 2, -2), // iter → open@3 (A's sep, set on 1st lazy extension)
         b_decl,

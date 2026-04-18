@@ -58,10 +58,6 @@ pub const Parser = struct {
     // For each token in the parsedQ, indicates where to find it in the syntaxQ.
     offsetQ: *OffsetQueue,
 
-    // Tail of the enclosing fn's iter chain, used to link lazy param body-refs.
-    // 0 = no active fn body. Saved/restored around nested fn bodies.
-    active_fn_iter_tail: u32 = 0,
-
     const Power = enum(u8) {
         None = 0,
         Separator = 10,
@@ -274,6 +270,12 @@ pub const Parser = struct {
     /// If `sym_id` resolves to a lazy-fn param declaration, extend the enclosing fn's
     /// iter chain and validate single-use. Returns true iff this is a lazy-param use
     /// (caller should rewrite the emitted kind to ident_splice). Errors on double-use.
+    ///
+    /// Iter-tail lives in `open_paren.data.group_link.prev_offset`. Each lazy decl's
+    /// `next_offset` (transiently) points at the open paren so we can hop:
+    ///   decl → open → tail → extend chain → new tail = sep before this decl.
+    /// `Resolution.resolve` then overwrites decl.next_offset with the use-chain link,
+    /// consuming the open-paren ref in the same step.
     fn handleLazyParamUse(self: *Self, sym_id: u16) !bool {
         const tail = self.resolution.declarations[sym_id];
         if (tail == rs.UNDECLARED_SENTINEL) return false;
@@ -292,10 +294,12 @@ pub const Parser = struct {
         if (!tail_tok.flags.declaration) return error.LazyParamUsedMoreThanOnce;
 
         const sep_idx: u32 = decl_idx - 1;
-        const cur_tail = self.active_fn_iter_tail;
-        assert(cur_tail != 0);
-        self.parsedQ.list.items[cur_tail].data.group_link.iter_offset = rs.calcOffset(i16, sep_idx, cur_tail);
-        self.active_fn_iter_tail = sep_idx;
+        const decl_to_open: i16 = @bitCast(decl_tok.data.ident.next_offset);
+        const open_idx = rs.applyOffset(i16, decl_idx, decl_to_open);
+        const open_to_tail: i16 = self.parsedQ.list.items[open_idx].data.group_link.prev_offset;
+        const tail_idx = rs.applyOffset(i16, open_idx, open_to_tail);
+        self.parsedQ.list.items[tail_idx].data.group_link.iter_offset = rs.calcOffset(i16, sep_idx, tail_idx);
+        self.parsedQ.list.items[open_idx].data.group_link.prev_offset = rs.calcOffset(i16, sep_idx, open_idx);
         return true;
     }
 
@@ -374,16 +378,25 @@ pub const Parser = struct {
         const scope_start = self.parsedLen();
         try self.resolution.startScope(rs.Scope{ .start = scope_start, .scopeType = .block });
 
-        // Walk the def's positional chain. For each param, parse (eager) or skip (lazy)
-        // the corresponding arg from syntaxQ.
+        // Walk the def's positional chain. For each param, parse (eager) or
+        // record-and-skip (lazy) the corresponding arg from syntaxQ.
+        // For lazy params, stash the syntaxQ arg position on the body splice's
+        // next_offset; walkBodyBlock reads it back to seek the arg in O(1).
         var cur_sep: u32 = def_open_idx;
         while (true) {
             const next_off: i16 = self.parsedQ.list.items[cur_sep].data.group_link.next_offset;
             if (next_off == 0) break;
             if (next_off > 1) {
                 if (cur_sep != def_open_idx) assert(self.syntaxQ.pop().kind == Kind.sep_comma);
-                const param_tok = self.parsedQ.list.items[cur_sep + 1];
+                const param_decl_idx = cur_sep + 1;
+                const param_tok = self.parsedQ.list.items[param_decl_idx];
                 if (param_tok.kind == Kind.const_identifier) {
+                    // decl.next_offset was overwritten by Resolution.resolve to point
+                    // at the splice in the body (positive use-chain link).
+                    const decl_to_splice: i16 = @bitCast(param_tok.data.ident.next_offset);
+                    const splice_idx = rs.applyOffset(i16, param_decl_idx, decl_to_splice);
+                    const arg_offset: u16 = @truncate(self.syntaxQ.head - args_start);
+                    self.parsedQ.list.items[splice_idx].data.ident.next_offset = arg_offset;
                     self.skipArg();
                 } else {
                     try self.parse(Power.Separator.val());
@@ -400,11 +413,9 @@ pub const Parser = struct {
         assert(self.syntaxQ.pop().kind == Kind.grp_close_paren);
         const post_call = self.syntaxQ.head;
 
-        // Body pass: each splice re-seeks args_start and re-advances to its slot,
-        // since lazy body-refs may appear out of positional order.
         const body_start: u32 = header_idx + body_offset;
         const body_end: u32 = header_idx + body_length;
-        try self.walkBodyBlock(body_start, body_end, def_open_idx, args_start);
+        try self.walkBodyBlock(body_start, body_end, args_start);
 
         self.syntaxQ.head = post_call;
         try self.resolution.endScope(self.parsedLen());
@@ -496,11 +507,18 @@ pub const Parser = struct {
         if (self.syntaxQ.peek().kind != Kind.grp_close_paren) {
             while (true) {
                 const paramToken = self.syntaxQ.pop();
-                const declParam = self.resolution.declare(self.parsedLen(), paramToken);
+                const declIdx = self.parsedLen();
+                const declParam = self.resolution.declare(declIdx, paramToken);
                 try self.emit(declParam);
 
                 if (paramToken.kind == Kind.const_identifier) {
                     has_lazy = true;
+                    // Lazy decls park an open-paren ref in next_offset; consumed by
+                    // handleLazyParamUse on first reference. If never used, the value
+                    // remains negative (open paren is always before the decl) — that's
+                    // the unused-lazy detection signal below.
+                    const ref: u16 = @bitCast(rs.calcOffset(i16, openIdx, declIdx));
+                    self.parsedQ.list.items[declIdx].data.ident.next_offset = ref;
                 } else {
                     if (eager_head == 0) {
                         eager_head = prev_sep_idx;
@@ -520,24 +538,27 @@ pub const Parser = struct {
         assert(self.syntaxQ.pop().kind == Kind.grp_close_paren);
         const closeIdx = try self.emitChainedSep(prev_sep_idx, Token.groupClose(Kind.grp_close_paren));
 
-        // Overload open_paren's unused prev_offset to point at its matching close,
-        // giving O(1) lookup (see opIdentifierInfix). Must be set after closeIdx is known.
-        self.parsedQ.list.items[openIdx].data.group_link.prev_offset =
-            rs.calcOffset(i16, closeIdx, openIdx);
-
         if (eager_head != 0) {
             self.parsedQ.list.items[closeIdx].data.group_link.iter_offset =
                 rs.calcOffset(i16, eager_head, closeIdx);
         }
 
+        // open.prev_offset is the iter-tail channel during body parse. Bootstrap:
+        //   - Eagers exist: tail = last eager sep.
+        //   - No eagers: tail = close, so the first lazy append writes close.iter_offset
+        //     (the iter head anchor) without a special case.
+        // Reset to offset(close, open) at end of fn parse — its stable post-parse meaning.
+        const initial_tail: u32 = if (eager_head != 0) iter_tail else closeIdx;
+        self.parsedQ.list.items[openIdx].data.group_link.prev_offset =
+            rs.calcOffset(i16, initial_tail, openIdx);
+
         const body_offset: u16 = @truncate(self.parsedLen() - headerIdx);
         assert(self.syntaxQ.pop().kind == Kind.op_colon_assoc);
 
-        // 4. Parse body — save/restore iter_tail to support nested fn bodies.
-        const prev_fn_iter_tail = self.active_fn_iter_tail;
-        self.active_fn_iter_tail = if (eager_head != 0) iter_tail else closeIdx;
         try self.parse(Power.Separator.val());
-        self.active_fn_iter_tail = prev_fn_iter_tail;
+
+        self.parsedQ.list.items[openIdx].data.group_link.prev_offset =
+            rs.calcOffset(i16, closeIdx, openIdx);
 
         try self.resolution.endScope(self.parsedLen());
 
@@ -655,27 +676,16 @@ pub const Parser = struct {
         }
     }
 
-    fn walkBodyBlock(self: *Self, body_start: u32, body_end: u32, def_open_idx: u32, args_start: usize) anyerror!void {
+    fn walkBodyBlock(self: *Self, body_start: u32, body_end: u32, args_start: usize) anyerror!void {
         var i: u32 = body_start;
         while (i <= body_end) : (i += 1) {
             const t = self.parsedQ.list.items[i];
             if (t.kind == Kind.ident_splice) {
-                const param_decl_idx = rs.applyOffset(i16, i, t.data.ident.prev_offset);
-                // Walk the prev-chain back to open paren, counting hops = slot.
-                var slot: u32 = 0;
-                var s: u32 = param_decl_idx - 1;
-                while (s != def_open_idx) : (slot += 1) {
-                    const prev_off: i16 = self.parsedQ.list.items[s].data.group_link.prev_offset;
-                    assert(prev_off < 0);
-                    s = rs.applyOffset(i16, s, prev_off);
-                }
-                self.syntaxQ.head = args_start;
-                var k: u32 = 0;
-                while (k < slot) : (k += 1) {
-                    self.skipArg();
-                    assert(self.syntaxQ.pop().kind == Kind.sep_comma);
-                }
+                const arg_offset: u32 = t.data.ident.next_offset;
+                self.syntaxQ.head = args_start + arg_offset;
                 try self.parse(Power.Separator.val());
+                // Reset so the next call site's eager pass starts from a clean slate.
+                self.parsedQ.list.items[i].data.ident.next_offset = 0;
             } else {
                 try self.emitTemplateToken(t, i);
             }
