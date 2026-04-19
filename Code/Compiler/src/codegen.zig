@@ -10,12 +10,11 @@
 //
 // Token handling:
 //   Literals          — MOVZ the inline value (lit_number) or length + ADRP placeholder (lit_string).
-//   Identifier decl   — allocate a reg (or pop, if splice=true for inline-expansion bindings)
-//                       and write the reg ID back into the parsedQ token so later refs can read it.
+//   Identifier decl   — allocate a reg and write the reg ID back into the parsedQ token so
+//                       later refs can read it.
 //   Identifier ref    — follow arg1 back to the declaration token, read its stored reg ID, push it.
 //   Operators         — pop operand regs, emit ADD/MUL/CMP, push result.
-//   kw_fn             — skip the next `bodyLength` tokens; function bodies are templates already
-//                       inlined at call sites by the parser.
+//   kw_fn             — skip the next `bodyLength` tokens; function bodies are not executable code.
 //   Conditionals      — see branch fixup below.
 //
 // Branch fixup (conditional targets aren't known at emit time):
@@ -271,7 +270,7 @@ pub const Codegen = struct {
                     tokenQueue[index] = Token.lex(token.kind, @truncate(placeholderIndex), @truncate(tokenQueueOffset));
                     self.strConstRefTail = index;
                 },
-                TK.identifier, TK.const_identifier, TK.call_identifier, TK.ident_splice => {
+                TK.identifier, TK.const_identifier, TK.call_identifier => {
                     if (token.kind == TK.call_identifier and !token.flags.declaration) {
                         // Syscall handling.
                         // TODO: Support for our own functions.
@@ -286,19 +285,12 @@ pub const Codegen = struct {
                         continue;
                     }
                     if (token.flags.declaration) {
-                        if (token.kind == TK.ident_splice) {
-                            // Inline expansion: bind to the operand already on the stack.
-                            reg = self.popReg();
-                        } else {
-                            reg = self.getFreeReg();
-                        }
+                        reg = self.getFreeReg();
                         self.pushReg(reg);
                         // Save which register this identifier is associated with to the parsed queue so future refs can look it up.
                         tokenQueue[index] = token.assignReg(@intFromEnum(reg));
                         std.log.debug("DECL @{any}, {s}", .{ index, @tagName(reg) });
                     } else {
-                        // ident_splice references are always rewritten to regular identifier refs during body-template replay.
-                        std.debug.assert(token.kind != TK.ident_splice);
                         // Find what register this identifier is at by following the usage chain.
                         const offset = token.data.ident.prev_offset;
                         const prevRefDecIndex = resolution.applyOffset(i16, @truncate(index), offset);
@@ -349,8 +341,7 @@ pub const Codegen = struct {
                     // Starts as a branch type unknown since we don't know if this is followed by an and/or, etc.
                     self.br_unknown_tail_idx = try self.appendPendingBranch(arm.Cond.LE, self.br_unknown_tail_idx);
                 },
-                TK.kw_fn, TK.kw_lazy_fn => {
-                    // Skip over the function body — it's a template for inline expansion, not executable code.
+                TK.kw_fn => {
                     self.skip_count = token.data.fn_header.body_length;
                 },
                 TK.kw_if => {

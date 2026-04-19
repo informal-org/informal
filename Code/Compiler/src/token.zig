@@ -75,13 +75,11 @@ pub const Kind = enum(u8) {
     kw_else_if,
     kw_for,
     kw_fn,
-    kw_lazy_fn,
 
     identifier,
     const_identifier,
     type_identifier,
     call_identifier,
-    ident_splice,
     lit_string,
     lit_bool,
     lit_number,
@@ -115,7 +113,7 @@ pub const Data = packed union {
     // Strings: value = interned string index, length = string length.
     literal: Literal,
 
-    // Function header (kw_fn / kw_lazy_fn in parsedQ).
+    // Function header (kw_fn in parsedQ).
     // body_length = tokens to skip past header (codegen skip-over).
     // body_offset = close_paren_idx + 1 - header_idx, so
     //               header_idx + body_offset is the first body token.
@@ -131,9 +129,11 @@ pub const Data = packed union {
     // Aux token source positions (whitespace, newline, indentation).
     aux: Aux,
 
-    // sep_comma inside a group — carries only arg_idx.
-    // grp_open_* and grp_close_* carry no payload.
-    group_sep: GroupSep,
+    // Grouping chain: grp_open_*, grp_close_*, and sep_comma carry a doubly-linked
+    // positional chain plus an iter-order offset meaningful only in fn param lists.
+    // grp_open_* has no predecessor, so prev_offset is overloaded to store the
+    // signed offset to the matching close (O(1) open→close lookup).
+    group_link: GroupLink,
 
     pub const Ident = packed struct(u48) {
         symbol_id: u16,
@@ -166,9 +166,10 @@ pub const Data = packed union {
         length: u16,
     };
 
-    pub const GroupSep = packed struct(u48) {
-        arg_idx: u16, // 0-based index of the argument this comma precedes
-        _reserved: u32 = 0,
+    pub const GroupLink = packed struct(u48) {
+        prev_offset: i16,
+        next_offset: i16,
+        iter_offset: i16,
     };
 };
 
@@ -242,10 +243,10 @@ pub const Token = packed struct(u64) {
         };
     }
 
-    pub fn groupSep(arg_idx: u16) Token {
+    pub fn groupSep() Token {
         return Token{
             .kind = Kind.sep_comma,
-            .data = .{ .group_sep = .{ .arg_idx = arg_idx } },
+            .data = .{ .raw = 0 },
             .flags = Flags.empty(),
         };
     }
@@ -280,7 +281,7 @@ pub const TokenWriter = struct {
         const alt = if (value.flags.alt) "ALT" else "";
 
         switch (value.kind) {
-            TK.identifier, TK.const_identifier, TK.call_identifier, TK.type_identifier, TK.op_identifier, TK.ident_splice => {
+            TK.identifier, TK.const_identifier, TK.call_identifier, TK.type_identifier, TK.op_identifier => {
                 const prevOff: i16 = @bitCast(value.data.ident.prev_offset);
                 const nextOff: i16 = @bitCast(value.data.ident.next_offset);
                 try std.fmt.format(writer, "{d} {s} {s} [<{d} >{d}]", .{ value.data.ident.symbol_id, @tagName(value.kind), alt, prevOff, nextOff });
@@ -294,10 +295,11 @@ pub const TokenWriter = struct {
             TK.sep_newline => {
                 try std.fmt.format(writer, "{s} {d}, {d} {s}", .{ @tagName(value.kind), value.data.newline.aux_index, value.data.newline.prev_offset, alt });
             },
-            TK.sep_comma => {
-                try std.fmt.format(writer, "{s} {s} [arg_idx={d}]", .{ @tagName(value.kind), alt, value.data.group_sep.arg_idx });
+            TK.sep_comma, TK.grp_open_paren, TK.grp_close_paren, TK.grp_open_bracket, TK.grp_close_bracket, TK.grp_open_brace, TK.grp_close_brace => {
+                const link = value.data.group_link;
+                try std.fmt.format(writer, "{s} {s} [<{d} >{d} ~{d}]", .{ @tagName(value.kind), alt, link.prev_offset, link.next_offset, link.iter_offset });
             },
-            TK.kw_fn, TK.kw_lazy_fn => {
+            TK.kw_fn => {
                 try std.fmt.format(writer, "{s} {s} [body_length={d} body_offset={d}]", .{ @tagName(value.kind), alt, value.data.fn_header.body_length, value.data.fn_header.body_offset });
             },
             else => {
@@ -352,7 +354,7 @@ pub const LITERALS = bitset.token_bitset(&[_]TK{ TK.lit_string, TK.lit_number, T
 pub const UNARY_OPS = bitset.token_bitset(&[_]TK{ TK.op_not, TK.op_unary_minus });
 pub const GROUP_START = bitset.token_bitset(&[_]TK{ TK.grp_indent, TK.grp_open_paren, TK.grp_open_brace, TK.grp_open_bracket });
 pub const GROUP_END = bitset.token_bitset(&[_]TK{ TK.grp_close_brace, TK.grp_close_paren, TK.grp_close_bracket });
-pub const IDENTIFIER = bitset.token_bitset(&[_]TK{ TK.identifier, TK.const_identifier, TK.call_identifier, TK.ident_splice });
+pub const IDENTIFIER = bitset.token_bitset(&[_]TK{ TK.identifier, TK.const_identifier, TK.call_identifier });
 pub const KEYWORD_START = bitset.token_bitset(&[_]TK{ TK.kw_if, TK.kw_for, TK.kw_fn, TK.kw_else });
 pub const PAREN_START = bitset.token_bitset(&[_]TK{TK.grp_open_paren});
 pub const BINARY_OPS = bitset.token_bitset(&[_]TK{

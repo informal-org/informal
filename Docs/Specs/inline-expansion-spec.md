@@ -1,5 +1,12 @@
 # Inline Expansion Spec
 
+> **Deferred (2026-04-19).** This design is paused pending the new IR stage.
+> The parser no longer performs inline expansion; it emits a purely structural
+> postfix queue with resolved identifier chains. Macros will be reintroduced
+> on top of the IR. The rest of this document is preserved as a historical
+> reference for the original design. See
+> `2026-04-19-parser-simplification.md` for the current parser contract.
+
 ## Overview
 
 Informal supports user-defined infix operators backed by lazy functions. A function with one eager parameter (lowercase) and one lazy parameter (ALL_CAPS) can be invoked as an infix operator via `op_identifier` syntax. The parser inlines the function body at the call site, binding the left operand to a local variable and deferring right operand parsing until the lazy parameter's splice point is reached in the body.

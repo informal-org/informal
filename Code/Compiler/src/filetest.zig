@@ -83,13 +83,3 @@ test "fn_skip.ifi" {
     const exitCode = try exitCodeTest(std.testing.io, "../../Tests/FileTests/fn_skip.ifi");
     try expectEqual(5, exitCode);
 }
-
-test "fn_inline.ifi" {
-    const exitCode = try exitCodeTest(std.testing.io, "../../Tests/FileTests/fn_inline.ifi");
-    try expectEqual(7, exitCode);
-}
-
-test "fn_lazy.ifi" {
-    const exitCode = try exitCodeTest(std.testing.io, "../../Tests/FileTests/fn_lazy.ifi");
-    try expectEqual(42, exitCode);
-}
