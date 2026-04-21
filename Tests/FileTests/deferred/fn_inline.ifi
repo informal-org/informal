@@ -1,2 +1,0 @@
-fn ADD(first, SECOND): first + SECOND
-3 ADD 4

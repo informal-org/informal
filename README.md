@@ -1,6 +1,3 @@
-<img src="https://raw.githubusercontent.com/Feni/informal/main/Docs/Resources/Images/oto.jpg" width="205" alt="Oto, the octopus">
-
-
 # Informal Programming Language
 Informal is a flexible, general purpose programming language.
 

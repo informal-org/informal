@@ -153,13 +153,10 @@ pub const Lexer = struct {
         // Post: we consumed at least 0 digits and stopped at non-digit or end
         std.debug.assert(self.index >= start);
         std.debug.assert(self.index == self.buffer.len or (self.buffer[self.index] < '0' or self.buffer[self.index] > '9'));
-        std.log.debug("gobble_digits: consumed {d} digits [{d}..{d})", .{ self.index - start, start, self.index });
     }
 
     fn gobble_ch(self: *Lexer, ch: u8) void {
         std.debug.assert(self.index <= self.buffer.len); // Pre: index in bounds
-        const start = self.index;
-
         while (self.index < self.buffer.len) : (self.index += 1) {
             if (self.buffer[self.index] != ch) {
                 break;
@@ -168,13 +165,10 @@ pub const Lexer = struct {
 
         // Post: we stopped at non-matching char or end
         std.debug.assert(self.index == self.buffer.len or self.buffer[self.index] != ch);
-        std.log.debug("gobble_ch('{c}'): consumed {d} chars [{d}..{d})", .{ ch, self.index - start, start, self.index });
     }
 
     fn flushPrev(self: *Lexer, nextSyntax: bool) !void {
         const isSyntax = @intFromEnum(self.prevToken.kind) < tok.AUX_KIND_START;
-        std.log.debug("flushPrev: kind={s} isSyntax={} nextSyntax={} alt={}", .{ @tagName(self.prevToken.kind), isSyntax, nextSyntax, if (isSyntax) !nextSyntax else nextSyntax });
-
         if (isSyntax) {
             self.prevToken.flags.alt = !nextSyntax;
             try self.syntaxQ.push(self.prevToken);
@@ -193,8 +187,6 @@ pub const Lexer = struct {
         try self.flushPrev(false);
         self.prevToken = v;
         self.QIdx[AUX_Q] += 1;
-
-        std.log.debug("emitAux: {s} auxQIdx={d}", .{ @tagName(v.kind), self.QIdx[AUX_Q] });
     }
 
     fn emitToken(self: *Lexer, v: Token) !void {
@@ -204,8 +196,6 @@ pub const Lexer = struct {
         try self.flushPrev(true);
         self.prevToken = v;
         self.QIdx[SYNTAX_Q] += 1;
-
-        std.log.debug("emitToken: {s} syntaxQIdx={d}", .{ @tagName(v.kind), self.QIdx[SYNTAX_Q] });
     }
 
     // fn emitNumber(self: *Lexer, auxValue: Token) !void {
@@ -236,8 +226,6 @@ pub const Lexer = struct {
 
         const auxIndex = self.QIdx[AUX_Q] + 1;
 
-        std.log.debug("emitNewLine: line={d} charIdx={d} prevOffset={d} auxIdx={d}", .{ self.lineNo, self.index, prevOffset, auxIndex });
-
         const syntaxNewLine = Token.lex(tok.Kind.sep_newline, auxIndex, @truncate(prevOffset));
         try self.emitToken(syntaxNewLine);
 
@@ -257,8 +245,6 @@ pub const Lexer = struct {
         // Pre: current character should be dot
         std.debug.assert(self.index < self.buffer.len);
         std.debug.assert(self.buffer[self.index] == '.');
-
-        std.log.debug("token_dot: idx={d}", .{self.index});
 
         try switch (self.buffer[self.index]) {
             '0'...'9' => self.token_number(),
@@ -303,17 +289,13 @@ pub const Lexer = struct {
 
         const value: u64 = std.fmt.parseInt(u64, self.buffer[start..self.index], 10) catch 0;
 
-        std.log.debug("token_number: [{d}..{d}) value={d} len={d}", .{ start, self.index, value, len });
-
         // Predicate: Unary minus is handled separately. So value is always implicitly > 0.
         if (value > MAX_LITERAL_NUMBER) {
-            std.log.debug("Add number to constant pool {d} {d}", .{ value, len });
             // Add it to the numeric constant pool
             const constIdxEntry = self.internedNumbers.getOrPutValue(value, self.internedNumbers.count()) catch unreachable;
             const constIdx: u64 = constIdxEntry.value_ptr.*;
             try self.emitToken(Token.lex(TK.lit_number, @truncate(constIdx), 0));
         } else {
-            std.log.debug("Emit literal number {d} {d}", .{ value, len });
             // Emit it as an immediate value.
             try self.emitToken(Token.lex(TK.lit_number, @truncate(value), @truncate(len)));
         }
@@ -340,8 +322,6 @@ pub const Lexer = struct {
         const tokenStart = self.index;
         var escaped = false;
         var outIndex: usize = tokenStart;
-
-        std.log.debug("token_string: start={d}", .{stringStart});
 
         // Process string. Replaces escape sequences in-place in the input buffer to avoid extra allocations.
         // That operation is reversible if we need to unprocess it for error-reporting.
@@ -394,7 +374,6 @@ pub const Lexer = struct {
 
         // Only slice the processed portion
         const strValue = self.buffer[tokenStart..outIndex];
-        std.log.debug("token_string: [{d}..{d}) len={d} value=\"{s}\"", .{ tokenStart, outIndex, tokenLen, strValue });
 
         const constIdxEntry = self.internedStrings.getOrPutValue(strValue, self.internedStrings.count()) catch unreachable;
         const constIdx: u64 = constIdxEntry.value_ptr.*;
@@ -511,8 +490,6 @@ pub const Lexer = struct {
         const firstCh = self.buffer[start];
         std.debug.assert(firstCh < '0' or firstCh > '9'); // Not a digit
 
-        std.log.debug("token_identifier: start={d} firstCh='{c}'", .{ start, firstCh });
-
         // Non digit or symbol start, so interpret as an identifier.
         // First part of the identifier may have been parsed when attempting to tokenize a keyword.
         _ = self.seek_till_identifier_delimiter();
@@ -523,10 +500,8 @@ pub const Lexer = struct {
 
         const constIdx = self.push_identifier(start);
         if (self.index < self.buffer.len and self.buffer[self.index] == '(') {
-            std.log.debug("token_identifier: call_identifier '{s}'", .{self.buffer[start..self.index]});
             try self.emitToken(Token.lex(TK.call_identifier, @truncate(constIdx), @truncate(len)));
         } else {
-            std.log.debug("token_identifier: identifier '{s}'", .{self.buffer[start..self.index]});
             try self.emitToken(Token.lex(TK.identifier, @truncate(constIdx), @truncate(len)));
             try self.maybe_user_op_after_identifier();
         }
@@ -552,7 +527,6 @@ pub const Lexer = struct {
                 try self.emitToken(tok.KW_IF);
                 return;
             } else if (std.mem.eql(u8, name, "fn")) {
-                std.log.debug("token_identifier: keyword fn", .{});
                 try self.emitToken(tok.createToken(TK.kw_fn));
                 return;
             }
@@ -600,9 +574,6 @@ pub const Lexer = struct {
         std.debug.assert(firstCh >= 'A' and firstCh <= 'Z');
 
         const start = self.index;
-
-        std.log.debug("token_upperstart: start={d} firstCh='{c}' prevIdentifier={}", .{ start, firstCh, prevIdentifier });
-
         // To distinguish the three cases.
         // If the entire token is uppercase AND the previous token is an identifier, it's an operator.
         // Emit special tokens for AND, OR, NOT by explicitly checking for those cases.
@@ -716,8 +687,6 @@ pub const Lexer = struct {
             indent += 1;
         }
 
-        std.log.debug("countIndentation: [{d}..{d}) indent={d}", .{ start, self.index, indent });
-
         // Post: indent count matches characters consumed
         std.debug.assert(indent == self.index - start);
 
@@ -728,22 +697,15 @@ pub const Lexer = struct {
         // Pre: indentLvl must be non-zero (0 is used to detect overflow)
         // Stack can hold up to MAX_INDENT_DEPTH levels (21 levels × 3 bits each = 63 bits)
         std.debug.assert(indentLvl > 0 and indentLvl <= 7);
-
-        const oldStack = self.indentStack;
         self.indentStack = (self.indentStack << 3) | indentLvl;
-
-        std.log.debug("tiny_stack_push: level={d} stack={b:0>64} -> {b:0>64}", .{ indentLvl, oldStack, self.indentStack });
 
         // Post: top 3 bits should contain the pushed value
         std.debug.assert((self.indentStack & 0b111) == indentLvl);
     }
 
     fn tiny_stack_pop(self: *Lexer) u3 {
-        const oldStack = self.indentStack;
         const indentLvl = self.indentStack & 0b111;
         self.indentStack >>= 3;
-
-        std.log.debug("tiny_stack_pop: level={d} stack={b:0>64} -> {b:0>64}", .{ indentLvl, oldStack, self.indentStack });
 
         return @truncate(indentLvl);
     }
@@ -752,15 +714,11 @@ pub const Lexer = struct {
         // Pre: should be at line start after newline or at end of buffer
         std.debug.assert(self.index == self.lineChStart or self.index == self.buffer.len);
 
-        const oldDepth = self.depth;
         const indent: u16 = self.countIndentation();
         const ch = self.peek_ch();
 
-        std.log.debug("token_indentation: indent={d} depth={d} nextCh='{c}'", .{ indent, self.depth, if (ch >= 32 and ch <= 126) ch else '?' });
-
         if (ch == '\n') {
             // Skip emitting anything when the entire line is empty.
-            std.log.debug("token_indentation: empty line, skipping", .{});
             return tok.AUX_SKIP; // TODO: Return a special token to skip
         } else if (ch == '\t') {
             // Error on tabs - because it'll look like indentation visually, but don't have semantic meaning.
@@ -770,7 +728,6 @@ pub const Lexer = struct {
             // TODO: Incorrect - Terminate instead of skipping.
             return tok.AUX_SKIP;
         } else {
-            std.log.debug("Indent: {d} Depth: {d}", .{ indent, self.depth });
             // Count and determine if it's an indent or dedent.
             if (indent > self.depth) {
                 const diff = indent - self.depth;
@@ -783,17 +740,12 @@ pub const Lexer = struct {
                 }
                 self.tiny_stack_push(@truncate(diff));
                 self.depth = indent;
-
-                std.log.debug("token_indentation: INDENT depth {d} -> {d}", .{ oldDepth, self.depth });
-
                 try self.emitToken(tok.GRP_INDENT);
                 return tok.GRP_INDENT;
             } else if (indent < self.depth) {
-                std.log.debug("token_indentation: DEDENT depth {d} -> {d}", .{ oldDepth, indent });
                 return self.token_dedent(indent);
             }
             // No special token if you're on the same indentation level.
-            std.log.debug("token_indentation: same level, no change", .{});
         }
 
         return tok.AUX_SKIP;
@@ -803,9 +755,7 @@ pub const Lexer = struct {
         // Pre: indent should be less than current depth
         std.debug.assert(indent < self.depth);
 
-        const oldDepth = self.depth;
         var diff = self.depth - indent;
-        std.log.debug("token_dedent: oldDepth={d} newIndent={d} diff={d}", .{ oldDepth, indent, diff });
 
         var expectedDiff = self.tiny_stack_pop();
         if (expectedDiff == 0) {
@@ -823,7 +773,6 @@ pub const Lexer = struct {
         while (diff >= expectedDiff) {
             diff -= expectedDiff;
             dedentCount += 1;
-            std.log.debug("token_dedent: popped level={d} dedentCount={d} remaining={d}", .{ expectedDiff, dedentCount, diff });
             if (diff != 0) {
                 expectedDiff = self.tiny_stack_pop();
             }
@@ -835,8 +784,6 @@ pub const Lexer = struct {
         }
 
         self.depth = indent;
-
-        std.log.debug("token_dedent: emitting {d} dedent tokens, depth {d} -> {d}", .{ dedentCount, oldDepth, self.depth });
 
         // Post: depth should match target indent
         std.debug.assert(self.depth == indent);
@@ -863,8 +810,6 @@ pub const Lexer = struct {
 
         while (self.index < self.buffer.len) {
             const ch = self.buffer[self.index];
-            std.log.debug("lex[{d}]: '{c}' (0x{x}) line={d} depth={d}", .{ self.index, if (ch >= 32 and ch <= 126) ch else '?', ch, self.lineNo, self.depth });
-
             // Invariant: index should never exceed buffer length
             std.debug.assert(self.index < self.buffer.len);
 
@@ -913,7 +858,6 @@ pub const Lexer = struct {
                         // All multichar symbol starts are a subset of the single-char symbol starts.
                         if (MULTICHAR_BITSET.isSet(ch)) {
                             const peekCh = self.peek_ch();
-                            std.log.debug("Multichar: {c} {c}", .{ ch, peekCh });
                             // All of the current multi-char symbols have = as the followup char.
                             // If that changes in the future, use a lookup string indexed by chBit popcnt index.
                             if (peekCh == '=') {

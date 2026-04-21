@@ -76,7 +76,7 @@ pub const Parser = struct {
         }
     };
 
-    const ParserType = enum(u8) { none, literal, identifier, callExpr, unaryOp, binaryOp, binaryRightAssocOp, assignOp, colonAssocOp, separator, skipNewLine, groupParen, groupBracket, groupBrace, indentBlock, kwIf, kwElse, kwFn, opIdentifierInfix };
+    const ParserType = enum(u8) { none, literal, identifier, callExpr, unaryOp, binaryOp, binaryRightAssocOp, assignOp, colonAssocOp, separator, skipNewLine, groupParen, groupBracket, groupBrace, indentBlock, kwIf, kwElse };
 
     const TokenParser = packed struct(u24) {
         // Compact pratt rule representations. Aviods storing function pointers directly, but requires an extra level of indirection.
@@ -122,6 +122,9 @@ pub const Parser = struct {
             fn prefix(self: *Grammy, kind: Kind, parserType: ParserType, lbp: Power) void {
                 self.grammar[@intFromEnum(kind)] = TokenParser{ .prefix = parserType, .power = lbp };
             }
+            fn mixfix(self: *Grammy, kind: Kind, prefixType: ParserType, infixType: ParserType, lbp: Power) void {
+                self.grammar[@intFromEnum(kind)] = TokenParser{ .prefix = prefixType, .infix = infixType, .power = lbp };
+            }
         };
         var grammar = Grammar.init();
 
@@ -130,7 +133,7 @@ pub const Parser = struct {
         grammar.prefix(Kind.lit_bool, .literal, .None);
         grammar.prefix(Kind.lit_null, .literal, .None);
         grammar.prefix(Kind.identifier, .identifier, .None);
-        grammar.grammar[@intFromEnum(Kind.const_identifier)] = TokenParser{ .prefix = .identifier, .infix = .opIdentifierInfix, .power = .Comparison };
+        grammar.prefix(Kind.const_identifier, .identifier, .None);
         grammar.prefix(Kind.call_identifier, .callExpr, .None);
 
         // Unary ops (prefix only)
@@ -160,7 +163,6 @@ pub const Parser = struct {
         grammar.infix(Kind.op_in, .binaryOp, .Comparison);
         grammar.infix(Kind.op_is, .binaryOp, .Comparison);
         grammar.infix(Kind.op_as, .binaryOp, .Comparison);
-        grammar.infix(Kind.op_identifier, .opIdentifierInfix, .Comparison);
         grammar.infix(Kind.op_dot_member, .binaryOp, .Member);
 
         // Assignment
@@ -172,7 +174,7 @@ pub const Parser = struct {
 
         // Separators
         grammar.infix(Kind.sep_comma, .separator, .Separator);
-        grammar.grammar[@intFromEnum(Kind.sep_newline)] = TokenParser{ .prefix = .skipNewLine, .infix = .separator, .power = .Separator };
+        grammar.mixfix(Kind.sep_newline, .skipNewLine, .separator, .Separator);
 
         // Grouping
         grammar.prefix(Kind.grp_open_paren, .groupParen, .None);
@@ -184,7 +186,6 @@ pub const Parser = struct {
         // Keywords
         grammar.prefix(Kind.kw_if, .kwIf, .None);
         grammar.prefix(Kind.kw_else, .kwElse, .None);
-        grammar.prefix(Kind.kw_fn, .kwFn, .None);
 
         return grammar.grammar;
     }
@@ -209,8 +210,6 @@ pub const Parser = struct {
         fns[@intFromEnum(ParserType.separator)] = separator;
         fns[@intFromEnum(ParserType.kwIf)] = kwIf;
         fns[@intFromEnum(ParserType.kwElse)] = kwElse;
-        fns[@intFromEnum(ParserType.kwFn)] = kwFn;
-        fns[@intFromEnum(ParserType.opIdentifierInfix)] = opIdentifierInfix;
         return fns;
     }
 
@@ -345,61 +344,6 @@ pub const Parser = struct {
 
     fn kwElse(_: *Self, _: Token) anyerror!void {
         return error.UnexpectedElse;
-    }
-
-    fn kwFn(self: *Self, _: Token) anyerror!void {
-        // 1. Function name - pop identifier, declare it
-        const nameToken = self.syntaxQ.pop();
-        const declName = self.resolution.declare(self.parsedLen(), nameToken);
-        try self.emit(declName);
-
-        // 2. fn_header placeholder — body_length/body_offset patched later.
-        const headerIdx = self.parsedLen();
-        try self.emit(Token.fnHeader(Kind.kw_fn, 0, 0));
-
-        // 3. Parameters — emit as a linked group chain.
-        assert(self.syntaxQ.pop().kind == Kind.grp_open_paren);
-        try self.resolution.startScope(rs.Scope{ .start = headerIdx, .scopeType = .function });
-        const openIdx = self.parsedLen();
-        try self.emit(Token.groupOpen(Kind.grp_open_paren));
-
-        var prev_sep_idx: u32 = openIdx;
-
-        if (self.syntaxQ.peek().kind != Kind.grp_close_paren) {
-            while (true) {
-                const paramToken = self.syntaxQ.pop();
-                const declParam = self.resolution.declare(self.parsedLen(), paramToken);
-                try self.emit(declParam);
-
-                if (self.syntaxQ.peek().kind == Kind.sep_comma) {
-                    _ = self.syntaxQ.pop();
-                    prev_sep_idx = try self.emitChainedSep(prev_sep_idx, Token.groupSep());
-                } else break;
-            }
-        }
-        assert(self.syntaxQ.pop().kind == Kind.grp_close_paren);
-        const closeIdx = try self.emitChainedSep(prev_sep_idx, Token.groupClose(Kind.grp_close_paren));
-
-        const body_offset: u16 = @truncate(self.parsedLen() - headerIdx);
-        assert(self.syntaxQ.pop().kind == Kind.op_colon_assoc);
-
-        try self.parse(Power.Separator.val());
-
-        // Overload open.prev_offset as the O(1) open→close link for the grouping chain.
-        self.parsedQ.list.items[openIdx].data.group_link.prev_offset =
-            rs.calcOffset(i16, closeIdx, openIdx);
-
-        try self.resolution.endScope(self.parsedLen());
-
-        // 4. Patch fn_header: body_length, body_offset.
-        const bodyLength = self.parsedLen() - headerIdx - 1;
-        self.parsedQ.list.items[headerIdx] = Token.fnHeader(Kind.kw_fn, bodyLength, body_offset);
-    }
-
-    fn opIdentifierInfix(self: *Self, token: Token) anyerror!void {
-        const resolved = self.resolution.resolve(self.parsedLen(), token);
-        try self.parse(self.power(token) + 1);
-        try self.emit(resolved);
     }
 
     fn binaryOp(self: *Self, token: Token) anyerror!void {

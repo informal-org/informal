@@ -78,8 +78,3 @@ test "if.ifi" {
     const exitCode = try exitCodeTest(std.testing.io, "../../Tests/FileTests/if.ifi");
     try expectEqual(2, exitCode);
 }
-
-test "fn_skip.ifi" {
-    const exitCode = try exitCodeTest(std.testing.io, "../../Tests/FileTests/fn_skip.ifi");
-    try expectEqual(5, exitCode);
-}

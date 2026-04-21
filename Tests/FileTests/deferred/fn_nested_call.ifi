@@ -1,2 +1,0 @@
-fn dbl(X): 2 * X
-dbl(dbl(3))
