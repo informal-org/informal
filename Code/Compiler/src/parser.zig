@@ -56,6 +56,9 @@ pub const Parser = struct {
     // For each token in the parsedQ, indicates where to find it in the syntaxQ.
     offsetQ: *OffsetQueue,
 
+    // Keep track of how many of each kind of token are emitted. This will help the IR size its buffers appropriately in the next stage.
+    kindCounts: [64]u32 = [_]u32{0} ** 64,
+
     const Power = enum(u8) {
         None = 0,
         Separator = 10,
@@ -216,6 +219,7 @@ pub const Parser = struct {
     fn emit(self: *Self, token: Token) anyerror!void {
         try self.parsedQ.push(token);
         try self.offsetQ.push(@truncate(self.offsetQ.list.items.len - self.index)); // TODO: This is probably not the correct offset. Need to double-check.
+        self.kindCounts[@intFromEnum(token.kind)] += 1;
     }
 
     inline fn parsedLen(self: *Self) u32 {
