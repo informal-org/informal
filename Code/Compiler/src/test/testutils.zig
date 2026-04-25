@@ -43,7 +43,8 @@ pub fn testQueueEquals(buffer: []const u8, resultQ: *TokenQueue, expected: []con
 }
 
 pub fn pushAll(queue: *TokenQueue, tokens: []const LexToken) !void {
+    try queue.reserve(tokens.len);
     for (tokens) |token| {
-        try queue.push(token);
+        queue.push(token);
     }
 }

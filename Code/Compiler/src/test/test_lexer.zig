@@ -1,13 +1,13 @@
 const std = @import("std");
 const tok = @import("../token.zig");
-const q = @import("../queue.zig");
 const lexer_mod = @import("../lexer.zig");
+const parser_mod = @import("../parser.zig");
 
 const Token = tok.Token;
 const TK = tok.Kind;
-const TokenQueue = q.Queue(Token, tok.AUX_STREAM_END);
 const StringArrayHashMap = std.array_hash_map.StringArrayHashMap;
 const Lexer = lexer_mod.Lexer;
+const TokenQueue = parser_mod.TokenQueue;
 
 const test_allocator = std.testing.allocator;
 const expect = std.testing.expect;
@@ -16,8 +16,10 @@ const testutils = @import("./testutils.zig");
 const testQueueEquals = testutils.testQueueEquals;
 
 fn testToken(buffer: []u8, expected: []const Token, aux: ?[]const Token) !void {
-    var syntaxQ = TokenQueue.init(test_allocator);
-    var auxQ = TokenQueue.init(test_allocator);
+    var syntaxQ = try TokenQueue.init(test_allocator);
+    var auxQ = try TokenQueue.init(test_allocator);
+    try syntaxQ.reserve(buffer.len);
+    try auxQ.reserve(buffer.len);
     var internedStrings = StringArrayHashMap(u64).init(test_allocator);
     var internedNumbers = std.AutoHashMap(u64, u64).init(test_allocator);
     var internedFloats = std.AutoHashMap(f64, u64).init(test_allocator);

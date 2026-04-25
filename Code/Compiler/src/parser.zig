@@ -193,7 +193,7 @@ pub const Parser = struct {
         return grammar.grammar;
     }
 
-    const ParseFn = *const fn (*Self, Token) anyerror!void;
+    const ParseFn = *const fn (*Self, Token) void;
     const parseFns = initParseFns();
     fn initParseFns() [64]ParseFn {
         var fns: [64]ParseFn = [_]ParseFn{literal} ** 64;
@@ -216,9 +216,9 @@ pub const Parser = struct {
         return fns;
     }
 
-    fn emit(self: *Self, token: Token) anyerror!void {
-        try self.parsedQ.push(token);
-        try self.offsetQ.push(@truncate(self.offsetQ.list.items.len - self.index)); // TODO: This is probably not the correct offset. Need to double-check.
+    fn emit(self: *Self, token: Token) void {
+        self.parsedQ.push(token);
+        self.offsetQ.push(@truncate(self.offsetQ.list.items.len - self.index)); // TODO: This is probably not the correct offset. Need to double-check.
         self.kindCounts[@intFromEnum(token.kind)] += 1;
     }
 
@@ -233,167 +233,168 @@ pub const Parser = struct {
         return self.tokenParsers[kindVal].power.val();
     }
 
-    fn prefix(self: *Self, token: Token) anyerror!void {
+    fn prefix(self: *Self, token: Token) void {
         const tokenParser = self.tokenParsers[@intFromEnum(token.kind)];
         const parseFn = parseFns[@intFromEnum(tokenParser.prefix)];
-        try parseFn(self, token);
+        parseFn(self, token);
     }
 
-    fn infix(self: *Self, token: Token) anyerror!void {
+    fn infix(self: *Self, token: Token) void {
         const tokenParser = self.tokenParsers[@intFromEnum(token.kind)];
         const parseFn = parseFns[@intFromEnum(tokenParser.infix)];
-        try parseFn(self, token);
+        parseFn(self, token);
     }
 
     fn power(self: *Self, token: Token) u8 {
         return @intFromEnum(self.tokenParsers[@intFromEnum(token.kind)].power);
     }
 
-    fn literal(self: *Self, token: Token) anyerror!void {
-        try self.emit(token);
+    fn literal(self: *Self, token: Token) void {
+        self.emit(token);
     }
 
-    fn identifier(self: *Self, token: Token) anyerror!void {
+    fn identifier(self: *Self, token: Token) void {
         const resolved = self.resolution.resolve(self.parsedLen(), token);
-        try self.emit(resolved);
+        self.emit(resolved);
     }
 
-    fn emitChainedSep(self: *Self, prev_sep_idx: u32, sep_token: Token) !u32 {
+    fn emitChainedSep(self: *Self, prev_sep_idx: u32, sep_token: Token) u32 {
         const cur_idx = self.parsedLen();
         var t = sep_token;
         t.data.group_link.prev_offset = rs.calcOffset(i16, prev_sep_idx, cur_idx);
-        try self.emit(t);
+        self.emit(t);
         self.parsedQ.list.items[prev_sep_idx].data.group_link.next_offset = rs.calcOffset(i16, cur_idx, prev_sep_idx);
         return cur_idx;
     }
 
-    fn groupDelim(self: *Self, open_kind: Kind, close_kind: Kind) anyerror!void {
+    fn groupDelim(self: *Self, open_kind: Kind, close_kind: Kind) void {
         var prev_sep_idx = self.parsedLen();
-        try self.emit(Token.groupOpen(open_kind));
+        self.emit(Token.groupOpen(open_kind));
         if (self.syntaxQ.peek().kind != close_kind) {
             while (true) {
-                try self.parse(Power.Separator.val());
+                self.parse(Power.Separator.val());
                 if (self.syntaxQ.peek().kind != Kind.sep_comma) break;
                 _ = self.syntaxQ.pop();
-                prev_sep_idx = try self.emitChainedSep(prev_sep_idx, Token.groupSep());
+                prev_sep_idx = self.emitChainedSep(prev_sep_idx, Token.groupSep());
             }
         }
         assert(self.syntaxQ.pop().kind == close_kind);
-        _ = try self.emitChainedSep(prev_sep_idx, Token.groupClose(close_kind));
+        _ = self.emitChainedSep(prev_sep_idx, Token.groupClose(close_kind));
     }
 
-    fn callExpr(self: *Self, token: Token) anyerror!void {
+    fn callExpr(self: *Self, token: Token) void {
         assert(self.syntaxQ.pop().kind == Kind.grp_open_paren);
-        try self.groupDelim(Kind.grp_open_paren, Kind.grp_close_paren);
-        try self.emit(token);
+        self.groupDelim(Kind.grp_open_paren, Kind.grp_close_paren);
+        self.emit(token);
     }
 
-    fn unaryOp(self: *Self, token: Token) anyerror!void {
+    fn unaryOp(self: *Self, token: Token) void {
         // TODO: Not really implemented.
-        try self.parse(Power.Unary.val());
-        try self.emit(token);
+        self.parse(Power.Unary.val());
+        self.emit(token);
     }
 
-    fn skipNewLine(self: *Self, _: Token) anyerror!void {
-        try self.parse(Power.None.val());
+    fn skipNewLine(self: *Self, _: Token) void {
+        self.parse(Power.None.val());
     }
 
-    fn groupParen(self: *Self, _: Token) anyerror!void {
-        try self.groupDelim(Kind.grp_open_paren, Kind.grp_close_paren);
+    fn groupParen(self: *Self, _: Token) void {
+        self.groupDelim(Kind.grp_open_paren, Kind.grp_close_paren);
     }
 
-    fn groupBracket(self: *Self, _: Token) anyerror!void {
-        try self.groupDelim(Kind.grp_open_bracket, Kind.grp_close_bracket);
+    fn groupBracket(self: *Self, _: Token) void {
+        self.groupDelim(Kind.grp_open_bracket, Kind.grp_close_bracket);
     }
 
-    fn groupBrace(self: *Self, _: Token) anyerror!void {
-        try self.groupDelim(Kind.grp_open_brace, Kind.grp_close_brace);
+    fn groupBrace(self: *Self, _: Token) void {
+        self.groupDelim(Kind.grp_open_brace, Kind.grp_close_brace);
     }
 
-    fn indentBlock(self: *Self, _: Token) anyerror!void {
+    fn indentBlock(self: *Self, _: Token) void {
         const scopeId = self.resolution.scopeId;
         const startIdx = self.parsedLen();
-        try self.emit(Token.lex(Kind.grp_indent, 0, scopeId));
-        try self.resolution.startScope(rs.Scope{ .start = startIdx, .scopeType = .block });
-        try self.parse(Power.None.val());
+        self.emit(Token.lex(Kind.grp_indent, 0, scopeId));
+        self.resolution.startScope(rs.Scope{ .start = startIdx, .scopeType = .block });
+        self.parse(Power.None.val());
         if (self.syntaxQ.peek().kind == Kind.grp_dedent) {
             _ = self.syntaxQ.pop();
         }
-        try self.emit(Token.lex(Kind.grp_dedent, startIdx, scopeId));
-        try self.resolution.endScope(self.parsedLen());
+        self.emit(Token.lex(Kind.grp_dedent, startIdx, scopeId));
+        self.resolution.endScope(self.parsedLen());
     }
 
-    fn kwIf(self: *Self, token: Token) anyerror!void {
+    fn kwIf(self: *Self, token: Token) void {
         // Parse condition expression
-        try self.parse(Power.None.val());
+        self.parse(Power.None.val());
         // Emit kw_if in postfix position
-        try self.emit(token);
+        self.emit(token);
         // Consume and emit op_colon_assoc
         const colon = self.syntaxQ.pop();
         assert(colon.kind == Kind.op_colon_assoc);
-        try self.emit(colon);
+        self.emit(colon);
         // Parse then-branch (will hit grp_indent → indentBlock)
-        try self.parse(Power.None.val());
+        self.parse(Power.None.val());
         // Check for else
         if (self.syntaxQ.peek().kind == Kind.kw_else) {
             const elseToken = self.syntaxQ.pop();
-            try self.emit(elseToken);
+            self.emit(elseToken);
             const colon2 = self.syntaxQ.pop();
             assert(colon2.kind == Kind.op_colon_assoc);
-            try self.emit(colon2);
+            self.emit(colon2);
             // Parse else-branch
-            try self.parse(Power.None.val());
+            self.parse(Power.None.val());
         }
     }
 
-    fn kwElse(_: *Self, _: Token) anyerror!void {
-        return error.UnexpectedElse;
+    fn kwElse(_: *Self, _: Token) void {
+        // TODO: Error handling
+        // return error.UnexpectedElse;
     }
 
-    fn binaryOp(self: *Self, token: Token) anyerror!void {
-        try self.parse(self.power(token) + 1);
-        try self.emit(token);
+    fn binaryOp(self: *Self, token: Token) void {
+        self.parse(self.power(token) + 1);
+        self.emit(token);
     }
 
-    fn binaryRightAssocOp(self: *Self, token: Token) anyerror!void {
-        try self.parse(self.power(token));
-        try self.emit(token);
+    fn binaryRightAssocOp(self: *Self, token: Token) void {
+        self.parse(self.power(token));
+        self.emit(token);
     }
 
-    fn assignOp(self: *Self, token: Token) anyerror!void {
+    fn assignOp(self: *Self, token: Token) void {
         // TODO: Brittle — assumes previous token is an identifier. Needs rework for destructuring.
         const ident = self.resolution.declare(self.parsedLen() - 1, self.parsedQ.list.getLast());
         self.parsedQ.list.items[self.parsedLen() - 1] = ident;
 
-        try self.parse(Power.Assign.val());
-        try self.emit(token);
+        self.parse(Power.Assign.val());
+        self.emit(token);
     }
 
-    fn colonAssocOp(self: *Self, token: Token) anyerror!void {
-        try self.parse(Power.Separator.val());
-        try self.emit(token);
+    fn colonAssocOp(self: *Self, token: Token) void {
+        self.parse(Power.Separator.val());
+        self.emit(token);
     }
 
-    fn separator(self: *Self, _: Token) anyerror!void {
-        try self.parse(Power.Separator.val());
+    fn separator(self: *Self, _: Token) void {
+        self.parse(Power.Separator.val());
     }
 
     // Core of the parsing loop
-    fn parse(self: *Self, minRightBindingPower: u8) !void {
+    fn parse(self: *Self, minRightBindingPower: u8) void {
         var current = self.syntaxQ.pop();
         if (current.kind == Kind.aux_stream_end) return;
-        try self.prefix(current);
+        self.prefix(current);
 
         while (minRightBindingPower < self.currentBindingPower()) {
             current = self.syntaxQ.pop();
-            try self.infix(current);
+            self.infix(current);
         }
     }
 
-    pub fn startParse(self: *Self) !void {
+    pub fn startParse(self: *Self) void {
         log.debug("Starting Pratt Parser", .{});
-        try self.parsedQ.push(tok.AUX_STREAM_START);
-        try self.parse(Power.None.val());
+        self.parsedQ.push(tok.AUX_STREAM_START);
+        self.parse(Power.None.val());
         log.debug("Ending Pratt Parser", .{});
     }
 };

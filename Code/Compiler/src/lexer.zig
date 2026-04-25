@@ -171,10 +171,10 @@ pub const Lexer = struct {
         const isSyntax = @intFromEnum(self.prevToken.kind) < tok.AUX_KIND_START;
         if (isSyntax) {
             self.prevToken.flags.alt = !nextSyntax;
-            try self.syntaxQ.push(self.prevToken);
+            try self.syntaxQ.pushDynamic(self.prevToken);
         } else {
             self.prevToken.flags.alt = nextSyntax;
-            try self.auxQ.push(self.prevToken);
+            try self.auxQ.pushDynamic(self.prevToken);
         }
     }
 

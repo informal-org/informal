@@ -61,7 +61,7 @@ pub const Resolution = struct {
     declarations: []u32,
     unresolved: []u32,
 
-    scopeStack: std.array_list.AlignedManaged(Scope, null),
+    scopeStack: std.array_list.Aligned(Scope, null),
 
     parsedQ: *parser.TokenQueue,
 
@@ -74,8 +74,9 @@ pub const Resolution = struct {
         const unresolved = try allocator.alloc(u32, maxSymbols);
         @memset(unresolved, UNDECLARED_SENTINEL);
 
-        var scopeStack = std.array_list.AlignedManaged(Scope, null).init(allocator);
-        try scopeStack.append(Scope{ .start = 0, .scopeType = .base });
+        // 64 is the max scope depth enforced by lexer.
+        var scopeStack = try std.array_list.Aligned(Scope, null).initCapacity(allocator, 64);
+        scopeStack.appendAssumeCapacity(Scope{ .start = 0, .scopeType = .base });
 
         return Self{
             .allocator = allocator,
@@ -90,15 +91,15 @@ pub const Resolution = struct {
     pub fn deinit(self: *Self) void {
         self.allocator.free(self.declarations);
         self.allocator.free(self.unresolved);
-        self.scopeStack.deinit();
+        self.scopeStack.deinit(self.allocator);
     }
 
-    pub fn startScope(self: *Self, scope: Scope) !void {
-        try self.scopeStack.append(scope);
+    pub fn startScope(self: *Self, scope: Scope) void {
+        self.scopeStack.appendAssumeCapacity(scope);
         self.scopeId += 1;
     }
 
-    pub fn endScope(self: *Self, index: u32) !void {
+    pub fn endScope(self: *Self, index: u32) void {
         const scope = self.scopeStack.pop() orelse return;
 
         // Patch grp_indent start token to point to end.

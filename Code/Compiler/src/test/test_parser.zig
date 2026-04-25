@@ -5,13 +5,13 @@ const q = @import("../queue.zig");
 const rs = @import("../resolution.zig");
 
 const Token = tok.Token;
-const TokenQueue = q.Queue(Token, tok.AUX_STREAM_END);
-const OffsetQueue = q.Queue(u16, 0);
 const TK = Kind;
 
 const test_allocator = std.testing.allocator;
 const testutils = @import("./testutils.zig");
 const parser_mod = @import("../parser.zig");
+const TokenQueue = parser_mod.TokenQueue;
+const OffsetQueue = parser_mod.OffsetQueue;
 const back = testutils.back;
 const expectEqual = std.testing.expectEqual;
 
@@ -22,10 +22,13 @@ const expectEqual = std.testing.expectEqual;
 // The surface area tested is more minimal per test. File tests handle the coarser grained tests.
 
 fn testParseEquals(buffer: []const u8, tokens: []const Token, aux: []const Token, expected: []const Token) !void {
-    var syntaxQ = TokenQueue.init(test_allocator);
-    var auxQ = TokenQueue.init(test_allocator);
-    var parsedQ = TokenQueue.init(test_allocator);
-    var offsetQ = OffsetQueue.init(test_allocator);
+    var syntaxQ = try TokenQueue.init(test_allocator);
+    var auxQ = try TokenQueue.init(test_allocator);
+    try syntaxQ.reserve(buffer.len);
+    try auxQ.reserve(buffer.len);
+    var parsedQ = try TokenQueue.init(test_allocator);
+    try parsedQ.reserve(buffer.len);
+    var offsetQ = try OffsetQueue.init(test_allocator);
     var resolution = try rs.Resolution.init(test_allocator, 64, &parsedQ);
     defer syntaxQ.deinit();
     defer auxQ.deinit();
@@ -35,8 +38,10 @@ fn testParseEquals(buffer: []const u8, tokens: []const Token, aux: []const Token
 
     try testutils.pushAll(&syntaxQ, tokens);
     try testutils.pushAll(&auxQ, aux);
+    try parsedQ.reserve(tokens.len + 1);
+    try offsetQ.reserve(tokens.len + 1);
     var p = parser_mod.Parser.init(buffer, &syntaxQ, &auxQ, &parsedQ, &offsetQ, test_allocator, &resolution);
-    try p.startParse();
+    p.startParse();
 
     try testutils.testQueueEquals(buffer, &parsedQ, expected);
 }

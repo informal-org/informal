@@ -32,7 +32,7 @@ fn exitCodeTest(io: std.Io, filename: []const u8) !u32 {
         if (readResult == 0) {
             break;
         }
-        try reader.process_chunk(buffer[0..readResult], re, test_allocator, io, &out_name);
+        try reader.process_chunk(buffer[0..readResult], re, test_allocator, io, &out_name, readResult);
 
         buffer = undefined;
     }

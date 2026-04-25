@@ -29,19 +29,19 @@ pub const Reader = struct {
     pub fn init(allocator: Allocator) !*Self {
         // Allocate all queue/hashmap pointers on heap
         const syntaxQ = try allocator.create(lex.TokenQueue);
-        syntaxQ.* = lex.TokenQueue.init(allocator);
+        syntaxQ.* = try lex.TokenQueue.init(allocator);
 
         const auxQ = try allocator.create(lex.TokenQueue);
-        auxQ.* = lex.TokenQueue.init(allocator);
+        auxQ.* = try lex.TokenQueue.init(allocator);
 
         const parsedQ = try allocator.create(parser.TokenQueue);
-        parsedQ.* = parser.TokenQueue.init(allocator);
+        parsedQ.* = try parser.TokenQueue.init(allocator);
 
         const offsetQ = try allocator.create(parser.OffsetQueue);
-        offsetQ.* = parser.OffsetQueue.init(allocator);
+        offsetQ.* = try parser.OffsetQueue.init(allocator);
 
         const irQ = try allocator.create(irmod.IRQueue);
-        irQ.* = irmod.IRQueue.init(allocator);
+        irQ.* = try irmod.IRQueue.init(allocator);
 
         const internedStrings = try allocator.create(StringArrayHashMap(u64));
         internedStrings.* = StringArrayHashMap(u64).init(allocator);
@@ -95,11 +95,15 @@ pub const Reader = struct {
     }
 };
 
-pub fn process_chunk(chunk: []u8, reader: *Reader, allocator: Allocator, io: std.Io, out_filename: []u8) !void {
+pub fn process_chunk(chunk: []u8, reader: *Reader, allocator: Allocator, io: std.Io, out_filename: []u8, chunkSize: usize) !void {
 
     // std.debug.print("Processing next chunk\n", .{});
     reader.syntaxQ.reset();
     reader.auxQ.reset();
+    // Over-allocate space - enough for an element per byte. Could be sized smaller if we want.
+    const lexerCapacity = chunkSize / 4 + 4; // Arbitrary math.
+    try reader.syntaxQ.reserve(lexerCapacity);
+    try reader.auxQ.reserve(lexerCapacity);
 
     var lexer = lex.Lexer.init(chunk, reader.syntaxQ, reader.auxQ, reader.internedStrings, reader.internedNumbers, reader.internedFloats, reader.internedSymbols);
     try lexer.lex();
@@ -110,12 +114,16 @@ pub fn process_chunk(chunk: []u8, reader: *Reader, allocator: Allocator, io: std
     var resolution = try rs.Resolution.init(allocator, reader.internedSymbols.count(), reader.parsedQ);
     defer resolution.deinit();
 
+    const parsedCapacity = reader.syntaxQ.list.items.len + 1;
+    try reader.parsedQ.reserve(parsedCapacity);
+    try reader.offsetQ.reserve(parsedCapacity);
     var p = ParserImpl.init(chunk, reader.syntaxQ, reader.auxQ, reader.parsedQ, reader.offsetQ, allocator, &resolution);
-    try p.startParse();
+    p.startParse();
     std.log.debug("\n------------- Parsed Queue --------------- \n", .{});
     std.log.debug("Parsed queue: {any}", .{reader.parsedQ.list.items});
 
     var ir = irmod.IR.init(allocator, reader.parsedQ, reader.irQ);
+    try reader.irQ.reserve(reader.parsedQ.list.items.len);
     ir.initRanges(p.kindCounts);
 
     var c = codegen.Codegen.init(allocator, chunk);
@@ -149,7 +157,7 @@ pub fn compile_file(io: std.Io, filename: []const u8) !void {
         if (readResult == 0) {
             break;
         }
-        try process_chunk(buffer[0..readResult], reader, gpa.allocator(), io, &out_name);
+        try process_chunk(buffer[0..readResult], reader, gpa.allocator(), io, &out_name, readResult);
         // TODO: Safety check - there's an implicit assumption that the contents of the buffer are not referenced after chunk processing is done.
         // Else it's a use after free or it might be referencing something else than intended.
         // TODO: Handle larger files beyond the 16kb size.
