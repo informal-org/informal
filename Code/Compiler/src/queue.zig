@@ -72,3 +72,38 @@ pub fn Queue(comptime t: type, comptime default: t) type {
         }
     };
 }
+
+pub const Range = packed struct(u64) {
+    start: u32, // Precomputed from the results of Parser's kind count
+    end: u32, // Incremented as elements are added.
+};
+
+pub fn IRQueue(comptime t: type, comptime default: t) type {
+    return struct {
+        const Self = @This();
+        const ArrayList = std.array_list.Aligned(t, null);
+        ranges: [64]Range = [_]Range{Range{ .start = 0, .end = 0 }} ** 64,
+        list: ArrayList,
+
+        default: t = default,
+
+        pub fn init(allocator: Allocator) !Self {
+            return Self{
+                .allocator = allocator,
+                .list = try ArrayList.initCapacity(allocator, 0),
+            };
+        }
+
+        pub fn reserve(self: *Self, ranges: [64]u32) !void {
+            // TODO: The current scheme makes it hard to know where the last one ends.
+            // Maybe the layer below returns sizes not indexes? So indexes are off by one?
+            for (0..64) |i| {
+                self.ranges[i].start = ranges[i];
+            }
+        }
+
+        pub fn deinit(self: *Self) void {
+            self.list.deinit(self.allocator);
+        }
+    };
+}
