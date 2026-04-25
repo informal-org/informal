@@ -91,10 +91,10 @@ test "Parse kind counts" {
     };
     const aux = &[_]Token{};
 
-    var syntaxQ = TokenQueue.init(test_allocator);
-    var auxQ = TokenQueue.init(test_allocator);
-    var offsetQ = OffsetQueue.init(test_allocator);
-    var parsedQ = TokenQueue.init(test_allocator);
+    var syntaxQ = try TokenQueue.init(test_allocator);
+    var auxQ = try TokenQueue.init(test_allocator);
+    var offsetQ = try OffsetQueue.init(test_allocator);
+    var parsedQ = try TokenQueue.init(test_allocator);
     defer parsedQ.deinit();
     var resolution = try rs.Resolution.init(test_allocator, 64, &parsedQ);
     defer syntaxQ.deinit();
@@ -104,8 +104,10 @@ test "Parse kind counts" {
 
     try testutils.pushAll(&syntaxQ, tokens);
     try testutils.pushAll(&auxQ, aux);
+    try parsedQ.reserve(tokens.len + 1);
+    try offsetQ.reserve(tokens.len + 1);
     var p = parser_mod.Parser.init(buffer, &syntaxQ, &auxQ, &parsedQ, &offsetQ, test_allocator, &resolution);
-    try p.startParse();
+    p.startParse();
 
     try expectEqual(3, p.kindCounts[@intFromEnum(TK.lit_number)]);
     try expectEqual(1, p.kindCounts[@intFromEnum(TK.op_add)]);

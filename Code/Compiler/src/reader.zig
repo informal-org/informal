@@ -76,6 +76,7 @@ pub const Reader = struct {
         self.auxQ.deinit();
         self.parsedQ.deinit();
         self.offsetQ.deinit();
+        self.irQ.deinit();
         self.internedStrings.deinit();
         self.internedNumbers.deinit();
         self.internedFloats.deinit();
