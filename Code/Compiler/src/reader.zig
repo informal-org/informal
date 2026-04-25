@@ -2,6 +2,7 @@ const std = @import("std");
 const lex = @import("lexer.zig");
 const parser = @import("parser.zig");
 const queue = @import("queue.zig");
+const irmod = @import("ir.zig");
 const tok = @import("token.zig");
 const codegen = @import("codegen.zig");
 const rs = @import("resolution.zig");
@@ -19,6 +20,7 @@ pub const Reader = struct {
     auxQ: *lex.TokenQueue,
     parsedQ: *parser.TokenQueue,
     offsetQ: *parser.OffsetQueue,
+    irQ: *irmod.IRQueue,
     internedStrings: *StringArrayHashMap(u64),
     internedNumbers: *std.AutoHashMap(u64, u64),
     internedFloats: *std.AutoHashMap(f64, u64),
@@ -37,6 +39,9 @@ pub const Reader = struct {
 
         const offsetQ = try allocator.create(parser.OffsetQueue);
         offsetQ.* = parser.OffsetQueue.init(allocator);
+
+        const irQ = try allocator.create(irmod.IRQueue);
+        irQ.* = irmod.IRQueue.init(allocator);
 
         const internedStrings = try allocator.create(StringArrayHashMap(u64));
         internedStrings.* = StringArrayHashMap(u64).init(allocator);
@@ -57,6 +62,7 @@ pub const Reader = struct {
             .auxQ = auxQ,
             .parsedQ = parsedQ,
             .offsetQ = offsetQ,
+            .irQ = irQ,
             .internedStrings = internedStrings,
             .internedNumbers = internedNumbers,
             .internedFloats = internedFloats,
@@ -80,11 +86,11 @@ pub const Reader = struct {
         self.allocator.destroy(self.auxQ);
         self.allocator.destroy(self.parsedQ);
         self.allocator.destroy(self.offsetQ);
+        self.allocator.destroy(self.irQ);
         self.allocator.destroy(self.internedStrings);
         self.allocator.destroy(self.internedNumbers);
         self.allocator.destroy(self.internedFloats);
         self.allocator.destroy(self.internedSymbols);
-
         self.allocator.destroy(self);
     }
 };
@@ -108,6 +114,9 @@ pub fn process_chunk(chunk: []u8, reader: *Reader, allocator: Allocator, io: std
     try p.startParse();
     std.log.debug("\n------------- Parsed Queue --------------- \n", .{});
     std.log.debug("Parsed queue: {any}", .{reader.parsedQ.list.items});
+
+    var ir = irmod.IR.init(allocator, reader.parsedQ, reader.irQ);
+    ir.initRanges(p.kindCounts);
 
     var c = codegen.Codegen.init(allocator, chunk);
     defer c.deinit();
