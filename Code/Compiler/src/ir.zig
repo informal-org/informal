@@ -9,16 +9,13 @@
 
 const std = @import("std");
 const q = @import("queue.zig");
+const irq = @import("irq.zig");
 const tok = @import("token.zig");
 const Allocator = std.mem.Allocator;
 
 const Token = tok.Token;
 const TK = tok.Kind;
-
-pub const Node = packed struct(u64) {
-    left: u32,
-    right: u32,
-};
+const Node = irq.Node;
 
 pub const DEFAULT_NODE = Node{ .left = 0, .right = 0 };
 pub const TokenQueue = q.Queue(Token, tok.AUX_STREAM_END);
@@ -47,6 +44,7 @@ pub const IR = struct {
     }
 
     pub fn initRanges(kindCounts: [64]u32) [64]u32 {
+        // Takes token kind counts and returns IR kind counts.
         // In the future, this will need more logic when certain parser-tokens map to multiple IR nodes.
         // In that case, it'd need to look at the count of all nodes which can emit that IR node and sum those.
         var ranges: [64]u32 = [0]**64;
@@ -55,14 +53,11 @@ pub const IR = struct {
             ranges[i] = tail;
             tail += count;
         }
-
         return ranges;
     }
 
-    pub fn pushKind(self: *Self, kind: TK) void {
-        // Future; We'll need separate kinds at the IR level.
-        const index = self.ranges[@intFromEnum(kind)].end;
-        self.ranges[@intFromEnum(kind)].end += 1;
+    pub fn reserve(self: *Self, irKindCounts: [64]u32) !void {
+        try self.irQ.reserve(irKindCounts);
     }
 
     pub fn lower(self: *Self) void {
