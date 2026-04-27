@@ -20,6 +20,7 @@ const Node = irq.Node;
 pub const DEFAULT_NODE = Node{ .left = 0, .right = 0 };
 pub const TokenQueue = q.Queue(Token, tok.AUX_STREAM_END);
 pub const IRQueue = q.Queue(Node, DEFAULT_NODE);
+const MAX_DEPTH = 128; // Ideally computed from the parser so it's never reached here.
 
 // pub const IRKind = enum(u8) {
 //     //
@@ -57,11 +58,14 @@ pub const IR = struct {
     }
 
     pub fn reserve(self: *Self, irKindCounts: [64]u32) !void {
-        try self.irQ.reserve(irKindCounts);
+        try self.irQ.reserve(irKindCounts, MAX_DEPTH);
     }
 
     pub fn lower(self: *Self) void {
-        // Lower the parsed tokens into IR representation
+        // Walk the parsed queue to lower to IR.
+        // Two options: Reverse recursive which dispatches recursion for each arg to parse.
+        // Or: explicit stack and forward walk.
+        // Stack maintains each argument to be consumed.
         for (self.parsedQ.list.items, 0..) |token, index| {
             switch (token.kind) {
                 TK.lit_number => {},

@@ -19,6 +19,7 @@ pub fn IRQueue(comptime t: type, comptime default: t) type {
         const ArrayList = std.array_list.Aligned(t, null);
         ranges: [64]Range = [_]Range{Range{ .start = 0, .end = 0 }} ** 64,
         list: ArrayList,
+        stack: ArrayList,
 
         default: t = default,
 
@@ -26,10 +27,11 @@ pub fn IRQueue(comptime t: type, comptime default: t) type {
             return Self{
                 .allocator = allocator,
                 .list = try ArrayList.initCapacity(allocator, 0),
+                .stack = try ArrayList.initCapacity(allocator, 0),
             };
         }
 
-        pub fn reserve(self: *Self, kindCounts: [64]u32) !void {
+        pub fn reserve(self: *Self, kindCounts: [64]u32, maxDepth: usize) !void {
             var tail: u32 = 0;
             for (0..64) |i| {
                 self.ranges[i].start = tail;
@@ -37,15 +39,49 @@ pub fn IRQueue(comptime t: type, comptime default: t) type {
                 self.ranges[i].end = tail;
             }
             try self.list.ensureTotalCapacity(self.allocator, tail + 1);
+            try self.stack.ensureTotalCapacity(self.allocator, maxDepth);
         }
 
-        pub fn pushKind(self: *Self, kind: TK, value: Node) void {
+        pub fn emitKind(self: *Self, kind: TK, value: Node) void {
             const index = self.ranges[@intFromEnum(kind)].start;
             std.debug.assert(index < self.list.capacity);
             std.debug.assert(index <= self.ranges[@intFromEnum(kind)].end);
             self.list.insertAssumeCapacity(index, value);
             self.ranges[@intFromEnum(kind)].start += 1;
         }
+
+        pub fn pushArg(self: *Self, arg: Node) void {
+            self.stack.appendAssumeCapacity(arg);
+        }
+
+        pub fn popUnary(self: *Self) Node {
+            return self.stack.pop() orelse self.default;
+        }
+
+        pub fn popBinary(self: *Self) Node {
+            const right = self.stack.pop() orelse self.default;
+            const left = self.stack.pop() orelse self.default;
+            return Node{ .left = left.left, .right = right.left };
+        }
+
+        pub fn emitCallArgs(_: *Self, _: usize) void {
+            // todo
+        }
+
+        // pub fn popArgs(self: *Self, count: usize) Node {
+        //     std.debug.assert(count > 0);
+        //     if (count == 1) {
+        //         // Unary fn.
+        //         return self.stack.pop() orelse self.default;
+        //     } else if (count == 2) {
+        //         // Pop and merge
+        //         const right = self.stack.pop() orelse self.default;
+        //         const left = self.stack.pop() orelse self.default;
+        //         return Node{ .left = left.left, .right = right.left };
+        //     } else {
+        //         // N-ary function call. Need to construct a frame instead.
+        //     }
+        // }
 
         pub fn deinit(self: *Self) void {
             self.list.deinit(self.allocator);
