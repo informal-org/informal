@@ -123,9 +123,9 @@ pub fn process_chunk(chunk: []u8, reader: *Reader, allocator: Allocator, io: std
     std.log.debug("\n------------- Parsed Queue --------------- \n", .{});
     std.log.debug("Parsed queue: {any}", .{reader.parsedQ.list.items});
 
-    var ir = irmod.IR.init(allocator, reader.parsedQ, reader.irQ);
+    _ = irmod.IR.init(allocator, reader.parsedQ, reader.irQ);
     try reader.irQ.reserve(reader.parsedQ.list.items.len);
-    ir.initRanges(p.kindCounts);
+    _ = irmod.IR.initRanges(p.kindCounts);
 
     var c = codegen.Codegen.init(allocator, chunk);
     defer c.deinit();

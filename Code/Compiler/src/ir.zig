@@ -18,7 +18,7 @@ const TK = tok.Kind;
 const Node = irq.Node;
 const args = irq.args;
 
-pub const DEFAULT_NODE = Node{ .left = 0, .right = 0 };
+pub const DEFAULT_NODE = args(0, 0);
 pub const TokenQueue = q.Queue(Token, tok.AUX_STREAM_END);
 pub const IRQueue = q.Queue(Node, DEFAULT_NODE);
 const MAX_DEPTH = 128; // Ideally computed from the parser so it's never reached here.
@@ -49,7 +49,7 @@ pub const IR = struct {
         // Takes token kind counts and returns IR kind counts.
         // In the future, this will need more logic when certain parser-tokens map to multiple IR nodes.
         // In that case, it'd need to look at the count of all nodes which can emit that IR node and sum those.
-        var ranges: [64]u32 = [0]**64;
+        var ranges: [64]u32 = [_]u32{0} ** 64;
         var tail: u32 = 0;
         for (kindCounts, 0..) |count, i| {
             ranges[i] = tail;
@@ -73,6 +73,11 @@ pub const IR = struct {
                     // TODO: Larger 64 bit constants can be emitted directly in this space as well.
                     const constIndex = self.irQ.emitKind(token.kind, args(token.literal.value, 0));
                     self.irQ.pushArg(args(constIndex, index));
+                },
+                TK.op_add, TK.op_mul, TK.op_gt => {
+                    const opNode = self.irQ.popBinary();
+                    const opIndex = self.irQ.emitKind(token.kind, opNode);
+                    self.irQ.pushArg(args(opIndex, index));
                 },
             }
         }

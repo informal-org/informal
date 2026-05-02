@@ -19,7 +19,7 @@ pub const Node = packed union {
 };
 
 pub fn args(left: u32, right: u32) Node {
-    return Node{.args{ .left = left, .right = right }};
+    return Node{ .args = .{ .left = left, .right = right } };
 }
 
 pub fn IRQueue(comptime t: type, comptime default: t) type {
