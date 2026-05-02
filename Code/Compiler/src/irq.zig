@@ -8,10 +8,19 @@ pub const Range = packed struct(u64) {
     end: u32, // Precomputed from the results of Parser's kind count
 };
 
-pub const Node = packed struct(u64) {
-    left: u32,
-    right: u32,
+pub const Node = packed union {
+    raw: u64,
+    args: Args,
+
+    pub const Args = packed struct(u64) {
+        left: u32,
+        right: u32,
+    };
 };
+
+pub fn args(left: u32, right: u32) Node {
+    return Node{.args{ .left = left, .right = right }};
+}
 
 pub fn IRQueue(comptime t: type, comptime default: t) type {
     return struct {
@@ -42,16 +51,17 @@ pub fn IRQueue(comptime t: type, comptime default: t) type {
             try self.stack.ensureTotalCapacity(self.allocator, maxDepth);
         }
 
-        pub fn emitKind(self: *Self, kind: TK, value: Node) void {
+        pub fn emitKind(self: *Self, kind: TK, value: Node) u32 {
             const index = self.ranges[@intFromEnum(kind)].start;
             std.debug.assert(index < self.list.capacity);
             std.debug.assert(index <= self.ranges[@intFromEnum(kind)].end);
             self.list.insertAssumeCapacity(index, value);
             self.ranges[@intFromEnum(kind)].start += 1;
+            return index;
         }
 
-        pub fn pushArg(self: *Self, arg: Node) void {
-            self.stack.appendAssumeCapacity(arg);
+        pub fn pushArg(self: *Self, left: u32, right: u32) void {
+            self.stack.appendAssumeCapacity(args(left, right));
         }
 
         pub fn popUnary(self: *Self) Node {

@@ -16,6 +16,7 @@ const Allocator = std.mem.Allocator;
 const Token = tok.Token;
 const TK = tok.Kind;
 const Node = irq.Node;
+const args = irq.args;
 
 pub const DEFAULT_NODE = Node{ .left = 0, .right = 0 };
 pub const TokenQueue = q.Queue(Token, tok.AUX_STREAM_END);
@@ -68,7 +69,11 @@ pub const IR = struct {
         // Stack maintains each argument to be consumed.
         for (self.parsedQ.list.items, 0..) |token, index| {
             switch (token.kind) {
-                TK.lit_number => {},
+                TK.lit_number => {
+                    // TODO: Larger 64 bit constants can be emitted directly in this space as well.
+                    const constIndex = self.irQ.emitKind(token.kind, args(token.literal.value, 0));
+                    self.irQ.pushArg(args(constIndex, index));
+                },
             }
         }
     }
