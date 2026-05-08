@@ -7,6 +7,25 @@
 // And it's possible to just look at a value and tell what op it was from.
 // Sorting each section also makes certain optimizations easier.
 
+// TODO:
+// 1. The IR should only contain non-constant ops. Anything operation where both sides are a constant should get folded during construction
+// and replaced with the constant value, with maybe a graveyard symbol where it used to be to be cleaned up later on.
+//
+// 2. Each identifier needs a use-def chain. We do this by linking IR nodes together. The actual symbols are no longer relevant.
+// Def: Value op index, tail ref - last reference so far. Initialized as itself.
+// Ref: Referenced at index, Prev ref. First one points to the declaration.
+//
+// 3. All calls and jumps are modeled as message send/receive in the actor sense. It's similar to continuation passing style, or blocks with params.
+// Send: Call Frame index, Prev send to this same destination.
+// Receive: Tail send to this destination - initialized as itself. Continuation target - either the next "send" to call or a phi-node from the input frame.
+// Receives don't explicit store their params, but each receive-index is 1:1 with a paramFrame index, so you can simply lookup by index.
+//
+// 4. Frames: Composed of
+// Frame: Args index, arg count.
+// Each arg is typically a "Choice" / Phi in SSA terms.
+// Choice: Choice tail, Ref Tail
+// Choice(prev choice, value)
+
 const std = @import("std");
 const q = @import("queue.zig");
 const irq = @import("irq.zig");
