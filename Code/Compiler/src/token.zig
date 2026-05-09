@@ -88,6 +88,13 @@ pub const Kind = enum(u8) {
     // These are auxillary tokens which don't influence the semantics (comments, whitespace, etc.)
     // They can be split up into a separate namespace, but having it combined simplifies the lexer.
     // We can move this out if we run out of opspace.
+    ir_send,
+    ir_receive,
+    ir_use,
+    ir_def,
+    ir_frame,
+    ir_arg,
+    ir_param, // Our version of Phi nodes in SSA.
     aux,
     aux_skip,
     aux_comment,

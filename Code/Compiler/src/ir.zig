@@ -22,9 +22,11 @@
 //
 // 4. Frames: Composed of
 // Frame: Args index, arg count.
-// Each arg is typically a "Choice" / Phi in SSA terms.
-// Choice: Choice tail, Ref Tail
-// Choice(prev choice, value)
+// Param: Equivalent of phi. Something with many variants.
+// Arg tail, ref tail
+// Arg: Instance of a param. Value, prev param arg.
+//
+// Convention - first arg is always the value. Second is linkage or secondary value.
 
 const std = @import("std");
 const q = @import("queue.zig");
@@ -68,6 +70,8 @@ pub const IR = struct {
         // Takes token kind counts and returns IR kind counts.
         // In the future, this will need more logic when certain parser-tokens map to multiple IR nodes.
         // In that case, it'd need to look at the count of all nodes which can emit that IR node and sum those.
+        kindCounts[TK.ir_frame] += 1; // Atleast one exit frame.
+        kindCounts[TK.ir_send] += 1; // Send results to exit
         var ranges: [64]u32 = [_]u32{0} ** 64;
         var tail: u32 = 0;
         for (kindCounts, 0..) |count, i| {

@@ -51,8 +51,12 @@ pub fn IRQueue(comptime t: type, comptime default: t) type {
             try self.stack.ensureTotalCapacity(self.allocator, maxDepth);
         }
 
+        fn kindStart(self: *Self, kind: TK) u32 {
+            return self.ranges[@intFromEnum(kind)].start;
+        }
+
         pub fn emitKind(self: *Self, kind: TK, value: Node) u32 {
-            const index = self.ranges[@intFromEnum(kind)].start;
+            const index = self.kindStart(kind);
             std.debug.assert(index < self.list.capacity);
             std.debug.assert(index <= self.ranges[@intFromEnum(kind)].end);
             self.list.insertAssumeCapacity(index, value);
@@ -74,8 +78,23 @@ pub fn IRQueue(comptime t: type, comptime default: t) type {
             return Node{ .left = left.left, .right = right.left };
         }
 
-        pub fn emitCallArgs(_: *Self, _: usize) void {
-            // todo
+        pub fn createFrame(self: *Self, argCount: u32) u32 {
+            const argIndex = self.kindStart(TK.ir_arg);
+            return self.emitKind(TK.ir_frame, args(argIndex, argCount));
+        }
+
+        pub fn createParam(self: *Self) u32 {
+            const paramIndex = self.kindStart(TK.ir_param);
+            // Arg tail, ref tail (TODO: Is ref tail useful?)
+            self.emitKind(TK.ir_param, args(paramIndex, 0));
+            return paramIndex;
+        }
+
+        pub fn createFrameArg(self: *Self, paramIndex: u32, value: u32) u32 {
+            const argTail = self.list[paramIndex].left;
+            const argIndex = self.emitKind(TK.ir_arg, args(value, argTail));
+            self.list[paramIndex].left = argIndex;
+            return argIndex;
         }
 
         // pub fn popArgs(self: *Self, count: usize) Node {
