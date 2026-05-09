@@ -27,3 +27,8 @@ And it stels a bit of joy from those dreams I have held close for years.
 Everything is possible now. But still, yet - nothing is as easy as it seems. Code is cheap now, but has costs yet unaccounted for.
 
 Every problem still deserves thought and attention. Craft still requires someone to care about the details.
+
+------
+## May 09, 2026
+I remember why I abandoned this technology. Immediately after the writing above, I prompted GPT 5.5 to implement the use-def chaining I had outlined in the IR. I had the structure setup, and similar patterns already established. And it went and wrote a whole another loop over all nodes to find how many identifiers there are - that was completely unnecessary. What should've been a simple change (no more than a few dozen lines), ended up as a complex vomit of code. I reset the changes back to a clean-slate.
+One step forward, two steps back.
