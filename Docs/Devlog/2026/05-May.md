@@ -12,18 +12,18 @@ Nothing is as easy as it seems.
 The machine looms over me, dangling a carrot. A way out.
 What matters? The result? Or the achievement?
 Is a house built with power tools and machinery, still built by its craftsmen? Does it even matter to those who live there, as long as care and diligence is shown to every detail.
-I've read about how Antirez built the redis array type with codex, https://antirez.com/news/164, and his views on AI (https://antirez.com/news/158). How Mitchell Hashimoto uses it in Ghostty - https://mitchellh.com/writing/my-ai-adoption-journey Armin Ronacher's blogs on AI. 
+I've read about how Antirez built the redis array type with codex, https://antirez.com/news/164, and his views on AI (https://antirez.com/news/158). How Mitchell Hashimoto uses it in Ghostty - https://mitchellh.com/writing/my-ai-adoption-journey Armin Ronacher's blogs on AI. What Kenneth Reitz writes.
 These are all programmers I respect very much, using AI in meaningful ways. 
 It is hard to go back to a world before AI. You can shut yourself off from it and do things the old way, but it's largely performative. A demonstration that you've still got it, that coding edge.
 To sand and polish by hand, arduously, when a belt sander is available. 
 To drill a hole by hand when electrical drills are available.
 To dig with a shovel when excavators are available.
 
-There is still a time and place for it. But I would be limiting myself and what I can do by completely ignoring AI tools.
+There is still a time and place for it. There is a special value in handmade goods. But for professional, industrial work - I would be limiting myself and what I can do by completely ignoring AI tools.
 
 "Now you can do things you never would've dreamed of before".
 And it stels a bit of joy from those dreams I have held close for years.
 
-Everything is possible now. But still, yet - nothing is as easy as it seems. Code is cheap now, but has a cost unaccounted for.
+Everything is possible now. But still, yet - nothing is as easy as it seems. Code is cheap now, but has costs yet unaccounted for.
 
 Every problem still deserves thought and attention. Craft still requires someone to care about the details.
