@@ -56,7 +56,8 @@ pub const Parser = struct {
     // For each token in the parsedQ, indicates where to find it in the syntaxQ.
     offsetQ: *OffsetQueue,
 
-    // Keep track of how many of each kind of token are emitted. This will help the IR size its buffers appropriately in the next stage.
+    // Keep track of emitted kinds for IR sizing. Identifiers are counted as IR uses,
+    // then assignment targets are reclassified to IR defs in assignOp.
     kindCounts: [64]u32 = [_]u32{0} ** 64,
 
     const Power = enum(u8) {
@@ -217,9 +218,13 @@ pub const Parser = struct {
     }
 
     fn emit(self: *Self, token: Token) void {
+        self.emitAs(token, token.kind);
+    }
+
+    fn emitAs(self: *Self, token: Token, countKind: Kind) void {
         self.parsedQ.push(token);
         self.offsetQ.push(@truncate(self.offsetQ.list.items.len - self.index)); // TODO: This is probably not the correct offset. Need to double-check.
-        self.kindCounts[@intFromEnum(token.kind)] += 1;
+        self.kindCounts[@intFromEnum(countKind)] += 1;
     }
 
     inline fn parsedLen(self: *Self) u32 {
@@ -255,7 +260,7 @@ pub const Parser = struct {
 
     fn identifier(self: *Self, token: Token) void {
         const resolved = self.resolution.resolve(self.parsedLen(), token);
-        self.emit(resolved);
+        self.emitAs(resolved, Kind.ir_use);
     }
 
     fn emitChainedSep(self: *Self, prev_sep_idx: u32, sep_token: Token) u32 {
@@ -285,7 +290,7 @@ pub const Parser = struct {
     fn callExpr(self: *Self, token: Token) void {
         assert(self.syntaxQ.pop().kind == Kind.grp_open_paren);
         self.groupDelim(Kind.grp_open_paren, Kind.grp_close_paren);
-        self.emit(token);
+        self.emitAs(token, Kind.ir_use);
     }
 
     fn unaryOp(self: *Self, token: Token) void {
@@ -365,6 +370,8 @@ pub const Parser = struct {
         // TODO: Brittle — assumes previous token is an identifier. Needs rework for destructuring.
         const ident = self.resolution.declare(self.parsedLen() - 1, self.parsedQ.list.getLast());
         self.parsedQ.list.items[self.parsedLen() - 1] = ident;
+        self.kindCounts[@intFromEnum(Kind.ir_use)] -= 1;
+        self.kindCounts[@intFromEnum(Kind.ir_def)] += 1;
 
         self.parse(Power.Assign.val());
         self.emit(token);

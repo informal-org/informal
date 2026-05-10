@@ -22,33 +22,41 @@ pub fn args(left: u32, right: u32) Node {
     return Node{ .args = .{ .left = left, .right = right } };
 }
 
-pub fn IRQueue(comptime t: type, comptime default: t) type {
+pub fn IRQueue(comptime t: type) type {
     return struct {
         const Self = @This();
         const ArrayList = std.array_list.Aligned(t, null);
-        ranges: [64]Range = [_]Range{Range{ .start = 0, .end = 0 }} ** 64,
+        ranges: [64]Range = std.mem.zeroes([64]Range),
         list: ArrayList,
         stack: ArrayList,
 
-        default: t = default,
+        fn zeroValue() t {
+            if (t == Node) return @as(t, Node{ .raw = std.mem.zeroes(u64) });
+            return std.mem.zeroes(t);
+        }
 
         pub fn init(allocator: Allocator) !Self {
             return Self{
-                .allocator = allocator,
                 .list = try ArrayList.initCapacity(allocator, 0),
                 .stack = try ArrayList.initCapacity(allocator, 0),
             };
         }
 
-        pub fn reserve(self: *Self, kindCounts: [64]u32, maxDepth: usize) !void {
+        // reserve is the queue's allocation path and is meant to be called once after init.
+        pub fn reserve(self: *Self, allocator: Allocator, kindCounts: [64]u32, maxDepth: usize) !void {
             var tail: u32 = 0;
             for (0..64) |i| {
                 self.ranges[i].start = tail;
                 tail += kindCounts[i];
                 self.ranges[i].end = tail;
             }
-            try self.list.ensureTotalCapacity(self.allocator, tail + 1);
-            try self.stack.ensureTotalCapacity(self.allocator, maxDepth);
+
+            const totalLen: usize = @intCast(tail);
+            self.list.clearRetainingCapacity();
+            self.stack.clearRetainingCapacity();
+            try self.list.ensureTotalCapacity(allocator, totalLen);
+            try self.stack.ensureTotalCapacity(allocator, maxDepth);
+            self.list.appendNTimesAssumeCapacity(zeroValue(), totalLen); // TODO: Could I just use @memset here
         }
 
         fn kindStart(self: *Self, kind: TK) u32 {
@@ -56,26 +64,37 @@ pub fn IRQueue(comptime t: type, comptime default: t) type {
         }
 
         pub fn emitKind(self: *Self, kind: TK, value: Node) u32 {
+            const kindIndex = @intFromEnum(kind);
             const index = self.kindStart(kind);
-            std.debug.assert(index < self.list.capacity);
-            std.debug.assert(index <= self.ranges[@intFromEnum(kind)].end);
-            self.list.insertAssumeCapacity(index, value);
-            self.ranges[@intFromEnum(kind)].start += 1;
+            std.debug.assert(index < self.ranges[kindIndex].end);
+            self.set(index, value);
+            self.ranges[kindIndex].start += 1;
             return index;
         }
 
-        pub fn pushArg(self: *Self, left: u32, right: u32) void {
-            self.stack.appendAssumeCapacity(args(left, right));
+        pub fn get(self: *Self, index: u32) t {
+            std.debug.assert(index < self.list.items.len);
+            return self.list.items[index];
+        }
+
+        pub fn set(self: *Self, index: u32, value: t) void {
+            std.debug.assert(index < self.list.items.len);
+            self.list.items[index] = value;
+        }
+
+        pub fn pushArg(self: *Self, left: u32, right: usize) void {
+            std.debug.assert(self.stack.items.len < self.stack.capacity);
+            self.stack.appendAssumeCapacity(args(left, @intCast(right)));
         }
 
         pub fn popUnary(self: *Self) Node {
-            return self.stack.pop() orelse self.default;
+            return self.stack.pop() orelse zeroValue();
         }
 
         pub fn popBinary(self: *Self) Node {
-            const right = self.stack.pop() orelse self.default;
-            const left = self.stack.pop() orelse self.default;
-            return Node{ .left = left.left, .right = right.left };
+            const right = self.stack.pop() orelse zeroValue();
+            const left = self.stack.pop() orelse zeroValue();
+            return args(left.args.left, right.args.left);
         }
 
         pub fn createFrame(self: *Self, argCount: u32) u32 {
@@ -91,9 +110,11 @@ pub fn IRQueue(comptime t: type, comptime default: t) type {
         }
 
         pub fn createFrameArg(self: *Self, paramIndex: u32, value: u32) u32 {
-            const argTail = self.list[paramIndex].left;
+            var param = self.get(paramIndex);
+            const argTail = param.args.left;
             const argIndex = self.emitKind(TK.ir_arg, args(value, argTail));
-            self.list[paramIndex].left = argIndex;
+            param.args.left = argIndex;
+            self.set(paramIndex, param);
             return argIndex;
         }
 
@@ -101,19 +122,20 @@ pub fn IRQueue(comptime t: type, comptime default: t) type {
         //     std.debug.assert(count > 0);
         //     if (count == 1) {
         //         // Unary fn.
-        //         return self.stack.pop() orelse self.default;
+        //         return self.stack.pop() orelse zeroValue();
         //     } else if (count == 2) {
         //         // Pop and merge
-        //         const right = self.stack.pop() orelse self.default;
-        //         const left = self.stack.pop() orelse self.default;
-        //         return Node{ .left = left.left, .right = right.left };
+        //         const right = self.stack.pop() orelse zeroValue();
+        //         const left = self.stack.pop() orelse zeroValue();
+        //         return args(left.args.left, right.args.left);
         //     } else {
         //         // N-ary function call. Need to construct a frame instead.
         //     }
         // }
 
-        pub fn deinit(self: *Self) void {
-            self.list.deinit(self.allocator);
+        pub fn deinit(self: *Self, allocator: Allocator) void {
+            self.list.deinit(allocator);
+            self.stack.deinit(allocator);
         }
     };
 }

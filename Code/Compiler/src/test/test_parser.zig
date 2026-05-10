@@ -113,3 +113,36 @@ test "Parse kind counts" {
     try expectEqual(1, p.kindCounts[@intFromEnum(TK.op_add)]);
     try expectEqual(1, p.kindCounts[@intFromEnum(TK.op_mul)]);
 }
+
+test "Parse IR identifier counts reclassify assignment target" {
+    const buffer = "a=1";
+    const tokens = &[_]Token{
+        Token.lex(TK.identifier, 0, 1),
+        tok.createToken(TK.op_assign_eq),
+        Token.lex(TK.lit_number, 2, 1),
+    };
+    const aux = &[_]Token{};
+
+    var syntaxQ = try TokenQueue.init(test_allocator);
+    var auxQ = try TokenQueue.init(test_allocator);
+    var offsetQ = try OffsetQueue.init(test_allocator);
+    var parsedQ = try TokenQueue.init(test_allocator);
+    defer parsedQ.deinit();
+    var resolution = try rs.Resolution.init(test_allocator, 64, &parsedQ);
+    defer syntaxQ.deinit();
+    defer auxQ.deinit();
+    defer offsetQ.deinit();
+    defer resolution.deinit();
+
+    try testutils.pushAll(&syntaxQ, tokens);
+    try testutils.pushAll(&auxQ, aux);
+    try parsedQ.reserve(tokens.len + 1);
+    try offsetQ.reserve(tokens.len + 1);
+    var p = parser_mod.Parser.init(buffer, &syntaxQ, &auxQ, &parsedQ, &offsetQ, test_allocator, &resolution);
+    p.startParse();
+
+    try expectEqual(0, p.kindCounts[@intFromEnum(TK.ir_use)]);
+    try expectEqual(1, p.kindCounts[@intFromEnum(TK.ir_def)]);
+    try expectEqual(1, p.kindCounts[@intFromEnum(TK.lit_number)]);
+    try expectEqual(1, p.kindCounts[@intFromEnum(TK.op_assign_eq)]);
+}

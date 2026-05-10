@@ -39,9 +39,8 @@ const TK = tok.Kind;
 const Node = irq.Node;
 const args = irq.args;
 
-pub const DEFAULT_NODE = args(0, 0);
 pub const TokenQueue = q.Queue(Token, tok.AUX_STREAM_END);
-pub const IRQueue = q.Queue(Node, DEFAULT_NODE);
+pub const IRQueue = irq.IRQueue(Node);
 const MAX_DEPTH = 128; // Ideally computed from the parser so it's never reached here.
 
 // pub const IRKind = enum(u8) {
@@ -66,23 +65,18 @@ pub const IR = struct {
         };
     }
 
-    pub fn initRanges(kindCounts: [64]u32) [64]u32 {
-        // Takes token kind counts and returns IR kind counts.
+    pub fn calcKindCounts(kindCounts: [64]u32) [64]u32 {
+        // Takes parser-maintained kind counts and returns IR kind counts.
         // In the future, this will need more logic when certain parser-tokens map to multiple IR nodes.
         // In that case, it'd need to look at the count of all nodes which can emit that IR node and sum those.
-        kindCounts[TK.ir_frame] += 1; // Atleast one exit frame.
-        kindCounts[TK.ir_send] += 1; // Send results to exit
-        var ranges: [64]u32 = [_]u32{0} ** 64;
-        var tail: u32 = 0;
-        for (kindCounts, 0..) |count, i| {
-            ranges[i] = tail;
-            tail += count;
-        }
-        return ranges;
+        var counts = kindCounts;
+        counts[@intFromEnum(TK.ir_frame)] += 1; // At least one exit frame.
+        counts[@intFromEnum(TK.ir_send)] += 1; // Send results to exit.
+        return counts;
     }
 
-    pub fn reserve(self: *Self, irKindCounts: [64]u32) !void {
-        try self.irQ.reserve(irKindCounts, MAX_DEPTH);
+    pub fn reserve(self: *Self, kindCounts: [64]u32) !void {
+        try self.irQ.reserve(self.allocator, kindCounts, MAX_DEPTH);
     }
 
     pub fn lower(self: *Self) void {
@@ -94,14 +88,15 @@ pub const IR = struct {
             switch (token.kind) {
                 TK.lit_number => {
                     // TODO: Larger 64 bit constants can be emitted directly in this space as well.
-                    const constIndex = self.irQ.emitKind(token.kind, args(token.literal.value, 0));
-                    self.irQ.pushArg(args(constIndex, index));
+                    const constIndex = self.irQ.emitKind(token.kind, args(token.data.literal.value, 0));
+                    self.irQ.pushArg(constIndex, index);
                 },
                 TK.op_add, TK.op_mul, TK.op_gt => {
                     const opNode = self.irQ.popBinary();
                     const opIndex = self.irQ.emitKind(token.kind, opNode);
-                    self.irQ.pushArg(args(opIndex, index));
+                    self.irQ.pushArg(opIndex, index);
                 },
+                else => {},
             }
         }
     }
