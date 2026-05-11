@@ -181,12 +181,14 @@ pub fn IRQueue(comptime t: type) type {
         }
 
         pub fn popUnary(self: *Self) Node {
-            return self.stack.pop() orelse zeroValue();
+            std.debug.assert(self.stack.items.len >= 1);
+            return self.stack.pop() orelse unreachable;
         }
 
         pub fn popBinary(self: *Self) Node {
-            const right = self.stack.pop() orelse zeroValue();
-            const left = self.stack.pop() orelse zeroValue();
+            std.debug.assert(self.stack.items.len >= 2);
+            const right = self.stack.pop() orelse unreachable;
+            const left = self.stack.pop() orelse unreachable;
             return args(left.args.left, right.args.left);
         }
 
