@@ -10,8 +10,8 @@ const INDEX_KIND_MAP_BUCKET_COUNT_SHIFT = 5;
 const INDEX_KIND_MAP_BUCKET_COUNT = 1 << INDEX_KIND_MAP_BUCKET_COUNT_SHIFT;
 const KindBitSet = std.bit_set.IntegerBitSet(KIND_COUNT);
 
-pub const Range = packed struct(u64) {
-    start: u32, // Incremented on add
+const Range = packed struct(u64) {
+    cursor: u32, // Incremented on add
     end: u32, // Precomputed from the results of Parser's kind count
 };
 
@@ -29,20 +29,106 @@ pub fn args(left: u32, right: u32) Node {
     return Node{ .args = .{ .left = left, .right = right } };
 }
 
+const KindRanges = struct {
+    const Self = @This();
+
+    // Reserved ranges keyed by kind. cursor is advanced by emitKind, while
+    // end remains fixed.
+    ranges: [KIND_COUNT]Range = std.mem.zeroes([KIND_COUNT]Range),
+    // Inverted index from index bucket to kinds present within that bucket.
+    // Each entry is a bitset of token kinds whose reserved ranges overlap
+    // that bucket. indexToKind uses this to avoid scanning every kind.
+    indexKindMap: [INDEX_KIND_MAP_BUCKET_COUNT]KindBitSet = [_]KindBitSet{KindBitSet.initEmpty()} ** INDEX_KIND_MAP_BUCKET_COUNT,
+    // log2(bucket width). Computed once in reserve so hot lookups use a
+    // shift instead of a division.
+    indexKindMapWidthShift: u5 = 0,
+
+    fn reserve(self: *Self, kindCounts: [KIND_COUNT]u32) u32 {
+        var tail: u32 = 0;
+        for (0..KIND_COUNT) |i| {
+            self.ranges[i].cursor = tail;
+            tail += kindCounts[i];
+            self.ranges[i].end = tail;
+        }
+        self.buildIndexKindMap(tail);
+        return tail;
+    }
+
+    fn cursor(self: *const Self, kind: TK) u32 {
+        return self.ranges[@intFromEnum(kind)].cursor;
+    }
+
+    fn nextIndex(self: *Self, kind: TK) u32 {
+        const kindIndex = @intFromEnum(kind);
+        const index = self.ranges[kindIndex].cursor;
+        std.debug.assert(index < self.ranges[kindIndex].end);
+        self.ranges[kindIndex].cursor += 1;
+        return index;
+    }
+
+    fn reservedStart(self: *const Self, kindIndex: usize) u32 {
+        // ranges[kind].cursor is an emit cursor, so recover the stable
+        // reserved start from the previous kind's end.
+        return if (kindIndex == 0) 0 else self.ranges[kindIndex - 1].end;
+    }
+
+    fn indexKindMapIndex(self: *const Self, index: u32) usize {
+        const mapIndex: usize = @intCast(index >> self.indexKindMapWidthShift);
+        std.debug.assert(mapIndex < INDEX_KIND_MAP_BUCKET_COUNT);
+        return mapIndex;
+    }
+
+    fn buildIndexKindMap(self: *Self, totalLen: u32) void {
+        // Build the inverted index that'll help us map from an index to which kinds are present in that range.
+        self.indexKindMap = [_]KindBitSet{KindBitSet.initEmpty()} ** INDEX_KIND_MAP_BUCKET_COUNT;
+        self.indexKindMapWidthShift = 0;
+        if (totalLen > 1) {
+            // Round the ideal 1/32 slice width up to a power of two. This can
+            // leave high buckets unused, but guarantees index >> shift is in
+            // bounds for every valid queue index.
+            const bucketLen = std.math.divCeil(u32, totalLen, INDEX_KIND_MAP_BUCKET_COUNT) catch unreachable;
+            self.indexKindMapWidthShift = @intCast(std.math.log2_int_ceil(u32, bucketLen));
+        }
+        if (totalLen == 0) return;
+
+        for (0..KIND_COUNT) |kindIndex| {
+            const start = self.reservedStart(kindIndex);
+            const end = self.ranges[kindIndex].end;
+            // Skip setting the bits for empty-ranges.
+            if (start == end) continue;
+
+            const firstMapIndex = self.indexKindMapIndex(start);
+            const lastMapIndex = self.indexKindMapIndex(end - 1);
+            for (firstMapIndex..lastMapIndex + 1) |mapIndex| {
+                self.indexKindMap[mapIndex].set(kindIndex);
+            }
+        }
+    }
+
+    fn indexToKind(self: *const Self, index: u32) TK {
+        const mapIndex = self.indexKindMapIndex(index);
+        const indexKinds = self.indexKindMap[mapIndex];
+        // Fast-path - just one kind set. Kind of redundant, but avoids the loop overhead.
+        if (indexKinds.count() == 1) {
+            const kindIndex = indexKinds.findFirstSet() orelse unreachable;
+            return @enumFromInt(kindIndex);
+        }
+        var iter = indexKinds.iterator(.{});
+        while (iter.next()) |kindIndex| {
+            const start = self.reservedStart(kindIndex);
+            const end = self.ranges[kindIndex].end;
+            if (start <= index and index < end) return @enumFromInt(kindIndex);
+        }
+
+        unreachable;
+    }
+};
+
 pub fn IRQueue(comptime t: type) type {
     return struct {
         const Self = @This();
         const ArrayList = std.array_list.Aligned(t, null);
-        // Reserved ranges keyed by kind. start is later advanced by emitKind,
-        // while end remains fixed.
-        ranges: [KIND_COUNT]Range = std.mem.zeroes([KIND_COUNT]Range),
-        // Inverted index from index bucket to kinds present within that bucket.
-        // Each entry is a bitset of token kinds whose reserved ranges overlap
-        // that bucket. indexToKind uses this to avoid scanning every kind.
-        indexKindMap: [INDEX_KIND_MAP_BUCKET_COUNT]KindBitSet = [_]KindBitSet{KindBitSet.initEmpty()} ** INDEX_KIND_MAP_BUCKET_COUNT,
-        // log2(bucket width). Computed once in reserve so hot lookups use a
-        // shift instead of a division.
-        indexKindMapWidthShift: u5 = 0,
+        kindRanges: KindRanges = .{},
         list: ArrayList,
         stack: ArrayList,
 
@@ -60,15 +146,7 @@ pub fn IRQueue(comptime t: type) type {
 
         // reserve is the queue's allocation path and is meant to be called once after init.
         pub fn reserve(self: *Self, allocator: Allocator, kindCounts: [KIND_COUNT]u32, maxDepth: usize) !void {
-            var tail: u32 = 0;
-            for (0..KIND_COUNT) |i| {
-                self.ranges[i].start = tail;
-                tail += kindCounts[i];
-                self.ranges[i].end = tail;
-            }
-            self.buildIndexKindMap(tail);
-
-            const totalLen: usize = @intCast(tail);
+            const totalLen: usize = @intCast(self.kindRanges.reserve(kindCounts));
             self.list.clearRetainingCapacity();
             self.stack.clearRetainingCapacity();
             try self.list.ensureTotalCapacity(allocator, totalLen);
@@ -76,74 +154,14 @@ pub fn IRQueue(comptime t: type) type {
             self.list.appendNTimesAssumeCapacity(zeroValue(), totalLen); // TODO: Could I just use @memset here
         }
 
-        fn kindStart(self: *Self, kind: TK) u32 {
-            return self.ranges[@intFromEnum(kind)].start;
-        }
-
-        fn reservedKindStart(self: *const Self, kindIndex: usize) u32 {
-            // ranges[kind].start is an emit cursor, so recover the stable
-            // reserved start from the previous kind's end.
-            return if (kindIndex == 0) 0 else self.ranges[kindIndex - 1].end;
-        }
-
-        fn indexKindMapIndex(self: *const Self, index: u32) usize {
-            const mapIndex: usize = @intCast(index >> self.indexKindMapWidthShift);
-            std.debug.assert(mapIndex < INDEX_KIND_MAP_BUCKET_COUNT);
-            return mapIndex;
-        }
-
-        fn buildIndexKindMap(self: *Self, totalLen: u32) void {
-            // Build the inverted index that'll help us map from an index to which kinds are present in that range.
-            self.indexKindMapWidthShift = 0;
-            if (totalLen > 1) {
-                // Round the ideal 1/32 slice width up to a power of two. This can
-                // leave high buckets unused, but guarantees index >> shift is in
-                // bounds for every valid queue index.
-                const bucketLen = std.math.divCeil(u32, totalLen, INDEX_KIND_MAP_BUCKET_COUNT) catch unreachable;
-                self.indexKindMapWidthShift = @intCast(std.math.log2_int_ceil(u32, bucketLen));
-            }
-            if (totalLen == 0) return;
-
-            for (0..KIND_COUNT) |kindIndex| {
-                const start = self.reservedKindStart(kindIndex);
-                const end = self.ranges[kindIndex].end;
-                // Skip setting the bits for empty-ranges.
-                if (start == end) continue;
-
-                const firstMapIndex = self.indexKindMapIndex(start);
-                const lastMapIndex = self.indexKindMapIndex(end - 1);
-                for (firstMapIndex..lastMapIndex + 1) |mapIndex| {
-                    self.indexKindMap[mapIndex].set(kindIndex);
-                }
-            }
-        }
-
         pub fn indexToKind(self: *const Self, index: u32) TK {
             std.debug.assert(index < self.list.items.len);
-
-            const mapIndex = self.indexKindMapIndex(index);
-            const indexKinds = self.indexKindMap[mapIndex];
-            // Fast-path - just one kind set. Kind of redundant, but avoids the loop overhead.
-            if (indexKinds.count() == 1) {
-                const kindIndex = indexKinds.findFirstSet() orelse unreachable;
-                return @enumFromInt(kindIndex);
-            }
-            var iter = indexKinds.iterator(.{});
-            while (iter.next()) |kindIndex| {
-                const start = self.reservedKindStart(kindIndex);
-                const end = self.ranges[kindIndex].end;
-                if (start <= index and index < end) return @enumFromInt(kindIndex);
-            }
-
-            unreachable;
+            return self.kindRanges.indexToKind(index);
         }
 
         pub fn emitKind(self: *Self, kind: TK, value: Node) u32 {
-            const kindIndex = @intFromEnum(kind);
-            const index = self.kindStart(kind);
-            std.debug.assert(index < self.ranges[kindIndex].end);
+            const index = self.kindRanges.nextIndex(kind);
             self.set(index, value);
-            self.ranges[kindIndex].start += 1;
             return index;
         }
 
@@ -173,12 +191,12 @@ pub fn IRQueue(comptime t: type) type {
         }
 
         pub fn createFrame(self: *Self, argCount: u32) u32 {
-            const argIndex = self.kindStart(TK.ir_arg);
+            const argIndex = self.kindRanges.cursor(TK.ir_arg);
             return self.emitKind(TK.ir_frame, args(argIndex, argCount));
         }
 
         pub fn createParam(self: *Self) u32 {
-            const paramIndex = self.kindStart(TK.ir_param);
+            const paramIndex = self.kindRanges.cursor(TK.ir_param);
             // Arg tail, ref tail (TODO: Is ref tail useful?)
             self.emitKind(TK.ir_param, args(paramIndex, 0));
             return paramIndex;
