@@ -79,25 +79,31 @@ pub const IR = struct {
         try self.irQ.reserve(self.allocator, kindCounts, MAX_DEPTH);
     }
 
-    pub fn lower(self: *Self) void {
+    pub fn lower(self: *Self) !u32 {
         // Walk the parsed queue to lower to IR.
         // Two options: Reverse recursive which dispatches recursion for each arg to parse.
         // Or: explicit stack and forward walk.
         // Stack maintains each argument to be consumed.
         for (self.parsedQ.list.items, 0..) |token, index| {
             switch (token.kind) {
+                TK.aux_stream_start => {},
                 TK.lit_number => {
                     // TODO: Larger 64 bit constants can be emitted directly in this space as well.
                     const constIndex = self.irQ.emitKind(token.kind, args(token.data.literal.value, 0));
                     self.irQ.pushArg(constIndex, index);
                 },
-                TK.op_add, TK.op_mul, TK.op_gt => {
+                TK.op_add, TK.op_mul => {
                     const opNode = self.irQ.popBinary();
                     const opIndex = self.irQ.emitKind(token.kind, opNode);
                     self.irQ.pushArg(opIndex, index);
                 },
-                else => {},
+                else => return error.UnsupportedIRKind,
             }
         }
+
+        const exitFrame = self.irQ.emitKind(TK.ir_frame, args(0, 0));
+        const finalNode = self.irQ.popUnary();
+        const sendIdx = self.irQ.emitKind(TK.ir_send, args(exitFrame, finalNode.args.left));
+        return sendIdx;
     }
 };
