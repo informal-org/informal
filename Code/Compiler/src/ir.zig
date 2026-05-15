@@ -15,10 +15,10 @@
 // Def: Value op index, tail ref - last reference so far. Initialized as itself.
 // Ref: Referenced at index, Prev ref. First one points to the declaration.
 //
-// 3. All calls and jumps are modeled as message send/receive in the actor sense. It's similar to continuation passing style, or blocks with params.
-// Send: Call Frame index, Prev send to this same destination.
-// Receive: Tail send to this destination - initialized as itself. Continuation target - either the next "send" to call or a phi-node from the input frame.
-// Receives don't explicit store their params, but each receive-index is 1:1 with a paramFrame index, so you can simply lookup by index.
+// 3. All calls and jumps are modeled as block enter/exit in the actor sense. It's similar to continuation passing style, or blocks with params.
+// Exit: Call Frame index, Prev exit to this same destination.
+// Enter: Tail exit to this destination - initialized as itself. Continuation target - either the next "exit" to call or a phi-node from the input frame.
+// Enters don't explicit store their params, but each enter-index is 1:1 with a paramFrame index, so you can simply lookup by index.
 //
 // 4. Frames: Composed of
 // Frame: Args index, arg count.
@@ -71,7 +71,7 @@ pub const IR = struct {
         // In that case, it'd need to look at the count of all nodes which can emit that IR node and sum those.
         var counts = kindCounts;
         counts[@intFromEnum(TK.ir_frame)] += 1; // At least one exit frame.
-        counts[@intFromEnum(TK.ir_send)] += 1; // Send results to exit.
+        counts[@intFromEnum(TK.ir_exit)] += 1; // Exit results to exit frame.
         return counts;
     }
 
@@ -103,7 +103,13 @@ pub const IR = struct {
 
         const exitFrame = self.irQ.emitKind(TK.ir_frame, args(0, 0));
         const finalNode = self.irQ.popUnary();
-        const sendIdx = self.irQ.emitKind(TK.ir_send, args(exitFrame, finalNode.args.left));
-        return sendIdx;
+        const exitIdx = self.irQ.emitKind(TK.ir_exit, args(exitFrame, finalNode.args.left));
+        return exitIdx;
     }
+
+    // Exit = output.
+    // Collect all transitive dependencies of output.
+    // -> We actually don't need to look at the output node at all.
+    // Just any two 'identifiers' which are referencing that IR node.
+    // Look at each identifier definition index. What that op depends on is added to the working set.
 };

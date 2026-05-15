@@ -18,7 +18,7 @@ test "IR counts include parser counts and exit plumbing" {
     try expectEqual(2, kindCounts[@intFromEnum(TK.ir_use)]);
     try expectEqual(1, kindCounts[@intFromEnum(TK.ir_def)]);
     try expectEqual(1, kindCounts[@intFromEnum(TK.ir_frame)]);
-    try expectEqual(1, kindCounts[@intFromEnum(TK.ir_send)]);
+    try expectEqual(1, kindCounts[@intFromEnum(TK.ir_exit)]);
 }
 
 test "IR queue writes by reserved index without shifting nodes" {
