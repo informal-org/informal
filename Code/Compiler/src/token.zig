@@ -95,6 +95,7 @@ pub const Kind = enum(u8) {
     ir_frame,
     ir_arg,
     ir_param, // Our version of Phi nodes in SSA.
+    ir_block_map,
     aux,
     aux_skip,
     aux_comment,

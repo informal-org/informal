@@ -131,6 +131,7 @@ pub fn IRQueue(comptime t: type) type {
         kindRanges: KindRanges = .{},
         list: ArrayList,
         stack: ArrayList,
+        activeBlockMap: KindBitSet = KindBitSet.initEmpty(),
 
         fn zeroValue() t {
             if (t == Node) return @as(t, Node{ .raw = std.mem.zeroes(u64) });
@@ -152,6 +153,7 @@ pub fn IRQueue(comptime t: type) type {
             try self.list.ensureTotalCapacity(allocator, totalLen);
             try self.stack.ensureTotalCapacity(allocator, maxDepth);
             self.list.appendNTimesAssumeCapacity(zeroValue(), totalLen); // TODO: Could I just use @memset here
+            self.activeBlockMap = KindBitSet.initEmpty();
         }
 
         pub fn indexToKind(self: *const Self, index: u32) TK {
@@ -159,9 +161,30 @@ pub fn IRQueue(comptime t: type) type {
             return self.kindRanges.indexToKind(index);
         }
 
+        fn emitBlockMap(self: *Self, blockMap: KindBitSet) u32 {
+            const index = self.kindRanges.nextIndex(TK.ir_block_map);
+            self.set(index, Node{ .raw = blockMap.mask });
+            return index;
+        }
+
+        pub fn startBlock(self: *Self) void {
+            self.activeBlockMap = KindBitSet.initEmpty();
+        }
+
+        pub fn endBlock(self: *Self) void {
+            _ = self.emitBlockMap(self.activeBlockMap);
+            self.activeBlockMap = KindBitSet.initEmpty();
+        }
+
+        fn markActiveBlockKind(self: *Self, kind: TK) void {
+            if (kind == TK.ir_block_map) return;
+            self.activeBlockMap.set(@intFromEnum(kind));
+        }
+
         pub fn emitKind(self: *Self, kind: TK, value: Node) u32 {
             const index = self.kindRanges.nextIndex(kind);
             self.set(index, value);
+            self.markActiveBlockKind(kind);
             return index;
         }
 

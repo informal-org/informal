@@ -70,6 +70,10 @@ pub const IR = struct {
         // In the future, this will need more logic when certain parser-tokens map to multiple IR nodes.
         // In that case, it'd need to look at the count of all nodes which can emit that IR node and sum those.
         var counts = kindCounts;
+        const blockCount = 1 + counts[@intFromEnum(TK.grp_indent)] + counts[@intFromEnum(TK.grp_dedent)];
+        counts[@intFromEnum(TK.grp_indent)] = 0;
+        counts[@intFromEnum(TK.grp_dedent)] = 0;
+        counts[@intFromEnum(TK.ir_block_map)] += blockCount;
         counts[@intFromEnum(TK.ir_frame)] += 1; // At least one exit frame.
         counts[@intFromEnum(TK.ir_exit)] += 1; // Exit results to exit frame.
         return counts;
@@ -84,9 +88,14 @@ pub const IR = struct {
         // Two options: Reverse recursive which dispatches recursion for each arg to parse.
         // Or: explicit stack and forward walk.
         // Stack maintains each argument to be consumed.
+        self.irQ.startBlock();
         for (self.parsedQ.list.items, 0..) |token, index| {
             switch (token.kind) {
                 TK.aux_stream_start => {},
+                TK.grp_indent, TK.grp_dedent => {
+                    self.irQ.endBlock();
+                    self.irQ.startBlock();
+                },
                 TK.lit_number => {
                     // TODO: Larger 64 bit constants can be emitted directly in this space as well.
                     const constIndex = self.irQ.emitKind(token.kind, args(token.data.literal.value, 0));
@@ -104,6 +113,7 @@ pub const IR = struct {
         const exitFrame = self.irQ.emitKind(TK.ir_frame, args(0, 0));
         const finalNode = self.irQ.popUnary();
         const exitIdx = self.irQ.emitKind(TK.ir_exit, args(exitFrame, finalNode.args.left));
+        self.irQ.endBlock();
         return exitIdx;
     }
 

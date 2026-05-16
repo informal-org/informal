@@ -5,6 +5,28 @@ const tok = @import("../token.zig");
 
 const TK = tok.Kind;
 const expectEqual = std.testing.expectEqual;
+const KindBitSet = std.bit_set.IntegerBitSet(64);
+
+fn expectedBlockMap(kinds: []const TK) u64 {
+    var set = KindBitSet.initEmpty();
+    for (kinds) |kind| {
+        set.set(@intFromEnum(kind));
+    }
+    return set.mask;
+}
+
+fn collectBlockMaps(queue: *ir.IRQueue, out: []u32) usize {
+    var count: usize = 0;
+    for (queue.list.items, 0..) |_, index| {
+        const irIndex: u32 = @intCast(index);
+        if (queue.indexToKind(irIndex) == TK.ir_block_map) {
+            std.debug.assert(count < out.len);
+            out[count] = irIndex;
+            count += 1;
+        }
+    }
+    return count;
+}
 
 test "IR counts include parser counts and exit plumbing" {
     var counts: [64]u32 = [_]u32{0} ** 64;
@@ -19,6 +41,19 @@ test "IR counts include parser counts and exit plumbing" {
     try expectEqual(1, kindCounts[@intFromEnum(TK.ir_def)]);
     try expectEqual(1, kindCounts[@intFromEnum(TK.ir_frame)]);
     try expectEqual(1, kindCounts[@intFromEnum(TK.ir_exit)]);
+    try expectEqual(1, kindCounts[@intFromEnum(TK.ir_block_map)]);
+}
+
+test "IR counts include root scope blocks and continuations" {
+    var counts: [64]u32 = [_]u32{0} ** 64;
+    counts[@intFromEnum(TK.grp_indent)] = 2;
+    counts[@intFromEnum(TK.grp_dedent)] = 2;
+
+    const kindCounts = ir.IR.calcKindCounts(counts);
+
+    try expectEqual(0, kindCounts[@intFromEnum(TK.grp_indent)]);
+    try expectEqual(0, kindCounts[@intFromEnum(TK.grp_dedent)]);
+    try expectEqual(5, kindCounts[@intFromEnum(TK.ir_block_map)]);
 }
 
 test "IR queue writes by reserved index without shifting nodes" {
@@ -72,4 +107,113 @@ test "IR queue maps reserved indexes back to kinds" {
     try expectEqual(TK.lit_number, queue.indexToKind(lastLit));
     try expectEqual(TK.ir_use, queue.indexToKind(firstUse));
     try expectEqual(TK.ir_use, queue.indexToKind(lastUse));
+}
+
+test "IR block map records emitted kinds but excludes block maps" {
+    var kindCounts: [64]u32 = [_]u32{0} ** 64;
+    kindCounts[@intFromEnum(TK.lit_number)] = 1;
+    kindCounts[@intFromEnum(TK.op_add)] = 1;
+    kindCounts[@intFromEnum(TK.ir_block_map)] = 1;
+
+    var queue = try ir.IRQueue.init(std.testing.allocator);
+    defer queue.deinit(std.testing.allocator);
+    try queue.reserve(std.testing.allocator, kindCounts, 4);
+
+    queue.startBlock();
+    _ = queue.emitKind(TK.lit_number, irq.args(11, 0));
+    _ = queue.emitKind(TK.op_add, irq.args(12, 0));
+    queue.endBlock();
+
+    var blockMaps: [1]u32 = undefined;
+    try expectEqual(@as(usize, 1), collectBlockMaps(&queue, &blockMaps));
+    try expectEqual(expectedBlockMap(&[_]TK{ TK.lit_number, TK.op_add }), queue.get(blockMaps[0]).raw);
+}
+
+test "IR sibling block maps keep their masks separate" {
+    var kindCounts: [64]u32 = [_]u32{0} ** 64;
+    kindCounts[@intFromEnum(TK.lit_number)] = 1;
+    kindCounts[@intFromEnum(TK.op_add)] = 1;
+    kindCounts[@intFromEnum(TK.ir_block_map)] = 2;
+
+    var queue = try ir.IRQueue.init(std.testing.allocator);
+    defer queue.deinit(std.testing.allocator);
+    try queue.reserve(std.testing.allocator, kindCounts, 4);
+
+    queue.startBlock();
+    _ = queue.emitKind(TK.lit_number, irq.args(1, 0));
+    queue.endBlock();
+
+    queue.startBlock();
+    _ = queue.emitKind(TK.op_add, irq.args(2, 0));
+    queue.endBlock();
+
+    var blockMaps: [2]u32 = undefined;
+    try expectEqual(@as(usize, 2), collectBlockMaps(&queue, &blockMaps));
+    try expectEqual(expectedBlockMap(&[_]TK{TK.lit_number}), queue.get(blockMaps[0]).raw);
+    try expectEqual(expectedBlockMap(&[_]TK{TK.op_add}), queue.get(blockMaps[1]).raw);
+}
+
+test "IR nested block plus continuation records separate block maps" {
+    var kindCounts: [64]u32 = [_]u32{0} ** 64;
+    kindCounts[@intFromEnum(TK.lit_number)] = 1;
+    kindCounts[@intFromEnum(TK.op_add)] = 1;
+    kindCounts[@intFromEnum(TK.ir_use)] = 1;
+    kindCounts[@intFromEnum(TK.ir_block_map)] = 3;
+
+    var queue = try ir.IRQueue.init(std.testing.allocator);
+    defer queue.deinit(std.testing.allocator);
+    try queue.reserve(std.testing.allocator, kindCounts, 4);
+
+    queue.startBlock();
+    _ = queue.emitKind(TK.lit_number, irq.args(1, 0));
+    queue.endBlock();
+
+    queue.startBlock();
+    _ = queue.emitKind(TK.op_add, irq.args(2, 0));
+    queue.endBlock();
+
+    queue.startBlock();
+    _ = queue.emitKind(TK.ir_use, irq.args(3, 0));
+    queue.endBlock();
+
+    var blockMaps: [3]u32 = undefined;
+    try expectEqual(@as(usize, 3), collectBlockMaps(&queue, &blockMaps));
+    try expectEqual(expectedBlockMap(&[_]TK{TK.lit_number}), queue.get(blockMaps[0]).raw);
+    try expectEqual(expectedBlockMap(&[_]TK{TK.op_add}), queue.get(blockMaps[1]).raw);
+    try expectEqual(expectedBlockMap(&[_]TK{TK.ir_use}), queue.get(blockMaps[2]).raw);
+}
+
+test "IR lower maps parsed scope tokens to block maps and continuation" {
+    const tokens = [_]tok.Token{
+        tok.AUX_STREAM_START,
+        tok.Token.lex(TK.lit_number, 1, 1),
+        tok.createToken(TK.grp_indent),
+        tok.Token.lex(TK.lit_number, 2, 1),
+        tok.createToken(TK.grp_dedent),
+    };
+
+    var parsedQ = try ir.TokenQueue.init(std.testing.allocator);
+    defer parsedQ.deinit();
+    try parsedQ.reserve(tokens.len);
+    for (tokens) |token| parsedQ.push(token);
+
+    var parserCounts: [64]u32 = [_]u32{0} ** 64;
+    parserCounts[@intFromEnum(TK.lit_number)] = 2;
+    parserCounts[@intFromEnum(TK.grp_indent)] = 1;
+    parserCounts[@intFromEnum(TK.grp_dedent)] = 1;
+    const kindCounts = ir.IR.calcKindCounts(parserCounts);
+
+    var queue = try ir.IRQueue.init(std.testing.allocator);
+    defer queue.deinit(std.testing.allocator);
+    try queue.reserve(std.testing.allocator, kindCounts, 4);
+
+    var lowering = ir.IR.init(std.testing.allocator, &parsedQ, &queue);
+    const exitIdx = try lowering.lower();
+
+    var blockMaps: [3]u32 = undefined;
+    try expectEqual(@as(usize, 3), collectBlockMaps(&queue, &blockMaps));
+    try expectEqual(TK.ir_exit, queue.indexToKind(exitIdx));
+    try expectEqual(expectedBlockMap(&[_]TK{TK.lit_number}), queue.get(blockMaps[0]).raw);
+    try expectEqual(expectedBlockMap(&[_]TK{TK.lit_number}), queue.get(blockMaps[1]).raw);
+    try expectEqual(expectedBlockMap(&[_]TK{ TK.ir_frame, TK.ir_exit }), queue.get(blockMaps[2]).raw);
 }
