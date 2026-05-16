@@ -9,6 +9,7 @@ const KIND_COUNT = 64; // IR queues track the first 64 token kinds.
 const INDEX_KIND_MAP_BUCKET_COUNT_SHIFT = 5;
 const INDEX_KIND_MAP_BUCKET_COUNT = 1 << INDEX_KIND_MAP_BUCKET_COUNT_SHIFT;
 const KindBitSet = std.bit_set.IntegerBitSet(KIND_COUNT);
+const BlockBoundarySet = std.bit_set.DynamicBitSetUnmanaged;
 
 const Range = packed struct(u64) {
     cursor: u32, // Incremented on add
@@ -132,6 +133,10 @@ pub fn IRQueue(comptime t: type) type {
         list: ArrayList,
         stack: ArrayList,
         activeBlockMap: KindBitSet = KindBitSet.initEmpty(),
+        // Boundary bits are indexed by the fixed IR queue index, exactly like
+        // list.items. For each kind present in a parser block, endBlock marks
+        // the last emitted node of that kind, not the first node after it.
+        blockBoundaries: BlockBoundarySet = .{},
 
         fn zeroValue() t {
             if (t == Node) return @as(t, Node{ .raw = std.mem.zeroes(u64) });
@@ -152,6 +157,8 @@ pub fn IRQueue(comptime t: type) type {
             self.stack.clearRetainingCapacity();
             try self.list.ensureTotalCapacity(allocator, totalLen);
             try self.stack.ensureTotalCapacity(allocator, maxDepth);
+            try self.blockBoundaries.resize(allocator, totalLen, false);
+            self.blockBoundaries.unsetAll();
             self.list.appendNTimesAssumeCapacity(zeroValue(), totalLen); // TODO: Could I just use @memset here
             self.activeBlockMap = KindBitSet.initEmpty();
         }
@@ -159,6 +166,11 @@ pub fn IRQueue(comptime t: type) type {
         pub fn indexToKind(self: *const Self, index: u32) TK {
             std.debug.assert(index < self.list.items.len);
             return self.kindRanges.indexToKind(index);
+        }
+
+        pub fn isBlockBoundary(self: *const Self, index: u32) bool {
+            std.debug.assert(index < self.list.items.len);
+            return self.blockBoundaries.isSet(index);
         }
 
         fn emitBlockMap(self: *Self, blockMap: KindBitSet) u32 {
@@ -172,8 +184,22 @@ pub fn IRQueue(comptime t: type) type {
         }
 
         pub fn endBlock(self: *Self) void {
+            self.markActiveBlockBoundaries();
             _ = self.emitBlockMap(self.activeBlockMap);
             self.activeBlockMap = KindBitSet.initEmpty();
+        }
+
+        fn markActiveBlockBoundaries(self: *Self) void {
+            var iter = self.activeBlockMap.iterator(.{});
+            while (iter.next()) |kindIndex| {
+                // nextIndex advances the cursor after writing, so the block
+                // boundary lives at cursor - 1: the last node emitted for
+                // this kind in the block.
+                const cursor = self.kindRanges.ranges[kindIndex].cursor;
+                const start = self.kindRanges.reservedStart(kindIndex);
+                std.debug.assert(cursor > start);
+                self.blockBoundaries.set(cursor - 1);
+            }
         }
 
         fn markActiveBlockKind(self: *Self, kind: TK) void {
@@ -252,6 +278,9 @@ pub fn IRQueue(comptime t: type) type {
         // }
 
         pub fn deinit(self: *Self, allocator: Allocator) void {
+            if (self.blockBoundaries.capacity() != 0) {
+                self.blockBoundaries.deinit(allocator);
+            }
             self.list.deinit(allocator);
             self.stack.deinit(allocator);
         }

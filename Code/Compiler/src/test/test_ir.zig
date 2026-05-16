@@ -4,6 +4,7 @@ const irq = @import("../irq.zig");
 const tok = @import("../token.zig");
 
 const TK = tok.Kind;
+const expect = std.testing.expect;
 const expectEqual = std.testing.expectEqual;
 const KindBitSet = std.bit_set.IntegerBitSet(64);
 
@@ -183,6 +184,41 @@ test "IR nested block plus continuation records separate block maps" {
     try expectEqual(expectedBlockMap(&[_]TK{TK.ir_use}), queue.get(blockMaps[2]).raw);
 }
 
+test "IR block boundaries mark last emitted node for each active kind" {
+    var kindCounts: [64]u32 = [_]u32{0} ** 64;
+    kindCounts[@intFromEnum(TK.op_add)] = 3;
+    kindCounts[@intFromEnum(TK.lit_number)] = 3;
+    kindCounts[@intFromEnum(TK.ir_block_map)] = 2;
+
+    var queue = try ir.IRQueue.init(std.testing.allocator);
+    defer queue.deinit(std.testing.allocator);
+    try queue.reserve(std.testing.allocator, kindCounts, 4);
+
+    queue.startBlock();
+    const firstAdd = queue.emitKind(TK.op_add, irq.args(1, 0));
+    _ = queue.emitKind(TK.lit_number, irq.args(2, 0));
+    const secondLit = queue.emitKind(TK.lit_number, irq.args(3, 0));
+    queue.endBlock();
+
+    queue.startBlock();
+    _ = queue.emitKind(TK.op_add, irq.args(4, 0));
+    const lastAdd = queue.emitKind(TK.op_add, irq.args(5, 0));
+    const lastLit = queue.emitKind(TK.lit_number, irq.args(6, 0));
+    queue.endBlock();
+
+    try expectEqual(queue.list.items.len, queue.blockBoundaries.capacity());
+    try expect(queue.isBlockBoundary(firstAdd));
+    try expect(queue.isBlockBoundary(secondLit));
+    try expect(queue.isBlockBoundary(lastAdd));
+    try expect(queue.isBlockBoundary(lastLit));
+    try expect(!queue.isBlockBoundary(firstAdd + 1));
+
+    var blockMaps: [2]u32 = undefined;
+    try expectEqual(@as(usize, 2), collectBlockMaps(&queue, &blockMaps));
+    try expect(!queue.isBlockBoundary(blockMaps[0]));
+    try expect(!queue.isBlockBoundary(blockMaps[1]));
+}
+
 test "IR lower maps parsed scope tokens to block maps and continuation" {
     const tokens = [_]tok.Token{
         tok.AUX_STREAM_START,
@@ -216,4 +252,7 @@ test "IR lower maps parsed scope tokens to block maps and continuation" {
     try expectEqual(expectedBlockMap(&[_]TK{TK.lit_number}), queue.get(blockMaps[0]).raw);
     try expectEqual(expectedBlockMap(&[_]TK{TK.lit_number}), queue.get(blockMaps[1]).raw);
     try expectEqual(expectedBlockMap(&[_]TK{ TK.ir_frame, TK.ir_exit }), queue.get(blockMaps[2]).raw);
+    try expect(queue.isBlockBoundary(@as(u32, 0)));
+    try expect(queue.isBlockBoundary(@as(u32, 1)));
+    try expect(queue.isBlockBoundary(exitIdx));
 }
