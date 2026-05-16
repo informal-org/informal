@@ -10,6 +10,7 @@ const INDEX_KIND_MAP_BUCKET_COUNT_SHIFT = 5;
 const INDEX_KIND_MAP_BUCKET_COUNT = 1 << INDEX_KIND_MAP_BUCKET_COUNT_SHIFT;
 const KindBitSet = std.bit_set.IntegerBitSet(KIND_COUNT);
 const BlockBoundarySet = std.bit_set.DynamicBitSetUnmanaged;
+const BlockBoundaryIterator = BlockBoundarySet.Iterator(.{});
 
 const Range = packed struct(u64) {
     cursor: u32, // Incremented on add
@@ -73,6 +74,17 @@ const KindRanges = struct {
         return if (kindIndex == 0) 0 else self.ranges[kindIndex - 1].end;
     }
 
+    fn reservedLen(self: *const Self, kindIndex: usize) u32 {
+        return self.ranges[kindIndex].end - self.reservedStart(kindIndex);
+    }
+
+    fn relativeIndex(self: *const Self, kindIndex: usize, index: u32) u32 {
+        const start = self.reservedStart(kindIndex);
+        std.debug.assert(start <= index);
+        std.debug.assert(index < self.ranges[kindIndex].end);
+        return index - start;
+    }
+
     fn indexKindMapIndex(self: *const Self, index: u32) usize {
         const mapIndex: usize = @intCast(index >> self.indexKindMapWidthShift);
         std.debug.assert(mapIndex < INDEX_KIND_MAP_BUCKET_COUNT);
@@ -125,6 +137,118 @@ const KindRanges = struct {
     }
 };
 
+const Blocks = struct {
+    const Self = @This();
+
+    activeBlockMap: KindBitSet = KindBitSet.initEmpty(),
+    // Boundary bits are stored per kind and indexed relative to that kind's
+    // reserved range. A set bit marks the last emitted node of that kind in a
+    // parser block.
+    boundaries: [KIND_COUNT]BlockBoundarySet = [_]BlockBoundarySet{.{}} ** KIND_COUNT,
+
+    fn reserve(self: *Self, allocator: Allocator, kindRanges: *const KindRanges) !void {
+        for (&self.boundaries, 0..) |*boundary, kindIndex| {
+            try boundary.resize(allocator, kindRanges.reservedLen(kindIndex), false);
+            boundary.unsetAll();
+        }
+        self.activeBlockMap = KindBitSet.initEmpty();
+    }
+
+    fn startBlock(self: *Self) void {
+        self.activeBlockMap = KindBitSet.initEmpty();
+    }
+
+    fn endBlock(self: *Self, kindRanges: *const KindRanges) KindBitSet {
+        self.markActiveBlockBoundaries(kindRanges);
+        const blockMap = self.activeBlockMap;
+        self.activeBlockMap = KindBitSet.initEmpty();
+        return blockMap;
+    }
+
+    fn markActiveBlockBoundaries(self: *Self, kindRanges: *const KindRanges) void {
+        var iter = self.activeBlockMap.iterator(.{});
+        while (iter.next()) |kindIndex| {
+            // nextIndex advances the cursor after writing, so the block
+            // boundary lives at cursor - 1: the last node emitted for
+            // this kind in the block.
+            const cursor = kindRanges.ranges[kindIndex].cursor;
+            const start = kindRanges.reservedStart(kindIndex);
+            std.debug.assert(cursor > start);
+            self.boundaries[kindIndex].set(cursor - start - 1);
+        }
+    }
+
+    fn markActiveBlockKind(self: *Self, kind: TK) void {
+        if (kind == TK.ir_block_map) return;
+        self.activeBlockMap.set(@intFromEnum(kind));
+    }
+
+    fn deinit(self: *Self, allocator: Allocator) void {
+        for (&self.boundaries) |*boundary| {
+            if (boundary.capacity() != 0) {
+                boundary.deinit(allocator);
+            }
+        }
+    }
+
+    fn Iterator(comptime Queue: type) type {
+        return struct {
+            const IterSelf = @This();
+
+            queue: *const Queue = undefined,
+            nextBlockMapIndex: u32 = 0,
+            currentBlockMap: KindBitSet = KindBitSet.initEmpty(),
+            currentBlockStarts: [KIND_COUNT]u32 = [_]u32{0} ** KIND_COUNT,
+            currentBlockEnds: [KIND_COUNT]u32 = [_]u32{0} ** KIND_COUNT,
+            nextBlockStarts: [KIND_COUNT]u32 = [_]u32{0} ** KIND_COUNT,
+            boundaryIters: [KIND_COUNT]BlockBoundaryIterator = undefined,
+
+            pub fn initIterator(self: *IterSelf, queue: *const Queue) void {
+                self.queue = queue;
+                self.nextBlockMapIndex = queue.kindRanges.reservedStart(@intFromEnum(TK.ir_block_map));
+                self.currentBlockMap = KindBitSet.initEmpty();
+                self.currentBlockStarts = [_]u32{0} ** KIND_COUNT;
+                self.currentBlockEnds = [_]u32{0} ** KIND_COUNT;
+                self.nextBlockStarts = [_]u32{0} ** KIND_COUNT;
+                for (&self.boundaryIters, 0..) |*boundaryIter, kindIndex| {
+                    boundaryIter.* = queue.blocks.boundaries[kindIndex].iterator(.{});
+                }
+            }
+
+            pub fn hasMore(self: *const IterSelf) bool {
+                return self.nextBlockMapIndex < self.queue.kindRanges.cursor(TK.ir_block_map);
+            }
+
+            pub fn nextBlock(self: *IterSelf) void {
+                std.debug.assert(self.hasMore());
+                const blockMapIndex = self.nextBlockMapIndex;
+                self.nextBlockMapIndex += 1;
+                self.currentBlockMap = KindBitSet{ .mask = self.queue.get(blockMapIndex).raw };
+
+                var iter = self.currentBlockMap.iterator(.{});
+                while (iter.next()) |kindIndex| {
+                    const end = self.boundaryIters[kindIndex].next() orelse unreachable;
+                    std.debug.assert(end >= self.nextBlockStarts[kindIndex]);
+                    self.currentBlockStarts[kindIndex] = self.nextBlockStarts[kindIndex];
+                    self.currentBlockEnds[kindIndex] = @intCast(end);
+                    self.nextBlockStarts[kindIndex] = @intCast(end + 1);
+                }
+            }
+
+            pub fn inCurrentBlock(self: *const IterSelf, index: u32) bool {
+                std.debug.assert(index < self.queue.list.items.len);
+                const kind = self.queue.indexToKind(index);
+                const kindIndex = @intFromEnum(kind);
+                if (!self.currentBlockMap.isSet(kindIndex)) return false;
+
+                const relativeIndex = self.queue.kindRanges.relativeIndex(kindIndex, index);
+                return self.currentBlockStarts[kindIndex] <= relativeIndex and
+                    relativeIndex <= self.currentBlockEnds[kindIndex];
+            }
+        };
+    }
+};
+
 pub fn IRQueue(comptime t: type) type {
     return struct {
         const Self = @This();
@@ -132,11 +256,7 @@ pub fn IRQueue(comptime t: type) type {
         kindRanges: KindRanges = .{},
         list: ArrayList,
         stack: ArrayList,
-        activeBlockMap: KindBitSet = KindBitSet.initEmpty(),
-        // Boundary bits are indexed by the fixed IR queue index, exactly like
-        // list.items. For each kind present in a parser block, endBlock marks
-        // the last emitted node of that kind, not the first node after it.
-        blockBoundaries: BlockBoundarySet = .{},
+        blocks: Blocks = .{},
 
         fn zeroValue() t {
             if (t == Node) return @as(t, Node{ .raw = std.mem.zeroes(u64) });
@@ -157,10 +277,8 @@ pub fn IRQueue(comptime t: type) type {
             self.stack.clearRetainingCapacity();
             try self.list.ensureTotalCapacity(allocator, totalLen);
             try self.stack.ensureTotalCapacity(allocator, maxDepth);
-            try self.blockBoundaries.resize(allocator, totalLen, false);
-            self.blockBoundaries.unsetAll();
+            try self.blocks.reserve(allocator, &self.kindRanges);
             self.list.appendNTimesAssumeCapacity(zeroValue(), totalLen); // TODO: Could I just use @memset here
-            self.activeBlockMap = KindBitSet.initEmpty();
         }
 
         pub fn indexToKind(self: *const Self, index: u32) TK {
@@ -168,9 +286,10 @@ pub fn IRQueue(comptime t: type) type {
             return self.kindRanges.indexToKind(index);
         }
 
-        pub fn isBlockBoundary(self: *const Self, index: u32) bool {
-            std.debug.assert(index < self.list.items.len);
-            return self.blockBoundaries.isSet(index);
+        pub fn blockIterator(self: *const Self) Blocks.Iterator(Self) {
+            var iter: Blocks.Iterator(Self) = undefined;
+            iter.initIterator(self);
+            return iter;
         }
 
         fn emitBlockMap(self: *Self, blockMap: KindBitSet) u32 {
@@ -180,41 +299,21 @@ pub fn IRQueue(comptime t: type) type {
         }
 
         pub fn startBlock(self: *Self) void {
-            self.activeBlockMap = KindBitSet.initEmpty();
+            self.blocks.startBlock();
         }
 
         pub fn endBlock(self: *Self) void {
-            self.markActiveBlockBoundaries();
-            _ = self.emitBlockMap(self.activeBlockMap);
-            self.activeBlockMap = KindBitSet.initEmpty();
-        }
-
-        fn markActiveBlockBoundaries(self: *Self) void {
-            var iter = self.activeBlockMap.iterator(.{});
-            while (iter.next()) |kindIndex| {
-                // nextIndex advances the cursor after writing, so the block
-                // boundary lives at cursor - 1: the last node emitted for
-                // this kind in the block.
-                const cursor = self.kindRanges.ranges[kindIndex].cursor;
-                const start = self.kindRanges.reservedStart(kindIndex);
-                std.debug.assert(cursor > start);
-                self.blockBoundaries.set(cursor - 1);
-            }
-        }
-
-        fn markActiveBlockKind(self: *Self, kind: TK) void {
-            if (kind == TK.ir_block_map) return;
-            self.activeBlockMap.set(@intFromEnum(kind));
+            _ = self.emitBlockMap(self.blocks.endBlock(&self.kindRanges));
         }
 
         pub fn emitKind(self: *Self, kind: TK, value: Node) u32 {
             const index = self.kindRanges.nextIndex(kind);
             self.set(index, value);
-            self.markActiveBlockKind(kind);
+            self.blocks.markActiveBlockKind(kind);
             return index;
         }
 
-        pub fn get(self: *Self, index: u32) t {
+        pub fn get(self: *const Self, index: u32) t {
             std.debug.assert(index < self.list.items.len);
             return self.list.items[index];
         }
@@ -278,9 +377,7 @@ pub fn IRQueue(comptime t: type) type {
         // }
 
         pub fn deinit(self: *Self, allocator: Allocator) void {
-            if (self.blockBoundaries.capacity() != 0) {
-                self.blockBoundaries.deinit(allocator);
-            }
+            self.blocks.deinit(allocator);
             self.list.deinit(allocator);
             self.stack.deinit(allocator);
         }

@@ -184,7 +184,7 @@ test "IR nested block plus continuation records separate block maps" {
     try expectEqual(expectedBlockMap(&[_]TK{TK.ir_use}), queue.get(blockMaps[2]).raw);
 }
 
-test "IR block boundaries mark last emitted node for each active kind" {
+test "IR block iterator tracks membership by kind" {
     var kindCounts: [64]u32 = [_]u32{0} ** 64;
     kindCounts[@intFromEnum(TK.op_add)] = 3;
     kindCounts[@intFromEnum(TK.lit_number)] = 3;
@@ -196,27 +196,43 @@ test "IR block boundaries mark last emitted node for each active kind" {
 
     queue.startBlock();
     const firstAdd = queue.emitKind(TK.op_add, irq.args(1, 0));
-    _ = queue.emitKind(TK.lit_number, irq.args(2, 0));
+    const firstLit = queue.emitKind(TK.lit_number, irq.args(2, 0));
     const secondLit = queue.emitKind(TK.lit_number, irq.args(3, 0));
     queue.endBlock();
 
     queue.startBlock();
-    _ = queue.emitKind(TK.op_add, irq.args(4, 0));
+    const secondBlockFirstAdd = queue.emitKind(TK.op_add, irq.args(4, 0));
     const lastAdd = queue.emitKind(TK.op_add, irq.args(5, 0));
     const lastLit = queue.emitKind(TK.lit_number, irq.args(6, 0));
     queue.endBlock();
 
-    try expectEqual(queue.list.items.len, queue.blockBoundaries.capacity());
-    try expect(queue.isBlockBoundary(firstAdd));
-    try expect(queue.isBlockBoundary(secondLit));
-    try expect(queue.isBlockBoundary(lastAdd));
-    try expect(queue.isBlockBoundary(lastLit));
-    try expect(!queue.isBlockBoundary(firstAdd + 1));
-
     var blockMaps: [2]u32 = undefined;
     try expectEqual(@as(usize, 2), collectBlockMaps(&queue, &blockMaps));
-    try expect(!queue.isBlockBoundary(blockMaps[0]));
-    try expect(!queue.isBlockBoundary(blockMaps[1]));
+
+    var blockIter = queue.blockIterator();
+    try expect(blockIter.hasMore());
+    blockIter.nextBlock();
+    try expect(blockIter.inCurrentBlock(firstAdd));
+    try expect(blockIter.inCurrentBlock(firstLit));
+    try expect(blockIter.inCurrentBlock(secondLit));
+    try expect(!blockIter.inCurrentBlock(secondBlockFirstAdd));
+    try expect(!blockIter.inCurrentBlock(lastLit));
+    try expect(!blockIter.inCurrentBlock(blockMaps[0]));
+
+    try expect(blockIter.hasMore());
+    blockIter.nextBlock();
+    try expect(!blockIter.inCurrentBlock(firstAdd));
+    try expect(!blockIter.inCurrentBlock(secondLit));
+    try expect(blockIter.inCurrentBlock(secondBlockFirstAdd));
+    try expect(blockIter.inCurrentBlock(lastAdd));
+    try expect(blockIter.inCurrentBlock(lastLit));
+    try expect(!blockIter.inCurrentBlock(blockMaps[1]));
+    try expect(!blockIter.hasMore());
+
+    blockIter.initIterator(&queue);
+    try expect(blockIter.hasMore());
+    blockIter.nextBlock();
+    try expect(blockIter.inCurrentBlock(firstAdd));
 }
 
 test "IR lower maps parsed scope tokens to block maps and continuation" {
@@ -252,7 +268,24 @@ test "IR lower maps parsed scope tokens to block maps and continuation" {
     try expectEqual(expectedBlockMap(&[_]TK{TK.lit_number}), queue.get(blockMaps[0]).raw);
     try expectEqual(expectedBlockMap(&[_]TK{TK.lit_number}), queue.get(blockMaps[1]).raw);
     try expectEqual(expectedBlockMap(&[_]TK{ TK.ir_frame, TK.ir_exit }), queue.get(blockMaps[2]).raw);
-    try expect(queue.isBlockBoundary(@as(u32, 0)));
-    try expect(queue.isBlockBoundary(@as(u32, 1)));
-    try expect(queue.isBlockBoundary(exitIdx));
+
+    var blockIter = queue.blockIterator();
+    try expect(blockIter.hasMore());
+    blockIter.nextBlock();
+    try expect(blockIter.inCurrentBlock(@as(u32, 0)));
+    try expect(!blockIter.inCurrentBlock(@as(u32, 1)));
+    try expect(!blockIter.inCurrentBlock(exitIdx));
+
+    try expect(blockIter.hasMore());
+    blockIter.nextBlock();
+    try expect(!blockIter.inCurrentBlock(@as(u32, 0)));
+    try expect(blockIter.inCurrentBlock(@as(u32, 1)));
+    try expect(!blockIter.inCurrentBlock(exitIdx));
+
+    try expect(blockIter.hasMore());
+    blockIter.nextBlock();
+    try expect(!blockIter.inCurrentBlock(@as(u32, 0)));
+    try expect(!blockIter.inCurrentBlock(@as(u32, 1)));
+    try expect(blockIter.inCurrentBlock(exitIdx));
+    try expect(!blockIter.hasMore());
 }
