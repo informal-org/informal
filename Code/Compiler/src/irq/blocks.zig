@@ -13,6 +13,14 @@ const BlockBoundaryIterator = BlockBoundarySet.Iterator(.{});
 
 pub const Blocks = struct {
     const Self = @This();
+    pub const BlockRange = packed struct(u64) {
+        start: u32,
+        end: u32, // Inclusive. Where the boundary bit is set.
+
+        pub fn len(self: BlockRange) u32 {
+            return self.end - self.start + 1;
+        }
+    };
 
     activeBlockMap: KindBitSet = KindBitSet.initEmpty(),
     // Boundary bits are stored per kind and indexed relative to that kind's
@@ -68,11 +76,6 @@ pub const Blocks = struct {
     pub fn Iterator(comptime Queue: type) type {
         return struct {
             const IterSelf = @This();
-            // Specifies the range of elements within a kind that a block occupies.
-            const BlockRange = packed struct(u64) {
-                start: u32,
-                end: u32, // Inclusive. Where the boundary bit is set.
-            };
             // Cursor through elements within current kind. Increment with nextElement till end (inclusive)
             const ElementCursor = packed struct(u64) {
                 next: u32,
@@ -140,6 +143,15 @@ pub const Blocks = struct {
 
             pub fn hasMoreBlocks(self: *const IterSelf) bool {
                 return self.blockIndex < self.queue.kindRanges.cursor(TK.ir_block_map);
+            }
+
+            pub fn currentBlockKindMap(self: *const IterSelf) KindBitSet {
+                return self.blockKindMap;
+            }
+
+            pub fn currentBlockRange(self: *const IterSelf, kindIndex: usize) ?BlockRange {
+                if (!self.blockKindMap.isSet(kindIndex)) return null;
+                return self.kindBoundaryCursors[kindIndex].currentRange();
             }
 
             // Advance to the next block.
