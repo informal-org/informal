@@ -210,7 +210,7 @@ test "IR block iterator tracks membership by kind" {
     try expectEqual(@as(usize, 2), collectBlockMaps(&queue, &blockMaps));
 
     var blockIter = queue.blockIterator();
-    try expect(blockIter.hasMore());
+    try expect(blockIter.hasMoreBlocks());
     blockIter.nextBlock();
     try expect(blockIter.inCurrentBlock(firstAdd));
     try expect(blockIter.inCurrentBlock(firstLit));
@@ -218,8 +218,12 @@ test "IR block iterator tracks membership by kind" {
     try expect(!blockIter.inCurrentBlock(secondBlockFirstAdd));
     try expect(!blockIter.inCurrentBlock(lastLit));
     try expect(!blockIter.inCurrentBlock(blockMaps[0]));
+    try expectEqual(firstAdd, blockIter.nextElement().?);
+    try expectEqual(firstLit, blockIter.nextElement().?);
+    try expectEqual(secondLit, blockIter.nextElement().?);
+    try expectEqual(@as(?u32, null), blockIter.nextElement());
 
-    try expect(blockIter.hasMore());
+    try expect(blockIter.hasMoreBlocks());
     blockIter.nextBlock();
     try expect(!blockIter.inCurrentBlock(firstAdd));
     try expect(!blockIter.inCurrentBlock(secondLit));
@@ -227,10 +231,14 @@ test "IR block iterator tracks membership by kind" {
     try expect(blockIter.inCurrentBlock(lastAdd));
     try expect(blockIter.inCurrentBlock(lastLit));
     try expect(!blockIter.inCurrentBlock(blockMaps[1]));
-    try expect(!blockIter.hasMore());
+    try expectEqual(secondBlockFirstAdd, blockIter.nextElement().?);
+    try expectEqual(lastAdd, blockIter.nextElement().?);
+    try expectEqual(lastLit, blockIter.nextElement().?);
+    try expectEqual(@as(?u32, null), blockIter.nextElement());
+    try expect(!blockIter.hasMoreBlocks());
 
     blockIter.initIterator(&queue);
-    try expect(blockIter.hasMore());
+    try expect(blockIter.hasMoreBlocks());
     blockIter.nextBlock();
     try expect(blockIter.inCurrentBlock(firstAdd));
 }
@@ -279,7 +287,7 @@ test "IR block iterator reads boundaries across bitset masks" {
     try expect(!blockIter.inCurrentBlock(secondBlockLastLit));
     try expect(blockIter.inCurrentBlock(thirdBlockFirstLit));
     try expect(blockIter.inCurrentBlock(lastLit));
-    try expect(!blockIter.hasMore());
+    try expect(!blockIter.hasMoreBlocks());
 }
 
 test "IR lower maps parsed scope tokens to block maps and continuation" {
@@ -317,22 +325,22 @@ test "IR lower maps parsed scope tokens to block maps and continuation" {
     try expectEqual(expectedBlockMap(&[_]TK{ TK.ir_frame, TK.ir_exit }), queue.get(blockMaps[2]).raw);
 
     var blockIter = queue.blockIterator();
-    try expect(blockIter.hasMore());
+    try expect(blockIter.hasMoreBlocks());
     blockIter.nextBlock();
     try expect(blockIter.inCurrentBlock(@as(u32, 0)));
     try expect(!blockIter.inCurrentBlock(@as(u32, 1)));
     try expect(!blockIter.inCurrentBlock(exitIdx));
 
-    try expect(blockIter.hasMore());
+    try expect(blockIter.hasMoreBlocks());
     blockIter.nextBlock();
     try expect(!blockIter.inCurrentBlock(@as(u32, 0)));
     try expect(blockIter.inCurrentBlock(@as(u32, 1)));
     try expect(!blockIter.inCurrentBlock(exitIdx));
 
-    try expect(blockIter.hasMore());
+    try expect(blockIter.hasMoreBlocks());
     blockIter.nextBlock();
     try expect(!blockIter.inCurrentBlock(@as(u32, 0)));
     try expect(!blockIter.inCurrentBlock(@as(u32, 1)));
     try expect(blockIter.inCurrentBlock(exitIdx));
-    try expect(!blockIter.hasMore());
+    try expect(!blockIter.hasMoreBlocks());
 }

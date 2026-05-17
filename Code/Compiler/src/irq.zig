@@ -229,20 +229,24 @@ const Blocks = struct {
             currentBlockMap: KindBitSet = KindBitSet.initEmpty(),
             currentBlockRanges: [KIND_COUNT]BlockRange = undefined,
             boundaryCursors: [KIND_COUNT]BoundaryCursor = undefined,
+            nextElementKindIndex: usize = KIND_COUNT,
+            nextElementIndex: u32 = 0,
 
             pub fn initIterator(self: *IterSelf, queue: *const Queue) void {
                 self.queue = queue;
                 self.nextBlockMapIndex = queue.kindRanges.reservedStart(@intFromEnum(TK.ir_block_map));
                 self.currentBlockMap = KindBitSet.initEmpty();
                 self.boundaryCursors = [_]BoundaryCursor{.{}} ** KIND_COUNT;
+                self.nextElementKindIndex = KIND_COUNT;
+                self.nextElementIndex = 0;
             }
 
-            pub fn hasMore(self: *const IterSelf) bool {
+            pub fn hasMoreBlocks(self: *const IterSelf) bool {
                 return self.nextBlockMapIndex < self.queue.kindRanges.cursor(TK.ir_block_map);
             }
 
             pub fn nextBlock(self: *IterSelf) void {
-                std.debug.assert(self.hasMore());
+                std.debug.assert(self.hasMoreBlocks());
                 const blockMapIndex = self.nextBlockMapIndex;
                 self.nextBlockMapIndex += 1;
                 self.currentBlockMap = KindBitSet{ .mask = self.queue.get(blockMapIndex).raw };
@@ -252,6 +256,36 @@ const Blocks = struct {
                     self.currentBlockRanges[kindIndex] =
                         self.boundaryCursors[kindIndex].nextRange(&self.queue.blocks.boundaries[kindIndex]) orelse unreachable;
                 }
+
+                self.nextElementKindIndex = 0;
+                self.nextElementIndex = 0;
+            }
+
+            pub fn nextElement(self: *IterSelf) ?u32 {
+                while (self.nextElementKindIndex < KIND_COUNT) {
+                    const kindIndex = self.nextElementKindIndex;
+                    if (!self.currentBlockMap.isSet(kindIndex)) {
+                        self.nextElementKindIndex += 1;
+                        continue;
+                    }
+
+                    const range = self.currentBlockRanges[kindIndex];
+                    const reservedStart = self.queue.kindRanges.reservedStart(kindIndex);
+                    const rangeStart = reservedStart + range.start;
+                    const rangeEnd = reservedStart + range.end;
+                    if (self.nextElementIndex < rangeStart) {
+                        self.nextElementIndex = rangeStart;
+                    }
+                    if (self.nextElementIndex <= rangeEnd) {
+                        const index = self.nextElementIndex;
+                        self.nextElementIndex += 1;
+                        return index;
+                    }
+
+                    self.nextElementKindIndex += 1;
+                }
+
+                return null;
             }
 
             pub fn inCurrentBlock(self: *const IterSelf, index: u32) bool {
