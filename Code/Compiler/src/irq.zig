@@ -9,6 +9,7 @@ const KIND_COUNT = 64; // IR queues track the first 64 token kinds.
 const INDEX_KIND_MAP_BUCKET_COUNT_SHIFT = 5;
 const INDEX_KIND_MAP_BUCKET_COUNT = 1 << INDEX_KIND_MAP_BUCKET_COUNT_SHIFT;
 const KindBitSet = std.bit_set.IntegerBitSet(KIND_COUNT);
+const KindBitSetIterator = KindBitSet.Iterator(.{});
 const BlockBoundarySet = std.bit_set.DynamicBitSetUnmanaged;
 const BlockBoundaryIterator = BlockBoundarySet.Iterator(.{});
 
@@ -194,26 +195,45 @@ const Blocks = struct {
     fn Iterator(comptime Queue: type) type {
         return struct {
             const IterSelf = @This();
+            // Specifies the range of elements within a kind that a block occupies.
             const BlockRange = packed struct(u64) {
                 start: u32,
+                end: u32, // Inclusive. Where the boundary bit is set.
+            };
+            // Cursor through elements within current kind. Increment with nextElement till end (inclusive)
+            const ElementCursor = packed struct(u64) {
+                next: u32,
                 end: u32,
             };
-            const BoundaryCursor = struct {
+            // Iterator over blocks present in each kind.
+            // advanceBlock is only called for present blocks.
+            const PerKindBlockBoundaryCursor = struct {
                 iter: ?BlockBoundaryIterator = null,
-                nextStart: u32 = 0,
+                currentStart: u32 = 0, // First relative index in the current block.
+                nextStart: u32 = 0, // First relative index not yet claimed.
 
-                fn nextRange(self: *BoundaryCursor, boundary: *const BlockBoundarySet) ?BlockRange {
-                    const end = self.nextBoundary(boundary) orelse return null;
+                // Advance to the next block with this kind's elements.
+                // Only called when it's known the block contains this kind.
+                fn advanceBlock(self: *PerKindBlockBoundaryCursor, boundary: *const BlockBoundarySet) void {
+                    const end = self.nextBlockBoundary(boundary) orelse unreachable;
                     std.debug.assert(end >= self.nextStart);
-                    const range = BlockRange{
-                        .start = self.nextStart,
-                        .end = end,
-                    };
+                    self.currentStart = self.nextStart;
                     self.nextStart = end + 1;
-                    return range;
                 }
 
-                fn nextBoundary(self: *BoundaryCursor, boundary: *const BlockBoundarySet) ?u32 {
+                // Currently active block for this kind's range.
+                // Which may not be the block that's active at a higher level
+                fn currentRange(self: *const PerKindBlockBoundaryCursor) BlockRange {
+                    std.debug.assert(self.nextStart > 0);
+                    return .{
+                        .start = self.currentStart,
+                        .end = self.nextStart - 1,
+                    };
+                }
+
+                // Lazily creates and advances the bitset iterator so a
+                // cursor can be zero-initialized and reused by initIterator.
+                fn nextBlockBoundary(self: *PerKindBlockBoundaryCursor, boundary: *const BlockBoundarySet) ?u32 {
                     if (self.iter == null) {
                         self.iter = boundary.iterator(.{});
                     }
@@ -225,77 +245,87 @@ const Blocks = struct {
             };
 
             queue: *const Queue = undefined,
-            nextBlockMapIndex: u32 = 0, // Index over blocks. Bitset of kinds present in that block.
-            currentBlockMap: KindBitSet = KindBitSet.initEmpty(),
-            currentBlockRanges: [KIND_COUNT]BlockRange = undefined,
-            boundaryCursors: [KIND_COUNT]BoundaryCursor = undefined,
-            nextElementKindIndex: usize = KIND_COUNT,
-            nextElementIndex: u32 = 0,
+            // Cursor over ir_block_map blocks.
+            blockIndex: u32 = 0,
+            // Kinds present in the current block.
+            blockKindMap: KindBitSet = KindBitSet.initEmpty(),
+            // Maintain block boundary state for each token kind.
+            kindBoundaryCursors: [KIND_COUNT]PerKindBlockBoundaryCursor = undefined,
+            // Iterates over kinds in current block.
+            nextKindIter: KindBitSetIterator = KindBitSet.initEmpty().iterator(.{}),
+            // Absolute element range for the kind most recently returned by nextKind
+            currentElements: ?ElementCursor = null,
 
             pub fn initIterator(self: *IterSelf, queue: *const Queue) void {
                 self.queue = queue;
-                self.nextBlockMapIndex = queue.kindRanges.reservedStart(@intFromEnum(TK.ir_block_map));
-                self.currentBlockMap = KindBitSet.initEmpty();
-                self.boundaryCursors = [_]BoundaryCursor{.{}} ** KIND_COUNT;
-                self.nextElementKindIndex = KIND_COUNT;
-                self.nextElementIndex = 0;
+                self.blockIndex = queue.kindRanges.reservedStart(@intFromEnum(TK.ir_block_map));
+                self.blockKindMap = KindBitSet.initEmpty();
+                self.kindBoundaryCursors = [_]PerKindBlockBoundaryCursor{.{}} ** KIND_COUNT;
+                self.nextKindIter = KindBitSet.initEmpty().iterator(.{});
+                self.currentElements = null;
             }
 
             pub fn hasMoreBlocks(self: *const IterSelf) bool {
-                return self.nextBlockMapIndex < self.queue.kindRanges.cursor(TK.ir_block_map);
+                return self.blockIndex < self.queue.kindRanges.cursor(TK.ir_block_map);
             }
 
+            // Advance to the next block.
             pub fn nextBlock(self: *IterSelf) void {
                 std.debug.assert(self.hasMoreBlocks());
-                const blockMapIndex = self.nextBlockMapIndex;
-                self.nextBlockMapIndex += 1;
-                self.currentBlockMap = KindBitSet{ .mask = self.queue.get(blockMapIndex).raw };
+                const blockMapIndex = self.blockIndex;
+                self.blockIndex += 1;
+                self.blockKindMap = KindBitSet{ .mask = self.queue.get(blockMapIndex).raw };
 
-                var iter = self.currentBlockMap.iterator(.{});
+                var iter = self.blockKindMap.iterator(.{});
                 while (iter.next()) |kindIndex| {
-                    self.currentBlockRanges[kindIndex] =
-                        self.boundaryCursors[kindIndex].nextRange(&self.queue.blocks.boundaries[kindIndex]) orelse unreachable;
+                    self.kindBoundaryCursors[kindIndex].advanceBlock(&self.queue.blocks.boundaries[kindIndex]);
                 }
 
-                self.nextElementKindIndex = 0;
-                self.nextElementIndex = 0;
+                self.nextKindIter = self.blockKindMap.iterator(.{});
+                self.currentElements = null;
             }
 
+            // Advance the cursor to the next kind this block contains.
+            // Null when all kinds present in this block have been visited.
+            pub fn nextKind(self: *IterSelf) ?TK {
+                const kindIndex = self.nextKindIter.next() orelse {
+                    self.currentElements = null;
+                    return null;
+                };
+
+                const range = self.kindBoundaryCursors[kindIndex].currentRange();
+                const reservedStart = self.queue.kindRanges.reservedStart(kindIndex);
+                self.currentElements = .{
+                    .next = reservedStart + range.start,
+                    .end = reservedStart + range.end,
+                };
+                return @enumFromInt(kindIndex);
+            }
+
+            // Return the next IR element index for current kind.
+            // If null, advance to the next kind and call again.
+            // If kind is null, this block is done.
             pub fn nextElement(self: *IterSelf) ?u32 {
-                while (self.nextElementKindIndex < KIND_COUNT) {
-                    const kindIndex = self.nextElementKindIndex;
-                    if (!self.currentBlockMap.isSet(kindIndex)) {
-                        self.nextElementKindIndex += 1;
-                        continue;
-                    }
+                if (self.currentElements) |*elements| {
+                    if (elements.next > elements.end) return null;
 
-                    const range = self.currentBlockRanges[kindIndex];
-                    const reservedStart = self.queue.kindRanges.reservedStart(kindIndex);
-                    const rangeStart = reservedStart + range.start;
-                    const rangeEnd = reservedStart + range.end;
-                    if (self.nextElementIndex < rangeStart) {
-                        self.nextElementIndex = rangeStart;
-                    }
-                    if (self.nextElementIndex <= rangeEnd) {
-                        const index = self.nextElementIndex;
-                        self.nextElementIndex += 1;
-                        return index;
-                    }
-
-                    self.nextElementKindIndex += 1;
+                    const index = elements.next;
+                    elements.next += 1;
+                    return index;
                 }
 
                 return null;
             }
 
+            // Efficient test for whether an IR element belongs to the current block.
             pub fn inCurrentBlock(self: *const IterSelf, index: u32) bool {
                 std.debug.assert(index < self.queue.list.items.len);
                 const kind = self.queue.indexToKind(index);
                 const kindIndex = @intFromEnum(kind);
-                if (!self.currentBlockMap.isSet(kindIndex)) return false;
+                if (!self.blockKindMap.isSet(kindIndex)) return false;
 
                 const relativeIndex = self.queue.kindRanges.relativeIndex(kindIndex, index);
-                const range = self.currentBlockRanges[kindIndex];
+                const range = self.kindBoundaryCursors[kindIndex].currentRange();
                 return range.start <= relativeIndex and relativeIndex <= range.end;
             }
         };
