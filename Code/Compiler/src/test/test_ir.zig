@@ -235,6 +235,53 @@ test "IR block iterator tracks membership by kind" {
     try expect(blockIter.inCurrentBlock(firstAdd));
 }
 
+test "IR block iterator reads boundaries across bitset masks" {
+    var kindCounts: [64]u32 = [_]u32{0} ** 64;
+    kindCounts[@intFromEnum(TK.lit_number)] = 130;
+    kindCounts[@intFromEnum(TK.ir_block_map)] = 3;
+
+    var queue = try ir.IRQueue.init(std.testing.allocator);
+    defer queue.deinit(std.testing.allocator);
+    try queue.reserve(std.testing.allocator, kindCounts, 4);
+
+    queue.startBlock();
+    const firstLit = queue.emitKind(TK.lit_number, irq.args(1, 0));
+    queue.endBlock();
+
+    queue.startBlock();
+    const secondBlockFirstLit = queue.emitKind(TK.lit_number, irq.args(2, 0));
+    var secondBlockLastLit = secondBlockFirstLit;
+    for (0..69) |i| {
+        secondBlockLastLit = queue.emitKind(TK.lit_number, irq.args(@intCast(i + 3), 0));
+    }
+    queue.endBlock();
+
+    queue.startBlock();
+    const thirdBlockFirstLit = queue.emitKind(TK.lit_number, irq.args(72, 0));
+    var lastLit = thirdBlockFirstLit;
+    for (0..58) |i| {
+        lastLit = queue.emitKind(TK.lit_number, irq.args(@intCast(i + 73), 0));
+    }
+    queue.endBlock();
+
+    var blockIter = queue.blockIterator();
+    blockIter.nextBlock();
+    try expect(blockIter.inCurrentBlock(firstLit));
+    try expect(!blockIter.inCurrentBlock(secondBlockFirstLit));
+
+    blockIter.nextBlock();
+    try expect(!blockIter.inCurrentBlock(firstLit));
+    try expect(blockIter.inCurrentBlock(secondBlockFirstLit));
+    try expect(blockIter.inCurrentBlock(secondBlockLastLit));
+    try expect(!blockIter.inCurrentBlock(thirdBlockFirstLit));
+
+    blockIter.nextBlock();
+    try expect(!blockIter.inCurrentBlock(secondBlockLastLit));
+    try expect(blockIter.inCurrentBlock(thirdBlockFirstLit));
+    try expect(blockIter.inCurrentBlock(lastLit));
+    try expect(!blockIter.hasMore());
+}
+
 test "IR lower maps parsed scope tokens to block maps and continuation" {
     const tokens = [_]tok.Token{
         tok.AUX_STREAM_START,

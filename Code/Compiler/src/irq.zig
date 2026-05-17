@@ -194,25 +194,47 @@ const Blocks = struct {
     fn Iterator(comptime Queue: type) type {
         return struct {
             const IterSelf = @This();
+            const BlockRange = packed struct(u64) {
+                start: u32,
+                end: u32,
+            };
+            const BoundaryCursor = struct {
+                iter: ?BlockBoundaryIterator = null,
+                nextStart: u32 = 0,
+
+                fn nextRange(self: *BoundaryCursor, boundary: *const BlockBoundarySet) ?BlockRange {
+                    const end = self.nextBoundary(boundary) orelse return null;
+                    std.debug.assert(end >= self.nextStart);
+                    const range = BlockRange{
+                        .start = self.nextStart,
+                        .end = end,
+                    };
+                    self.nextStart = end + 1;
+                    return range;
+                }
+
+                fn nextBoundary(self: *BoundaryCursor, boundary: *const BlockBoundarySet) ?u32 {
+                    if (self.iter == null) {
+                        self.iter = boundary.iterator(.{});
+                    }
+                    if (self.iter) |*iter| {
+                        return @intCast(iter.next() orelse return null);
+                    }
+                    unreachable;
+                }
+            };
 
             queue: *const Queue = undefined,
-            nextBlockMapIndex: u32 = 0,
+            nextBlockMapIndex: u32 = 0, // Index over blocks. Bitset of kinds present in that block.
             currentBlockMap: KindBitSet = KindBitSet.initEmpty(),
-            currentBlockStarts: [KIND_COUNT]u32 = [_]u32{0} ** KIND_COUNT,
-            currentBlockEnds: [KIND_COUNT]u32 = [_]u32{0} ** KIND_COUNT,
-            nextBlockStarts: [KIND_COUNT]u32 = [_]u32{0} ** KIND_COUNT,
-            boundaryIters: [KIND_COUNT]BlockBoundaryIterator = undefined,
+            currentBlockRanges: [KIND_COUNT]BlockRange = undefined,
+            boundaryCursors: [KIND_COUNT]BoundaryCursor = undefined,
 
             pub fn initIterator(self: *IterSelf, queue: *const Queue) void {
                 self.queue = queue;
                 self.nextBlockMapIndex = queue.kindRanges.reservedStart(@intFromEnum(TK.ir_block_map));
                 self.currentBlockMap = KindBitSet.initEmpty();
-                self.currentBlockStarts = [_]u32{0} ** KIND_COUNT;
-                self.currentBlockEnds = [_]u32{0} ** KIND_COUNT;
-                self.nextBlockStarts = [_]u32{0} ** KIND_COUNT;
-                for (&self.boundaryIters, 0..) |*boundaryIter, kindIndex| {
-                    boundaryIter.* = queue.blocks.boundaries[kindIndex].iterator(.{});
-                }
+                self.boundaryCursors = [_]BoundaryCursor{.{}} ** KIND_COUNT;
             }
 
             pub fn hasMore(self: *const IterSelf) bool {
@@ -227,11 +249,8 @@ const Blocks = struct {
 
                 var iter = self.currentBlockMap.iterator(.{});
                 while (iter.next()) |kindIndex| {
-                    const end = self.boundaryIters[kindIndex].next() orelse unreachable;
-                    std.debug.assert(end >= self.nextBlockStarts[kindIndex]);
-                    self.currentBlockStarts[kindIndex] = self.nextBlockStarts[kindIndex];
-                    self.currentBlockEnds[kindIndex] = @intCast(end);
-                    self.nextBlockStarts[kindIndex] = @intCast(end + 1);
+                    self.currentBlockRanges[kindIndex] =
+                        self.boundaryCursors[kindIndex].nextRange(&self.queue.blocks.boundaries[kindIndex]) orelse unreachable;
                 }
             }
 
@@ -242,8 +261,8 @@ const Blocks = struct {
                 if (!self.currentBlockMap.isSet(kindIndex)) return false;
 
                 const relativeIndex = self.queue.kindRanges.relativeIndex(kindIndex, index);
-                return self.currentBlockStarts[kindIndex] <= relativeIndex and
-                    relativeIndex <= self.currentBlockEnds[kindIndex];
+                const range = self.currentBlockRanges[kindIndex];
+                return range.start <= relativeIndex and relativeIndex <= range.end;
             }
         };
     }
