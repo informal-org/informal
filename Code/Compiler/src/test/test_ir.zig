@@ -218,6 +218,11 @@ test "IR block iterator tracks membership by kind" {
     try expect(!blockIter.inCurrentBlock(secondBlockFirstAdd));
     try expect(!blockIter.inCurrentBlock(lastLit));
     try expect(!blockIter.inCurrentBlock(blockMaps[0]));
+    try expectEqual(@as(?u32, 0), blockIter.getBlockLocalIndex(firstAdd));
+    try expectEqual(@as(?u32, 1), blockIter.getBlockLocalIndex(firstLit));
+    try expectEqual(@as(?u32, 2), blockIter.getBlockLocalIndex(secondLit));
+    try expectEqual(@as(?u32, null), blockIter.getBlockLocalIndex(secondBlockFirstAdd));
+    try expectEqual(@as(?u32, null), blockIter.getBlockLocalIndex(blockMaps[0]));
     try expectEqual(@as(?u32, null), blockIter.nextElement());
     try expectEqual(TK.op_add, blockIter.nextKind().?);
     try expectEqual(firstAdd, blockIter.nextElement().?);
@@ -236,6 +241,11 @@ test "IR block iterator tracks membership by kind" {
     try expect(blockIter.inCurrentBlock(lastAdd));
     try expect(blockIter.inCurrentBlock(lastLit));
     try expect(!blockIter.inCurrentBlock(blockMaps[1]));
+    try expectEqual(@as(?u32, 0), blockIter.getBlockLocalIndex(secondBlockFirstAdd));
+    try expectEqual(@as(?u32, 1), blockIter.getBlockLocalIndex(lastAdd));
+    try expectEqual(@as(?u32, 2), blockIter.getBlockLocalIndex(lastLit));
+    try expectEqual(@as(?u32, null), blockIter.getBlockLocalIndex(firstAdd));
+    try expectEqual(@as(?u32, null), blockIter.getBlockLocalIndex(blockMaps[1]));
     try expectEqual(TK.op_add, blockIter.nextKind().?);
     try expectEqual(secondBlockFirstAdd, blockIter.nextElement().?);
     try expectEqual(lastAdd, blockIter.nextElement().?);

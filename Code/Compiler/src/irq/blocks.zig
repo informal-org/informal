@@ -127,6 +127,8 @@ pub const Blocks = struct {
             blockKindMap: KindBitSet = KindBitSet.initEmpty(),
             // Maintain block boundary state for each token kind.
             kindBoundaryCursors: [KIND_COUNT]PerKindBlockBoundaryCursor = undefined,
+            // Dense local base index for each kind in the current block.
+            blockLocalBases: [KIND_COUNT]u32 = [_]u32{0} ** KIND_COUNT,
             // Iterates over kinds in current block.
             nextKindIter: KindBitSetIterator = KindBitSet.initEmpty().iterator(.{}),
             // Absolute element range for the kind most recently returned by nextKind
@@ -137,21 +139,13 @@ pub const Blocks = struct {
                 self.blockIndex = queue.kindRanges.reservedStart(@intFromEnum(TK.ir_block_map));
                 self.blockKindMap = KindBitSet.initEmpty();
                 self.kindBoundaryCursors = [_]PerKindBlockBoundaryCursor{.{}} ** KIND_COUNT;
+                self.blockLocalBases = [_]u32{0} ** KIND_COUNT;
                 self.nextKindIter = KindBitSet.initEmpty().iterator(.{});
                 self.currentElements = null;
             }
 
             pub fn hasMoreBlocks(self: *const IterSelf) bool {
                 return self.blockIndex < self.queue.kindRanges.cursor(TK.ir_block_map);
-            }
-
-            pub fn currentBlockKindMap(self: *const IterSelf) KindBitSet {
-                return self.blockKindMap;
-            }
-
-            pub fn currentBlockRange(self: *const IterSelf, kindIndex: usize) ?BlockRange {
-                if (!self.blockKindMap.isSet(kindIndex)) return null;
-                return self.kindBoundaryCursors[kindIndex].currentRange();
             }
 
             // Advance to the next block.
@@ -161,9 +155,12 @@ pub const Blocks = struct {
                 self.blockIndex += 1;
                 self.blockKindMap = KindBitSet{ .mask = self.queue.get(blockMapIndex).raw };
 
+                var nextLocalIndex: u32 = 0;
                 var iter = self.blockKindMap.iterator(.{});
                 while (iter.next()) |kindIndex| {
                     self.kindBoundaryCursors[kindIndex].advanceBlock(&self.queue.blocks.boundaries[kindIndex]);
+                    self.blockLocalBases[kindIndex] = nextLocalIndex;
+                    nextLocalIndex += self.kindBoundaryCursors[kindIndex].currentRange().len();
                 }
 
                 self.nextKindIter = self.blockKindMap.iterator(.{});
@@ -202,16 +199,24 @@ pub const Blocks = struct {
                 return null;
             }
 
+            // Dense index of an absolute IR element within the current block,
+            // in the same order as nextKind/nextElement.
+            pub fn getBlockLocalIndex(self: *const IterSelf, absoluteIndex: u32) ?u32 {
+                std.debug.assert(absoluteIndex < self.queue.list.items.len);
+                const kind = self.queue.indexToKind(absoluteIndex);
+                const kindIndex = @intFromEnum(kind);
+                if (!self.blockKindMap.isSet(kindIndex)) return null;
+
+                const relativeIndex = self.queue.kindRanges.relativeIndex(kindIndex, absoluteIndex);
+                const range = self.kindBoundaryCursors[kindIndex].currentRange();
+                if (relativeIndex < range.start or relativeIndex > range.end) return null;
+
+                return self.blockLocalBases[kindIndex] + relativeIndex - range.start;
+            }
+
             // Efficient test for whether an IR element belongs to the current block.
             pub fn inCurrentBlock(self: *const IterSelf, index: u32) bool {
-                std.debug.assert(index < self.queue.list.items.len);
-                const kind = self.queue.indexToKind(index);
-                const kindIndex = @intFromEnum(kind);
-                if (!self.blockKindMap.isSet(kindIndex)) return false;
-
-                const relativeIndex = self.queue.kindRanges.relativeIndex(kindIndex, index);
-                const range = self.kindBoundaryCursors[kindIndex].currentRange();
-                return range.start <= relativeIndex and relativeIndex <= range.end;
+                return self.getBlockLocalIndex(index) != null;
             }
         };
     }
