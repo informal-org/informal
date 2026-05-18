@@ -135,7 +135,9 @@ pub const DepMap = struct {
         var blockState = BlockState.init(self, irQ);
 
         while (blockIter.nextKind()) |kind| {
-            while (blockIter.nextElement()) |index| {
+            const range = blockIter.blockRange(kind);
+            var index = range.start;
+            while (index < range.end) : (index += 1) {
                 const node = irQ.get(index);
                 self.depsList.items[index] = blockState.addNodeDependencies(blockIter, index, kind, node);
             }

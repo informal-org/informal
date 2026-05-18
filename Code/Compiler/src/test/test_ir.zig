@@ -16,6 +16,20 @@ fn expectedBlockMap(kinds: []const TK) u64 {
     return set.mask;
 }
 
+fn expectInCurrentBlock(blockIter: anytype, index: u32) !void {
+    try expect(blockIter.getBlockLocalIndex(index) != null);
+}
+
+fn expectNotInCurrentBlock(blockIter: anytype, index: u32) !void {
+    try expect(blockIter.getBlockLocalIndex(index) == null);
+}
+
+fn expectBlockRange(blockIter: anytype, kind: TK, start: u32, end: u32) !void {
+    const range = blockIter.blockRange(kind);
+    try expectEqual(start, range.start);
+    try expectEqual(end, range.end);
+}
+
 fn collectBlockMaps(queue: *ir.IRQueue, out: []u32) usize {
     var count: usize = 0;
     for (queue.list.items, 0..) |_, index| {
@@ -212,54 +226,51 @@ test "IR block iterator tracks membership by kind" {
     var blockIter = queue.blockIterator();
     try expect(blockIter.hasMoreBlocks());
     blockIter.nextBlock();
-    try expect(blockIter.inCurrentBlock(firstAdd));
-    try expect(blockIter.inCurrentBlock(firstLit));
-    try expect(blockIter.inCurrentBlock(secondLit));
-    try expect(!blockIter.inCurrentBlock(secondBlockFirstAdd));
-    try expect(!blockIter.inCurrentBlock(lastLit));
-    try expect(!blockIter.inCurrentBlock(blockMaps[0]));
+    try expectInCurrentBlock(&blockIter, firstAdd);
+    try expectInCurrentBlock(&blockIter, firstLit);
+    try expectInCurrentBlock(&blockIter, secondLit);
+    try expectNotInCurrentBlock(&blockIter, secondBlockFirstAdd);
+    try expectNotInCurrentBlock(&blockIter, lastLit);
+    try expectNotInCurrentBlock(&blockIter, blockMaps[0]);
     try expectEqual(@as(?u32, 0), blockIter.getBlockLocalIndex(firstAdd));
     try expectEqual(@as(?u32, 1), blockIter.getBlockLocalIndex(firstLit));
     try expectEqual(@as(?u32, 2), blockIter.getBlockLocalIndex(secondLit));
     try expectEqual(@as(?u32, null), blockIter.getBlockLocalIndex(secondBlockFirstAdd));
     try expectEqual(@as(?u32, null), blockIter.getBlockLocalIndex(blockMaps[0]));
-    try expectEqual(@as(?u32, null), blockIter.nextElement());
-    try expectEqual(TK.op_add, blockIter.nextKind().?);
-    try expectEqual(firstAdd, blockIter.nextElement().?);
-    try expectEqual(@as(?u32, null), blockIter.nextElement());
-    try expectEqual(TK.lit_number, blockIter.nextKind().?);
-    try expectEqual(firstLit, blockIter.nextElement().?);
-    try expectEqual(secondLit, blockIter.nextElement().?);
-    try expectEqual(@as(?u32, null), blockIter.nextElement());
+    var kind = blockIter.nextKind().?;
+    try expectEqual(TK.op_add, kind);
+    try expectBlockRange(&blockIter, kind, firstAdd, firstAdd + 1);
+    kind = blockIter.nextKind().?;
+    try expectEqual(TK.lit_number, kind);
+    try expectBlockRange(&blockIter, kind, firstLit, secondLit + 1);
     try expectEqual(@as(?TK, null), blockIter.nextKind());
 
     try expect(blockIter.hasMoreBlocks());
     blockIter.nextBlock();
-    try expect(!blockIter.inCurrentBlock(firstAdd));
-    try expect(!blockIter.inCurrentBlock(secondLit));
-    try expect(blockIter.inCurrentBlock(secondBlockFirstAdd));
-    try expect(blockIter.inCurrentBlock(lastAdd));
-    try expect(blockIter.inCurrentBlock(lastLit));
-    try expect(!blockIter.inCurrentBlock(blockMaps[1]));
+    try expectNotInCurrentBlock(&blockIter, firstAdd);
+    try expectNotInCurrentBlock(&blockIter, secondLit);
+    try expectInCurrentBlock(&blockIter, secondBlockFirstAdd);
+    try expectInCurrentBlock(&blockIter, lastAdd);
+    try expectInCurrentBlock(&blockIter, lastLit);
+    try expectNotInCurrentBlock(&blockIter, blockMaps[1]);
     try expectEqual(@as(?u32, 0), blockIter.getBlockLocalIndex(secondBlockFirstAdd));
     try expectEqual(@as(?u32, 1), blockIter.getBlockLocalIndex(lastAdd));
     try expectEqual(@as(?u32, 2), blockIter.getBlockLocalIndex(lastLit));
     try expectEqual(@as(?u32, null), blockIter.getBlockLocalIndex(firstAdd));
     try expectEqual(@as(?u32, null), blockIter.getBlockLocalIndex(blockMaps[1]));
-    try expectEqual(TK.op_add, blockIter.nextKind().?);
-    try expectEqual(secondBlockFirstAdd, blockIter.nextElement().?);
-    try expectEqual(lastAdd, blockIter.nextElement().?);
-    try expectEqual(@as(?u32, null), blockIter.nextElement());
-    try expectEqual(TK.lit_number, blockIter.nextKind().?);
-    try expectEqual(lastLit, blockIter.nextElement().?);
-    try expectEqual(@as(?u32, null), blockIter.nextElement());
+    kind = blockIter.nextKind().?;
+    try expectEqual(TK.op_add, kind);
+    try expectBlockRange(&blockIter, kind, secondBlockFirstAdd, lastAdd + 1);
+    kind = blockIter.nextKind().?;
+    try expectEqual(TK.lit_number, kind);
+    try expectBlockRange(&blockIter, kind, lastLit, lastLit + 1);
     try expectEqual(@as(?TK, null), blockIter.nextKind());
     try expect(!blockIter.hasMoreBlocks());
 
     blockIter.initIterator(&queue);
     try expect(blockIter.hasMoreBlocks());
     blockIter.nextBlock();
-    try expect(blockIter.inCurrentBlock(firstAdd));
+    try expectInCurrentBlock(&blockIter, firstAdd);
 }
 
 test "IR block iterator reads boundaries across bitset masks" {
@@ -293,19 +304,19 @@ test "IR block iterator reads boundaries across bitset masks" {
 
     var blockIter = queue.blockIterator();
     blockIter.nextBlock();
-    try expect(blockIter.inCurrentBlock(firstLit));
-    try expect(!blockIter.inCurrentBlock(secondBlockFirstLit));
+    try expectInCurrentBlock(&blockIter, firstLit);
+    try expectNotInCurrentBlock(&blockIter, secondBlockFirstLit);
 
     blockIter.nextBlock();
-    try expect(!blockIter.inCurrentBlock(firstLit));
-    try expect(blockIter.inCurrentBlock(secondBlockFirstLit));
-    try expect(blockIter.inCurrentBlock(secondBlockLastLit));
-    try expect(!blockIter.inCurrentBlock(thirdBlockFirstLit));
+    try expectNotInCurrentBlock(&blockIter, firstLit);
+    try expectInCurrentBlock(&blockIter, secondBlockFirstLit);
+    try expectInCurrentBlock(&blockIter, secondBlockLastLit);
+    try expectNotInCurrentBlock(&blockIter, thirdBlockFirstLit);
 
     blockIter.nextBlock();
-    try expect(!blockIter.inCurrentBlock(secondBlockLastLit));
-    try expect(blockIter.inCurrentBlock(thirdBlockFirstLit));
-    try expect(blockIter.inCurrentBlock(lastLit));
+    try expectNotInCurrentBlock(&blockIter, secondBlockLastLit);
+    try expectInCurrentBlock(&blockIter, thirdBlockFirstLit);
+    try expectInCurrentBlock(&blockIter, lastLit);
     try expect(!blockIter.hasMoreBlocks());
 }
 
@@ -346,20 +357,20 @@ test "IR lower maps parsed scope tokens to block maps and continuation" {
     var blockIter = queue.blockIterator();
     try expect(blockIter.hasMoreBlocks());
     blockIter.nextBlock();
-    try expect(blockIter.inCurrentBlock(@as(u32, 0)));
-    try expect(!blockIter.inCurrentBlock(@as(u32, 1)));
-    try expect(!blockIter.inCurrentBlock(exitIdx));
+    try expectInCurrentBlock(&blockIter, @as(u32, 0));
+    try expectNotInCurrentBlock(&blockIter, @as(u32, 1));
+    try expectNotInCurrentBlock(&blockIter, exitIdx);
 
     try expect(blockIter.hasMoreBlocks());
     blockIter.nextBlock();
-    try expect(!blockIter.inCurrentBlock(@as(u32, 0)));
-    try expect(blockIter.inCurrentBlock(@as(u32, 1)));
-    try expect(!blockIter.inCurrentBlock(exitIdx));
+    try expectNotInCurrentBlock(&blockIter, @as(u32, 0));
+    try expectInCurrentBlock(&blockIter, @as(u32, 1));
+    try expectNotInCurrentBlock(&blockIter, exitIdx);
 
     try expect(blockIter.hasMoreBlocks());
     blockIter.nextBlock();
-    try expect(!blockIter.inCurrentBlock(@as(u32, 0)));
-    try expect(!blockIter.inCurrentBlock(@as(u32, 1)));
-    try expect(blockIter.inCurrentBlock(exitIdx));
+    try expectNotInCurrentBlock(&blockIter, @as(u32, 0));
+    try expectNotInCurrentBlock(&blockIter, @as(u32, 1));
+    try expectInCurrentBlock(&blockIter, exitIdx);
     try expect(!blockIter.hasMoreBlocks());
 }

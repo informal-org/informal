@@ -15,10 +15,10 @@ pub const Blocks = struct {
     const Self = @This();
     pub const BlockRange = packed struct(u64) {
         start: u32,
-        end: u32, // Inclusive. Where the boundary bit is set.
+        end: u32, // Exclusive.
 
         pub fn len(self: BlockRange) u32 {
-            return self.end - self.start + 1;
+            return self.end - self.start;
         }
     };
 
@@ -76,39 +76,39 @@ pub const Blocks = struct {
     pub fn Iterator(comptime Queue: type) type {
         return struct {
             const IterSelf = @This();
-            // Cursor through elements within current kind. Increment with nextElement till end (inclusive)
-            const ElementCursor = packed struct(u64) {
-                next: u32,
-                end: u32,
-            };
             // Iterator over blocks present in each kind.
             // advanceBlock is only called for present blocks.
             const PerKindBlockBoundaryCursor = struct {
                 iter: ?BlockBoundaryIterator = null,
-                currentStart: u32 = 0, // First relative index in the current block.
-                nextStart: u32 = 0, // First relative index not yet claimed.
+                currentStart: u32 = 0, // First absolute index in the current block.
+                nextStart: u32 = 0, // First absolute index not yet claimed.
 
                 // Advance to the next block with this kind's elements.
                 // Only called when it's known the block contains this kind.
-                fn advanceBlock(self: *PerKindBlockBoundaryCursor, boundary: *const BlockBoundarySet) void {
-                    const end = self.nextBlockBoundary(boundary) orelse unreachable;
-                    std.debug.assert(end >= self.nextStart);
+                fn advanceBlock(self: *PerKindBlockBoundaryCursor, boundary: *const BlockBoundarySet, reservedStart: u32) void {
+                    if (self.iter == null) {
+                        self.nextStart = reservedStart;
+                    }
+
+                    const relativeEnd = self.nextBlockBoundary(boundary) orelse unreachable;
+                    const end = reservedStart + relativeEnd + 1;
+                    std.debug.assert(end > self.nextStart);
                     self.currentStart = self.nextStart;
-                    self.nextStart = end + 1;
+                    self.nextStart = end;
                 }
 
-                // Currently active block for this kind's range.
+                // Absolute range for this kind within the currently active block.
                 // Which may not be the block that's active at a higher level
                 fn currentRange(self: *const PerKindBlockBoundaryCursor) BlockRange {
-                    std.debug.assert(self.nextStart > 0);
+                    std.debug.assert(self.nextStart > self.currentStart);
                     return .{
                         .start = self.currentStart,
-                        .end = self.nextStart - 1,
+                        .end = self.nextStart,
                     };
                 }
 
-                // Lazily creates and advances the bitset iterator so a
-                // cursor can be zero-initialized and reused by initIterator.
+                // Lazily creates and advances the kind-relative bitset iterator
+                // so a cursor can be zero-initialized and reused by initIterator.
                 fn nextBlockBoundary(self: *PerKindBlockBoundaryCursor, boundary: *const BlockBoundarySet) ?u32 {
                     if (self.iter == null) {
                         self.iter = boundary.iterator(.{});
@@ -131,8 +131,6 @@ pub const Blocks = struct {
             blockLocalBases: [KIND_COUNT]u32 = [_]u32{0} ** KIND_COUNT,
             // Iterates over kinds in current block.
             nextKindIter: KindBitSetIterator = KindBitSet.initEmpty().iterator(.{}),
-            // Absolute element range for the kind most recently returned by nextKind
-            currentElements: ?ElementCursor = null,
 
             pub fn initIterator(self: *IterSelf, queue: *const Queue) void {
                 self.queue = queue;
@@ -141,7 +139,6 @@ pub const Blocks = struct {
                 self.kindBoundaryCursors = [_]PerKindBlockBoundaryCursor{.{}} ** KIND_COUNT;
                 self.blockLocalBases = [_]u32{0} ** KIND_COUNT;
                 self.nextKindIter = KindBitSet.initEmpty().iterator(.{});
-                self.currentElements = null;
             }
 
             pub fn hasMoreBlocks(self: *const IterSelf) bool {
@@ -158,65 +155,40 @@ pub const Blocks = struct {
                 var nextLocalIndex: u32 = 0;
                 var iter = self.blockKindMap.iterator(.{});
                 while (iter.next()) |kindIndex| {
-                    self.kindBoundaryCursors[kindIndex].advanceBlock(&self.queue.blocks.boundaries[kindIndex]);
+                    const reservedStart = self.queue.kindRanges.reservedStart(kindIndex);
+                    self.kindBoundaryCursors[kindIndex].advanceBlock(&self.queue.blocks.boundaries[kindIndex], reservedStart);
                     self.blockLocalBases[kindIndex] = nextLocalIndex;
                     nextLocalIndex += self.kindBoundaryCursors[kindIndex].currentRange().len();
                 }
 
                 self.nextKindIter = self.blockKindMap.iterator(.{});
-                self.currentElements = null;
             }
 
             // Advance the cursor to the next kind this block contains.
             // Null when all kinds present in this block have been visited.
             pub fn nextKind(self: *IterSelf) ?TK {
-                const kindIndex = self.nextKindIter.next() orelse {
-                    self.currentElements = null;
-                    return null;
-                };
-
-                const range = self.kindBoundaryCursors[kindIndex].currentRange();
-                const reservedStart = self.queue.kindRanges.reservedStart(kindIndex);
-                self.currentElements = .{
-                    .next = reservedStart + range.start,
-                    .end = reservedStart + range.end,
-                };
+                const kindIndex = self.nextKindIter.next() orelse return null;
                 return @enumFromInt(kindIndex);
             }
 
-            // Return the next IR element index for current kind.
-            // If null, advance to the next kind and call again.
-            // If kind is null, this block is done.
-            pub fn nextElement(self: *IterSelf) ?u32 {
-                if (self.currentElements) |*elements| {
-                    if (elements.next > elements.end) return null;
-
-                    const index = elements.next;
-                    elements.next += 1;
-                    return index;
-                }
-
-                return null;
+            pub fn blockRange(self: *const IterSelf, kind: TK) BlockRange {
+                const kindIndex = @intFromEnum(kind);
+                std.debug.assert(self.blockKindMap.isSet(kindIndex));
+                return self.kindBoundaryCursors[kindIndex].currentRange();
             }
 
             // Dense index of an absolute IR element within the current block,
-            // in the same order as nextKind/nextElement.
+            // in the same order as nextKind ranges.
             pub fn getBlockLocalIndex(self: *const IterSelf, absoluteIndex: u32) ?u32 {
                 std.debug.assert(absoluteIndex < self.queue.list.items.len);
                 const kind = self.queue.indexToKind(absoluteIndex);
                 const kindIndex = @intFromEnum(kind);
                 if (!self.blockKindMap.isSet(kindIndex)) return null;
 
-                const relativeIndex = self.queue.kindRanges.relativeIndex(kindIndex, absoluteIndex);
                 const range = self.kindBoundaryCursors[kindIndex].currentRange();
-                if (relativeIndex < range.start or relativeIndex > range.end) return null;
+                if (absoluteIndex < range.start or absoluteIndex >= range.end) return null;
 
-                return self.blockLocalBases[kindIndex] + relativeIndex - range.start;
-            }
-
-            // Efficient test for whether an IR element belongs to the current block.
-            pub fn inCurrentBlock(self: *const IterSelf, index: u32) bool {
-                return self.getBlockLocalIndex(index) != null;
+                return self.blockLocalBases[kindIndex] + absoluteIndex - range.start;
             }
         };
     }
