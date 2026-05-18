@@ -13,14 +13,24 @@ const TK = tok.Kind;
 pub const DepMap = struct {
     const Self = @This();
     const ArrayList = std.array_list.Aligned(u64, null);
+    const InputSet = std.bit_set.DynamicBitSetUnmanaged;
     const MAX_INPUTS = 32;
     const LAST_INPUT_ID = 63;
 
+    const SavedInput = packed struct {
+        index: u32,
+        value: u64,
+    };
+
     const BlockIds = struct {
+        const KindIds = packed struct {
+            localBase: u8 = 0,
+            start: u32 = 0,
+            end: u32 = 0,
+        };
+
         kindMap: KindBitSet = KindBitSet.initEmpty(),
-        kindLocalBase: [KIND_COUNT]u8 = [_]u8{0} ** KIND_COUNT,
-        kindStart: [KIND_COUNT]u32 = [_]u32{0} ** KIND_COUNT,
-        kindEnd: [KIND_COUNT]u32 = [_]u32{0} ** KIND_COUNT,
+        kindIds: [KIND_COUNT]KindIds = [_]KindIds{.{}} ** KIND_COUNT,
 
         fn init(irQ: *const IRQueue, blockIter: anytype) BlockIds {
             var ids = BlockIds{};
@@ -35,9 +45,11 @@ pub const DepMap = struct {
                 const nextEnd = @as(u32, nextLocalId) + rangeLen;
                 std.debug.assert(nextEnd <= 64);
 
-                ids.kindLocalBase[kindIndex] = nextLocalId;
-                ids.kindStart[kindIndex] = start;
-                ids.kindEnd[kindIndex] = end;
+                ids.kindIds[kindIndex] = .{
+                    .localBase = nextLocalId,
+                    .start = start,
+                    .end = end,
+                };
                 nextLocalId = @intCast(nextEnd);
             }
             return ids;
@@ -48,10 +60,10 @@ pub const DepMap = struct {
             const kindIndex = @intFromEnum(kind);
             if (!self.kindMap.isSet(kindIndex)) return null;
 
-            const start = self.kindStart[kindIndex];
-            if (index < start or index >= self.kindEnd[kindIndex]) return null;
+            const kindIds = self.kindIds[kindIndex];
+            if (index < kindIds.start or index >= kindIds.end) return null;
 
-            const id = self.kindLocalBase[kindIndex] + @as(u8, @intCast(index - start));
+            const id = kindIds.localBase + @as(u8, @intCast(index - kindIds.start));
             std.debug.assert(id < 64);
             return @intCast(id);
         }
@@ -60,14 +72,28 @@ pub const DepMap = struct {
     const BlockState = struct {
         irQ: *const IRQueue,
         blockIds: BlockIds,
-        inputIndices: [MAX_INPUTS]u32 = undefined,
-        inputLen: u8 = 0,
+        deps: []u64,
+        knownInputs: *InputSet,
+        inputStack: [MAX_INPUTS]SavedInput = undefined,
+        inputStackLen: u8 = 0,
+        nextInputId: u8 = LAST_INPUT_ID,
 
-        fn init(irQ: *const IRQueue, blockIter: anytype) BlockState {
+        fn init(depMap: *Self, irQ: *const IRQueue, blockIter: anytype) BlockState {
             return .{
                 .irQ = irQ,
                 .blockIds = BlockIds.init(irQ, blockIter),
+                .deps = depMap.depsList.items,
+                .knownInputs = &depMap.knownInputs,
             };
+        }
+
+        fn finish(self: *BlockState) void {
+            while (self.inputStackLen > 0) {
+                self.inputStackLen -= 1;
+                const saved = self.inputStack[self.inputStackLen];
+                self.knownInputs.unset(saved.index);
+                self.deps[saved.index] = saved.value;
+            }
         }
 
         fn addNodeDependencies(self: *BlockState, index: u32, kind: TK, node: irq.Node) u64 {
@@ -97,25 +123,29 @@ pub const DepMap = struct {
         }
 
         fn inputBit(self: *BlockState, dependencyIndex: u32) u64 {
-            // Linear time - O(inputs).
-            for (self.inputIndices[0..self.inputLen], 0..) |inputIndex, inputOffset| {
-                if (inputIndex == dependencyIndex) return inputOffsetBit(@intCast(inputOffset));
+            if (self.knownInputs.isSet(dependencyIndex)) {
+                const id = self.deps[dependencyIndex];
+                std.debug.assert(id < 64);
+                return @as(u64, 1) << @as(u6, @intCast(id));
             }
 
-            std.debug.assert(self.inputLen < MAX_INPUTS);
-            const inputOffset = self.inputLen;
-            self.inputIndices[inputOffset] = dependencyIndex;
-            self.inputLen += 1;
-            return inputOffsetBit(inputOffset);
-        }
+            std.debug.assert(self.inputStackLen < MAX_INPUTS);
+            self.inputStack[self.inputStackLen] = .{
+                .index = dependencyIndex,
+                .value = self.deps[dependencyIndex],
+            };
+            self.inputStackLen += 1;
 
-        fn inputOffsetBit(inputOffset: u8) u64 {
-            const id: u6 = @intCast(LAST_INPUT_ID - inputOffset);
+            const id: u6 = @intCast(self.nextInputId);
+            self.knownInputs.set(dependencyIndex);
+            self.deps[dependencyIndex] = id;
+            self.nextInputId -= 1;
             return @as(u64, 1) << id;
         }
     };
 
     depsList: ArrayList,
+    knownInputs: InputSet = .{},
 
     pub fn init(allocator: Allocator) !Self {
         return Self{
@@ -127,9 +157,13 @@ pub const DepMap = struct {
         const totalLen = irQ.list.items.len;
         try self.depsList.resize(allocator, totalLen);
         @memset(self.depsList.items, 0);
+
+        try self.knownInputs.resize(allocator, totalLen, false);
+        self.knownInputs.unsetAll();
     }
 
     pub fn deinit(self: *Self, allocator: Allocator) void {
+        self.knownInputs.deinit(allocator);
         self.depsList.deinit(allocator);
     }
 
@@ -149,7 +183,7 @@ pub const DepMap = struct {
     }
 
     fn buildBlock(self: *Self, irQ: *const IRQueue, blockIter: anytype) void {
-        var blockState = BlockState.init(irQ, blockIter);
+        var blockState = BlockState.init(self, irQ, blockIter);
 
         while (blockIter.nextKind()) |kind| {
             while (blockIter.nextElement()) |index| {
@@ -157,5 +191,7 @@ pub const DepMap = struct {
                 self.depsList.items[index] = blockState.addNodeDependencies(index, kind, node);
             }
         }
+
+        blockState.finish();
     }
 };
