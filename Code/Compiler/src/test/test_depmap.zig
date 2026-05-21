@@ -11,7 +11,7 @@ fn bit(id: u6) u64 {
     return @as(u64, 1) << id;
 }
 
-test "DepMap assigns local block IDs by block kind ranges" {
+test "DepMap emits entries in block-local order" {
     var kindCounts: [64]u32 = [_]u32{0} ** 64;
     kindCounts[@intFromEnum(TK.op_add)] = 1;
     kindCounts[@intFromEnum(TK.lit_number)] = 2;
@@ -32,12 +32,15 @@ test "DepMap assigns local block IDs by block kind ranges" {
     try maps.reserve(std.testing.allocator, &queue);
     maps.build(&queue);
 
-    try expectEqual(bit(1) | bit(2), maps.get(add));
-    try expectEqual(@as(u64, 0), maps.get(left));
-    try expectEqual(@as(u64, 0), maps.get(right));
-    try expectEqual(bit(0), maps.refs(left));
-    try expectEqual(bit(0), maps.refs(right));
-    try expectEqual(@as(u64, 0), maps.refs(add));
+    _ = add;
+
+    try expectEqual(@as(usize, 3), maps.depsList.items.len);
+    try expectEqual(bit(1) | bit(2), maps.get(0));
+    try expectEqual(@as(u64, 0), maps.get(1));
+    try expectEqual(@as(u64, 0), maps.get(2));
+    try expectEqual(@as(u64, 0), maps.refs(0));
+    try expectEqual(bit(0), maps.refs(1));
+    try expectEqual(bit(0), maps.refs(2));
 }
 
 test "DepMap assigns external inputs from the high bit end" {
@@ -64,10 +67,15 @@ test "DepMap assigns external inputs from the high bit end" {
     try maps.reserve(std.testing.allocator, &queue);
     maps.build(&queue);
 
-    try expectEqual(bit(63) | bit(1), maps.get(add));
-    try expectEqual(@as(u64, 0), maps.get(input));
-    try expectEqual(@as(u64, 0), maps.refs(input));
-    try expectEqual(bit(0), maps.refs(local));
+    _ = add;
+
+    try expectEqual(@as(usize, 3), maps.depsList.items.len);
+    try expectEqual(@as(u64, 0), maps.get(0));
+    try expectEqual(bit(63) | bit(1), maps.get(1));
+    try expectEqual(@as(u64, 0), maps.get(2));
+    try expectEqual(@as(u64, 0), maps.refs(0));
+    try expectEqual(@as(u64, 0), maps.refs(1));
+    try expectEqual(bit(0), maps.refs(2));
 }
 
 test "DepMap reuses external input IDs within a block" {
@@ -93,8 +101,13 @@ test "DepMap reuses external input IDs within a block" {
     try maps.reserve(std.testing.allocator, &queue);
     maps.build(&queue);
 
-    try expectEqual(bit(63), maps.get(add));
-    try expectEqual(@as(u64, 0), maps.refs(input));
+    _ = add;
+
+    try expectEqual(@as(usize, 2), maps.depsList.items.len);
+    try expectEqual(@as(u64, 0), maps.get(0));
+    try expectEqual(bit(63), maps.get(1));
+    try expectEqual(@as(u64, 0), maps.refs(0));
+    try expectEqual(@as(u64, 0), maps.refs(1));
 }
 
 test "DepMap keeps external input IDs block-local" {
@@ -122,11 +135,15 @@ test "DepMap keeps external input IDs block-local" {
     try maps.reserve(std.testing.allocator, &queue);
     maps.build(&queue);
 
-    try expectEqual(bit(1) | bit(2), maps.get(producer));
-    try expectEqual(bit(63) | bit(62), maps.get(consumer));
-    try expectEqual(@as(u64, 0), maps.get(left));
-    try expectEqual(@as(u64, 0), maps.get(right));
-    try expectEqual(bit(0), maps.refs(left));
-    try expectEqual(bit(0), maps.refs(right));
-    try expectEqual(@as(u64, 0), maps.refs(producer));
+    _ = consumer;
+
+    try expectEqual(@as(usize, 4), maps.depsList.items.len);
+    try expectEqual(bit(1) | bit(2), maps.get(0));
+    try expectEqual(@as(u64, 0), maps.get(1));
+    try expectEqual(@as(u64, 0), maps.get(2));
+    try expectEqual(bit(63) | bit(62), maps.get(3));
+    try expectEqual(@as(u64, 0), maps.refs(0));
+    try expectEqual(bit(0), maps.refs(1));
+    try expectEqual(bit(0), maps.refs(2));
+    try expectEqual(@as(u64, 0), maps.refs(3));
 }
