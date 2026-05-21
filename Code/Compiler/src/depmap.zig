@@ -79,13 +79,8 @@ pub const DepMap = struct {
                 return;
             };
             if (dependencyLocalIndex == localIndex) return;
-            self.deps[outputSlot] |= dependencyBit(dependencyLocalIndex);
-            self.refs[self.blockOutputStart + dependencyLocalIndex] |= dependencyBit(localIndex);
-        }
-
-        fn dependencyBit(localIndex: u32) u64 {
-            std.debug.assert(localIndex < 64);
-            return @as(u64, 1) << @as(u6, @intCast(localIndex));
+            self.deps[outputSlot] |= bitset.dependencyBit(dependencyLocalIndex);
+            self.refs[self.blockOutputStart + dependencyLocalIndex] |= bitset.dependencyBit(localIndex);
         }
 
         fn inputBit(self: *BlockState, dependencyIndex: u32) u64 {
@@ -99,6 +94,7 @@ pub const DepMap = struct {
             self.inputStack[self.inputStackLen] = dependencyIndex;
             self.inputStackLen += 1;
 
+            std.debug.assert(self.nextInputId >= self.blockIter.blockLen());
             const id: u6 = @intCast(self.nextInputId);
             self.inputIds[dependencyIndex] = id;
             self.nextInputId -= 1;

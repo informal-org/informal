@@ -51,3 +51,8 @@ pub fn chToKind(bitset: BitSet128, ch: u8, offset: u7) tok.Kind {
 pub fn isKind(bitset: BitSet64, kind: tok.Kind) bool {
     return bitset.isSet(@intFromEnum(kind));
 }
+
+pub fn dependencyBit(localIndex: u32) u64 {
+    std.debug.assert(localIndex < 64);
+    return @as(u64, 1) << @as(u6, @intCast(localIndex));
+}
