@@ -35,6 +35,9 @@ test "DepMap assigns local block IDs by block kind ranges" {
     try expectEqual(bit(1) | bit(2), maps.get(add));
     try expectEqual(@as(u64, 0), maps.get(left));
     try expectEqual(@as(u64, 0), maps.get(right));
+    try expectEqual(bit(0), maps.refs(left));
+    try expectEqual(bit(0), maps.refs(right));
+    try expectEqual(@as(u64, 0), maps.refs(add));
 }
 
 test "DepMap assigns external inputs from the high bit end" {
@@ -63,6 +66,8 @@ test "DepMap assigns external inputs from the high bit end" {
 
     try expectEqual(bit(63) | bit(1), maps.get(add));
     try expectEqual(@as(u64, 0), maps.get(input));
+    try expectEqual(@as(u64, 0), maps.refs(input));
+    try expectEqual(bit(0), maps.refs(local));
 }
 
 test "DepMap reuses external input IDs within a block" {
@@ -89,6 +94,7 @@ test "DepMap reuses external input IDs within a block" {
     maps.build(&queue);
 
     try expectEqual(bit(63), maps.get(add));
+    try expectEqual(@as(u64, 0), maps.refs(input));
 }
 
 test "DepMap keeps external input IDs block-local" {
@@ -120,4 +126,7 @@ test "DepMap keeps external input IDs block-local" {
     try expectEqual(bit(63) | bit(62), maps.get(consumer));
     try expectEqual(@as(u64, 0), maps.get(left));
     try expectEqual(@as(u64, 0), maps.get(right));
+    try expectEqual(bit(0), maps.refs(left));
+    try expectEqual(bit(0), maps.refs(right));
+    try expectEqual(@as(u64, 0), maps.refs(producer));
 }

@@ -5,6 +5,7 @@ const bitset = @import("bitset.zig");
 
 const Allocator = std.mem.Allocator;
 const IRQueue = irq.IRQueue(irq.Node);
+const BlockIterator = @TypeOf(@as(*const IRQueue, undefined).blockIterator());
 const TK = tok.Kind;
 
 pub const DepMap = struct {
@@ -21,16 +22,20 @@ pub const DepMap = struct {
 
     const BlockState = struct {
         irQ: *const IRQueue,
+        blockIter: *const BlockIterator,
         deps: []u64,
+        refs: []u64,
         knownInputs: *InputSet,
         inputStack: [MAX_INPUTS]SavedInput = undefined,
         inputStackLen: u8 = 0,
         nextInputId: u8 = LAST_INPUT_ID,
 
-        fn init(depMap: *Self, irQ: *const IRQueue) BlockState {
+        fn init(depMap: *Self, irQ: *const IRQueue, blockIter: *const BlockIterator) BlockState {
             return .{
                 .irQ = irQ,
+                .blockIter = blockIter,
                 .deps = depMap.depsList.items,
+                .refs = depMap.refsList.items,
                 .knownInputs = &depMap.knownInputs,
             };
         }
@@ -44,29 +49,45 @@ pub const DepMap = struct {
             }
         }
 
-        fn addNodeDependencies(self: *BlockState, blockIter: anytype, index: u32, kind: TK, node: irq.Node) u64 {
+        fn addNodeDependencies(self: *BlockState, index: u32, kind: TK, node: irq.Node) void {
+            self.deps[index] = 0;
+
             if (bitset.isKind(tok.BINARY_OPS, kind)) {
-                return self.dependencyBit(blockIter, index, node.args.left) |
-                    self.dependencyBit(blockIter, index, node.args.right);
+                self.addDependency(index, node.args.left);
+                self.addDependency(index, node.args.right);
+                return;
             }
             if (bitset.isKind(tok.UNARY_OPS, kind)) {
-                return self.dependencyBit(blockIter, index, node.args.left);
+                self.addDependency(index, node.args.left);
+                return;
             }
 
-            return switch (kind) {
-                TK.ir_exit, TK.ir_enter, TK.ir_def, TK.ir_use, TK.ir_arg => self.dependencyBit(blockIter, index, node.args.left) |
-                    self.dependencyBit(blockIter, index, node.args.right),
-                TK.ir_param => self.dependencyBit(blockIter, index, node.args.left) |
-                    if (node.args.right != 0) self.dependencyBit(blockIter, index, node.args.right) else 0,
-                TK.ir_frame => if (node.args.right != 0) self.dependencyBit(blockIter, index, node.args.left) else 0,
-                else => 0,
-            };
+            switch (kind) {
+                TK.ir_exit, TK.ir_enter, TK.ir_def, TK.ir_use, TK.ir_arg => {
+                    self.addDependency(index, node.args.left);
+                    self.addDependency(index, node.args.right);
+                },
+                TK.ir_param => {
+                    self.addDependency(index, node.args.left);
+                    if (node.args.right != 0) self.addDependency(index, node.args.right);
+                },
+                TK.ir_frame => if (node.args.right != 0) self.addDependency(index, node.args.left),
+                else => {},
+            }
         }
 
-        fn dependencyBit(self: *BlockState, blockIter: anytype, index: u32, dependencyIndex: u32) u64 {
-            if (dependencyIndex == index) return 0;
+        fn addDependency(self: *BlockState, index: u32, dependencyIndex: u32) void {
+            if (dependencyIndex == index) return;
             std.debug.assert(dependencyIndex < self.irQ.list.items.len);
-            const localIndex = blockIter.getBlockLocalIndex(dependencyIndex) orelse return self.inputBit(dependencyIndex);
+            const dependencyLocalIndex = self.blockIter.getBlockLocalIndex(dependencyIndex) orelse {
+                self.deps[index] |= self.inputBit(dependencyIndex);
+                return;
+            };
+            self.deps[index] |= dependencyBit(dependencyLocalIndex);
+            self.refs[dependencyIndex] |= dependencyBit(self.blockIter.getBlockLocalIndex(index) orelse unreachable);
+        }
+
+        fn dependencyBit(localIndex: u32) u64 {
             std.debug.assert(localIndex < 64);
             return @as(u64, 1) << @as(u6, @intCast(localIndex));
         }
@@ -94,11 +115,13 @@ pub const DepMap = struct {
     };
 
     depsList: ArrayList,
+    refsList: ArrayList,
     knownInputs: InputSet = .{},
 
     pub fn init(allocator: Allocator) !Self {
         return Self{
             .depsList = try ArrayList.initCapacity(allocator, 0),
+            .refsList = try ArrayList.initCapacity(allocator, 0),
         };
     }
 
@@ -106,6 +129,8 @@ pub const DepMap = struct {
         const totalLen = irQ.list.items.len;
         try self.depsList.resize(allocator, totalLen);
         @memset(self.depsList.items, 0);
+        try self.refsList.resize(allocator, totalLen);
+        @memset(self.refsList.items, 0);
 
         try self.knownInputs.resize(allocator, totalLen, false);
         self.knownInputs.unsetAll();
@@ -113,11 +138,13 @@ pub const DepMap = struct {
 
     pub fn deinit(self: *Self, allocator: Allocator) void {
         self.knownInputs.deinit(allocator);
+        self.refsList.deinit(allocator);
         self.depsList.deinit(allocator);
     }
 
     pub fn build(self: *Self, irQ: *const IRQueue) void {
         std.debug.assert(self.depsList.items.len == irQ.list.items.len);
+        std.debug.assert(self.refsList.items.len == irQ.list.items.len);
 
         var blockIter = irQ.blockIterator();
         while (blockIter.hasMoreBlocks()) {
@@ -131,15 +158,20 @@ pub const DepMap = struct {
         return self.depsList.items[index];
     }
 
+    pub fn refs(self: *const Self, index: u32) u64 {
+        std.debug.assert(index < self.refsList.items.len);
+        return self.refsList.items[index];
+    }
+
     fn buildBlock(self: *Self, irQ: *const IRQueue, blockIter: anytype) void {
-        var blockState = BlockState.init(self, irQ);
+        var blockState = BlockState.init(self, irQ, blockIter);
 
         while (blockIter.nextKind()) |kind| {
             const range = blockIter.blockRange(kind);
             var index = range.start;
             while (index < range.end) : (index += 1) {
                 const node = irQ.get(index);
-                self.depsList.items[index] = blockState.addNodeDependencies(blockIter, index, kind, node);
+                blockState.addNodeDependencies(index, kind, node);
             }
         }
 
