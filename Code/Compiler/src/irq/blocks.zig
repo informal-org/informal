@@ -177,6 +177,15 @@ pub const Blocks = struct {
                 return self.kindBoundaryCursors[kindIndex].currentRange();
             }
 
+            pub fn blockLen(self: *const IterSelf) u32 {
+                var len: u32 = 0;
+                var iter = self.blockKindMap.iterator(.{});
+                while (iter.next()) |kindIndex| {
+                    len += self.kindBoundaryCursors[kindIndex].currentRange().len();
+                }
+                return len;
+            }
+
             // Dense index of an absolute IR element within the current block,
             // in the same order as nextKind ranges.
             pub fn getBlockLocalIndex(self: *const IterSelf, absoluteIndex: u32) ?u32 {

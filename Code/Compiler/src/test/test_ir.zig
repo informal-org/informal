@@ -226,6 +226,7 @@ test "IR block iterator tracks membership by kind" {
     var blockIter = queue.blockIterator();
     try expect(blockIter.hasMoreBlocks());
     blockIter.nextBlock();
+    try expectEqual(@as(u32, 3), blockIter.blockLen());
     try expectInCurrentBlock(&blockIter, firstAdd);
     try expectInCurrentBlock(&blockIter, firstLit);
     try expectInCurrentBlock(&blockIter, secondLit);
@@ -247,6 +248,7 @@ test "IR block iterator tracks membership by kind" {
 
     try expect(blockIter.hasMoreBlocks());
     blockIter.nextBlock();
+    try expectEqual(@as(u32, 3), blockIter.blockLen());
     try expectNotInCurrentBlock(&blockIter, firstAdd);
     try expectNotInCurrentBlock(&blockIter, secondLit);
     try expectInCurrentBlock(&blockIter, secondBlockFirstAdd);
@@ -270,6 +272,7 @@ test "IR block iterator tracks membership by kind" {
     blockIter.initIterator(&queue);
     try expect(blockIter.hasMoreBlocks());
     blockIter.nextBlock();
+    try expectEqual(@as(u32, 3), blockIter.blockLen());
     try expectInCurrentBlock(&blockIter, firstAdd);
 }
 
@@ -304,16 +307,19 @@ test "IR block iterator reads boundaries across bitset masks" {
 
     var blockIter = queue.blockIterator();
     blockIter.nextBlock();
+    try expectEqual(@as(u32, 1), blockIter.blockLen());
     try expectInCurrentBlock(&blockIter, firstLit);
     try expectNotInCurrentBlock(&blockIter, secondBlockFirstLit);
 
     blockIter.nextBlock();
+    try expectEqual(@as(u32, 70), blockIter.blockLen());
     try expectNotInCurrentBlock(&blockIter, firstLit);
     try expectInCurrentBlock(&blockIter, secondBlockFirstLit);
     try expectInCurrentBlock(&blockIter, secondBlockLastLit);
     try expectNotInCurrentBlock(&blockIter, thirdBlockFirstLit);
 
     blockIter.nextBlock();
+    try expectEqual(@as(u32, 59), blockIter.blockLen());
     try expectNotInCurrentBlock(&blockIter, secondBlockLastLit);
     try expectInCurrentBlock(&blockIter, thirdBlockFirstLit);
     try expectInCurrentBlock(&blockIter, lastLit);
