@@ -74,8 +74,8 @@ pub const IR = struct {
         counts[@intFromEnum(TK.grp_indent)] = 0;
         counts[@intFromEnum(TK.grp_dedent)] = 0;
         counts[@intFromEnum(TK.ir_block_map)] += blockCount;
-        counts[@intFromEnum(TK.ir_frame)] += 1; // At least one exit frame.
-        counts[@intFromEnum(TK.ir_exit)] += 1; // Exit results to exit frame.
+        counts[@intFromEnum(TK.ir_enter)] += blockCount;
+        counts[@intFromEnum(TK.ir_exit)] += blockCount;
         return counts;
     }
 
@@ -93,7 +93,7 @@ pub const IR = struct {
             switch (token.kind) {
                 TK.aux_stream_start => {},
                 TK.grp_indent, TK.grp_dedent => {
-                    self.irQ.endBlock();
+                    _ = self.irQ.endBlock();
                     self.irQ.startBlock();
                 },
                 TK.lit_number => {
@@ -110,11 +110,7 @@ pub const IR = struct {
             }
         }
 
-        const exitFrame = self.irQ.emitKind(TK.ir_frame, args(0, 0));
-        const finalNode = self.irQ.popUnary();
-        const exitIdx = self.irQ.emitKind(TK.ir_exit, args(exitFrame, finalNode.args.left));
-        self.irQ.endBlock();
-        return exitIdx;
+        return self.irQ.endBlock();
     }
 
     // Exit = output.

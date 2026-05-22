@@ -9,6 +9,7 @@ const KIND_COUNT = kind_ranges.KIND_COUNT;
 const KindBitSet = kind_ranges.KindBitSet;
 const KindRanges = kind_ranges.KindRanges;
 const Blocks = blocks.Blocks;
+const BLOCK_SENTINEL_ARG = std.math.maxInt(u32);
 
 pub const Node = packed union {
     raw: u64,
@@ -73,12 +74,27 @@ pub fn IRQueue(comptime t: type) type {
             return index;
         }
 
-        pub fn startBlock(self: *Self) void {
-            self.blocks.startBlock();
+        fn isBlockSentinel(node: Node) bool {
+            return node.args.right == BLOCK_SENTINEL_ARG;
         }
 
-        pub fn endBlock(self: *Self) void {
+        pub fn startBlock(self: *Self) void {
+            self.blocks.startBlock();
+            const enterIdx = self.emitKind(TK.ir_enter, args(0, 0));
+            self.set(enterIdx, args(enterIdx, enterIdx));
+            self.pushArg(enterIdx, BLOCK_SENTINEL_ARG);
+        }
+
+        pub fn endBlock(self: *Self) u32 {
+            const result = self.stack.pop() orelse unreachable;
+            const enter = if (isBlockSentinel(result)) result else enter: {
+                const sentinel = self.stack.pop() orelse unreachable;
+                std.debug.assert(isBlockSentinel(sentinel));
+                break :enter sentinel;
+            };
+            const exitIdx = self.emitKind(TK.ir_exit, args(enter.args.left, result.args.left));
             _ = self.emitBlockMap(self.blocks.endBlock(&self.kindRanges));
+            return exitIdx;
         }
 
         pub fn emitKind(self: *Self, kind: TK, value: Node) u32 {
