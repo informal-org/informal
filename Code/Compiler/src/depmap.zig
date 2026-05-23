@@ -7,10 +7,11 @@ const Allocator = std.mem.Allocator;
 const IRQueue = irq.IRQueue(irq.Node);
 const BlockIterator = @TypeOf(@as(*const IRQueue, undefined).blockIterator());
 const TK = tok.Kind;
+const BitSet = bitset.BitSet64;
 
 pub const DepMap = struct {
     const Self = @This();
-    const MapList = std.array_list.Aligned(u64, null);
+    const MapList = std.array_list.Aligned(BitSet, null);
     const InputIdList = std.array_list.Aligned(u8, null);
     const MAX_INPUTS = 32;
     const LAST_INPUT_ID = 63;
@@ -18,8 +19,8 @@ pub const DepMap = struct {
     const BlockState = struct {
         blockIter: *const BlockIterator,
         blockOutputStart: u32,
-        deps: []u64,
-        refs: []u64,
+        deps: []BitSet,
+        refs: []BitSet,
         inputIds: []u8,
         inputStack: [MAX_INPUTS]u32 = undefined,
         inputStackLen: u8 = 0,
@@ -45,7 +46,7 @@ pub const DepMap = struct {
 
         fn addNodeDependencies(self: *BlockState, index: u32, kind: TK, node: irq.Node) void {
             const localIndex = self.blockIter.getBlockLocalIndex(index) orelse unreachable;
-            self.deps[self.blockOutputStart + localIndex] = 0;
+            self.deps[self.blockOutputStart + localIndex] = BitSet.initEmpty();
 
             if (bitset.isKind(tok.BINARY_OPS, kind)) {
                 self.addDependency(localIndex, node.args.left);
@@ -75,19 +76,21 @@ pub const DepMap = struct {
             std.debug.assert(dependencyIndex < self.inputIds.len);
             const outputSlot = self.blockOutputStart + localIndex;
             const dependencyLocalIndex = self.blockIter.getBlockLocalIndex(dependencyIndex) orelse {
-                self.deps[outputSlot] |= self.inputBit(dependencyIndex);
+                self.deps[outputSlot].setUnion(self.inputBit(dependencyIndex));
                 return;
             };
             if (dependencyLocalIndex == localIndex) return;
-            self.deps[outputSlot] |= bitset.dependencyBit(dependencyLocalIndex);
-            self.refs[self.blockOutputStart + dependencyLocalIndex] |= bitset.dependencyBit(localIndex);
+            self.deps[outputSlot].set(dependencyLocalIndex);
+            self.refs[self.blockOutputStart + dependencyLocalIndex].set(localIndex);
         }
 
-        fn inputBit(self: *BlockState, dependencyIndex: u32) u64 {
+        fn inputBit(self: *BlockState, dependencyIndex: u32) BitSet {
             const existingId = self.inputIds[dependencyIndex];
             if (existingId != 0) {
                 std.debug.assert(existingId < 64);
-                return @as(u64, 1) << @as(u6, @intCast(existingId));
+                var result = BitSet.initEmpty();
+                result.set(existingId);
+                return result;
             }
 
             std.debug.assert(self.inputStackLen < MAX_INPUTS);
@@ -98,7 +101,9 @@ pub const DepMap = struct {
             const id: u6 = @intCast(self.nextInputId);
             self.inputIds[dependencyIndex] = id;
             self.nextInputId -= 1;
-            return @as(u64, 1) << id;
+            var result = BitSet.initEmpty();
+            result.set(id);
+            return result;
         }
     };
 
@@ -117,9 +122,9 @@ pub const DepMap = struct {
     pub fn reserve(self: *Self, allocator: Allocator, irQ: *const IRQueue) !void {
         const totalLen = irQ.list.items.len - irQ.kindRanges.reservedLen(@intFromEnum(TK.ir_block_map));
         try self.depsList.resize(allocator, totalLen);
-        @memset(self.depsList.items, 0);
+        @memset(self.depsList.items, BitSet.initEmpty());
         try self.refsList.resize(allocator, totalLen);
-        @memset(self.refsList.items, 0);
+        @memset(self.refsList.items, BitSet.initEmpty());
 
         try self.inputIdsList.resize(allocator, irQ.list.items.len);
         @memset(self.inputIdsList.items, 0);
@@ -145,12 +150,12 @@ pub const DepMap = struct {
         std.debug.assert(@as(usize, blockOutputStart) == self.depsList.items.len);
     }
 
-    pub fn get(self: *const Self, index: u32) u64 {
+    pub fn get(self: *const Self, index: u32) BitSet {
         std.debug.assert(index < self.depsList.items.len);
         return self.depsList.items[index];
     }
 
-    pub fn refs(self: *const Self, index: u32) u64 {
+    pub fn refs(self: *const Self, index: u32) BitSet {
         std.debug.assert(index < self.refsList.items.len);
         return self.refsList.items[index];
     }

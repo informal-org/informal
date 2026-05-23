@@ -37,16 +37,16 @@ test "DepMap emits entries in block-local order" {
     _ = add;
 
     try expectEqual(@as(usize, 5), maps.depsList.items.len);
-    try expectEqual(bit(1) | bit(2), maps.get(0));
-    try expectEqual(@as(u64, 0), maps.get(1));
-    try expectEqual(@as(u64, 0), maps.get(2));
-    try expectEqual(bit(4), maps.get(3));
-    try expectEqual(@as(u64, 0), maps.get(4));
-    try expectEqual(@as(u64, 0), maps.refs(0));
-    try expectEqual(bit(0), maps.refs(1));
-    try expectEqual(bit(0), maps.refs(2));
-    try expectEqual(@as(u64, 0), maps.refs(3));
-    try expectEqual(bit(3), maps.refs(4));
+    try expectEqual(bit(1) | bit(2), maps.get(0).mask);
+    try expectEqual(@as(u64, 0), maps.get(1).mask);
+    try expectEqual(@as(u64, 0), maps.get(2).mask);
+    try expectEqual(bit(4), maps.get(3).mask);
+    try expectEqual(@as(u64, 0), maps.get(4).mask);
+    try expectEqual(@as(u64, 0), maps.refs(0).mask);
+    try expectEqual(bit(0), maps.refs(1).mask);
+    try expectEqual(bit(0), maps.refs(2).mask);
+    try expectEqual(@as(u64, 0), maps.refs(3).mask);
+    try expectEqual(bit(3), maps.refs(4).mask);
 }
 
 test "DepMap assigns external inputs from the high bit end" {
@@ -78,20 +78,20 @@ test "DepMap assigns external inputs from the high bit end" {
     _ = add;
 
     try expectEqual(@as(usize, 7), maps.depsList.items.len);
-    try expectEqual(@as(u64, 0), maps.get(0));
-    try expectEqual(bit(2), maps.get(1));
-    try expectEqual(@as(u64, 0), maps.get(2));
-    try expectEqual(bit(63) | bit(1), maps.get(3));
-    try expectEqual(@as(u64, 0), maps.get(4));
-    try expectEqual(bit(3), maps.get(5));
-    try expectEqual(@as(u64, 0), maps.get(6));
-    try expectEqual(@as(u64, 0), maps.refs(0));
-    try expectEqual(@as(u64, 0), maps.refs(1));
-    try expectEqual(bit(1), maps.refs(2));
-    try expectEqual(@as(u64, 0), maps.refs(3));
-    try expectEqual(bit(0), maps.refs(4));
-    try expectEqual(@as(u64, 0), maps.refs(5));
-    try expectEqual(bit(2), maps.refs(6));
+    try expectEqual(@as(u64, 0), maps.get(0).mask);
+    try expectEqual(bit(2), maps.get(1).mask);
+    try expectEqual(@as(u64, 0), maps.get(2).mask);
+    try expectEqual(bit(63) | bit(1), maps.get(3).mask);
+    try expectEqual(@as(u64, 0), maps.get(4).mask);
+    try expectEqual(bit(3), maps.get(5).mask);
+    try expectEqual(@as(u64, 0), maps.get(6).mask);
+    try expectEqual(@as(u64, 0), maps.refs(0).mask);
+    try expectEqual(@as(u64, 0), maps.refs(1).mask);
+    try expectEqual(bit(1), maps.refs(2).mask);
+    try expectEqual(@as(u64, 0), maps.refs(3).mask);
+    try expectEqual(bit(0), maps.refs(4).mask);
+    try expectEqual(@as(u64, 0), maps.refs(5).mask);
+    try expectEqual(bit(2), maps.refs(6).mask);
 }
 
 test "DepMap reuses external input IDs within a block" {
@@ -122,18 +122,18 @@ test "DepMap reuses external input IDs within a block" {
     _ = add;
 
     try expectEqual(@as(usize, 6), maps.depsList.items.len);
-    try expectEqual(@as(u64, 0), maps.get(0));
-    try expectEqual(bit(2), maps.get(1));
-    try expectEqual(@as(u64, 0), maps.get(2));
-    try expectEqual(bit(63), maps.get(3));
-    try expectEqual(bit(2), maps.get(4));
-    try expectEqual(@as(u64, 0), maps.get(5));
-    try expectEqual(@as(u64, 0), maps.refs(0));
-    try expectEqual(@as(u64, 0), maps.refs(1));
-    try expectEqual(bit(1), maps.refs(2));
-    try expectEqual(@as(u64, 0), maps.refs(3));
-    try expectEqual(@as(u64, 0), maps.refs(4));
-    try expectEqual(bit(1), maps.refs(5));
+    try expectEqual(@as(u64, 0), maps.get(0).mask);
+    try expectEqual(bit(2), maps.get(1).mask);
+    try expectEqual(@as(u64, 0), maps.get(2).mask);
+    try expectEqual(bit(63), maps.get(3).mask);
+    try expectEqual(bit(2), maps.get(4).mask);
+    try expectEqual(@as(u64, 0), maps.get(5).mask);
+    try expectEqual(@as(u64, 0), maps.refs(0).mask);
+    try expectEqual(@as(u64, 0), maps.refs(1).mask);
+    try expectEqual(bit(1), maps.refs(2).mask);
+    try expectEqual(@as(u64, 0), maps.refs(3).mask);
+    try expectEqual(@as(u64, 0), maps.refs(4).mask);
+    try expectEqual(bit(1), maps.refs(5).mask);
 }
 
 test "DepMap keeps external input IDs block-local" {
@@ -166,20 +166,20 @@ test "DepMap keeps external input IDs block-local" {
     _ = consumer;
 
     try expectEqual(@as(usize, 8), maps.depsList.items.len);
-    try expectEqual(bit(1) | bit(2), maps.get(0));
-    try expectEqual(@as(u64, 0), maps.get(1));
-    try expectEqual(@as(u64, 0), maps.get(2));
-    try expectEqual(bit(4), maps.get(3));
-    try expectEqual(@as(u64, 0), maps.get(4));
-    try expectEqual(bit(63) | bit(62), maps.get(5));
-    try expectEqual(bit(2), maps.get(6));
-    try expectEqual(@as(u64, 0), maps.get(7));
-    try expectEqual(@as(u64, 0), maps.refs(0));
-    try expectEqual(bit(0), maps.refs(1));
-    try expectEqual(bit(0), maps.refs(2));
-    try expectEqual(@as(u64, 0), maps.refs(3));
-    try expectEqual(bit(3), maps.refs(4));
-    try expectEqual(@as(u64, 0), maps.refs(5));
-    try expectEqual(@as(u64, 0), maps.refs(6));
-    try expectEqual(bit(1), maps.refs(7));
+    try expectEqual(bit(1) | bit(2), maps.get(0).mask);
+    try expectEqual(@as(u64, 0), maps.get(1).mask);
+    try expectEqual(@as(u64, 0), maps.get(2).mask);
+    try expectEqual(bit(4), maps.get(3).mask);
+    try expectEqual(@as(u64, 0), maps.get(4).mask);
+    try expectEqual(bit(63) | bit(62), maps.get(5).mask);
+    try expectEqual(bit(2), maps.get(6).mask);
+    try expectEqual(@as(u64, 0), maps.get(7).mask);
+    try expectEqual(@as(u64, 0), maps.refs(0).mask);
+    try expectEqual(bit(0), maps.refs(1).mask);
+    try expectEqual(bit(0), maps.refs(2).mask);
+    try expectEqual(@as(u64, 0), maps.refs(3).mask);
+    try expectEqual(bit(3), maps.refs(4).mask);
+    try expectEqual(@as(u64, 0), maps.refs(5).mask);
+    try expectEqual(@as(u64, 0), maps.refs(6).mask);
+    try expectEqual(bit(1), maps.refs(7).mask);
 }

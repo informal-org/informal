@@ -56,3 +56,29 @@ pub fn dependencyBit(localIndex: u32) u64 {
     std.debug.assert(localIndex < 64);
     return @as(u64, 1) << @as(u6, @intCast(localIndex));
 }
+
+pub fn lowBits(n: usize) BitSet64 {
+    std.debug.assert(n <= 64);
+    const mask = if (n == 64)
+        ~@as(u64, 0)
+    else
+        (@as(u64, 1) << @as(u6, @intCast(n))) - 1;
+    return BitSet64{ .mask = mask };
+}
+
+pub fn highBits(n: usize) BitSet64 {
+    std.debug.assert(n <= 64);
+    return lowBits(64 - n).complement();
+}
+
+test "bit masks cover low and high bit ranges" {
+    try std.testing.expectEqual(@as(u64, 0), lowBits(0).mask);
+    try std.testing.expectEqual(@as(u64, 1), lowBits(1).mask);
+    try std.testing.expectEqual(@as(u64, 0b1111), lowBits(4).mask);
+    try std.testing.expectEqual(~@as(u64, 0), lowBits(64).mask);
+
+    try std.testing.expectEqual(@as(u64, 0), highBits(0).mask);
+    try std.testing.expectEqual(@as(u64, 0x8000_0000_0000_0000), highBits(1).mask);
+    try std.testing.expectEqual(@as(u64, 0xF000_0000_0000_0000), highBits(4).mask);
+    try std.testing.expectEqual(~@as(u64, 0), highBits(64).mask);
+}

@@ -19,6 +19,7 @@
 
 - Prefer small, incremental changes that are easy to review.
 - Keep edits scoped to the requested behavior and the nearby implementation.
+- When a small type or API cleanup removes casts, adapter locals, or redundant conversions, prefer that over preserving incidental indirection.
 - Follow existing Zig style in the touched file before introducing new conventions.
 - Do not churn generated or local artifacts such as `.DS_Store`, `out.bin`, `test.bin`, or Zig build/cache output.
 

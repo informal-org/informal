@@ -8,6 +8,7 @@ comptime {
     _ = @import("test/test_lexer.zig");
     _ = @import("test/test_parser.zig");
     _ = @import("test/test_resolution.zig");
+    _ = @import("test/test_sequence.zig");
     _ = @import("test/test_token.zig");
     _ = @import("filetest.zig");
 }
