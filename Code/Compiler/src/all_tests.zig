@@ -11,4 +11,5 @@ comptime {
     _ = @import("test/test_sequence.zig");
     _ = @import("test/test_token.zig");
     _ = @import("filetest.zig");
+    _ = @import("lru.zig");
 }
