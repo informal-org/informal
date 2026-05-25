@@ -1,32 +1,35 @@
-// Intermediate representation
-// We use a unique representation, with a bit of sea-of-nodes, bit of SSA, bit of continuation passing and more
-// You'll notice that IR nodes don't have a "kind" at all.
-// Instead, what we do is put all IR nodes of a certain kind in the same range.
-// So if you need to iterate over all memory-stores, that's easy to do.
-// And we save a byte from the IR nodes this way.
-// And it's possible to just look at a value and tell what op it was from.
-// Sorting each section also makes certain optimizations easier.
-
+// IR lowering — see Docs/Specs/ir.md for the full specification.
+//
+// Walks the parser's postfix `parsedQ` and emits into `irQ` (see irq.zig).
+// The IR is a sea-of-nodes / SSA / continuation-passing hybrid where nodes
+// carry no kind tag — every kind owns a contiguous reserved range in the
+// queue, and kind is recovered from an index via an inverted-index lookup.
+//
+// Lowering is a single forward pass with an explicit value stack:
+//   - lit_number  -> emit literal, push result index
+//   - op_add/mul  -> popBinary (two operand indices), emit op, push result
+//   - grp_indent / grp_dedent -> endBlock + startBlock (parser scope boundary)
+//   - aux_stream_start -> skip
+//   - anything else -> error.UnsupportedIRKind (not yet wired)
+//
+// Each block is bracketed by ir_enter / ir_exit, modeling calls/jumps in
+// the actor / CPS sense (blocks-with-params). A BLOCK_SENTINEL_ARG on the
+// value stack marks the open frame so endBlock can tell empty-vs-with-result.
+//
 // TODO:
-// 1. The IR should only contain non-constant ops. Anything operation where both sides are a constant should get folded during construction
-// and replaced with the constant value, with maybe a graveyard symbol where it used to be to be cleaned up later on.
-//
-// 2. Each identifier needs a use-def chain. We do this by linking IR nodes together. The actual symbols are no longer relevant.
-// Def: Value op index, tail ref - last reference so far. Initialized as itself.
-// Ref: Referenced at index, Prev ref. First one points to the declaration.
-//
-// 3. All calls and jumps are modeled as block enter/exit in the actor sense. It's similar to continuation passing style, or blocks with params.
-// Exit: Call Frame index, Prev exit to this same destination.
-// Enter: Tail exit to this destination - initialized as itself. Continuation target - either the next "exit" to call or a phi-node from the input frame.
-// Enters don't explicit store their params, but each enter-index is 1:1 with a paramFrame index, so you can simply lookup by index.
-//
-// 4. Frames: Composed of
-// Frame: Args index, arg count.
-// Param: Equivalent of phi. Something with many variants.
-// Arg tail, ref tail
-// Arg: Instance of a param. Value, prev param arg.
-//
-// Convention - first arg is always the value. Second is linkage or secondary value.
+// 1. Constant folding during construction — if both sides of an op are
+//    constants, fold to the value and leave a graveyard symbol for later
+//    cleanup. The IR should hold only non-constant ops.
+// 2. Use-def chains via linked IR nodes (symbols become irrelevant past lowering).
+//    Def: { value op index, tail ref } initialized to itself.
+//    Ref: { referenced index, prev ref } — first ref points at the declaration.
+// 3. Calls and jumps as block enter/exit with continuation linkage.
+//    Exit: { call frame index, prev exit to this destination }.
+//    Enter: { tail exit, continuation target } — either the next exit or a phi
+//    from the input frame. Enters don't store params explicitly; enter index
+//    is 1:1 with the param frame so params are recovered by index.
+// 4. Frames for n-ary calls — see createFrame / createParam / createFrameArg
+//    helpers in irq.zig.
 
 const std = @import("std");
 const q = @import("queue.zig");
@@ -41,15 +44,7 @@ const args = irq.args;
 
 pub const TokenQueue = q.Queue(Token, tok.AUX_STREAM_END);
 pub const IRQueue = irq.IRQueue(Node);
-const MAX_DEPTH = 128; // Ideally computed from the parser so it's never reached here.
-
-// pub const IRKind = enum(u8) {
-//     //
-//     op_gte,
-//     op_dbl_eq,
-//     op_lte,
-//     op_div_eq,
-// };
+const MAX_DEPTH = 128; // Value-stack depth ceiling. Ideally computed from the parser so it's never reached here.
 
 pub const IR = struct {
     const Self = @This();
@@ -66,9 +61,10 @@ pub const IR = struct {
     }
 
     pub fn calcKindCounts(kindCounts: [64]u32) [64]u32 {
-        // Takes parser-maintained kind counts and returns IR kind counts.
-        // In the future, this will need more logic when certain parser-tokens map to multiple IR nodes.
-        // In that case, it'd need to look at the count of all nodes which can emit that IR node and sum those.
+        // Translate parser-side kind counts into IR-side reservations.
+        // - grp_indent / grp_dedent are consumed as block delimiters, not emitted as IR nodes.
+        // - Every parser scope boundary (plus the root) needs one ir_enter / ir_exit pair.
+        // Future: when a parser kind expands into multiple IR kinds, sum the contributing sources here.
         var counts = kindCounts;
         const blockCount = 1 + counts[@intFromEnum(TK.grp_indent)] + counts[@intFromEnum(TK.grp_dedent)];
         counts[@intFromEnum(TK.grp_indent)] = 0;
@@ -83,10 +79,9 @@ pub const IR = struct {
     }
 
     pub fn lower(self: *Self) !u32 {
-        // Walk the parsed queue to lower to IR.
-        // Two options: Reverse recursive which dispatches recursion for each arg to parse.
-        // Or: explicit stack and forward walk.
-        // Stack maintains each argument to be consumed.
+        // Forward postfix walk with an explicit value stack. The stack carries the
+        // index of each emitted IR node (and a block sentinel from startBlock); each
+        // operator pops its operand indices and pushes its own result index.
         self.irQ.startBlock();
         for (self.parsedQ.list.items, 0..) |token, index| {
             switch (token.kind) {

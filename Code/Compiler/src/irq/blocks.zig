@@ -1,3 +1,27 @@
+// Block table — see Docs/Specs/ir.md for the full specification.
+//
+// Records, per logical IR block, two 64-bit masks:
+//   kinds: bit k set ↔ kind index k contributed at least one node to the block.
+//   ends:  bit i set ↔ block-local position i is the last node of some kind run.
+// Block length is implicit: 64 − clz(ends.mask).
+//
+// The layout is kind-major: within a block, all nodes of kind k are
+// contiguous and appear in the same relative order as the global kind range.
+// That means the i-th set bit in `kinds` corresponds to the i-th set bit in
+// `ends`, which is what makes the iterator's local↔absolute mapping cheap.
+//
+// activeKindStarts is a scratch table used only between startBlock and
+// endBlock: it stamps the absolute cursor where each kind first appears in
+// the current block, so endBlock can recover each run's length by diffing
+// against the kind's emit cursor at close time.
+//
+// Iterator(Queue) walks completed blocks. It maintains a kindBlockRanges[]
+// table that advances per block and answers:
+//   toBlockRelativeIndex(absIdx) — local position, or null if not in this block
+//   toAbsoluteIndex(localIdx)    — original absolute index
+//   blockRange(kind)             — absolute [start, end) for one kind in this block
+//   kindIterator()               — kinds in this block, in kind-range order
+
 const std = @import("std");
 const tok = @import("../token.zig");
 const bitset = @import("../bitset.zig");
@@ -52,6 +76,10 @@ pub const Blocks = struct {
         self.blocks.appendAssumeCapacity(.{ .kinds = KindBitSet.initEmpty(), .ends = KindEndSet.initEmpty() });
     }
 
+    // Finalize the current block's `ends` mask. Walks each set kind in
+    // kind-range order, recovers that kind's run length by diffing the global
+    // emit cursor against the start stamped at first-sight, and accumulates a
+    // running local end. Each kind's last position lights one bit in `ends`.
     pub fn endBlock(self: *Self, kindRanges: *const KindRanges) void {
         std.debug.assert(self.blocks.items.len > 0);
         const blockInfo = &self.blocks.items[self.blocks.items.len - 1];
@@ -64,13 +92,17 @@ pub const Blocks = struct {
             const start = self.activeKindStarts[kindIndex];
             std.debug.assert(cursor > start);
             localEnd += cursor - start;
-            std.debug.assert(localEnd <= 64);
+            std.debug.assert(localEnd <= 64); // Hard cap: at most 64 nodes per block (ends mask is u64).
             endMap.set(@intCast(localEnd - 1));
         }
 
         blockInfo.ends = endMap;
     }
 
+    // Record a fresh emission. No-op if no block is open or if the active
+    // block is already closed (its ends mask is non-zero). The first time a
+    // kind appears in the active block, stamp its absolute start so endBlock
+    // can compute the run length.
     pub fn markActiveBlockKind(self: *Self, kind: TK, index: u32) void {
         if (self.blocks.items.len == 0) return;
         const blockInfo = &self.blocks.items[self.blocks.items.len - 1];
@@ -162,6 +194,8 @@ pub const Blocks = struct {
                 return 64 - @as(u32, @intCast(@clz(ends)));
             }
 
+            // Find which kind owns absoluteIndex, check it's in this block's
+            // run for that kind, and translate into the block-local space.
             pub fn toBlockRelativeIndex(self: *const IterSelf, absoluteIndex: u32) ?u32 {
                 std.debug.assert(self.blockIndex > 0);
                 std.debug.assert(absoluteIndex < self.queue.list.items.len);
@@ -176,6 +210,9 @@ pub const Blocks = struct {
                 return range.localBase + absoluteIndex - range.start;
             }
 
+            // Reverse direction: popcount of ends-bits strictly below the local
+            // index is the ordinal of the kind that owns it (kind runs are
+            // contiguous and in kinds-bitset order). Translate via that kind's range.
             pub fn toAbsoluteIndex(self: *const IterSelf, blockRelativeIndex: u32) u32 {
                 std.debug.assert(self.blockIndex > 0);
                 std.debug.assert(blockRelativeIndex < self.blockLen());

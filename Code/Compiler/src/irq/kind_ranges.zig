@@ -1,3 +1,18 @@
+// Kind ranges — see Docs/Specs/ir.md for the full specification.
+//
+// Each of the (up to) 64 IR-relevant token kinds gets a contiguous reserved
+// range in the IRQueue backing list. `reserve(kindCounts)` lays out kinds
+// end-to-end and returns the total length; `nextIndex(kind)` advances the
+// per-kind cursor on every emit.
+//
+// Because nodes carry no kind tag, `indexToKind(index)` is the reverse-lookup
+// hot path. We avoid scanning 64 ranges by maintaining a small inverted index:
+// the full index space is sliced into 32 power-of-two-width buckets, and for
+// each bucket we store a 64-bit bitset of which kinds' ranges overlap it.
+// Lookup is one shift to find the bucket, then either a single-bit shortcut
+// or a few-element iteration over overlapping kinds — at worst a handful of
+// range compares (and typically one) instead of 64.
+
 const std = @import("std");
 const tok = @import("../token.zig");
 
