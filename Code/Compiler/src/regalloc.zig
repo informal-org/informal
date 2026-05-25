@@ -2,7 +2,7 @@ const std = @import("std");
 const bitset = @import("bitset.zig");
 const depmap = @import("depmap.zig");
 const irq = @import("irq.zig");
-const lru = @import("lru.zig");
+const registerpool = @import("registerpool.zig");
 const sequence = @import("sequence.zig");
 const tok = @import("token.zig");
 
@@ -11,19 +11,17 @@ const BitSet = bitset.BitSet64;
 const DepMap = depmap.DepMap;
 const IRQueue = irq.IRQueue(irq.Node);
 const BlockIterator = @TypeOf(@as(*const IRQueue, undefined).blockIterator());
+const RegisterPool = registerpool.RegisterPool;
 const Sequence = sequence.Sequence;
 const TK = tok.Kind;
 const Token = tok.Token;
 
-pub const MAX_REGISTERS = 64;
+pub const MAX_REGISTERS = registerpool.MAX_REGISTERS;
 pub const UNASSIGNED_LOCATION = std.math.maxInt(u24);
 pub const FREED_LOCATION = UNASSIGNED_LOCATION - 1;
 pub const NO_LOCATION = UNASSIGNED_LOCATION - 2;
 pub const SPILL_BASE = @as(u24, 1) << 23;
 const FIRST_SENTINEL = NO_LOCATION;
-const NO_NODE = std.math.maxInt(u32);
-
-const RecentRegisters = lru.Lru(MAX_REGISTERS);
 
 pub const RegAlloc = struct {
     const Self = @This();
@@ -31,19 +29,15 @@ pub const RegAlloc = struct {
     const LocationList = std.array_list.Aligned(u24, null);
 
     allocator: Allocator,
-    register_count: u8,
+    register_pool: RegisterPool,
     token_stack: TokenList,
     locations: LocationList,
-    free_registers: BitSet = BitSet.initEmpty(),
-    recent_registers: RecentRegisters = .{},
-    register_values: [MAX_REGISTERS]u32 = [_]u32{NO_NODE} ** MAX_REGISTERS,
     next_spill_slot: u24 = 0,
 
     pub fn init(allocator: Allocator, register_count: u8) !Self {
-        if (register_count == 0 or register_count > MAX_REGISTERS) return error.InvalidRegisterCount;
         return .{
             .allocator = allocator,
-            .register_count = register_count,
+            .register_pool = try RegisterPool.init(register_count),
             .token_stack = try TokenList.initCapacity(allocator, 0),
             .locations = try LocationList.initCapacity(allocator, 0),
         };
@@ -111,17 +105,15 @@ pub const RegAlloc = struct {
     fn reset(self: *Self) void {
         self.token_stack.clearRetainingCapacity();
         @memset(self.locations.items, UNASSIGNED_LOCATION);
-        self.free_registers = bitset.lowBits(self.register_count);
-        self.recent_registers = .{};
-        self.register_values = [_]u32{NO_NODE} ** MAX_REGISTERS;
+        self.register_pool.reset();
         self.next_spill_slot = 0;
     }
 
     fn declareResult(self: *Self, index: u32) !u24 {
         const current_location = self.location(index);
-        if (isRegister(current_location, self.register_count)) {
+        if (isRegister(current_location, self.register_pool.registerCount())) {
             const reg: u8 = @intCast(current_location);
-            self.freeRegister(reg);
+            self.register_pool.free(reg);
             self.setLocation(index, FREED_LOCATION);
             return current_location;
         }
@@ -130,14 +122,14 @@ pub const RegAlloc = struct {
             const spill_location = current_location;
             const reg = try self.allocateRegisterFor(index);
             try self.emitStore(reg, spill_location);
-            self.freeRegister(reg);
+            self.register_pool.free(reg);
             self.setLocation(index, FREED_LOCATION);
             return registerLocation(reg);
         }
 
         std.debug.assert(current_location == UNASSIGNED_LOCATION);
         const reg = try self.allocateRegisterFor(index);
-        self.freeRegister(reg);
+        self.register_pool.free(reg);
         self.setLocation(index, FREED_LOCATION);
         return registerLocation(reg);
     }
@@ -163,8 +155,8 @@ pub const RegAlloc = struct {
 
     fn useDependency(self: *Self, index: u32) !u24 {
         const current_location = self.location(index);
-        if (isRegister(current_location, self.register_count)) {
-            self.recent_registers.set(@intCast(current_location));
+        if (isRegister(current_location, self.register_pool.registerCount())) {
+            self.register_pool.touch(@intCast(current_location));
             return current_location;
         }
 
@@ -180,35 +172,14 @@ pub const RegAlloc = struct {
     }
 
     fn allocateRegisterFor(self: *Self, index: u32) !u8 {
-        if (self.free_registers.findFirstSet()) |free_register| {
-            return self.assignRegister(index, @intCast(free_register));
+        const allocation = try self.register_pool.allocate(index);
+        if (allocation.evicted) |evicted_index| {
+            const spill_location = try self.nextSpillLocation();
+            self.setLocation(evicted_index, spill_location);
+            try self.emitLoad(allocation.register, spill_location);
         }
-
-        const spilled_register = try self.spillLruRegister();
-        self.free_registers.set(spilled_register);
-        return self.assignRegister(index, spilled_register);
-    }
-
-    fn assignRegister(self: *Self, index: u32, reg: u8) u8 {
-        std.debug.assert(reg < self.register_count);
-        std.debug.assert(self.free_registers.isSet(reg));
-        self.free_registers.unset(reg);
-        self.setLocation(index, registerLocation(reg));
-        self.register_values[reg] = index;
-        self.recent_registers.set(reg);
-        return reg;
-    }
-
-    fn spillLruRegister(self: *Self) !u8 {
-        const reg = self.recent_registers.popLru() orelse return error.NoRegisterToSpill;
-        const index = self.register_values[reg];
-        std.debug.assert(index != NO_NODE);
-
-        const spill_location = try self.nextSpillLocation();
-        self.setLocation(index, spill_location);
-        self.register_values[reg] = NO_NODE;
-        try self.emitLoad(reg, spill_location);
-        return reg;
+        self.setLocation(index, registerLocation(allocation.register));
+        return allocation.register;
     }
 
     fn nextSpillLocation(self: *Self) !u24 {
@@ -216,13 +187,6 @@ pub const RegAlloc = struct {
         const spill_location = SPILL_BASE + self.next_spill_slot;
         self.next_spill_slot += 1;
         return spill_location;
-    }
-
-    fn freeRegister(self: *Self, reg: u8) void {
-        std.debug.assert(reg < self.register_count);
-        self.free_registers.set(reg);
-        self.recent_registers.remove(reg);
-        self.register_values[reg] = NO_NODE;
     }
 
     fn location(self: *const Self, index: u32) u24 {
