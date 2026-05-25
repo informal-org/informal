@@ -69,6 +69,8 @@ pub const Kind = enum(u8) {
     op_in,
     op_is,
     op_as,
+    op_load,
+    op_store,
 
     kw_if,
     kw_else,
@@ -143,6 +145,8 @@ pub const Data = packed union {
     // signed offset to the matching close (O(1) open→close lookup).
     group_link: GroupLink,
 
+    regalloc: RegAlloc,
+
     pub const Ident = packed struct(u48) {
         symbol_id: u16,
         prev_offset: u16,
@@ -179,6 +183,11 @@ pub const Data = packed union {
         next_offset: i16,
         iter_offset: i16,
     };
+
+    pub const RegAlloc = packed struct(u48) {
+        left: u24,
+        right: u24,
+    };
 };
 
 pub const Flags = packed struct(u8) {
@@ -207,6 +216,14 @@ pub const Token = packed struct(u64) {
         return Token{
             .kind = kind,
             .data = .{ .literal = .{ .value = value, .length = offset } },
+            .flags = Flags.empty(),
+        };
+    }
+
+    pub fn regAlloc(kind: Kind, left: u24, right: u24) Token {
+        return Token{
+            .kind = kind,
+            .data = .{ .regalloc = .{ .left = left, .right = right } },
             .flags = Flags.empty(),
         };
     }
@@ -309,6 +326,9 @@ pub const TokenWriter = struct {
             },
             TK.kw_fn => {
                 try std.fmt.format(writer, "{s} {s} [body_length={d} body_offset={d}]", .{ @tagName(value.kind), alt, value.data.fn_header.body_length, value.data.fn_header.body_offset });
+            },
+            TK.op_load, TK.op_store => {
+                try std.fmt.format(writer, "{s} {s} [{d}, {d}]", .{ @tagName(value.kind), alt, value.data.regalloc.left, value.data.regalloc.right });
             },
             else => {
                 try std.fmt.format(writer, "{s} {s}", .{ @tagName(value.kind), alt });

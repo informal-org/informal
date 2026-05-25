@@ -37,6 +37,11 @@ pub fn Lru(comptime capacity: u8) type {
             return handle;
         }
 
+        pub fn remove(self: *Self, handle: u8) void {
+            std.debug.assert(handle < capacity);
+            if (self.isLinked(handle)) self.unlink(handle);
+        }
+
         fn isLinked(self: *const Self, handle: u8) bool {
             const link = self.links[handle];
             return link.prev != handle or link.next != handle;
