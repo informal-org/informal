@@ -17,7 +17,6 @@ test "DepMap emits entries in block-local order" {
     kindCounts[@intFromEnum(TK.lit_number)] = 2;
     kindCounts[@intFromEnum(TK.ir_enter)] = 1;
     kindCounts[@intFromEnum(TK.ir_exit)] = 1;
-    kindCounts[@intFromEnum(TK.ir_block_map)] = 1;
 
     var queue = try ir.IRQueue.init(std.testing.allocator);
     defer queue.deinit(std.testing.allocator);
@@ -55,7 +54,6 @@ test "DepMap assigns external inputs from the high bit end" {
     kindCounts[@intFromEnum(TK.lit_number)] = 2;
     kindCounts[@intFromEnum(TK.ir_enter)] = 2;
     kindCounts[@intFromEnum(TK.ir_exit)] = 2;
-    kindCounts[@intFromEnum(TK.ir_block_map)] = 2;
 
     var queue = try ir.IRQueue.init(std.testing.allocator);
     defer queue.deinit(std.testing.allocator);
@@ -100,7 +98,6 @@ test "DepMap reuses external input IDs within a block" {
     kindCounts[@intFromEnum(TK.lit_number)] = 1;
     kindCounts[@intFromEnum(TK.ir_enter)] = 2;
     kindCounts[@intFromEnum(TK.ir_exit)] = 2;
-    kindCounts[@intFromEnum(TK.ir_block_map)] = 2;
 
     var queue = try ir.IRQueue.init(std.testing.allocator);
     defer queue.deinit(std.testing.allocator);
@@ -142,7 +139,6 @@ test "DepMap keeps external input IDs block-local" {
     kindCounts[@intFromEnum(TK.lit_number)] = 2;
     kindCounts[@intFromEnum(TK.ir_enter)] = 2;
     kindCounts[@intFromEnum(TK.ir_exit)] = 2;
-    kindCounts[@intFromEnum(TK.ir_block_map)] = 2;
 
     var queue = try ir.IRQueue.init(std.testing.allocator);
     defer queue.deinit(std.testing.allocator);

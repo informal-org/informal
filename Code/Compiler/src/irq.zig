@@ -6,7 +6,6 @@ const blocks = @import("irq/blocks.zig");
 
 const TK = tok.Kind;
 const KIND_COUNT = kind_ranges.KIND_COUNT;
-const KindBitSet = kind_ranges.KindBitSet;
 const KindRanges = kind_ranges.KindRanges;
 const Blocks = blocks.Blocks;
 const BLOCK_SENTINEL_ARG = std.math.maxInt(u32);
@@ -48,12 +47,17 @@ pub fn IRQueue(comptime t: type) type {
 
         // reserve is the queue's allocation path and is meant to be called once after init.
         pub fn reserve(self: *Self, allocator: Allocator, kindCounts: [KIND_COUNT]u32, maxDepth: usize) !void {
-            const totalLen: usize = @intCast(self.kindRanges.reserve(kindCounts));
+            const blockCount = kindCounts[@intFromEnum(TK.ir_enter)];
+            std.debug.assert(blockCount == kindCounts[@intFromEnum(TK.ir_exit)]);
+            var nodeKindCounts = kindCounts;
+            nodeKindCounts[@intFromEnum(TK.ir_block_map)] = 0;
+
+            const totalLen: usize = @intCast(self.kindRanges.reserve(nodeKindCounts));
             self.list.clearRetainingCapacity();
             self.stack.clearRetainingCapacity();
             try self.list.ensureTotalCapacity(allocator, totalLen);
             try self.stack.ensureTotalCapacity(allocator, maxDepth);
-            try self.blocks.reserve(allocator, &self.kindRanges);
+            try self.blocks.reserve(allocator, blockCount);
             self.list.appendNTimesAssumeCapacity(zeroValue(), totalLen); // TODO: Could I just use @memset here
         }
 
@@ -66,12 +70,6 @@ pub fn IRQueue(comptime t: type) type {
             var iter: Blocks.Iterator(Self) = undefined;
             iter.initIterator(self);
             return iter;
-        }
-
-        fn emitBlockMap(self: *Self, blockMap: KindBitSet) u32 {
-            const index = self.kindRanges.nextIndex(TK.ir_block_map);
-            self.set(index, Node{ .raw = blockMap.mask });
-            return index;
         }
 
         fn isBlockSentinel(node: Node) bool {
@@ -93,14 +91,14 @@ pub fn IRQueue(comptime t: type) type {
                 break :enter sentinel;
             };
             const exitIdx = self.emitKind(TK.ir_exit, args(enter.args.left, result.args.left));
-            _ = self.emitBlockMap(self.blocks.endBlock(&self.kindRanges));
+            self.blocks.endBlock(&self.kindRanges);
             return exitIdx;
         }
 
         pub fn emitKind(self: *Self, kind: TK, value: Node) u32 {
             const index = self.kindRanges.nextIndex(kind);
             self.set(index, value);
-            self.blocks.markActiveBlockKind(kind);
+            self.blocks.markActiveBlockKind(kind, index);
             return index;
         }
 

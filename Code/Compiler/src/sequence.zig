@@ -33,13 +33,10 @@ pub const Sequence = struct {
     }
 
     pub fn reserve(self: *Self, allocator: Allocator, irQ: *const IRQueue, maps: *const DepMap) !void {
-        const blockMapKind = @intFromEnum(TK.ir_block_map);
-        const blockCount = irQ.kindRanges.cursor(TK.ir_block_map) - irQ.kindRanges.reservedStart(blockMapKind);
-
         self.layersList.clearRetainingCapacity();
         self.blockLayerLengths.clearRetainingCapacity();
         try self.layersList.ensureTotalCapacity(allocator, maps.depsList.items.len);
-        try self.blockLayerLengths.ensureTotalCapacity(allocator, blockCount);
+        try self.blockLayerLengths.ensureTotalCapacity(allocator, irQ.blocks.blockCount());
         self.depMapOffset = 0;
     }
 
@@ -117,7 +114,7 @@ fn blockOutputLocalIndex(irQ: *const IRQueue, blockIter: *const BlockIterator) ?
     std.debug.assert(exitRange.len() == 1);
 
     const outputIndex = irQ.get(exitRange.start).args.right;
-    const outputLocalIndex = blockIter.getBlockLocalIndex(outputIndex) orelse return null;
+    const outputLocalIndex = blockIter.blockIdToLocalId(outputIndex) orelse return null;
     if (irQ.indexToKind(outputIndex) == TK.ir_enter) return null;
     return outputLocalIndex;
 }

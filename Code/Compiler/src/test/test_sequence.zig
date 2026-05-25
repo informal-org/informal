@@ -40,7 +40,6 @@ test "Sequence emits simple expression dependencies before output" {
     kindCounts[@intFromEnum(TK.lit_number)] = 2;
     kindCounts[@intFromEnum(TK.ir_enter)] = 1;
     kindCounts[@intFromEnum(TK.ir_exit)] = 1;
-    kindCounts[@intFromEnum(TK.ir_block_map)] = 1;
 
     var queue = try ir.IRQueue.init(std.testing.allocator);
     defer queue.deinit(std.testing.allocator);
@@ -69,7 +68,6 @@ test "Sequence emits nested expression leaves before inner operations" {
     kindCounts[@intFromEnum(TK.lit_number)] = 4;
     kindCounts[@intFromEnum(TK.ir_enter)] = 1;
     kindCounts[@intFromEnum(TK.ir_exit)] = 1;
-    kindCounts[@intFromEnum(TK.ir_block_map)] = 1;
 
     var queue = try ir.IRQueue.init(std.testing.allocator);
     defer queue.deinit(std.testing.allocator);
@@ -105,7 +103,6 @@ test "Sequence does not re-emit shared direct and indirect dependencies" {
     kindCounts[@intFromEnum(TK.lit_number)] = 2;
     kindCounts[@intFromEnum(TK.ir_enter)] = 1;
     kindCounts[@intFromEnum(TK.ir_exit)] = 1;
-    kindCounts[@intFromEnum(TK.ir_block_map)] = 1;
 
     var queue = try ir.IRQueue.init(std.testing.allocator);
     defer queue.deinit(std.testing.allocator);
@@ -134,7 +131,6 @@ test "Sequence records per-block layer lengths and advances dependency offsets" 
     kindCounts[@intFromEnum(TK.lit_number)] = 2;
     kindCounts[@intFromEnum(TK.ir_enter)] = 2;
     kindCounts[@intFromEnum(TK.ir_exit)] = 2;
-    kindCounts[@intFromEnum(TK.ir_block_map)] = 2;
 
     var queue = try ir.IRQueue.init(std.testing.allocator);
     defer queue.deinit(std.testing.allocator);
@@ -165,7 +161,6 @@ test "Sequence records zero layers for external and enter block results" {
     kindCounts[@intFromEnum(TK.lit_number)] = 1;
     kindCounts[@intFromEnum(TK.ir_enter)] = 3;
     kindCounts[@intFromEnum(TK.ir_exit)] = 3;
-    kindCounts[@intFromEnum(TK.ir_block_map)] = 3;
 
     var queue = try ir.IRQueue.init(std.testing.allocator);
     defer queue.deinit(std.testing.allocator);

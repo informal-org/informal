@@ -73,7 +73,6 @@ pub const IR = struct {
         const blockCount = 1 + counts[@intFromEnum(TK.grp_indent)] + counts[@intFromEnum(TK.grp_dedent)];
         counts[@intFromEnum(TK.grp_indent)] = 0;
         counts[@intFromEnum(TK.grp_dedent)] = 0;
-        counts[@intFromEnum(TK.ir_block_map)] += blockCount;
         counts[@intFromEnum(TK.ir_enter)] += blockCount;
         counts[@intFromEnum(TK.ir_exit)] += blockCount;
         return counts;

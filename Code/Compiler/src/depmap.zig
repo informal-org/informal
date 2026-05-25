@@ -45,7 +45,7 @@ pub const DepMap = struct {
         }
 
         fn addNodeDependencies(self: *BlockState, index: u32, kind: TK, node: irq.Node) void {
-            const localIndex = self.blockIter.getBlockLocalIndex(index) orelse unreachable;
+            const localIndex = self.blockIter.blockIdToLocalId(index) orelse unreachable;
             self.deps[self.blockOutputStart + localIndex] = BitSet.initEmpty();
 
             if (bitset.isKind(tok.BINARY_OPS, kind)) {
@@ -75,7 +75,7 @@ pub const DepMap = struct {
         fn addDependency(self: *BlockState, localIndex: u32, dependencyIndex: u32) void {
             std.debug.assert(dependencyIndex < self.inputIds.len);
             const outputSlot = self.blockOutputStart + localIndex;
-            const dependencyLocalIndex = self.blockIter.getBlockLocalIndex(dependencyIndex) orelse {
+            const dependencyLocalIndex = self.blockIter.blockIdToLocalId(dependencyIndex) orelse {
                 self.deps[outputSlot].setUnion(self.inputBit(dependencyIndex));
                 return;
             };
@@ -120,7 +120,7 @@ pub const DepMap = struct {
     }
 
     pub fn reserve(self: *Self, allocator: Allocator, irQ: *const IRQueue) !void {
-        const totalLen = irQ.list.items.len - irQ.kindRanges.reservedLen(@intFromEnum(TK.ir_block_map));
+        const totalLen = irQ.list.items.len;
         try self.depsList.resize(allocator, totalLen);
         @memset(self.depsList.items, BitSet.initEmpty());
         try self.refsList.resize(allocator, totalLen);
