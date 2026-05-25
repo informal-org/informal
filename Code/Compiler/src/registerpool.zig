@@ -1,3 +1,8 @@
+// Policy for "which register?" used by regalloc.zig. Holds three parallel views of
+// pool state: a free-bit set, an LRU of currently-allocated registers (eviction
+// order), and a back-pointer from register index to the IR node living there.
+// See Docs/Specs/regalloc.md.
+
 const std = @import("std");
 const bitset = @import("bitset.zig");
 const lru = @import("lru.zig");
@@ -36,12 +41,16 @@ pub const RegisterPool = struct {
     }
 
     pub fn allocate(self: *Self, index: u32) !Allocation {
+        // Prefer a free register even when the LRU is non-empty: reusing a live one
+        // would just defer the eviction cost to the next allocation.
         if (self.free_registers.findFirstSet()) |free_register| {
             const reg: u8 = @intCast(free_register);
             self.assign(index, reg);
             return .{ .register = reg };
         }
 
+        // No free regs — evict least-recently-touched. Caller (regalloc) is responsible
+        // for assigning the evicted node a spill slot and emitting a load.
         const reg = self.recent_registers.popLru() orelse return error.NoRegisterToSpill;
         const evicted = self.register_values[reg];
         std.debug.assert(evicted != NO_NODE);
@@ -59,6 +68,8 @@ pub const RegisterPool = struct {
     }
 
     pub fn touch(self: *Self, reg: u8) void {
+        // Refresh LRU position without changing allocation state. Used when a still-
+        // live value is read again so a nearby allocation doesn't evict it.
         std.debug.assert(self.register_pool.isSet(reg));
         std.debug.assert(!self.free_registers.isSet(reg));
         std.debug.assert(self.register_values[reg] != NO_NODE);

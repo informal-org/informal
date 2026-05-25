@@ -16,7 +16,15 @@ const Sequence = sequence.Sequence;
 const TK = tok.Kind;
 const Token = tok.Token;
 
+// Backward linear-scan allocator. Walks each block's Sequence layers in reverse,
+// so a node is first seen at its last use (where we allocate) and last seen at its
+// definition (where we free). Tokens are pushed in reverse program order; popToken
+// then yields them forward for codegen. See Docs/Specs/regalloc.md.
+
 pub const MAX_REGISTERS = registerpool.MAX_REGISTERS;
+// u16 location encoding: [0, MAX_REGISTERS) = register, [SPILL_BASE, FIRST_SENTINEL)
+// = spill slot, top three values = sentinels. Disjoint ranges keep isRegister/isSpill
+// as simple range checks.
 pub const UNASSIGNED_LOCATION = std.math.maxInt(u16);
 pub const FREED_LOCATION = UNASSIGNED_LOCATION - 1;
 pub const NO_LOCATION = UNASSIGNED_LOCATION - 2;
@@ -85,6 +93,8 @@ pub const RegAlloc = struct {
     }
 
     fn buildBlock(self: *Self, irQ: *const IRQueue, block_iter: *const BlockIterator, layers: []const BitSet) !void {
+        // Layers walked last-to-first (backward). Within a layer the order is free
+        // since members are mutually independent; @clz pops high bit first.
         var layer_index = layers.len;
         while (layer_index > 0) {
             layer_index -= 1;
@@ -100,6 +110,8 @@ pub const RegAlloc = struct {
     fn processElement(self: *Self, irQ: *const IRQueue, index: u32) !void {
         const kind = irQ.indexToKind(index);
         const node = irQ.get(index);
+        // Finalize the result first so its register is free when we allocate operands
+        // — lets a binary op reuse the result reg as an input without an extra spill.
         const result = try self.declareResult(index);
         if (bitset.isKind(tok.LITERALS, kind)) {
             try self.pushToken(Token.regLiteral(kind, node.args.left, result));
@@ -119,8 +131,11 @@ pub const RegAlloc = struct {
     }
 
     fn declareResult(self: *Self, index: u32) !u16 {
+        // The slot tells us what later-program-order consumers (visited earlier in
+        // this backward walk) already chose for this value.
         const current_location = self.location(index);
         if (isRegister(current_location)) {
+            // A consumer pinned it to this register — the producer writes there.
             const reg: u8 = @intCast(current_location);
             self.register_pool.free(reg);
             self.setLocation(index, FREED_LOCATION);
@@ -128,6 +143,8 @@ pub const RegAlloc = struct {
         }
 
         if (isSpill(current_location)) {
+            // Consumers reload from this spill slot; allocate a reg, write, then store
+            // so the spill is materialized right after the producer in forward order.
             const spill_location = current_location;
             const reg = try self.allocateRegisterFor(index);
             try self.emitStore(reg, spill_location);
@@ -137,6 +154,7 @@ pub const RegAlloc = struct {
         }
 
         std.debug.assert(current_location == UNASSIGNED_LOCATION);
+        // Reached only for live-output nodes whose value the block didn't otherwise need.
         const reg = try self.allocateRegisterFor(index);
         self.register_pool.free(reg);
         self.setLocation(index, FREED_LOCATION);
@@ -165,11 +183,15 @@ pub const RegAlloc = struct {
     fn useDependency(self: *Self, index: u32) !u16 {
         const current_location = self.location(index);
         if (isRegister(current_location)) {
+            // Another later-program-order consumer already pinned the dep. Touch the
+            // LRU so an upcoming allocation in this same op doesn't evict it.
             self.register_pool.touch(@intCast(current_location));
             return current_location;
         }
 
         if (isSpill(current_location)) {
+            // Dep was previously evicted; allocate a reg here and store to the spill
+            // slot so other consumers reloading from it see the same value.
             const spill_location = current_location;
             const reg = try self.allocateRegisterFor(index);
             try self.emitStore(reg, spill_location);
@@ -177,12 +199,17 @@ pub const RegAlloc = struct {
         }
 
         std.debug.assert(current_location == UNASSIGNED_LOCATION);
+        // First (= latest-in-program-order) consumer of this dep; this register becomes
+        // its home until the producer is reached and frees it in declareResult.
         return registerLocation(try self.allocateRegisterFor(index));
     }
 
     fn allocateRegisterFor(self: *Self, index: u32) !u8 {
         const allocation = try self.register_pool.allocate(index);
         if (allocation.evicted) |evicted_index| {
+            // The pool picked an occupant to evict. Assign it a spill slot and emit
+            // a load so that, in forward order, the evicted value is restored before
+            // its (later-in-program) consumer runs.
             const spill_location = try self.nextSpillLocation();
             self.setLocation(evicted_index, spill_location);
             try self.emitLoad(allocation.register, spill_location);
