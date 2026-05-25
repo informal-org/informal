@@ -91,8 +91,9 @@ Call         = 120  (reserved, not yet wired)
 | `groupBrace` | `grp_open_brace` | Same shape as `groupParen` with brace tokens |
 | `indentBlock` | `grp_indent` | See Indentation Blocks below |
 | `kwIf` | `kw_if` | See Conditionals below |
-| `kwElse` | `kw_else` | Errors if encountered as standalone prefix (must be consumed by `kwIf`) |
-| `kwFn` | `kw_fn` | See Functions below |
+| `kwElse` | `kw_else` | No-op stub; a standalone `else` is silently swallowed (no error yet) |
+
+`kw_fn` has no grammar entry — it falls through the default (`none` / `literal`) and is emitted as a bare token. Function declaration parsing is not yet wired (see Functions below).
 
 ### Infix Handlers
 
@@ -101,43 +102,54 @@ Call         = 120  (reserved, not yet wired)
 | `binaryOp` | Most binary ops | `parse(power + 1)` (left-assoc); emit operator |
 | `binaryRightAssocOp` | `op_pow` | `parse(power)` (right-assoc); emit operator |
 | `assignOp` | `op_assign_eq`, `op_plus_eq`, `op_minus_eq`, `op_mul_eq`, `op_div_eq` | Retroactively declare LHS; `parse(Assign)`; emit operator |
-| `colonAssocOp` | `op_colon_assoc` | `parse(Separator)`; emit token |
 | `separator` | `sep_comma`, `sep_newline` (infix) | `parse(Separator)` — continues expression after separator |
-| `opIdentifierInfix` | `const_identifier`, `op_identifier` | Resolve the identifier-family infix operator; emit as a binary op (`parse(power+1)` + emit resolved token) |
+
+`colonAssocOp` exists as a handler (`parse(Separator)` + emit) but has no grammar entry; `op_colon_assoc` is currently consumed directly by `kwIf`. `const_identifier` and `op_identifier` only have prefix entries — there is no infix handler that turns them into user-defined binary operators yet.
 
 ---
 
 ## Grouping Chain Emission
 
-Every `(…)`, `[…]`, and `{…}` group in `parsedQ` is a bidirectionally linked
-chain of tokens: the opener, each top-level `sep_comma` between args, and the
-matching close. Handlers emit tokens via three helpers:
+Every `(…)`, `[…]`, and `{…}` group in `parsedQ` is a doubly-linked chain
+through the opener, each top-level `sep_comma`, and the matching close. All
+three nodes share the same `Data.GroupLink` layout:
 
-- `emitGroupOpen(kind)`: push a stack frame with the emit index; emit a
-  `group_open` token with placeholder `arg_cnt`, `next_sep`, `close_offset`.
-- `emitGroupSep()`: patch the last link's `next_sep` to point at the new
-  `sep_comma`; emit a `sep_comma` with `arg_idx` (1-based post of the
-  preceding arg), `prev_sep` back to the last link, and zero `next_sep`.
-- `emitGroupClose(kind)`: patch the last link's `next_sep` to point at the
-  close; patch the opener's `arg_cnt` and `close_offset`; emit a
-  `group_close` with `open_offset` and `prev_sep`.
+```zig
+GroupLink = packed struct(u48) {
+    prev_offset: i16, // signed offset to the previous link in the chain
+    next_offset: i16, // signed offset to the next link
+    iter_offset: i16, // reserved; currently unused
+}
+```
 
-A parser frame (`GroupFrame { open_idx, last_sep_idx, arg_cnt }`) is kept on
-a fixed-size `[16]` stack; depth beyond 16 is a hard error. `arg_cnt` is
-incremented on each separator and one more on close iff the group was
-non-nullary (nullary is detected by seeing the close token as the first
-emission after the open).
+There are no separate `GroupOpen` / `GroupSep` / `GroupClose` variants and no
+`arg_cnt` / `close_offset` / `open_offset` fields. Linkage is built by a
+single helper, `emitChainedSep(prev_sep_idx, sep_token)`:
 
-All three grouping handlers — `groupParen`, `groupBracket`, `groupBrace` —
-share the same loop shape: emit open, conditionally parse at `Separator`
-power, on top-level `,` pop and `emitGroupSep`, on close pop and
-`emitGroupClose`. `callExpr` follows the same shape (after popping its
-leading `grp_open_paren`) and then emits the trailing `call_identifier`.
-`kwFn` uses the same helpers around its parameter list so definition-site
-and call-site chains are structurally identical.
+1. Write `prev_offset` on the new token = signed offset from the new emit
+   index back to `prev_sep_idx`.
+2. Emit the token.
+3. Patch the previous link's `next_offset` to point forward at the new token.
 
-Top-level commas outside any group still dispatch to the ordinary
-`separator` infix handler.
+`groupDelim(open_kind, close_kind)` is the shared loop used by `groupParen`,
+`groupBracket`, and `groupBrace`:
+
+1. Emit the open token (no `emitChainedSep`; it has no predecessor yet).
+2. If the next syntax token isn't the close, loop: `parse(Separator)`; if the
+   next token is `sep_comma`, pop it and call `emitChainedSep` with a fresh
+   `sep_comma` token; otherwise break.
+3. Pop the close token from `syntaxQ` (asserted to match) and call
+   `emitChainedSep` for the close.
+
+`callExpr` pops the lexer-guaranteed `grp_open_paren`, runs `groupDelim`, then
+emits the `call_identifier` last (counted as `ir_use` for IR sizing).
+
+Top-level commas outside any group still dispatch to the ordinary `separator`
+infix handler.
+
+There is no explicit grouping stack and no fixed depth limit — nesting is
+handled by recursion through `parse()`. The opener's own `prev_offset` is
+never patched and the `iter_offset` field is reserved for future use.
 
 ## Indentation Blocks
 
@@ -145,7 +157,7 @@ Top-level commas outside any group still dispatch to the ordinary
 
 1. Capture current `scopeId` and `startIdx` (`parsedQ` length).
 2. Emit `grp_indent` with `Data.Scope.index = 0` (patched later), `scope_id = scopeId`.
-3. Call `resolution.startScope(.block)` — pushes scope and increments `scopeId`.
+3. Call `resolution.startScope({ start = startIdx, scopeType = .block })` — pushes the scope and increments `scopeId`.
 4. `parse(None)` — consumes the indented body.
 5. Pop `grp_dedent` from `syntaxQ` if present.
 6. Emit `grp_dedent` with `Data.Scope.index = startIdx`, `scope_id = scopeId`.
@@ -188,44 +200,35 @@ A standalone `else` without a preceding `if` is an error.
 
 ## Functions
 
-### Declaration
+**Status: not yet wired in the parser.** `kw_fn` is emitted by the lexer but
+has no entry in the parser grammar table, so it falls through the default
+`literal` handler and is emitted bare (with `Data.raw = 0`, i.e.
+`body_length = 0` if read as `FnHeader`). Function names, parameter lists,
+and bodies are not parsed into the structured layout described here.
 
-Functions are declared with `fn`, a name, parenthesized parameters, a colon, and a body expression. The function name is declared in the enclosing scope. Parameters are declared in a new `function` scope that is closed after parsing the body.
+Downstream, `codegen.zig` already special-cases `kw_fn` by reading
+`data.fn_header.body_length` and skipping that many tokens — so once the
+parser is taught to emit the header it will slot in without codegen
+changes. The intended shape and conventions are:
 
 **Syntax:**
 ```
 fn name(param1, param2): body_expression
 ```
 
-**parsedQ layout:**
+**Intended `parsedQ` layout:**
 ```
 name_decl kw_fn[body_length, body_offset] group_open param1_decl [sep_comma param_decl]* group_close [body tokens...]
 ```
 
-The parameter list is emitted as a grouping chain (see *Grouping Chain
-Emission*).
-
-The header token uses the `Data.FnHeader` layout:
-- `body_length: u32` — token count of everything that follows the header up to and including the final body token. Used by codegen to skip over the body.
+- `body_length: u32` — tokens to skip past the header (codegen jump-over).
 - `body_offset: u16` — distance from the header to the first body token (one past the matching `grp_close_paren`).
 
-The header's **kind** is always `kw_fn`. Param kinds (`identifier` vs
-`const_identifier`) are preserved at the declaration site so a later IR stage
-can recover lazy-vs-eager status. Parameter count is not stored — derive it
-by walking the param-list chain if needed.
-
-**Adjacency invariant:** the header is always at `parsedQ[declaration_index + 1]` where `declaration_index` is the function name's identifier token. Nothing is emitted between the two.
-
-**Example:** `fn add(a, b): a + b` emits:
-```
-decl(add) kw_fn[body_length=8, body_offset=6]
-group_open decl(a) sep_comma(arg_idx=1) decl(b) group_close
-ref(a) ref(b) op_add
-```
-
 Call-site lowering (ordinary calls and fexpr-style macro expansion) is
-deferred to a new IR stage between the parser and codegen. The historical
-design is preserved in `inline-expansion-spec.md` as a reference.
+deferred to a separate IR stage between the parser and codegen. The
+historical design is preserved in `inline-expansion-spec.md` as a
+reference. Calls today pass through to codegen's syscall stub and produce
+incorrect machine code until the IR lands.
 
 ---
 
@@ -251,15 +254,17 @@ Identifiers use `Data.Ident` (48 bits):
   flags.declaration = 1 at declaration sites
 ```
 
-Every identifier token sits in a **doubly-linked use-def chain**: you can walk backward from any use to its declaration in one hop, or forward from the declaration through all resolved uses via `next_offset`. The forward walk is what `kwFn` uses to locate a lazy parameter's single use so it can rewrite that use's kind to `ident_splice`.
+Every identifier token sits in a **doubly-linked use-def chain**: you can walk backward from any use to its declaration in one hop, or forward from the declaration through all resolved uses via `next_offset`.
 
 ### Declarations
 
-Triggered when `assignOp` fires or within `kwFn` for function names and parameters. The handler calls `resolution.declare(index, lastToken)`, which:
+Currently triggered only when `assignOp` fires (the LHS identifier is reclassified as a declaration in-place). Once function parsing lands, parameter and function-name declarations will also flow through `resolution.declare`. The handler calls `resolution.declare(index, lastToken)`, which:
 - Sets `flags.declaration = 1` on the emitted token.
-- Stores `prev_offset = 0` if this is the first declaration of the symbol, or the offset to the outer chain tail if shadowing (tracked in a bitset for cheap revert on `endScope`).
+- Stores `prev_offset = 0` if this is the first declaration of the symbol, or the offset to the outer chain tail if shadowing.
 - Updates `declarations[symbol_id] = index` (index becomes the new chain tail).
 - Walks and patches any pending forward references (only in `module`/`object` scopes).
+
+Shadow reversion on `endScope` is described in the spec but not yet active in code — see Resolution Spec.
 
 ### References
 
@@ -297,13 +302,12 @@ Token = packed struct(u64) {
 |---------|-----|--------|
 | `Ident` | Identifiers | `symbol_id: u16`, `prev_offset: u16`, `next_offset: u16` |
 | `Literal` | `lit_number`, `lit_string` | `value: u32`, `length: u16` |
-| `FnHeader` | `kw_fn`/`kw_lazy_fn` in `parsedQ` | `body_length: u32`, `body_offset: u16` |
+| `FnHeader` | `kw_fn` (intended; not yet emitted by parser) | `body_length: u32`, `body_offset: u16` |
 | `Scope` | `grp_indent`, `grp_dedent` | `index: u32`, `scope_id: u16` |
 | `Newline` | Syntax-queue `sep_newline` | `aux_index: u32`, `prev_offset: u16` |
 | `Aux` | Aux tokens | `position: u32`, `length: u16` |
-| `GroupOpen` | `grp_open_paren`, `grp_open_bracket`, `grp_open_brace` | `arg_cnt: u16`, `next_sep: u16` (to first sep or close), `close_offset: u16` (to matching close) |
-| `GroupSep` | `sep_comma` (inside a group) | `arg_idx: u16`, `prev_sep: u16`, `next_sep: u16` |
-| `GroupClose` | `grp_close_paren`, `grp_close_bracket`, `grp_close_brace` | `open_offset: u16`, `prev_sep: u16`, `_reserved: u16` |
+| `GroupLink` | All group endpoints — opens, `sep_comma` inside a group, and closes | `prev_offset: i16`, `next_offset: i16`, `iter_offset: i16` (reserved) |
+| `RegAlloc` / `RegLiteral` | Post-codegen register-assigned forms (`op_load`, `op_store`, literals after register allocation) | three u16 / u32+u16 register-id fields |
 
 ---
 
@@ -312,12 +316,15 @@ Token = packed struct(u64) {
 | Area | Status |
 |------|--------|
 | Unary ops (`NOT`, unary `-`) | `unaryOp` handler exists; parsing works but lacks full semantic wiring |
-| `if`/`else` | Implemented. Nested `elif` requires nesting `if` inside `else` — no dedicated `elif` token |
-| `fn` declarations | Implemented. Header kind is always `kw_fn`; param decls preserve their original kind (`identifier` / `const_identifier`) for later IR lowering |
+| `if`/`else` | Implemented. `kwElse` standalone is a no-op stub (does not error). Nested `elif` requires nesting `if` inside `else` |
+| `fn` declarations | **Not wired in the parser.** No grammar entry for `kw_fn`; token is passed through as a literal with empty `FnHeader`. Codegen knows how to skip a populated header but the parser doesn't emit one |
+| `op_colon_assoc` | `colonAssocOp` handler exists but is not registered in the grammar table; `kwIf` consumes the colon directly |
+| `op_identifier` / `const_identifier` infix | No infix handler — user-defined infix operators aren't recognized in expressions yet |
 | Call lowering / macro expansion | Deferred to the IR stage. Calls currently pass through to codegen's syscall stub and produce incorrect machine code until the IR lands |
 | `for` loops | Token kind defined; no handler registered |
-| Paren sub-expressions `(expr)` | `groupParen` handles it as prefix; commas inside not yet handled |
+| Paren sub-expressions `(expr)` | `groupParen` handles it as prefix |
 | `type_identifier` | Not in grammar table; currently unhandled |
+| `Call` binding power | Defined (120) but no token uses it |
 | `TBL_PRECEDENCE_FLUSH` | Defined in `token.zig` (shunting-yard artifact); not used by the Pratt parser |
 | Error recovery | Parse errors bubble up as Zig errors; no continuation |
 | `offsetQ` correctness | `emit` offset calculation has a TODO — may not produce correct source mapping |

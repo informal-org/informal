@@ -113,12 +113,11 @@ Tokens are encoded in one of three formats, which vary by kind.
 **Flags byte** (bits 7:0):
 ```
   7  6  5  4  3  2  1  0
-┌───────────────┬──┬──┬──┐
-│ reserved (5)  │sp│dc│al│
-└───────────────┴──┴──┴──┘
+┌──────────────────┬──┬──┐
+│ reserved (6)     │dc│al│
+└──────────────────┴──┴──┘
   al = alt bit (next token is in other queue)
-  dc = declaration (identifier is a declaration site)
-  sp = splice (marks lazy parameter expansion point in function bodies)
+  dc = declaration (identifier is a declaration site, set by the parser/resolver)
 ```
 
 

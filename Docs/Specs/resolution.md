@@ -11,7 +11,7 @@ Symbol resolution maps identifier references to their declarations within the pa
 - **Single-pass**: resolve symbols as they are parsed, no second traversal
 - **Scope-aware**: declarations are visible only within their enclosing scope
 - **Forward references**: allowed in module and object scopes; not in function or block scopes
-- **Cheap cleanup**: `endScope` reverts only the declarations that actually shadowed something (bitset-tracked)
+- **Cheap cleanup (planned)**: `endScope` is intended to revert only the declarations that actually shadowed something via a bitset; the bitset and revert pass are currently commented out (see *Current Limitations*)
 - **No heap AST**: resolution data is encoded directly in token fields — no separate symbol table output
 
 ---
@@ -55,7 +55,7 @@ decl@3 ──next──▶ use@8 ──next──▶ use@12
 ```
 
 - **`prev_offset`** on a resolved use points back to the declaration (one hop, always).
-- **`prev_offset`** on a declaration that shadows a prior declaration points back to the *tail* of the outer chain (declaration or most recent use) — whichever was active when the shadow started. This is what `endScope` reads to revert the state.
+- **`prev_offset`** on a declaration that shadows a prior declaration points back to the *tail* of the outer chain (declaration or most recent use) — whichever was active when the shadow started. (Intended for `endScope` to revert state; revert is not yet implemented.)
 - **`next_offset`** on the declaration and each intermediate use points to the next use. The final (most recent) node has `next_offset = 0`.
 
 `declarations[symbol_id]` is the **tail** of the chain — not always the declaration. It is:
@@ -74,12 +74,10 @@ For each declaration (`declare(index, token)`):
 
 1. Read `prev_tail = declarations[symbol_id]`.
 2. If `prev_tail == UNDECLARED_SENTINEL`: this is the first declaration of this symbol. `prev_offset = 0`.
-3. Otherwise this declaration *shadows* the outer chain. Set `prev_offset = calcOffset(u16, prev_tail, index)` so the outer tail can be restored later. Mark `index` in `shadow_masks`.
+3. Otherwise this declaration *shadows* the outer chain. Set `prev_offset = calcOffset(u16, prev_tail, index)` so the outer tail can be restored later. (A call to mark `index` in a shadow bitset is present but commented out — the revert pass is not yet active.)
 4. Emit the token via `token.newDeclaration(prev_offset)` — sets `flags.declaration = true`.
 5. Update `declarations[symbol_id] = index`.
 6. Call `resolveForwardDeclarations()` for module/object scopes (see below).
-
-If the resolver was instantiated with `ShadowMode.disallow`, step 3 returns `error.ShadowingDisallowed` instead. In `.disallow` mode, step 2 also sets the shadow bit — this is intentional, so sibling scopes (e.g. two separate blocks) can safely reuse the same names without the inner declarations leaking across.
 
 ---
 
@@ -142,19 +140,19 @@ Forward references are **not** supported in `function` or `block` scopes — ide
 **`endScope(index)`**:
 1. Pops the scope.
 2. If the scope's start token is a `grp_indent`, patches its `Data.Scope.index` with `index` (the block's end position).
-3. Calls `revertShadows(scope.start, index)` — see below.
+3. *Planned:* call `revertShadows(scope.start, index)`. Currently commented out — shadowed `declarations[]` entries persist past their scope's end.
 
-### revertShadows
+### revertShadows (planned, not active)
 
-`shadow_masks: []u64` is a bitset over `parsedQ` indices. A set bit at index `i` means the declaration at that position shadows a prior declaration and must be reverted when its scope ends.
+The intended design is a `shadow_masks: []u64` bitset over `parsedQ` indices. A set bit at index `i` would mean the declaration at that position shadows a prior declaration and must be reverted when its scope ends.
 
-`revertShadows` scans only the words in `[start/64, end/64]`, ignoring any that are `0`. For each set bit `i`:
+`revertShadows` would scan only the words in `[start/64, end/64]`, skipping any that are `0`. For each set bit `i`:
 - Read the declaration token at `i`. Extract `symbol_id` and `prev_offset`.
 - If `prev_offset == 0`: this was the first declaration of the symbol within the outer scope. Reset `declarations[symbol_id] = UNDECLARED_SENTINEL`.
 - Else: `declarations[symbol_id] = applyOffset(i16, i, prev_offset)` — restore the outer tail.
 - Clear the bit from the mask.
 
-Cost is O(shadows), not O(scope_size). Words with no set bits are skipped in O(1). The common case (no shadowing) scans one or two u64 words and exits immediately.
+Target cost is O(shadows), not O(scope_size). Neither the bitset nor the scan exists in the current code; `setShadowBit` and `revertShadows` calls are present as comments only.
 
 ---
 
@@ -162,23 +160,16 @@ Cost is O(shadows), not O(scope_size). Words with no set bits are skipped in O(1
 
 - `declarations: []u32` — indexed by `symbol_id`. Holds the current chain tail, or `UNDECLARED_SENTINEL (0)`.
 - `unresolved: []u32` — indexed by `symbol_id`. Head of the unresolved forward-ref chain, threaded through `prev_offset`.
-- `shadow_masks: []u64` — bitset over `parsedQ` indices. Grown on demand by `setShadowBit` when the write index outruns the current allocation.
-- `scopeStack` — dynamic array of `Scope`.
+- `scopeStack` — dynamic array of `Scope`, preallocated to depth 64. A `base` scope is appended at init.
 - `scopeId: u16` — monotonic scope identity counter.
 
----
-
-## Compile-Time Shadow Mode
-
-`Resolution = ResolutionImpl(.allow)` is the default. `ResolutionImpl(.disallow)` is a separate type whose `declare()` returns `error.ShadowingDisallowed` on any shadowing declaration. The branch is resolved at compile time, so the disallow variant compiles the shadow-check out of the hot path.
-
-Even in `.disallow` mode, `setShadowBit` is called on every declaration so that sibling scopes (e.g. two disjoint `block` scopes) can reuse the same symbol without the inner declarations leaking across. The revert pass treats those as "first declaration in the outer chain" (`prev_offset = 0`) and resets to `UNDECLARED_SENTINEL`.
+`Resolution` is a plain struct. There is no compile-time shadow-mode variant (allow/disallow) in the current code, and no shadow bitset; both are planned but inactive.
 
 ---
 
 ## Assumptions & Invariants
 
-- **Symbol IDs are preserved on declaration tokens.** `endScope` reads `symbol_id` from each shadowed declaration to know which `declarations[]` entry to revert. Codegen later overwrites `symbol_id` on declarations with an allocated register ID (`Token.assignReg`), which is fine because this happens strictly after all scopes have ended.
+- **Symbol IDs are preserved on declaration tokens.** This matters for the planned `endScope` revert, which would read `symbol_id` from each shadowed declaration to know which `declarations[]` entry to restore. Codegen later overwrites `symbol_id` on declarations with an allocated register ID (`Token.assignReg`), which is fine because this happens strictly after all scopes have ended.
 - **References' `symbol_id` may be overwritten by the unresolved-chain pointer** while they are still unresolved. `resolveForwardDeclarations` restores the correct `symbol_id` when it patches the ref.
 - **Chain tails are always reachable in one hop from the declaration.** Either the tail *is* the declaration, or its `prev_offset` points at the declaration directly.
 
@@ -188,6 +179,7 @@ Even in `.disallow` mode, `setShadowBit` is called on every declaration so that 
 
 | Area | Status |
 |------|--------|
+| Shadow reversion on `endScope` | Not implemented. `setShadowBit` and `revertShadows` calls are present as comments only, and there is no `shadow_masks` field. Shadowed `declarations[]` entries persist past their scope's end. |
 | Unresolved chain `symbol_id` transience | Refs on the unresolved chain temporarily lose their `symbol_id` (it's overwritten by the chain pointer). `resolveForwardDeclarations` restores it, but any pass that reads `symbol_id` on an unresolved ref before it is patched will see garbage. |
 | Forward refs outside scope | `unresolved[]` is reset only up to the current scope's start boundary. Refs from outer scopes remain unresolved across inner scope boundaries. |
-| Shadow mask growth | `setShadowBit` grows `shadow_masks` with `realloc`. A failed realloc is silently swallowed and the shadow bit is lost — declarations in overflowing positions would not be reverted. |
+| Scope stack depth | `scopeStack` is preallocated to 64 (`appendAssumeCapacity`) — deeper nesting will panic rather than grow. |
