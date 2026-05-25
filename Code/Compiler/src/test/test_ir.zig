@@ -36,11 +36,11 @@ fn expectBlockEndMap(queue: *const ir.IRQueue, blockIndex: u32, lengths: []const
 }
 
 fn expectInCurrentBlock(blockIter: anytype, index: u32) !void {
-    try expect(blockIter.blockIdToLocalId(index) != null);
+    try expect(blockIter.toBlockRelativeIndex(index) != null);
 }
 
 fn expectNotInCurrentBlock(blockIter: anytype, index: u32) !void {
-    try expect(blockIter.blockIdToLocalId(index) == null);
+    try expect(blockIter.toBlockRelativeIndex(index) == null);
 }
 
 fn expectBlockRange(blockIter: anytype, kind: TK, start: u32, end: u32) !void {
@@ -252,12 +252,17 @@ test "IR block iterator tracks membership by kind" {
     try expectInCurrentBlock(&blockIter, firstEnter);
     try expectNotInCurrentBlock(&blockIter, secondBlockFirstAdd);
     try expectNotInCurrentBlock(&blockIter, lastLit);
-    try expectEqual(@as(?u32, 0), blockIter.blockIdToLocalId(firstAdd));
-    try expectEqual(@as(?u32, 1), blockIter.blockIdToLocalId(firstLit));
-    try expectEqual(@as(?u32, 2), blockIter.blockIdToLocalId(secondLit));
-    try expectEqual(@as(?u32, 3), blockIter.blockIdToLocalId(firstExit));
-    try expectEqual(@as(?u32, 4), blockIter.blockIdToLocalId(firstEnter));
-    try expectEqual(@as(?u32, null), blockIter.blockIdToLocalId(secondBlockFirstAdd));
+    try expectEqual(@as(?u32, 0), blockIter.toBlockRelativeIndex(firstAdd));
+    try expectEqual(@as(?u32, 1), blockIter.toBlockRelativeIndex(firstLit));
+    try expectEqual(@as(?u32, 2), blockIter.toBlockRelativeIndex(secondLit));
+    try expectEqual(@as(?u32, 3), blockIter.toBlockRelativeIndex(firstExit));
+    try expectEqual(@as(?u32, 4), blockIter.toBlockRelativeIndex(firstEnter));
+    try expectEqual(@as(?u32, null), blockIter.toBlockRelativeIndex(secondBlockFirstAdd));
+    try expectEqual(firstAdd, blockIter.toAbsoluteIndex(0));
+    try expectEqual(firstLit, blockIter.toAbsoluteIndex(1));
+    try expectEqual(secondLit, blockIter.toAbsoluteIndex(2));
+    try expectEqual(firstExit, blockIter.toAbsoluteIndex(3));
+    try expectEqual(firstEnter, blockIter.toAbsoluteIndex(4));
     var kindIter = blockIter.kindIterator();
     var kind = kindIter.next().?;
     try expectEqual(TK.op_add, kind);
@@ -283,12 +288,17 @@ test "IR block iterator tracks membership by kind" {
     try expectInCurrentBlock(&blockIter, lastLit);
     try expectInCurrentBlock(&blockIter, firstExit + 1);
     try expectInCurrentBlock(&blockIter, firstEnter + 1);
-    try expectEqual(@as(?u32, 0), blockIter.blockIdToLocalId(secondBlockFirstAdd));
-    try expectEqual(@as(?u32, 1), blockIter.blockIdToLocalId(lastAdd));
-    try expectEqual(@as(?u32, 2), blockIter.blockIdToLocalId(lastLit));
-    try expectEqual(@as(?u32, 3), blockIter.blockIdToLocalId(firstExit + 1));
-    try expectEqual(@as(?u32, 4), blockIter.blockIdToLocalId(firstEnter + 1));
-    try expectEqual(@as(?u32, null), blockIter.blockIdToLocalId(firstAdd));
+    try expectEqual(@as(?u32, 0), blockIter.toBlockRelativeIndex(secondBlockFirstAdd));
+    try expectEqual(@as(?u32, 1), blockIter.toBlockRelativeIndex(lastAdd));
+    try expectEqual(@as(?u32, 2), blockIter.toBlockRelativeIndex(lastLit));
+    try expectEqual(@as(?u32, 3), blockIter.toBlockRelativeIndex(firstExit + 1));
+    try expectEqual(@as(?u32, 4), blockIter.toBlockRelativeIndex(firstEnter + 1));
+    try expectEqual(@as(?u32, null), blockIter.toBlockRelativeIndex(firstAdd));
+    try expectEqual(secondBlockFirstAdd, blockIter.toAbsoluteIndex(0));
+    try expectEqual(lastAdd, blockIter.toAbsoluteIndex(1));
+    try expectEqual(lastLit, blockIter.toAbsoluteIndex(2));
+    try expectEqual(firstExit + 1, blockIter.toAbsoluteIndex(3));
+    try expectEqual(firstEnter + 1, blockIter.toAbsoluteIndex(4));
     kindIter = blockIter.kindIterator();
     kind = kindIter.next().?;
     try expectEqual(TK.op_add, kind);
@@ -340,7 +350,8 @@ test "IR block iterator reads compact end map at 64 elements" {
     try expectEqual(@as(u32, 64), blockIter.blockLen());
     try expectInCurrentBlock(&blockIter, firstLit);
     try expectInCurrentBlock(&blockIter, lastLit);
-    try expectEqual(@as(?u32, 61), blockIter.blockIdToLocalId(lastLit));
+    try expectEqual(@as(?u32, 61), blockIter.toBlockRelativeIndex(lastLit));
+    try expectEqual(lastLit, blockIter.toAbsoluteIndex(61));
     var kindIter = blockIter.kindIterator();
     var kind = kindIter.next().?;
     try expectEqual(TK.lit_number, kind);

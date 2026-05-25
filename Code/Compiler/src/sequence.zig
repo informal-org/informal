@@ -114,7 +114,7 @@ fn blockOutputLocalIndex(irQ: *const IRQueue, blockIter: *const BlockIterator) ?
     std.debug.assert(exitRange.len() == 1);
 
     const outputIndex = irQ.get(exitRange.start).args.right;
-    const outputLocalIndex = blockIter.blockIdToLocalId(outputIndex) orelse return null;
+    const outputLocalIndex = blockIter.toBlockRelativeIndex(outputIndex) orelse return null;
     if (irQ.indexToKind(outputIndex) == TK.ir_enter) return null;
     return outputLocalIndex;
 }
