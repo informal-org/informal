@@ -185,8 +185,9 @@ pub const Data = packed union {
     };
 
     pub const RegAlloc = packed struct(u48) {
-        left: u24,
-        right: u24,
+        left: u16,
+        right: u16,
+        result: u16,
     };
 };
 
@@ -220,10 +221,10 @@ pub const Token = packed struct(u64) {
         };
     }
 
-    pub fn regAlloc(kind: Kind, left: u24, right: u24) Token {
+    pub fn regAlloc(kind: Kind, left: u16, right: u16, result: u16) Token {
         return Token{
             .kind = kind,
-            .data = .{ .regalloc = .{ .left = left, .right = right } },
+            .data = .{ .regalloc = .{ .left = left, .right = right, .result = result } },
             .flags = Flags.empty(),
         };
     }
@@ -328,7 +329,7 @@ pub const TokenWriter = struct {
                 try std.fmt.format(writer, "{s} {s} [body_length={d} body_offset={d}]", .{ @tagName(value.kind), alt, value.data.fn_header.body_length, value.data.fn_header.body_offset });
             },
             TK.op_load, TK.op_store => {
-                try std.fmt.format(writer, "{s} {s} [{d}, {d}]", .{ @tagName(value.kind), alt, value.data.regalloc.left, value.data.regalloc.right });
+                try std.fmt.format(writer, "{s} {s} [{d}, {d} => {d}]", .{ @tagName(value.kind), alt, value.data.regalloc.left, value.data.regalloc.right, value.data.regalloc.result });
             },
             else => {
                 try std.fmt.format(writer, "{s} {s}", .{ @tagName(value.kind), alt });

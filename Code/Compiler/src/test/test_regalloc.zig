@@ -70,18 +70,21 @@ test "RegAlloc assigns registers walking sequence layers backwards" {
 
     const first = popToken(&pipeline.regs);
     try expectEqual(TK.lit_number, first.kind);
-    try expectEqual(regalloc.registerLocation(0), first.data.regalloc.left);
+    try expectEqual(regalloc.NO_LOCATION, first.data.regalloc.left);
     try expectEqual(regalloc.NO_LOCATION, first.data.regalloc.right);
+    try expectEqual(regalloc.registerLocation(0), first.data.regalloc.result);
 
     const second = popToken(&pipeline.regs);
     try expectEqual(TK.lit_number, second.kind);
-    try expectEqual(regalloc.registerLocation(1), second.data.regalloc.left);
+    try expectEqual(regalloc.NO_LOCATION, second.data.regalloc.left);
     try expectEqual(regalloc.NO_LOCATION, second.data.regalloc.right);
+    try expectEqual(regalloc.registerLocation(1), second.data.regalloc.result);
 
     const add_token = popToken(&pipeline.regs);
     try expectEqual(TK.op_add, add_token.kind);
     try expectEqual(regalloc.registerLocation(0), add_token.data.regalloc.left);
     try expectEqual(regalloc.registerLocation(1), add_token.data.regalloc.right);
+    try expectEqual(regalloc.registerLocation(0), add_token.data.regalloc.result);
 
     try expect(pipeline.regs.popToken() == null);
 }
@@ -117,10 +120,12 @@ test "RegAlloc emits spill load and store tokens with LRU register reuse" {
         switch (token.kind) {
             TK.op_store => {
                 try expect(regalloc.isSpill(token.data.regalloc.left));
+                try expectEqual(regalloc.NO_LOCATION, token.data.regalloc.result);
                 stored_slots.set(@intCast(regalloc.spillSlot(token.data.regalloc.left)));
             },
             TK.op_load => {
                 try expect(regalloc.isSpill(token.data.regalloc.right));
+                try expectEqual(regalloc.NO_LOCATION, token.data.regalloc.result);
                 const slot: usize = @intCast(regalloc.spillSlot(token.data.regalloc.right));
                 if (stored_slots.isSet(slot)) saw_load_after_store = true;
             },

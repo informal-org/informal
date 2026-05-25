@@ -17,22 +17,22 @@ const TK = tok.Kind;
 const Token = tok.Token;
 
 pub const MAX_REGISTERS = registerpool.MAX_REGISTERS;
-pub const UNASSIGNED_LOCATION = std.math.maxInt(u24);
+pub const UNASSIGNED_LOCATION = std.math.maxInt(u16);
 pub const FREED_LOCATION = UNASSIGNED_LOCATION - 1;
 pub const NO_LOCATION = UNASSIGNED_LOCATION - 2;
-pub const SPILL_BASE = @as(u24, 1) << 23;
+pub const SPILL_BASE = @as(u16, 1) << 15;
 const FIRST_SENTINEL = NO_LOCATION;
 
 pub const RegAlloc = struct {
     const Self = @This();
     const TokenList = std.array_list.Aligned(Token, null);
-    const LocationList = std.array_list.Aligned(u24, null);
+    const LocationList = std.array_list.Aligned(u16, null);
 
     allocator: Allocator,
     register_pool: RegisterPool,
     token_stack: TokenList,
     locations: LocationList,
-    next_spill_slot: u24 = 0,
+    next_spill_slot: u16 = 0,
 
     pub fn init(allocator: Allocator, register_count: u8) !Self {
         return .{
@@ -96,10 +96,10 @@ pub const RegAlloc = struct {
     fn processElement(self: *Self, irQ: *const IRQueue, index: u32) !void {
         const kind = irQ.indexToKind(index);
         const node = irQ.get(index);
-        const output = try self.declareResult(index);
-        const operands = try self.operandsFor(irQ, kind, node, output);
+        const result = try self.declareResult(index);
+        const operands = try self.operandsFor(irQ, kind, node);
 
-        try self.pushToken(Token.regAlloc(kind, operands[0], operands[1]));
+        try self.pushToken(Token.regAlloc(kind, operands[0], operands[1], result));
     }
 
     fn reset(self: *Self) void {
@@ -109,7 +109,7 @@ pub const RegAlloc = struct {
         self.next_spill_slot = 0;
     }
 
-    fn declareResult(self: *Self, index: u32) !u24 {
+    fn declareResult(self: *Self, index: u32) !u16 {
         const current_location = self.location(index);
         if (isRegister(current_location, self.register_pool.registerCount())) {
             const reg: u8 = @intCast(current_location);
@@ -134,7 +134,7 @@ pub const RegAlloc = struct {
         return registerLocation(reg);
     }
 
-    fn operandsFor(self: *Self, irQ: *const IRQueue, kind: TK, node: irq.Node, output: u24) ![2]u24 {
+    fn operandsFor(self: *Self, irQ: *const IRQueue, kind: TK, node: irq.Node) ![2]u16 {
         _ = irQ;
         if (bitset.isKind(tok.BINARY_OPS, kind)) {
             return .{
@@ -150,10 +150,10 @@ pub const RegAlloc = struct {
             };
         }
 
-        return .{ output, NO_LOCATION };
+        return .{ NO_LOCATION, NO_LOCATION };
     }
 
-    fn useDependency(self: *Self, index: u32) !u24 {
+    fn useDependency(self: *Self, index: u32) !u16 {
         const current_location = self.location(index);
         if (isRegister(current_location, self.register_pool.registerCount())) {
             self.register_pool.touch(@intCast(current_location));
@@ -182,18 +182,18 @@ pub const RegAlloc = struct {
         return allocation.register;
     }
 
-    fn nextSpillLocation(self: *Self) !u24 {
+    fn nextSpillLocation(self: *Self) !u16 {
         if (self.next_spill_slot >= FIRST_SENTINEL - SPILL_BASE) return error.TooManySpills;
         const spill_location = SPILL_BASE + self.next_spill_slot;
         self.next_spill_slot += 1;
         return spill_location;
     }
 
-    fn location(self: *const Self, index: u32) u24 {
+    fn location(self: *const Self, index: u32) u16 {
         return self.locations.items[index];
     }
 
-    fn setLocation(self: *Self, index: u32, new_location: u24) void {
+    fn setLocation(self: *Self, index: u32, new_location: u16) void {
         self.locations.items[index] = new_location;
     }
 
@@ -201,29 +201,29 @@ pub const RegAlloc = struct {
         try self.token_stack.append(self.allocator, token);
     }
 
-    fn emitLoad(self: *Self, reg: u8, spill_location: u24) !void {
-        try self.pushToken(Token.regAlloc(TK.op_load, registerLocation(reg), spill_location));
+    fn emitLoad(self: *Self, reg: u8, spill_location: u16) !void {
+        try self.pushToken(Token.regAlloc(TK.op_load, registerLocation(reg), spill_location, NO_LOCATION));
     }
 
-    fn emitStore(self: *Self, reg: u8, spill_location: u24) !void {
-        try self.pushToken(Token.regAlloc(TK.op_store, spill_location, registerLocation(reg)));
+    fn emitStore(self: *Self, reg: u8, spill_location: u16) !void {
+        try self.pushToken(Token.regAlloc(TK.op_store, spill_location, registerLocation(reg), NO_LOCATION));
     }
 };
 
-pub fn registerLocation(reg: u8) u24 {
+pub fn registerLocation(reg: u8) u16 {
     std.debug.assert(reg < MAX_REGISTERS);
     return @intCast(reg);
 }
 
-pub fn isRegister(location: u24, register_count: u8) bool {
+pub fn isRegister(location: u16, register_count: u8) bool {
     return location < register_count;
 }
 
-pub fn isSpill(location: u24) bool {
+pub fn isSpill(location: u16) bool {
     return location >= SPILL_BASE and location < FIRST_SENTINEL;
 }
 
-pub fn spillSlot(location: u24) u24 {
+pub fn spillSlot(location: u16) u16 {
     std.debug.assert(isSpill(location));
     return location - SPILL_BASE;
 }
