@@ -18,12 +18,21 @@ pub const Blocks = struct {
     };
     const BlockList = std.array_list.Aligned(Block, null);
 
-    pub const BlockRange = packed struct(u64) {
+    pub const BlockRange = packed struct(u96) {
         start: u32,
         end: u32, // Exclusive.
+        localBase: u32,
 
         pub fn len(self: BlockRange) u32 {
             return self.end - self.start;
+        }
+    };
+    const KindIterator = struct {
+        iter: KindBitSetIterator,
+
+        pub fn next(self: *KindIterator) ?TK {
+            const kindIndex = self.iter.next() orelse return null;
+            return @enumFromInt(kindIndex);
         }
     };
 
@@ -96,20 +105,16 @@ pub const Blocks = struct {
 
             queue: *const Queue = undefined,
             blockIndex: u32 = 0,
-            kindNextStarts: [KIND_COUNT]u32 = [_]u32{0} ** KIND_COUNT,
-            kindBlockRanges: [KIND_COUNT]BlockRange = [_]BlockRange{.{ .start = 0, .end = 0 }} ** KIND_COUNT,
-            blockLocalBases: [KIND_COUNT]u32 = [_]u32{0} ** KIND_COUNT,
-            nextKindIter: KindBitSetIterator = KindBitSet.initEmpty().iterator(.{}),
+            kindBlockRanges: [KIND_COUNT]BlockRange = [_]BlockRange{.{ .start = 0, .end = 0, .localBase = 0 }} ** KIND_COUNT,
 
             pub fn initIterator(self: *IterSelf, queue: *const Queue) void {
                 self.queue = queue;
                 self.blockIndex = 0;
-                for (&self.kindNextStarts, 0..) |*start, kindIndex| {
-                    start.* = queue.kindRanges.reservedStart(kindIndex);
+                var kindIndex: usize = 0;
+                while (kindIndex < KIND_COUNT) : (kindIndex += 1) {
+                    const start = queue.kindRanges.reservedStart(kindIndex);
+                    self.kindBlockRanges[kindIndex] = .{ .start = start, .end = start, .localBase = 0 };
                 }
-                self.kindBlockRanges = [_]BlockRange{.{ .start = 0, .end = 0 }} ** KIND_COUNT;
-                self.blockLocalBases = [_]u32{0} ** KIND_COUNT;
-                self.nextKindIter = KindBitSet.initEmpty().iterator(.{});
             }
 
             pub fn hasMoreBlocks(self: *const IterSelf) bool {
@@ -129,21 +134,17 @@ pub const Blocks = struct {
                 while (kindIter.next()) |kindIndex| {
                     const localEnd: u32 = @intCast((endIter.next() orelse unreachable) + 1);
                     std.debug.assert(localEnd > localStart);
-                    const start = self.kindNextStarts[kindIndex];
+                    const start = self.kindBlockRanges[kindIndex].end;
                     const end = start + localEnd - localStart;
-                    self.kindBlockRanges[kindIndex] = .{ .start = start, .end = end };
-                    self.kindNextStarts[kindIndex] = end;
-                    self.blockLocalBases[kindIndex] = localStart;
+                    self.kindBlockRanges[kindIndex] = .{ .start = start, .end = end, .localBase = localStart };
                     localStart = localEnd;
                 }
                 std.debug.assert(endIter.next() == null);
-
-                self.nextKindIter = blockInfo.kinds.iterator(.{});
             }
 
-            pub fn nextKind(self: *IterSelf) ?TK {
-                const kindIndex = self.nextKindIter.next() orelse return null;
-                return @enumFromInt(kindIndex);
+            pub fn kindIterator(self: *const IterSelf) KindIterator {
+                std.debug.assert(self.blockIndex > 0);
+                return .{ .iter = self.queue.blocks.block(self.blockIndex - 1).kinds.iterator(.{}) };
             }
 
             pub fn blockRange(self: *const IterSelf, kind: TK) BlockRange {
@@ -171,7 +172,7 @@ pub const Blocks = struct {
                 const range = self.kindBlockRanges[kindIndex];
                 if (absoluteIndex < range.start or absoluteIndex >= range.end) return null;
 
-                return self.blockLocalBases[kindIndex] + absoluteIndex - range.start;
+                return range.localBase + absoluteIndex - range.start;
             }
         };
     }

@@ -258,19 +258,20 @@ test "IR block iterator tracks membership by kind" {
     try expectEqual(@as(?u32, 3), blockIter.blockIdToLocalId(firstExit));
     try expectEqual(@as(?u32, 4), blockIter.blockIdToLocalId(firstEnter));
     try expectEqual(@as(?u32, null), blockIter.blockIdToLocalId(secondBlockFirstAdd));
-    var kind = blockIter.nextKind().?;
+    var kindIter = blockIter.kindIterator();
+    var kind = kindIter.next().?;
     try expectEqual(TK.op_add, kind);
     try expectBlockRange(&blockIter, kind, firstAdd, firstAdd + 1);
-    kind = blockIter.nextKind().?;
+    kind = kindIter.next().?;
     try expectEqual(TK.lit_number, kind);
     try expectBlockRange(&blockIter, kind, firstLit, secondLit + 1);
-    kind = blockIter.nextKind().?;
+    kind = kindIter.next().?;
     try expectEqual(TK.ir_exit, kind);
     try expectBlockRange(&blockIter, kind, firstExit, firstExit + 1);
-    kind = blockIter.nextKind().?;
+    kind = kindIter.next().?;
     try expectEqual(TK.ir_enter, kind);
     try expectBlockRange(&blockIter, kind, firstEnter, firstEnter + 1);
-    try expectEqual(@as(?TK, null), blockIter.nextKind());
+    try expect(kindIter.next() == null);
 
     try expect(blockIter.hasMoreBlocks());
     blockIter.nextBlock();
@@ -288,19 +289,20 @@ test "IR block iterator tracks membership by kind" {
     try expectEqual(@as(?u32, 3), blockIter.blockIdToLocalId(firstExit + 1));
     try expectEqual(@as(?u32, 4), blockIter.blockIdToLocalId(firstEnter + 1));
     try expectEqual(@as(?u32, null), blockIter.blockIdToLocalId(firstAdd));
-    kind = blockIter.nextKind().?;
+    kindIter = blockIter.kindIterator();
+    kind = kindIter.next().?;
     try expectEqual(TK.op_add, kind);
     try expectBlockRange(&blockIter, kind, secondBlockFirstAdd, lastAdd + 1);
-    kind = blockIter.nextKind().?;
+    kind = kindIter.next().?;
     try expectEqual(TK.lit_number, kind);
     try expectBlockRange(&blockIter, kind, lastLit, lastLit + 1);
-    kind = blockIter.nextKind().?;
+    kind = kindIter.next().?;
     try expectEqual(TK.ir_exit, kind);
     try expectBlockRange(&blockIter, kind, firstExit + 1, firstExit + 2);
-    kind = blockIter.nextKind().?;
+    kind = kindIter.next().?;
     try expectEqual(TK.ir_enter, kind);
     try expectBlockRange(&blockIter, kind, firstEnter + 1, firstEnter + 2);
-    try expectEqual(@as(?TK, null), blockIter.nextKind());
+    try expect(kindIter.next() == null);
     try expect(!blockIter.hasMoreBlocks());
 
     blockIter.initIterator(&queue);
@@ -339,16 +341,17 @@ test "IR block iterator reads compact end map at 64 elements" {
     try expectInCurrentBlock(&blockIter, firstLit);
     try expectInCurrentBlock(&blockIter, lastLit);
     try expectEqual(@as(?u32, 61), blockIter.blockIdToLocalId(lastLit));
-    var kind = blockIter.nextKind().?;
+    var kindIter = blockIter.kindIterator();
+    var kind = kindIter.next().?;
     try expectEqual(TK.lit_number, kind);
     try expectBlockRange(&blockIter, kind, firstLit, lastLit + 1);
-    kind = blockIter.nextKind().?;
+    kind = kindIter.next().?;
     try expectEqual(TK.ir_exit, kind);
     try expectBlockRange(&blockIter, kind, firstExit, firstExit + 1);
-    kind = blockIter.nextKind().?;
+    kind = kindIter.next().?;
     try expectEqual(TK.ir_enter, kind);
     try expectBlockRange(&blockIter, kind, firstEnter, firstEnter + 1);
-    try expectEqual(@as(?TK, null), blockIter.nextKind());
+    try expect(kindIter.next() == null);
     try expect(!blockIter.hasMoreBlocks());
 }
 

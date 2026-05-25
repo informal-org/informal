@@ -163,7 +163,8 @@ pub const DepMap = struct {
     fn buildBlock(self: *Self, irQ: *const IRQueue, blockIter: anytype, blockOutputStart: u32) void {
         var blockState = BlockState.init(self, blockIter, blockOutputStart);
 
-        while (blockIter.nextKind()) |kind| {
+        var kindIter = blockIter.kindIterator();
+        while (kindIter.next()) |kind| {
             const range = blockIter.blockRange(kind);
             var index = range.start;
             while (index < range.end) : (index += 1) {
