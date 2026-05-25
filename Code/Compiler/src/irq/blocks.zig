@@ -29,26 +29,23 @@ pub const Blocks = struct {
 
     activeKindStarts: [KIND_COUNT]u32 = [_]u32{0} ** KIND_COUNT,
     blocks: BlockList = .empty,
-    cursor: u32 = 0,
 
     pub fn reserve(self: *Self, allocator: Allocator, reservedBlockCount: u32) !void {
         const capacity: usize = @intCast(reservedBlockCount);
         self.blocks.clearRetainingCapacity();
         try self.blocks.ensureTotalCapacity(allocator, capacity);
-        self.blocks.appendNTimesAssumeCapacity(.{ .kinds = KindBitSet.initEmpty(), .ends = KindEndSet.initEmpty() }, capacity);
         self.activeKindStarts = [_]u32{0} ** KIND_COUNT;
-        self.cursor = 0;
     }
 
     pub fn startBlock(self: *Self) void {
-        std.debug.assert(self.cursor < self.blocks.items.len);
-        self.blocks.items[@intCast(self.cursor)] = .{ .kinds = KindBitSet.initEmpty(), .ends = KindEndSet.initEmpty() };
+        std.debug.assert(self.blocks.items.len < self.blocks.capacity);
+        self.blocks.appendAssumeCapacity(.{ .kinds = KindBitSet.initEmpty(), .ends = KindEndSet.initEmpty() });
     }
 
     pub fn endBlock(self: *Self, kindRanges: *const KindRanges) void {
-        std.debug.assert(self.cursor < self.blocks.items.len);
-        const blockIndex: usize = @intCast(self.cursor);
-        const blockInfo = &self.blocks.items[blockIndex];
+        std.debug.assert(self.blocks.items.len > 0);
+        const blockInfo = &self.blocks.items[self.blocks.items.len - 1];
+        std.debug.assert(blockInfo.ends.mask == 0);
         var endMap = KindEndSet.initEmpty();
         var localEnd: u32 = 0;
         var iter = blockInfo.kinds.iterator(.{});
@@ -62,13 +59,12 @@ pub const Blocks = struct {
         }
 
         blockInfo.ends = endMap;
-        self.cursor += 1;
     }
 
     pub fn markActiveBlockKind(self: *Self, kind: TK, index: u32) void {
-        if (kind == TK.ir_block_map) return;
-        if (self.cursor >= self.blocks.items.len) return;
-        const blockInfo = &self.blocks.items[@intCast(self.cursor)];
+        if (self.blocks.items.len == 0) return;
+        const blockInfo = &self.blocks.items[self.blocks.items.len - 1];
+        if (blockInfo.ends.mask != 0) return;
         const kindIndex = @intFromEnum(kind);
         if (!blockInfo.kinds.isSet(kindIndex)) {
             self.activeKindStarts[kindIndex] = index;
@@ -77,11 +73,16 @@ pub const Blocks = struct {
     }
 
     pub fn blockCount(self: *const Self) u32 {
-        return self.cursor;
+        if (self.blocks.items.len == 0) return 0;
+        const completeBlockCount = if (self.blocks.items[self.blocks.items.len - 1].ends.mask == 0)
+            self.blocks.items.len - 1
+        else
+            self.blocks.items.len;
+        return @intCast(completeBlockCount);
     }
 
     pub fn block(self: *const Self, blockIndex: u32) Block {
-        std.debug.assert(blockIndex < self.cursor);
+        std.debug.assert(blockIndex < self.blockCount());
         return self.blocks.items[@intCast(blockIndex)];
     }
 
@@ -95,23 +96,19 @@ pub const Blocks = struct {
 
             queue: *const Queue = undefined,
             blockIndex: u32 = 0,
-            blockKindMap: KindBitSet = KindBitSet.initEmpty(),
             kindNextStarts: [KIND_COUNT]u32 = [_]u32{0} ** KIND_COUNT,
             kindBlockRanges: [KIND_COUNT]BlockRange = [_]BlockRange{.{ .start = 0, .end = 0 }} ** KIND_COUNT,
             blockLocalBases: [KIND_COUNT]u32 = [_]u32{0} ** KIND_COUNT,
-            len: u32 = 0,
             nextKindIter: KindBitSetIterator = KindBitSet.initEmpty().iterator(.{}),
 
             pub fn initIterator(self: *IterSelf, queue: *const Queue) void {
                 self.queue = queue;
                 self.blockIndex = 0;
-                self.blockKindMap = KindBitSet.initEmpty();
                 for (&self.kindNextStarts, 0..) |*start, kindIndex| {
                     start.* = queue.kindRanges.reservedStart(kindIndex);
                 }
                 self.kindBlockRanges = [_]BlockRange{.{ .start = 0, .end = 0 }} ** KIND_COUNT;
                 self.blockLocalBases = [_]u32{0} ** KIND_COUNT;
-                self.len = 0;
                 self.nextKindIter = KindBitSet.initEmpty().iterator(.{});
             }
 
@@ -125,10 +122,9 @@ pub const Blocks = struct {
                 self.blockIndex += 1;
 
                 const blockInfo = self.queue.blocks.block(currentBlockIndex);
-                self.blockKindMap = blockInfo.kinds;
 
                 var localStart: u32 = 0;
-                var kindIter = self.blockKindMap.iterator(.{});
+                var kindIter = blockInfo.kinds.iterator(.{});
                 var endIter = blockInfo.ends.iterator(.{});
                 while (kindIter.next()) |kindIndex| {
                     const localEnd: u32 = @intCast((endIter.next() orelse unreachable) + 1);
@@ -142,8 +138,7 @@ pub const Blocks = struct {
                 }
                 std.debug.assert(endIter.next() == null);
 
-                self.len = localStart;
-                self.nextKindIter = self.blockKindMap.iterator(.{});
+                self.nextKindIter = blockInfo.kinds.iterator(.{});
             }
 
             pub fn nextKind(self: *IterSelf) ?TK {
@@ -153,19 +148,25 @@ pub const Blocks = struct {
 
             pub fn blockRange(self: *const IterSelf, kind: TK) BlockRange {
                 const kindIndex = @intFromEnum(kind);
-                std.debug.assert(self.blockKindMap.isSet(kindIndex));
+                std.debug.assert(self.blockIndex > 0);
+                std.debug.assert(self.queue.blocks.block(self.blockIndex - 1).kinds.isSet(kindIndex));
                 return self.kindBlockRanges[kindIndex];
             }
 
             pub fn blockLen(self: *const IterSelf) u32 {
-                return self.len;
+                std.debug.assert(self.blockIndex > 0);
+                const ends = self.queue.blocks.block(self.blockIndex - 1).ends.mask;
+                std.debug.assert(ends != 0);
+                return 64 - @as(u32, @intCast(@clz(ends)));
             }
 
             pub fn blockIdToLocalId(self: *const IterSelf, absoluteIndex: u32) ?u32 {
+                std.debug.assert(self.blockIndex > 0);
                 std.debug.assert(absoluteIndex < self.queue.list.items.len);
+                const blockInfo = self.queue.blocks.block(self.blockIndex - 1);
                 const kind = self.queue.indexToKind(absoluteIndex);
                 const kindIndex = @intFromEnum(kind);
-                if (!self.blockKindMap.isSet(kindIndex)) return null;
+                if (!blockInfo.kinds.isSet(kindIndex)) return null;
 
                 const range = self.kindBlockRanges[kindIndex];
                 if (absoluteIndex < range.start or absoluteIndex >= range.end) return null;
