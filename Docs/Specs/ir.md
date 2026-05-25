@@ -335,9 +335,10 @@ future call lowering.
 
 ## Out of Scope
 
-Three specs to follow that cover the rest of the IR pipeline:
+Specs that cover the rest of the IR pipeline:
 
-- **Sequence** (`sequence.zig`) — block scheduling / linearization.
-- **Depmap** (`depmap.zig`) — dependency tracking across IR nodes.
+- **Sequence + Depmap** — see `ir_sequence.md`. Covers `depmap.zig`
+  (per-block dependency / reference bitsets) and `sequence.zig` (layered
+  scheduling).
 - **Register allocator** (`regalloc.zig`) — register assignment over the
-  scheduled IR.
+  scheduled IR. Spec pending.
