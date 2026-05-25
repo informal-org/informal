@@ -3,6 +3,9 @@ const lex = @import("lexer.zig");
 const parser = @import("parser.zig");
 const queue = @import("queue.zig");
 const irmod = @import("ir.zig");
+const depmap = @import("depmap.zig");
+const sequence = @import("sequence.zig");
+const regalloc = @import("regalloc.zig");
 const tok = @import("token.zig");
 const codegen = @import("codegen.zig");
 const rs = @import("resolution.zig");
@@ -126,11 +129,27 @@ pub fn process_chunk(chunk: []u8, reader: *Reader, allocator: Allocator, io: std
     var ir = irmod.IR.init(allocator, reader.parsedQ, reader.irQ);
     const kindCounts = irmod.IR.calcKindCounts(p.kindCounts);
     try ir.reserve(kindCounts);
+    _ = try ir.lower();
+
+    var maps = try depmap.DepMap.init(allocator);
+    defer maps.deinit(allocator);
+    try maps.reserve(allocator, reader.irQ);
+    maps.build(reader.irQ);
+
+    var seq = try sequence.Sequence.init(allocator);
+    defer seq.deinit(allocator);
+    try seq.reserve(allocator, reader.irQ, &maps);
+    seq.build(reader.irQ, &maps);
+
+    var regs = try regalloc.RegAlloc.init(allocator, codegen.ALLOCATABLE_REGISTERS);
+    defer regs.deinit();
+    try regs.reserve(reader.irQ, &maps, &seq);
+    try regs.build(reader.irQ, &maps, &seq);
 
     var c = codegen.Codegen.init(allocator, chunk);
     defer c.deinit();
 
-    try c.emitAll(reader.parsedQ.list.items, reader.internedStrings);
+    try c.emitAllocated(&regs);
 
     var linker = macho.MachOLinker.init(allocator);
     defer linker.deinit();

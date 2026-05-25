@@ -1,4 +1,5 @@
 const std = @import("std");
+const bitset = @import("../bitset.zig");
 const depmap = @import("../depmap.zig");
 const ir = @import("../ir.zig");
 const irq = @import("../irq.zig");
@@ -22,7 +23,7 @@ const Pipeline = struct {
     }
 };
 
-fn buildPipeline(queue: *const ir.IRQueue, register_count: u8) !Pipeline {
+fn buildPipeline(queue: *const ir.IRQueue, free_registers: bitset.BitSet64) !Pipeline {
     var maps = try depmap.DepMap.init(std.testing.allocator);
     errdefer maps.deinit(std.testing.allocator);
     try maps.reserve(std.testing.allocator, queue);
@@ -33,7 +34,7 @@ fn buildPipeline(queue: *const ir.IRQueue, register_count: u8) !Pipeline {
     try seq.reserve(std.testing.allocator, queue, &maps);
     seq.build(queue, &maps);
 
-    var regs = try regalloc.RegAlloc.init(std.testing.allocator, register_count);
+    var regs = try regalloc.RegAlloc.init(std.testing.allocator, free_registers);
     errdefer regs.deinit();
     try regs.reserve(queue, &maps, &seq);
     try regs.build(queue, &maps, &seq);
@@ -63,22 +64,20 @@ test "RegAlloc assigns registers walking sequence layers backwards" {
     queue.pushArg(add, 0);
     _ = queue.endBlock();
 
-    var pipeline = try buildPipeline(&queue, 2);
+    var pipeline = try buildPipeline(&queue, bitset.lowBits(2));
     defer pipeline.deinit();
 
     try expectEqual(@as(usize, 3), pipeline.regs.tokenCount());
 
     const first = popToken(&pipeline.regs);
     try expectEqual(TK.lit_number, first.kind);
-    try expectEqual(regalloc.NO_LOCATION, first.data.regalloc.left);
-    try expectEqual(regalloc.NO_LOCATION, first.data.regalloc.right);
-    try expectEqual(regalloc.registerLocation(0), first.data.regalloc.result);
+    try expectEqual(@as(u32, 1), first.data.reg_literal.value_ref);
+    try expectEqual(regalloc.registerLocation(0), first.data.reg_literal.result);
 
     const second = popToken(&pipeline.regs);
     try expectEqual(TK.lit_number, second.kind);
-    try expectEqual(regalloc.NO_LOCATION, second.data.regalloc.left);
-    try expectEqual(regalloc.NO_LOCATION, second.data.regalloc.right);
-    try expectEqual(regalloc.registerLocation(1), second.data.regalloc.result);
+    try expectEqual(@as(u32, 2), second.data.reg_literal.value_ref);
+    try expectEqual(regalloc.registerLocation(1), second.data.reg_literal.result);
 
     const add_token = popToken(&pipeline.regs);
     try expectEqual(TK.op_add, add_token.kind);
@@ -111,7 +110,7 @@ test "RegAlloc emits spill load and store tokens with LRU register reuse" {
     queue.pushArg(output, 0);
     _ = queue.endBlock();
 
-    var pipeline = try buildPipeline(&queue, 2);
+    var pipeline = try buildPipeline(&queue, bitset.lowBits(2));
     defer pipeline.deinit();
 
     var stored_slots = std.bit_set.IntegerBitSet(64).initEmpty();

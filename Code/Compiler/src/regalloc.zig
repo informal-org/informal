@@ -34,10 +34,10 @@ pub const RegAlloc = struct {
     locations: LocationList,
     next_spill_slot: u16 = 0,
 
-    pub fn init(allocator: Allocator, register_count: u8) !Self {
+    pub fn init(allocator: Allocator, free_registers: BitSet) !Self {
         return .{
             .allocator = allocator,
-            .register_pool = try RegisterPool.init(register_count),
+            .register_pool = try RegisterPool.init(free_registers),
             .token_stack = try TokenList.initCapacity(allocator, 0),
             .locations = try LocationList.initCapacity(allocator, 0),
         };
@@ -60,6 +60,10 @@ pub const RegAlloc = struct {
 
     pub fn tokenCount(self: *const Self) usize {
         return self.token_stack.items.len;
+    }
+
+    pub fn spillSlotCount(self: *const Self) u16 {
+        return self.next_spill_slot;
     }
 
     pub fn build(self: *Self, irQ: *const IRQueue, maps: *const DepMap, seq: *const Sequence) !void {
@@ -97,6 +101,11 @@ pub const RegAlloc = struct {
         const kind = irQ.indexToKind(index);
         const node = irQ.get(index);
         const result = try self.declareResult(index);
+        if (bitset.isKind(tok.LITERALS, kind)) {
+            try self.pushToken(Token.regLiteral(kind, node.args.left, result));
+            return;
+        }
+
         const operands = try self.operandsFor(irQ, kind, node);
 
         try self.pushToken(Token.regAlloc(kind, operands[0], operands[1], result));
@@ -111,7 +120,7 @@ pub const RegAlloc = struct {
 
     fn declareResult(self: *Self, index: u32) !u16 {
         const current_location = self.location(index);
-        if (isRegister(current_location, self.register_pool.registerCount())) {
+        if (isRegister(current_location)) {
             const reg: u8 = @intCast(current_location);
             self.register_pool.free(reg);
             self.setLocation(index, FREED_LOCATION);
@@ -155,7 +164,7 @@ pub const RegAlloc = struct {
 
     fn useDependency(self: *Self, index: u32) !u16 {
         const current_location = self.location(index);
-        if (isRegister(current_location, self.register_pool.registerCount())) {
+        if (isRegister(current_location)) {
             self.register_pool.touch(@intCast(current_location));
             return current_location;
         }
@@ -215,8 +224,8 @@ pub fn registerLocation(reg: u8) u16 {
     return @intCast(reg);
 }
 
-pub fn isRegister(location: u16, register_count: u8) bool {
-    return location < register_count;
+pub fn isRegister(location: u16) bool {
+    return location < MAX_REGISTERS;
 }
 
 pub fn isSpill(location: u16) bool {

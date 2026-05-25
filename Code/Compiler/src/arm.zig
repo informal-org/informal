@@ -1747,7 +1747,30 @@ pub const LoadStoreUnsignedImm = packed struct(u32) {
     const STR = Op{ .size = 3, .VR = 0, .opc = 0 };
     const LDR = Op{ .size = 3, .VR = 0, .opc = 1 };
     const PRFM = Op{ .size = 3, .VR = 0, .opc = 2 };
+
+    pub fn init(op: Op, rt: Reg, rn: Reg, imm12: u12) Self {
+        return Self{
+            .rt = rt,
+            .rn = rn,
+            .imm12 = imm12,
+            .opc = op.opc,
+            .VR = op.VR,
+            .size = op.size,
+        };
+    }
+
+    pub fn encode(self: Self) u32 {
+        return @as(u32, @bitCast(self));
+    }
 };
+
+pub fn str(rt: Reg, rn: Reg, imm12: u12) u32 {
+    return LoadStoreUnsignedImm.init(LoadStoreUnsignedImm.STR, rt, rn, imm12).encode();
+}
+
+pub fn ldr(rt: Reg, rn: Reg, imm12: u12) u32 {
+    return LoadStoreUnsignedImm.init(LoadStoreUnsignedImm.LDR, rt, rn, imm12).encode();
+}
 
 pub const RegisterEncoding = packed struct(u32) { _: u32 };
 pub const FloatEncoding = packed struct(u32) { _: u32 };

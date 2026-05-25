@@ -1,9 +1,9 @@
 // Codegen — see Docs/Specs/codegen-spec.md for the full specification.
 //
-// Walks the parser's postfix parsedQ in a single linear pass and emits AArch64 (ARM64)
-// machine code directly into `objCode: []u32` — no IR. Targets macOS/Darwin syscall ABI.
+// The live path consumes allocated IR tokens from regalloc.zig and emits AArch64 (ARM64)
+// machine code directly into `objCode: []u32`. Targets macOS/Darwin syscall ABI.
 //
-// Register allocation is stack-based and tracked with two fields:
+// The legacy parsedQ path uses stack-based register allocation tracked with two fields:
 //   regStack (u64)     — a packed stack of 5-bit register IDs. Operands push; operators pop.
 //   registerMap (u32)  — bitmap of live registers; getFreeReg allocates the lowest free one.
 // x0/x1/x2 are reserved at start (syscall args + string const addressing).
@@ -34,6 +34,7 @@ const arm = @import("arm.zig");
 const tok = @import("token.zig");
 const bitset = @import("bitset.zig");
 const resolution = @import("resolution.zig");
+const regalloc_mod = @import("regalloc.zig");
 
 const Allocator = std.mem.Allocator;
 const Token = tok.Token;
@@ -42,8 +43,24 @@ const TK = tok.Kind;
 const print = std.debug.print;
 const platform = @import("darwin.zig");
 const build_options = @import("build_options");
+const RegAlloc = regalloc_mod.RegAlloc;
 
 pub const Syscall = platform.Syscall;
+
+// Excluded registers:
+// x16 is used as the Darwin syscall number register, x18 is reserved by the Darwin ABI,
+// x29 is the frame pointer, x30 is the link register, and x31 encodes SP or XZR rather
+// than a normal general-purpose register.
+const NON_ALLOCATABLE_REGISTERS = registerSet(&.{ arm.Reg.x16, arm.Reg.x18, arm.Reg.x29, arm.Reg.x30, arm.Reg.x31 });
+pub const ALLOCATABLE_REGISTERS = bitset.lowBits(32).differenceWith(NON_ALLOCATABLE_REGISTERS);
+
+fn registerSet(comptime registers: []const arm.Reg) bitset.BitSet64 {
+    var result = bitset.BitSet64.initEmpty();
+    for (registers) |reg| {
+        result.set(@intFromEnum(reg));
+    }
+    return result;
+}
 
 const BranchLabel = packed struct(u32) {
     const Self = @This();
@@ -210,6 +227,104 @@ pub const Codegen = struct {
         const br_label = BranchLabel.init(inverse_cond, @truncate(prevIndex), @truncate(binaryIdx));
         try self.objCode.append(br_label.encode());
         return @truncate(binaryIdx);
+    }
+
+    fn physicalRegister(location: u16) !arm.Reg {
+        if (!regalloc_mod.isRegister(location)) return error.ExpectedRegisterLocation;
+        if (location > std.math.maxInt(u5)) return error.ExpectedPhysicalRegister;
+        return @enumFromInt(@as(u5, @intCast(location)));
+    }
+
+    fn spillOffset(location: u16) !u12 {
+        if (!regalloc_mod.isSpill(location)) return error.ExpectedSpillLocation;
+        const slot = regalloc_mod.spillSlot(location);
+        if (slot > std.math.maxInt(u12)) return error.SpillSlotOutOfRange;
+        return @intCast(slot);
+    }
+
+    fn spillFrameSize(slot_count: u16) !u12 {
+        const bytes = std.mem.alignForward(u32, @as(u32, slot_count) * 8, 16);
+        if (bytes > std.math.maxInt(u12)) return error.SpillFrameTooLarge;
+        return @intCast(bytes);
+    }
+
+    fn emitSpillPrologue(self: *Self, slot_count: u16) !void {
+        if (slot_count == 0) return;
+        try self.objCode.append(arm.subi(arm.Reg.x31, arm.Reg.x31, try spillFrameSize(slot_count)));
+    }
+
+    fn emitSpillEpilogue(self: *Self, slot_count: u16) !void {
+        if (slot_count == 0) return;
+        try self.objCode.append(arm.addi(arm.Reg.x31, arm.Reg.x31, try spillFrameSize(slot_count)));
+    }
+
+    pub fn emitAllocated(self: *Self, regs: *RegAlloc) !void {
+        std.log.debug("\n------------- RegAlloc Codegen --------------- ", .{});
+
+        const spill_slots = regs.spillSlotCount();
+        try self.emitSpillPrologue(spill_slots);
+
+        var final_result: ?arm.Reg = null;
+        while (regs.popToken()) |token| {
+            switch (token.kind) {
+                TK.lit_number => {
+                    const literal = token.data.reg_literal;
+                    const rd = try physicalRegister(literal.result);
+                    try self.objCode.append(arm.movz(rd, @truncate(literal.value_ref)));
+                    final_result = rd;
+                },
+                TK.op_add => {
+                    const allocation = token.data.regalloc;
+                    const rd = try physicalRegister(allocation.result);
+                    try self.objCode.append(arm.add(
+                        rd,
+                        try physicalRegister(allocation.left),
+                        try physicalRegister(allocation.right),
+                    ));
+                    final_result = rd;
+                },
+                TK.op_sub => {
+                    const allocation = token.data.regalloc;
+                    const rd = try physicalRegister(allocation.result);
+                    try self.objCode.append(arm.sub(
+                        rd,
+                        try physicalRegister(allocation.left),
+                        try physicalRegister(allocation.right),
+                    ));
+                    final_result = rd;
+                },
+                TK.op_mul => {
+                    const allocation = token.data.regalloc;
+                    const rd = try physicalRegister(allocation.result);
+                    try self.objCode.append(arm.mul(
+                        rd,
+                        try physicalRegister(allocation.left),
+                        try physicalRegister(allocation.right),
+                    ));
+                    final_result = rd;
+                },
+                TK.op_load => {
+                    const allocation = token.data.regalloc;
+                    try self.objCode.append(arm.ldr(
+                        try physicalRegister(allocation.left),
+                        arm.Reg.x31,
+                        try spillOffset(allocation.right),
+                    ));
+                },
+                TK.op_store => {
+                    const allocation = token.data.regalloc;
+                    try self.objCode.append(arm.str(
+                        try physicalRegister(allocation.right),
+                        arm.Reg.x31,
+                        try spillOffset(allocation.left),
+                    ));
+                },
+                else => return error.UnsupportedRegAllocToken,
+            }
+        }
+
+        try self.emitSpillEpilogue(spill_slots);
+        try self.emit_syscall(Syscall.exit, final_result orelse return error.MissingOutputRegister);
     }
 
     pub fn emitAll(self: *Self, tokenQueue: []Token, strConsts: *StringArrayHashMap(u64)) !void {

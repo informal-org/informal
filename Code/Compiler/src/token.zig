@@ -146,6 +146,7 @@ pub const Data = packed union {
     group_link: GroupLink,
 
     regalloc: RegAlloc,
+    reg_literal: RegLiteral,
 
     pub const Ident = packed struct(u48) {
         symbol_id: u16,
@@ -189,6 +190,11 @@ pub const Data = packed union {
         right: u16,
         result: u16,
     };
+
+    pub const RegLiteral = packed struct(u48) {
+        value_ref: u32,
+        result: u16,
+    };
 };
 
 pub const Flags = packed struct(u8) {
@@ -225,6 +231,14 @@ pub const Token = packed struct(u64) {
         return Token{
             .kind = kind,
             .data = .{ .regalloc = .{ .left = left, .right = right, .result = result } },
+            .flags = Flags.empty(),
+        };
+    }
+
+    pub fn regLiteral(kind: Kind, value_ref: u32, result: u16) Token {
+        return Token{
+            .kind = kind,
+            .data = .{ .reg_literal = .{ .value_ref = value_ref, .result = result } },
             .flags = Flags.empty(),
         };
     }
