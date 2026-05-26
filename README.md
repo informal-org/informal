@@ -50,18 +50,18 @@ print("a", "b", "c", separator=" ", ending="")
 
 Conditions
 ```
-// Informal has just a single conditional operator - the pattern-matching "if".
-sunny: go outside()
-rainy: 
+// Informal has no dedicated conditional statements. Conditional logic is handled through pattern-matching functions.
+handle weather(_: Sunny): go outside()
+handle weather(_: Rainy): 
     go outside with umbrella()
     jump in puddles()
-_: stay inside()
+handle weather(_): stay inside()
 
 
 // You can use it as a switch case. 
 // Conditions are expressions, so you can capture their result and store it as a variable.
 ch = '7'
-classify letter = ch:
+classify letter(ch):
     ' ': "ch is a Space"
     'a'..'z' | 'A'..'Z': "ch is a Letter"
     '0'..'9': "ch is a Digit"
@@ -69,51 +69,45 @@ classify letter = ch:
 
 
 // Or match by structure
-result = (n % 5, n % 3):
-    (0, 0): "FizzBuzz"
-    (0, _): "Fizz"
-    (_, 0): "Buzz"
-    (_, _): n
+fizzbuzz(n): fizzbuzz(n % 5, n % 3)
+fizzbuzz(0, 0): "FizzBuzz"
+fizzbuzz(0, _): "Fizz"
+fizzbuzz(_, 0): "Buzz"
+fizzbuzz(_, _): n
 
 // Or specify each branch separately
-user.email:
-    send confirmation email(user.email)
-user.phone or user.messenger id:
-    send confirmation text(user)
+send confirmation(user.email): send confirmation email(user.email)
+send confirmation(user.phone or user.messenger id): send confirmation text(user)
 ```
 
-Array operators and functional constructs replace the need for most loops, but Informal still comes with a flexible loop to process any kind of data.
+Array operators and functional constructs replace the need for most loops.
+Functions implement automatic iteration through APL style automatic rank polymorphism.
 ```
-// The built-in for loop can be used as a for-each.
-[1..5].each:
-    (x): x + 10
+add ten(x): x + 10
+add ten(1..5)
+// [11, 12, 13, 14, 15]
 
 // You can specify a second parameter to get the index
 arr = [1, 2, 3, 4, 5]
-(0.., arr).enumerate:
-    (index, value): value + index
+add index(index, value): value + index
+add index(0.., arr.each)
 
 // You can similarly loop over maps.
-// Loops are also expressions, which return values
 
 months: {"January": 1, "February": 2, "March": 3, "April": 4, 
         "May": 5, "June": 6, "July": 7, "August": 8, 
         "September": 9, "October": 10, "November": 11, "December": 12}
 
-invert_months = months.each:
-    (month str, month num): { month_num : month_str }
+invert_months(month str, month num): { month_num : month_str }
+invert_months(months.each)  // Automatic destructuring of key, value
 
 // You can iterate over multiple data streams at once. 
 // This often comes in useful for "zipping" values together.
 brr = [10, 20, 30, 40, 50]
-(arr, brr).each:
-    (x, y): x + y
+combine(x, y): x + y
+combine(arr.each, brr.each)
 
 // [11, 22, 33, 44, 55]
-
-// You can specify guard clauses to break out of loops early.
-[1..10].until{ (x): x > 4 }.each:
-    x + 10
 
 ```
 
@@ -153,7 +147,7 @@ Functions, Types and the patterns beneath it all
 // Functions are a mapping that transform an input to an output.
 
 
-// Anonymous functions
+// Anonymous functions are allowed, but limited to a single line.
 (x) : x + 1
 
 // Named functions
@@ -208,4 +202,3 @@ fn cache(code: Expression) Expression:
 x = readInt() |>
     0: 0
     (x) :: 1/x
-
