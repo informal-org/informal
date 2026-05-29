@@ -1,32 +1,3 @@
-// Parser — see Docs/Specs/parser-spec.md for the full specification.
-//
-// Recursive Pratt (top-down operator precedence) parser. Single-pass, no backtracking,
-// one-token lookahead. Consumes the lexer's syntaxQ and emits `parsedQ` in postfix order
-// (operands before operators) — no heap AST, the flat queue feeds codegen directly.
-// `parsedQ[0]` is always aux_stream_start and acts as the null sentinel for symbol resolution.
-// A parallel `offsetQ` (u16 per token) records each parsed token's distance back to its syntaxQ origin.
-//
-// Dispatch uses two compile-time tables keyed by token Kind (first 64 kinds only; aux tokens are skipped):
-//   tokenParsers[Kind] → { prefix: ParserType, infix: ParserType, power: Power }   (packed u24)
-//   parseFns[ParserType] → handler fn
-// The handler recurses via `parse(minBindingPower)` for sub-expressions. Binding powers run
-// None(0) · Separator(10) · Assign(20) · Or(30) · And(40) · Equality(50) · Comparison(60)
-// · Additive(70) · Multiplicative(80) · Exp(90) · Unary(100) · Member(110) · Call(120).
-//
-// Symbol resolution is interleaved: every identifier goes through resolution.resolve/declare,
-// which writes a signed i16 offset (arg1) from each reference to its declaration.
-// See resolution.zig / resolution-spec.md.
-//
-// Special shapes:
-//   grp_indent / grp_dedent — emitted around blocks; start token's arg0 is patched with the block's end index.
-//   kw_if / kw_else        — condition is emitted first (postfix), then branch bodies via colon_assoc.
-//   kw_fn                  — declares the name in enclosing scope, opens a function scope for params,
-//                            header token stores { body_length, body_offset }. Bodies are emitted
-//                            verbatim after the param chain and skipped by codegen.
-//
-// Assumptions from the lexer: unary minus is pre-normalized to op_unary_minus; `call_identifier`
-// guarantees the next token is grp_open_paren; indentation is already indent/dedent tokens.
-
 const tok = @import("token.zig");
 const Kind = tok.Kind;
 const std = @import("std");
@@ -55,10 +26,6 @@ pub const Parser = struct {
     parsedQ: *TokenQueue,
     // For each token in the parsedQ, indicates where to find it in the syntaxQ.
     offsetQ: *OffsetQueue,
-
-    // Keep track of emitted kinds for IR sizing. Identifiers are counted as IR uses,
-    // then assignment targets are reclassified to IR defs in assignOp.
-    kindCounts: [64]u32 = [_]u32{0} ** 64,
 
     const Power = enum(u8) {
         None = 0,
@@ -218,13 +185,12 @@ pub const Parser = struct {
     }
 
     fn emit(self: *Self, token: Token) void {
-        self.emitAs(token, token.kind);
+        self.emitAs(token);
     }
 
-    fn emitAs(self: *Self, token: Token, countKind: Kind) void {
+    fn emitAs(self: *Self, token: Token) void {
         self.parsedQ.push(token);
         self.offsetQ.push(@truncate(self.offsetQ.list.items.len - self.index)); // TODO: This is probably not the correct offset. Need to double-check.
-        self.kindCounts[@intFromEnum(countKind)] += 1;
     }
 
     inline fn parsedLen(self: *Self) u32 {
@@ -260,15 +226,15 @@ pub const Parser = struct {
 
     fn identifier(self: *Self, token: Token) void {
         const resolved = self.resolution.resolve(self.parsedLen(), token);
-        self.emitAs(resolved, Kind.ir_use);
+        self.emitAs(resolved);
     }
 
-    fn emitChainedSep(self: *Self, prev_sep_idx: u32, sep_token: Token) u32 {
+    fn emitChainedSep(self: *Self, _: u32, sep_token: Token) u32 {
         const cur_idx = self.parsedLen();
-        var t = sep_token;
-        t.data.group_link.prev_offset = rs.calcOffset(i16, prev_sep_idx, cur_idx);
+        const t = sep_token;
+        // t.data.group_link.prev_offset = rs.calcOffset(i16, prev_sep_idx, cur_idx);
         self.emit(t);
-        self.parsedQ.list.items[prev_sep_idx].data.group_link.next_offset = rs.calcOffset(i16, cur_idx, prev_sep_idx);
+        // self.parsedQ.list.items[prev_sep_idx].data.group_link.next_offset = rs.calcOffset(i16, cur_idx, prev_sep_idx);
         return cur_idx;
     }
 
@@ -290,7 +256,7 @@ pub const Parser = struct {
     fn callExpr(self: *Self, token: Token) void {
         assert(self.syntaxQ.pop().kind == Kind.grp_open_paren);
         self.groupDelim(Kind.grp_open_paren, Kind.grp_close_paren);
-        self.emitAs(token, Kind.ir_use);
+        self.emitAs(token);
     }
 
     fn unaryOp(self: *Self, token: Token) void {
@@ -370,8 +336,6 @@ pub const Parser = struct {
         // TODO: Brittle — assumes previous token is an identifier. Needs rework for destructuring.
         const ident = self.resolution.declare(self.parsedLen() - 1, self.parsedQ.list.getLast());
         self.parsedQ.list.items[self.parsedLen() - 1] = ident;
-        self.kindCounts[@intFromEnum(Kind.ir_use)] -= 1;
-        self.kindCounts[@intFromEnum(Kind.ir_def)] += 1;
 
         self.parse(Power.Assign.val());
         self.emit(token);

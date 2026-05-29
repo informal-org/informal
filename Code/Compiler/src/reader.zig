@@ -2,10 +2,6 @@ const std = @import("std");
 const lex = @import("lexer.zig");
 const parser = @import("parser.zig");
 const queue = @import("queue.zig");
-const irmod = @import("ir.zig");
-const depmap = @import("depmap.zig");
-const sequence = @import("sequence.zig");
-const regalloc = @import("regalloc.zig");
 const tok = @import("token.zig");
 const codegen = @import("codegen.zig");
 const rs = @import("resolution.zig");
@@ -23,7 +19,6 @@ pub const Reader = struct {
     auxQ: *lex.TokenQueue,
     parsedQ: *parser.TokenQueue,
     offsetQ: *parser.OffsetQueue,
-    irQ: *irmod.IRQueue,
     internedStrings: *StringArrayHashMap(u64),
     internedNumbers: *std.AutoHashMap(u64, u64),
     internedFloats: *std.AutoHashMap(f64, u64),
@@ -42,9 +37,6 @@ pub const Reader = struct {
 
         const offsetQ = try allocator.create(parser.OffsetQueue);
         offsetQ.* = try parser.OffsetQueue.init(allocator);
-
-        const irQ = try allocator.create(irmod.IRQueue);
-        irQ.* = try irmod.IRQueue.init(allocator);
 
         const internedStrings = try allocator.create(StringArrayHashMap(u64));
         internedStrings.* = StringArrayHashMap(u64).init(allocator);
@@ -65,7 +57,6 @@ pub const Reader = struct {
             .auxQ = auxQ,
             .parsedQ = parsedQ,
             .offsetQ = offsetQ,
-            .irQ = irQ,
             .internedStrings = internedStrings,
             .internedNumbers = internedNumbers,
             .internedFloats = internedFloats,
@@ -79,7 +70,6 @@ pub const Reader = struct {
         self.auxQ.deinit();
         self.parsedQ.deinit();
         self.offsetQ.deinit();
-        self.irQ.deinit(self.allocator);
         self.internedStrings.deinit();
         self.internedNumbers.deinit();
         self.internedFloats.deinit();
@@ -90,7 +80,6 @@ pub const Reader = struct {
         self.allocator.destroy(self.auxQ);
         self.allocator.destroy(self.parsedQ);
         self.allocator.destroy(self.offsetQ);
-        self.allocator.destroy(self.irQ);
         self.allocator.destroy(self.internedStrings);
         self.allocator.destroy(self.internedNumbers);
         self.allocator.destroy(self.internedFloats);
@@ -126,30 +115,9 @@ pub fn process_chunk(chunk: []u8, reader: *Reader, allocator: Allocator, io: std
     std.log.debug("\n------------- Parsed Queue --------------- \n", .{});
     std.log.debug("Parsed queue: {any}", .{reader.parsedQ.list.items});
 
-    var ir = irmod.IR.init(allocator, reader.parsedQ, reader.irQ);
-    const kindCounts = irmod.IR.calcKindCounts(p.kindCounts);
-    try ir.reserve(kindCounts);
-    _ = try ir.lower();
-
-    var maps = try depmap.DepMap.init(allocator);
-    defer maps.deinit(allocator);
-    try maps.reserve(allocator, reader.irQ);
-    maps.build(reader.irQ);
-
-    var seq = try sequence.Sequence.init(allocator);
-    defer seq.deinit(allocator);
-    try seq.reserve(allocator, reader.irQ, &maps);
-    seq.build(reader.irQ, &maps);
-
-    var regs = try regalloc.RegAlloc.init(allocator, codegen.ALLOCATABLE_REGISTERS);
-    defer regs.deinit();
-    try regs.reserve(reader.irQ, &maps, &seq);
-    try regs.build(reader.irQ, &maps, &seq);
-
     var c = codegen.Codegen.init(allocator, chunk);
+    try c.emitAll(p.parsedQ.list.items, reader.internedStrings);
     defer c.deinit();
-
-    try c.emitAllocated(&regs);
 
     var linker = macho.MachOLinker.init(allocator);
     defer linker.deinit();

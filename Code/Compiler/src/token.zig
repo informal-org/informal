@@ -69,8 +69,6 @@ pub const Kind = enum(u8) {
     op_in,
     op_is,
     op_as,
-    op_load,
-    op_store,
 
     kw_if,
     kw_else,
@@ -90,14 +88,6 @@ pub const Kind = enum(u8) {
     // These are auxillary tokens which don't influence the semantics (comments, whitespace, etc.)
     // They can be split up into a separate namespace, but having it combined simplifies the lexer.
     // We can move this out if we run out of opspace.
-    ir_exit,
-    ir_enter,
-    ir_use,
-    ir_def,
-    ir_frame,
-    ir_arg,
-    ir_param, // Our version of Phi nodes in SSA.
-    ir_block_map,
     aux,
     aux_skip,
     aux_comment,
@@ -139,15 +129,6 @@ pub const Data = packed union {
     // Aux token source positions (whitespace, newline, indentation).
     aux: Aux,
 
-    // Grouping chain: grp_open_*, grp_close_*, and sep_comma carry a doubly-linked
-    // positional chain plus an iter-order offset meaningful only in fn param lists.
-    // grp_open_* has no predecessor, so prev_offset is overloaded to store the
-    // signed offset to the matching close (O(1) open→close lookup).
-    group_link: GroupLink,
-
-    regalloc: RegAlloc,
-    reg_literal: RegLiteral,
-
     pub const Ident = packed struct(u48) {
         symbol_id: u16,
         prev_offset: u16,
@@ -177,23 +158,6 @@ pub const Data = packed union {
     pub const Aux = packed struct(u48) {
         position: u32,
         length: u16,
-    };
-
-    pub const GroupLink = packed struct(u48) {
-        prev_offset: i16,
-        next_offset: i16,
-        iter_offset: i16,
-    };
-
-    pub const RegAlloc = packed struct(u48) {
-        left: u16,
-        right: u16,
-        result: u16,
-    };
-
-    pub const RegLiteral = packed struct(u48) {
-        value_ref: u32,
-        result: u16,
     };
 };
 
@@ -227,22 +191,6 @@ pub const Token = packed struct(u64) {
         };
     }
 
-    pub fn regAlloc(kind: Kind, left: u16, right: u16, result: u16) Token {
-        return Token{
-            .kind = kind,
-            .data = .{ .regalloc = .{ .left = left, .right = right, .result = result } },
-            .flags = Flags.empty(),
-        };
-    }
-
-    pub fn regLiteral(kind: Kind, value_ref: u32, result: u16) Token {
-        return Token{
-            .kind = kind,
-            .data = .{ .reg_literal = .{ .value_ref = value_ref, .result = result } },
-            .flags = Flags.empty(),
-        };
-    }
-
     pub fn nextAlt(self: Token) Token {
         return Token{
             .kind = self.kind,
@@ -256,14 +204,6 @@ pub const Token = packed struct(u64) {
             .kind = self.kind,
             .data = .{ .ident = .{ .symbol_id = self.data.ident.symbol_id, .prev_offset = prev_offset, .next_offset = 0 } },
             .flags = Flags{ .declaration = true },
-        };
-    }
-
-    pub fn assignReg(self: Token, reg: u16) Token {
-        return Token{
-            .kind = self.kind,
-            .data = .{ .ident = .{ .symbol_id = reg, .prev_offset = self.data.ident.prev_offset, .next_offset = self.data.ident.next_offset } },
-            .flags = self.flags,
         };
     }
 
@@ -306,6 +246,14 @@ pub const Token = packed struct(u64) {
             .flags = Flags.empty(),
         };
     }
+
+    pub fn assignReg(self: Token, reg: u16) Token {
+        return Token{
+            .kind = self.kind,
+            .data = .{ .ident = .{ .symbol_id = reg, .prev_offset = self.data.ident.prev_offset, .next_offset = self.data.ident.next_offset } },
+            .flags = self.flags,
+        };
+    }
 };
 
 pub const TokenWriter = struct {
@@ -341,9 +289,6 @@ pub const TokenWriter = struct {
             },
             TK.kw_fn => {
                 try std.fmt.format(writer, "{s} {s} [body_length={d} body_offset={d}]", .{ @tagName(value.kind), alt, value.data.fn_header.body_length, value.data.fn_header.body_offset });
-            },
-            TK.op_load, TK.op_store => {
-                try std.fmt.format(writer, "{s} {s} [{d}, {d} => {d}]", .{ @tagName(value.kind), alt, value.data.regalloc.left, value.data.regalloc.right, value.data.regalloc.result });
             },
             else => {
                 try std.fmt.format(writer, "{s} {s}", .{ @tagName(value.kind), alt });

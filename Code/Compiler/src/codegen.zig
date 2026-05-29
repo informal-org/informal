@@ -1,40 +1,8 @@
-// Codegen — see Docs/Specs/codegen-spec.md for the full specification.
-//
-// The live path consumes allocated IR tokens from regalloc.zig and emits AArch64 (ARM64)
-// machine code directly into `objCode: []u32`. Targets macOS/Darwin syscall ABI.
-//
-// The legacy parsedQ path uses stack-based register allocation tracked with two fields:
-//   regStack (u64)     — a packed stack of 5-bit register IDs. Operands push; operators pop.
-//   registerMap (u32)  — bitmap of live registers; getFreeReg allocates the lowest free one.
-// x0/x1/x2 are reserved at start (syscall args + string const addressing).
-//
-// Token handling:
-//   Literals          — MOVZ the inline value (lit_number) or length + ADRP placeholder (lit_string).
-//   Identifier decl   — allocate a reg and write the reg ID back into the parsedQ token so
-//                       later refs can read it.
-//   Identifier ref    — follow arg1 back to the declaration token, read its stored reg ID, push it.
-//   Operators         — pop operand regs, emit ADD/MUL/CMP, push result.
-//   kw_fn             — skip the next `bodyLength` tokens; function bodies are not executable code.
-//   Conditionals      — see branch fixup below.
-//
-// Branch fixup (conditional targets aren't known at emit time):
-//   Each pending branch is stored in objCode as a BranchLabel{ cond:4, offset:28 } where `offset`
-//   points to the previous pending branch — a singly-linked list threaded through the instruction
-//   stream itself. Four tails track lists: unknown, fail, end, pass.
-//   Flow: op_gt emits → unknown · op_colon_assoc moves unknown → fail · grp_dedent resolves fail
-//   to current index and (if kw_else follows) pushes an AL jump onto end · final grp_dedent
-//   resolves end. Resolution rewrites each BranchLabel into a real b.cond.
-//
-// Constant pool fixup: string constants are placed after code, page-aligned (16KB). During emit
-// a placeholder + linked-list link is stashed in the parsedQ token; a post-pass walks the chain
-// and rewrites placeholders with ADDI using the final pool address.
-
 const std = @import("std");
 const arm = @import("arm.zig");
 const tok = @import("token.zig");
 const bitset = @import("bitset.zig");
 const resolution = @import("resolution.zig");
-const regalloc_mod = @import("regalloc.zig");
 
 const Allocator = std.mem.Allocator;
 const Token = tok.Token;
@@ -43,24 +11,8 @@ const TK = tok.Kind;
 const print = std.debug.print;
 const platform = @import("darwin.zig");
 const build_options = @import("build_options");
-const RegAlloc = regalloc_mod.RegAlloc;
 
 pub const Syscall = platform.Syscall;
-
-// Excluded registers:
-// x16 is used as the Darwin syscall number register, x18 is reserved by the Darwin ABI,
-// x29 is the frame pointer, x30 is the link register, and x31 encodes SP or XZR rather
-// than a normal general-purpose register.
-const NON_ALLOCATABLE_REGISTERS = registerSet(&.{ arm.Reg.x16, arm.Reg.x18, arm.Reg.x29, arm.Reg.x30, arm.Reg.x31 });
-pub const ALLOCATABLE_REGISTERS = bitset.lowBits(32).differenceWith(NON_ALLOCATABLE_REGISTERS);
-
-fn registerSet(comptime registers: []const arm.Reg) bitset.BitSet64 {
-    var result = bitset.BitSet64.initEmpty();
-    for (registers) |reg| {
-        result.set(@intFromEnum(reg));
-    }
-    return result;
-}
 
 const BranchLabel = packed struct(u32) {
     const Self = @This();
@@ -108,7 +60,6 @@ pub const Codegen = struct {
 
     ctx_current_block_kind: TK = TK.aux, // Context - sets
     ctx_block_start: usize = 0,
-    skip_count: u32 = 0, // Tokens remaining to skip (for fn body skip-over).
 
     pub fn init(allocator: Allocator, buffer: []const u8) Self {
         return Self{ .objCode = std.array_list.AlignedManaged(u32, null).init(allocator), .buffer = buffer, .regStack = 0, .allocator = allocator };
@@ -229,104 +180,6 @@ pub const Codegen = struct {
         return @truncate(binaryIdx);
     }
 
-    fn physicalRegister(location: u16) !arm.Reg {
-        if (!regalloc_mod.isRegister(location)) return error.ExpectedRegisterLocation;
-        if (location > std.math.maxInt(u5)) return error.ExpectedPhysicalRegister;
-        return @enumFromInt(@as(u5, @intCast(location)));
-    }
-
-    fn spillOffset(location: u16) !u12 {
-        if (!regalloc_mod.isSpill(location)) return error.ExpectedSpillLocation;
-        const slot = regalloc_mod.spillSlot(location);
-        if (slot > std.math.maxInt(u12)) return error.SpillSlotOutOfRange;
-        return @intCast(slot);
-    }
-
-    fn spillFrameSize(slot_count: u16) !u12 {
-        const bytes = std.mem.alignForward(u32, @as(u32, slot_count) * 8, 16);
-        if (bytes > std.math.maxInt(u12)) return error.SpillFrameTooLarge;
-        return @intCast(bytes);
-    }
-
-    fn emitSpillPrologue(self: *Self, slot_count: u16) !void {
-        if (slot_count == 0) return;
-        try self.objCode.append(arm.subi(arm.Reg.x31, arm.Reg.x31, try spillFrameSize(slot_count)));
-    }
-
-    fn emitSpillEpilogue(self: *Self, slot_count: u16) !void {
-        if (slot_count == 0) return;
-        try self.objCode.append(arm.addi(arm.Reg.x31, arm.Reg.x31, try spillFrameSize(slot_count)));
-    }
-
-    pub fn emitAllocated(self: *Self, regs: *RegAlloc) !void {
-        std.log.debug("\n------------- RegAlloc Codegen --------------- ", .{});
-
-        const spill_slots = regs.spillSlotCount();
-        try self.emitSpillPrologue(spill_slots);
-
-        var final_result: ?arm.Reg = null;
-        while (regs.popToken()) |token| {
-            switch (token.kind) {
-                TK.lit_number => {
-                    const literal = token.data.reg_literal;
-                    const rd = try physicalRegister(literal.result);
-                    try self.objCode.append(arm.movz(rd, @truncate(literal.value_ref)));
-                    final_result = rd;
-                },
-                TK.op_add => {
-                    const allocation = token.data.regalloc;
-                    const rd = try physicalRegister(allocation.result);
-                    try self.objCode.append(arm.add(
-                        rd,
-                        try physicalRegister(allocation.left),
-                        try physicalRegister(allocation.right),
-                    ));
-                    final_result = rd;
-                },
-                TK.op_sub => {
-                    const allocation = token.data.regalloc;
-                    const rd = try physicalRegister(allocation.result);
-                    try self.objCode.append(arm.sub(
-                        rd,
-                        try physicalRegister(allocation.left),
-                        try physicalRegister(allocation.right),
-                    ));
-                    final_result = rd;
-                },
-                TK.op_mul => {
-                    const allocation = token.data.regalloc;
-                    const rd = try physicalRegister(allocation.result);
-                    try self.objCode.append(arm.mul(
-                        rd,
-                        try physicalRegister(allocation.left),
-                        try physicalRegister(allocation.right),
-                    ));
-                    final_result = rd;
-                },
-                TK.op_load => {
-                    const allocation = token.data.regalloc;
-                    try self.objCode.append(arm.ldr(
-                        try physicalRegister(allocation.left),
-                        arm.Reg.x31,
-                        try spillOffset(allocation.right),
-                    ));
-                },
-                TK.op_store => {
-                    const allocation = token.data.regalloc;
-                    try self.objCode.append(arm.str(
-                        try physicalRegister(allocation.right),
-                        arm.Reg.x31,
-                        try spillOffset(allocation.left),
-                    ));
-                },
-                else => return error.UnsupportedRegAllocToken,
-            }
-        }
-
-        try self.emitSpillEpilogue(spill_slots);
-        try self.emit_syscall(Syscall.exit, final_result orelse return error.MissingOutputRegister);
-    }
-
     pub fn emitAll(self: *Self, tokenQueue: []Token, strConsts: *StringArrayHashMap(u64)) !void {
         std.log.debug("\n------------- Codegen --------------- ", .{});
 
@@ -338,10 +191,6 @@ pub const Codegen = struct {
 
         var reg = arm.Reg.x0;
         for (tokenQueue, 0..) |token, index| {
-            if (self.skip_count > 0) {
-                self.skip_count -= 1;
-                continue;
-            }
             switch (token.kind) {
                 TK.lit_number => {
                     // regStack = (regStack << 5) | @intFromEnum(reg); // Push the current register.
@@ -455,9 +304,6 @@ pub const Codegen = struct {
                     // TODO: Optimization: We can make this map to the same condition using the inverse condition logic.
                     // Starts as a branch type unknown since we don't know if this is followed by an and/or, etc.
                     self.br_unknown_tail_idx = try self.appendPendingBranch(arm.Cond.LE, self.br_unknown_tail_idx);
-                },
-                TK.kw_fn => {
-                    self.skip_count = token.data.fn_header.body_length;
                 },
                 TK.kw_if => {
                     self.ctx_current_block_kind = TK.kw_if;
