@@ -95,7 +95,7 @@ pub const Kind = enum(u8) {
     aux_newline,
     aux_indentation,
     aux_stream_start,
-    aux_stream_end = 255,
+    aux_stream_end,
 };
 
 pub const Data = packed union {
