@@ -104,14 +104,12 @@ pub fn process_chunk(chunk: []u8, reader: *Reader, allocator: Allocator, io: std
     var lexer = lex.Lexer.init(chunk, reader.syntaxQ, reader.auxQ, reader.internedStrings, reader.internedNumbers, reader.internedFloats, reader.internedSymbols);
     try lexer.lex();
 
-    std.log.debug("\n------------- Lexer Queue --------------- \n", .{});
-    std.log.debug("Token queue: {any}", .{reader.syntaxQ.list.items});
-
     var resolution = try rs.Resolution.init(allocator, reader.internedSymbols.count(), reader.parsedElements);
     defer resolution.deinit();
 
     const parsedCapacity = reader.syntaxQ.list.items.len + 1;
     try reader.parsedElements.reserve(parsedCapacity);
+    try reader.parsedQ.reserve(allocator, lexer.maxOpStreak);
     var p = ParserImpl.init(chunk, reader.syntaxQ, reader.parsedQ);
     p.parse();
     std.log.debug("\n------------- Parsed Queue --------------- \n", .{});

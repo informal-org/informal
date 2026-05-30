@@ -68,6 +68,10 @@ pub const Lexer = struct {
     lineChStart: u32, // Character index where this line started. For ch offset calculations.
     lineNo: u16, // Line number within this chunk. Chunks are sized so this shouldn't overflow.
 
+    // Keep track of how many ops we're seeing, so we can pre-allocate precedence stack.
+    opStreak: u32 = 0,
+    maxOpStreak: u32 = 0,
+
     // Interned constants.
     symbolTable: *std.StringHashMap(u64),
     // internedStrings: *std.StringHashMap(u64),
@@ -177,6 +181,11 @@ pub const Lexer = struct {
         self.QIdx[SYNTAX_Q] += 1;
     }
 
+    fn resetOpStreak(self: *Lexer) void {
+        self.maxOpStreak = @max(self.maxOpStreak, self.opStreak);
+        self.opStreak = 0;
+    }
+
     // fn emitNumber(self: *Lexer, auxValue: Token) !void {
     //     print("Emit number: {d} {any}\n", .{value, auxValue});
     //     // Numeric tokens don't have any free bits for us to set the switch-bit.
@@ -214,6 +223,7 @@ pub const Lexer = struct {
         self.index += 1;
         // Points to the beginning of line rather than newline char. Stored to allow line-relative char calculations.
         self.lineChStart = self.index;
+        self.resetOpStreak();
 
         // Post: previous character should be the newline character, and lineChStart points to start of next line
         std.debug.assert(self.lineChStart == self.index);
@@ -230,6 +240,7 @@ pub const Lexer = struct {
             else => {
                 // Emit the dot symbol.
                 try self.emitToken(tok.OP_DOT_MEMBER);
+                self.opStreak += 1;
                 self.index += 1;
             },
         };
@@ -579,22 +590,26 @@ pub const Lexer = struct {
                     'A' => {
                         if (value[1] == 'S') {
                             try self.emitToken(tok.OP_AS);
+                            self.opStreak += 1;
                             return;
                         }
                     },
                     'I' => {
                         if (value[1] == 'N') {
                             try self.emitToken(tok.OP_IN);
+                            self.opStreak += 1;
                             return;
                         }
                         if (value[1] == 'S') {
                             try self.emitToken(tok.OP_IS);
+                            self.opStreak += 1;
                             return;
                         }
                     },
                     'O' => {
                         if (value[1] == 'R') {
                             try self.emitToken(tok.OP_OR);
+                            self.opStreak += 1;
                             return;
                         }
                     },
@@ -605,9 +620,11 @@ pub const Lexer = struct {
             } else if (len == 3) {
                 if (std.mem.eql(u8, value, "AND")) {
                     try self.emitToken(tok.OP_AND);
+                    self.opStreak += 1;
                     return;
                 } else if (std.mem.eql(u8, value, "NOT")) {
                     try self.emitToken(tok.OP_NOT);
+                    self.opStreak += 1;
                     return;
                 }
             }
@@ -616,6 +633,8 @@ pub const Lexer = struct {
             if (prevIdentifier) {
                 const constIdx = self.push_identifier(start);
                 try self.emitToken(Token.lex(TK.op_identifier, @truncate(constIdx), @truncate(len)));
+                // Not sure if this counts, since we don't currently do precedence for these. But better to have a bit of extra wasted space than too little.
+                self.opStreak += 1;
             } else {
                 const constIdx = self.push_identifier(start);
                 try self.emitToken(Token.lex(TK.const_identifier, @truncate(constIdx), @truncate(len)));
@@ -844,6 +863,7 @@ pub const Lexer = struct {
                                 // Emit the multichar symbol.
                                 self.index += 1;
                                 try self.emitToken(tok.createToken(tokenKind));
+                                self.opStreak += 1;
                                 continue;
                             }
 
@@ -864,10 +884,12 @@ pub const Lexer = struct {
                         // }
                         const tokKind = bitset.chToKind(SYMBOLS, ch, MULTICHAR_KEYWORD_COUNT);
                         try self.emitToken(tok.createToken(tokKind));
+                        self.opStreak += 1;
                         // Index updated outside.
                         continue;
                     } else if (GROUPING.isSet(ch)) {
                         try self.emitToken(tok.createToken(bitset.chToKind(GROUPING, ch, tok.GROUPING_KIND_START)));
+                        self.opStreak += 1;
                         self.index += 1;
                         continue;
                     }
@@ -882,6 +904,7 @@ pub const Lexer = struct {
 
         _ = try self.token_indentation();
         try self.emitAux(tok.AUX_STREAM_END);
+        self.resetOpStreak();
         try self.flushPrev(false);
 
         std.log.debug("\n------------- Lexer End --------------- \n", .{});

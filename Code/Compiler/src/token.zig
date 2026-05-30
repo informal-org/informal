@@ -21,7 +21,7 @@ pub const Kind = enum(u8) {
     op_not_eq, // !=
 
     // All single-character operators come next, in reverse ascii-order.
-    op_choice, // |
+    op_choice, // |  - TODO: Precedece level
     op_pow, // ^
     // op_at,
     // op_question,
@@ -395,7 +395,7 @@ const PRECEDENCE_LEVELS = [_]bitset.BitSet64{
 
     // Logical operators
     bitset.token_bitset(&[_]TK{TK.op_and}),
-    bitset.token_bitset(&[_]TK{TK.op_or}),
+    bitset.token_bitset(&[_]TK{ TK.op_or, TK.op_choice }),
 
     // Assignment operators
     bitset.token_bitset(&[_]TK{ TK.op_assign_eq, TK.op_div_eq, TK.op_minus_eq, TK.op_plus_eq, TK.op_mul_eq }),

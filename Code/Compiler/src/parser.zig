@@ -146,8 +146,6 @@ pub const ParsedQueue = struct {
     // New-lines give general location. Operands are always in order. And operators carry their index within them.
 
     pub fn init(allocator: Allocator, parsedQ: *TokenQueue) !Self {
-        // TODO: Pre-allocate capacity for max op stack size.
-        // Need to compute those bounds in the lexer itself.
         const opStack = try std.array_list.Aligned(Token, null).initCapacity(allocator, 32);
         return Self{ .opStack = opStack, .parsedQ = parsedQ };
     }
@@ -160,8 +158,14 @@ pub const ParsedQueue = struct {
         self.opStack.clearRetainingCapacity();
     }
 
+    pub fn reserve(self: *Self, allocator: Allocator, maxOpStreak: usize) !void {
+        std.log.info("Reserving opstack capacity for {d}", .{maxOpStreak});
+        // We know the longest streak of operators after lexing (breaking on newlines).
+        try self.opStack.ensureTotalCapacityPrecise(allocator, maxOpStreak);
+    }
+
     pub fn emit(self: *Self, token: Token) void {
-        // TODO: We need to ensure parsed queue is sized appropriately upfront.
+        // Reader ensures parsedQ is sized appropriately by lexed size.
         self.parsedQ.push(token);
     }
 
