@@ -7,7 +7,7 @@ const bitset = @import("bitset.zig");
 
 const Token = tok.Token;
 const TK = tok.Kind;
-const TokenQueue = lex.TokenQueue;
+pub const TokenQueue = lex.TokenQueue;
 const Allocator = std.mem.Allocator;
 const isKind = bitset.isKind;
 
@@ -18,12 +18,12 @@ pub const Parser = struct {
     parsedQ: *ParsedQueue,
 
     // parsed: ParsedQueue
-    fn init(buffer: []const u8, syntaxQ: *TokenQueue, parsedQ: *ParsedQueue) Self {
+    pub fn init(buffer: []const u8, syntaxQ: *TokenQueue, parsedQ: *ParsedQueue) Self {
         return Self{ .buffer = buffer, .syntaxQ = syntaxQ, .parsedQ = parsedQ };
     }
     fn deinit(_: *Self) void {}
 
-    fn parse(self: *Self) void {
+    pub fn parse(self: *Self) void {
         self.parsePrefix();
     }
 
@@ -31,14 +31,15 @@ pub const Parser = struct {
         // parsePrefix: We're looking for a unary operator or an operand.i
         // TODO: I do wonder if combining both parsers into a labeled switch would perform better.
         const token = self.syntaxQ.pop();
-        std.debug.assert(token.kind < tok.AUX_KIND_START); // Give compiler some hints on bounds so it can optimize the switch better.
+        if (token.kind == .aux_stream_end) return;
+        std.debug.assert(@intFromEnum(token.kind) < tok.AUX_KIND_START); // Give compiler some hints on bounds so it can optimize the switch better.
 
         switch (token.kind) {
-            .aux_stream_end => return,
             .lit_string, .lit_bool, .lit_number, .lit_null => self.literal(token),
             .identifier, .const_identifier => self.identifier(token),
             .op_not, .op_unary_minus => self.unaryOp(token),
             .grp_open_paren, .grp_open_brace, .grp_open_bracket, .grp_indent => self.grouping(token),
+            else => return,
             // TODO: prefix keywords like class, fn
         }
         // It's important that this remains tail recursive. No further actions should occur after the switch.
@@ -47,7 +48,11 @@ pub const Parser = struct {
     fn parseInfix(self: *Self) void {
         // Looking for a binary operator or the end of an expression.
         const token = self.syntaxQ.pop();
-        std.debug.assert(token.kind < tok.AUX_KIND_START);
+        if (token.kind == .aux_stream_end) {
+            self.parsedQ.flushAll();
+            return;
+        }
+        std.debug.assert(@intFromEnum(token.kind) < tok.AUX_KIND_START);
 
         switch (token.kind) {
             TK.op_gte, TK.op_dbl_eq, TK.op_lte, TK.op_not_eq, TK.op_choice, TK.op_pow, TK.op_gt, TK.op_lt, TK.op_div, TK.op_dot_member, TK.op_sub, TK.op_add, TK.op_mul, TK.op_mod, TK.op_and, TK.op_or, TK.op_in, TK.op_is, TK.op_as, TK.op_identifier => self.binaryOp(token),
@@ -58,8 +63,13 @@ pub const Parser = struct {
             TK.sep_comma, TK.sep_newline => self.separator(token),
 
             TK.grp_close_paren, TK.grp_close_brace, TK.grp_close_bracket, TK.grp_dedent => self.endGroup(token),
+            else => return,
         }
         // It's important that this function remains tail recursive. No further actions should happen after the switch.
+    }
+
+    fn emit(self: *Self, token: Token) void {
+        self.parsedQ.emit(token);
     }
 
     fn literal(self: *Self, token: Token) void {
@@ -130,24 +140,29 @@ pub const ParsedQueue = struct {
     // TODO: We can know exactly what to size this from the lexer if we can maintain a counter.
     // We take advantage of the fact that none of the precedence sensitive operators are storing anything extra in their tokens.
     // So we use the spare-space within the token to store original indexes.
-    opStack: std.array_list.AlignedManaged(Token, null),
+    opStack: std.array_list.Aligned(Token, null),
     parsedQ: *TokenQueue,
     // We no longer maintain a separate offset queue.
     // New-lines give general location. Operands are always in order. And operators carry their index within them.
 
     pub fn init(allocator: Allocator, parsedQ: *TokenQueue) !Self {
-        // TODO: Pre-allocate capacity?
-        const opStack = std.ArrayList(Token).initCapacity(allocator, 32);
+        // TODO: Pre-allocate capacity for max op stack size.
+        // Need to compute those bounds in the lexer itself.
+        const opStack = try std.array_list.Aligned(Token, null).initCapacity(allocator, 32);
         return Self{ .opStack = opStack, .parsedQ = parsedQ };
     }
 
-    pub fn deinit(self: *Self) void {
-        self.opStack.deinit();
+    pub fn deinit(self: *Self, allocator: Allocator) void {
+        self.opStack.deinit(allocator);
+    }
+
+    pub fn reset(self: *Self) void {
+        self.opStack.clearRetainingCapacity();
     }
 
     pub fn emit(self: *Self, token: Token) void {
         // TODO: We need to ensure parsed queue is sized appropriately upfront.
-        self.parsedQ.appendAssumeCapacity(token);
+        self.parsedQ.push(token);
     }
 
     pub fn flush(self: *Self, token: Token) void {
@@ -158,48 +173,55 @@ pub const ParsedQueue = struct {
         const flushBitset = tok.TBL_PRECEDENCE_FLUSH[tokValue];
         while (self.opStack.items.len > 0) {
             const top = self.opStack.items[self.opStack.items.len - 1];
-            const topKind = top.token.kind;
+            const topKind = top.kind;
             if (flushBitset.isSet(@intFromEnum(topKind))) {
-                try self.popOp();
+                self.popOp();
             } else {
                 break;
             }
         }
     }
 
-    pub fn flushUntil(self: *Self, set: bitset.BitSet64) !void {
+    pub fn flushUntil(self: *Self, set: bitset.BitSet64) void {
         // Flush while will keep flushing as long as the bitset pattern is met.
         // Flush until will keep flushing until the bitset pattern is met. Then flush that and stop.
         while (self.opStack.items.len > 0) {
             const tokNode = self.opStack.items[self.opStack.items.len - 1];
-            const tokKind = tokNode.token.kind;
+            const tokKind = tokNode.kind;
             if (isKind(set, tokKind)) { // tok.KEYWORD_START
-                try self.popOp();
+                self.popOp();
                 // TODO: Multi-keyword?
                 break;
             }
             if (isKind(tok.GROUP_START, tokKind)) {
                 // Compilation error - print token
-                tok.print_token("Compilation error - UNMATCHED GROUPING: {any}\n", tokNode.token, self.buffer);
+                tok.print_token("Compilation error - UNMATCHED GROUPING: {any}\n", tokNode, "");
                 return;
                 // return error.UnmatchedGrouping;
             }
-            try self.popOp();
+            self.popOp();
         }
     }
 
-    fn flushUntilKind(self: *Self, kind: tok.Kind) !void {
+    fn flushUntilKind(self: *Self, kind: tok.Kind) void {
         // You could write a specialized version of this without the bitset, but this is cleaner.
-        try self.flushUntil(bitset.token_bitset(&[_]tok.Kind{kind}));
+        self.flushUntil(bitset.token_bitset(&[_]tok.Kind{kind}));
     }
 
-    pub fn pushOp(self: *Self, token: Token, index: usize) !void {
+    pub fn flushAll(self: *Self) void {
+        while (self.opStack.items.len > 0) {
+            self.popOp();
+        }
+    }
+
+    pub fn pushOp(self: *Self, token: Token, index: usize) void {
         self.flush(token);
-        token.data.raw = @truncate(index);
-        self.opStack.append(token);
+        var opToken = token;
+        opToken.data.raw = @truncate(index);
+        self.opStack.appendAssumeCapacity(opToken);
     }
 
-    pub fn popOp(self: *Self) !void {
-        emit(self.opStack.pop() orelse return);
+    pub fn popOp(self: *Self) void {
+        self.emit(self.opStack.pop() orelse return);
     }
 };

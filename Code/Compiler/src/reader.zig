@@ -18,7 +18,8 @@ pub const Reader = struct {
     allocator: Allocator,
     syntaxQ: *TokenQueue,
     auxQ: *TokenQueue,
-    parsedQ: *TokenQueue,
+    parsedElements: *TokenQueue,
+    parsedQ: *parser.ParsedQueue,
     internedStrings: *StringArrayHashMap(u64),
     internedNumbers: *std.AutoHashMap(u64, u64),
     internedFloats: *std.AutoHashMap(f64, u64),
@@ -36,7 +37,7 @@ pub const Reader = struct {
         parsedElements.* = try TokenQueue.init(allocator);
 
         const parsedQ = try allocator.create(parser.ParsedQueue);
-        parsedQ.* = try parser.ParsedQueue.init(allocator, *parsedElements);
+        parsedQ.* = try parser.ParsedQueue.init(allocator, parsedElements);
 
         const internedStrings = try allocator.create(StringArrayHashMap(u64));
         internedStrings.* = StringArrayHashMap(u64).init(allocator);
@@ -55,6 +56,7 @@ pub const Reader = struct {
             .allocator = allocator,
             .syntaxQ = syntaxQ,
             .auxQ = auxQ,
+            .parsedElements = parsedElements,
             .parsedQ = parsedQ,
             .internedStrings = internedStrings,
             .internedNumbers = internedNumbers,
@@ -67,7 +69,8 @@ pub const Reader = struct {
     pub fn deinit(self: *Self) void {
         self.syntaxQ.deinit();
         self.auxQ.deinit();
-        self.parsedQ.deinit();
+        self.parsedQ.deinit(self.allocator);
+        self.parsedElements.deinit();
         self.internedStrings.deinit();
         self.internedNumbers.deinit();
         self.internedFloats.deinit();
@@ -77,6 +80,7 @@ pub const Reader = struct {
         self.allocator.destroy(self.syntaxQ);
         self.allocator.destroy(self.auxQ);
         self.allocator.destroy(self.parsedQ);
+        self.allocator.destroy(self.parsedElements);
         self.allocator.destroy(self.internedStrings);
         self.allocator.destroy(self.internedNumbers);
         self.allocator.destroy(self.internedFloats);
@@ -90,6 +94,8 @@ pub fn process_chunk(chunk: []u8, reader: *Reader, allocator: Allocator, io: std
     // std.debug.print("Processing next chunk\n", .{});
     reader.syntaxQ.reset();
     reader.auxQ.reset();
+    reader.parsedElements.reset();
+    reader.parsedQ.reset();
     // Over-allocate space - enough for an element per byte. Could be sized smaller if we want.
     const lexerCapacity = chunkSize / 4 + 4; // Arbitrary math.
     try reader.syntaxQ.reserve(lexerCapacity);
@@ -101,18 +107,18 @@ pub fn process_chunk(chunk: []u8, reader: *Reader, allocator: Allocator, io: std
     std.log.debug("\n------------- Lexer Queue --------------- \n", .{});
     std.log.debug("Token queue: {any}", .{reader.syntaxQ.list.items});
 
-    var resolution = try rs.Resolution.init(allocator, reader.internedSymbols.count(), reader.parsedQ);
+    var resolution = try rs.Resolution.init(allocator, reader.internedSymbols.count(), reader.parsedElements);
     defer resolution.deinit();
 
     const parsedCapacity = reader.syntaxQ.list.items.len + 1;
-    try reader.parsedQ.reserve(parsedCapacity);
-    var p = ParserImpl.init(chunk, reader.syntaxQ, reader.auxQ, reader.parsedQ, allocator, &resolution);
-    p.startParse();
+    try reader.parsedElements.reserve(parsedCapacity);
+    var p = ParserImpl.init(chunk, reader.syntaxQ, reader.parsedQ);
+    p.parse();
     std.log.debug("\n------------- Parsed Queue --------------- \n", .{});
-    std.log.debug("Parsed queue: {any}", .{reader.parsedQ.list.items});
+    std.log.debug("Parsed queue: {any}", .{reader.parsedElements.list.items});
 
     var c = codegen.Codegen.init(allocator, chunk);
-    try c.emitAll(p.parsedQ.list.items, reader.internedStrings);
+    try c.emitAll(reader.parsedElements.list.items, reader.internedStrings);
     defer c.deinit();
 
     var linker = macho.MachOLinker.init(allocator);
