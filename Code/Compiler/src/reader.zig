@@ -11,14 +11,14 @@ const Allocator = std.mem.Allocator;
 const StringArrayHashMap = std.array_hash_map.StringArrayHashMap;
 
 const ParserImpl = parser.Parser;
+const TokenQueue = lex.TokenQueue;
 
 pub const Reader = struct {
     const Self = @This();
     allocator: Allocator,
-    syntaxQ: *lex.TokenQueue,
-    auxQ: *lex.TokenQueue,
-    parsedQ: *parser.TokenQueue,
-    offsetQ: *parser.OffsetQueue,
+    syntaxQ: *TokenQueue,
+    auxQ: *TokenQueue,
+    parsedQ: *TokenQueue,
     internedStrings: *StringArrayHashMap(u64),
     internedNumbers: *std.AutoHashMap(u64, u64),
     internedFloats: *std.AutoHashMap(f64, u64),
@@ -26,17 +26,17 @@ pub const Reader = struct {
 
     pub fn init(allocator: Allocator) !*Self {
         // Allocate all queue/hashmap pointers on heap
-        const syntaxQ = try allocator.create(lex.TokenQueue);
-        syntaxQ.* = try lex.TokenQueue.init(allocator);
+        const syntaxQ = try allocator.create(TokenQueue);
+        syntaxQ.* = try TokenQueue.init(allocator);
 
-        const auxQ = try allocator.create(lex.TokenQueue);
-        auxQ.* = try lex.TokenQueue.init(allocator);
+        const auxQ = try allocator.create(TokenQueue);
+        auxQ.* = try TokenQueue.init(allocator);
 
-        const parsedQ = try allocator.create(parser.TokenQueue);
-        parsedQ.* = try parser.TokenQueue.init(allocator);
+        const parsedElements = try allocator.create(TokenQueue);
+        parsedElements.* = try TokenQueue.init(allocator);
 
-        const offsetQ = try allocator.create(parser.OffsetQueue);
-        offsetQ.* = try parser.OffsetQueue.init(allocator);
+        const parsedQ = try allocator.create(parser.ParsedQueue);
+        parsedQ.* = try parser.ParsedQueue.init(allocator, *parsedElements);
 
         const internedStrings = try allocator.create(StringArrayHashMap(u64));
         internedStrings.* = StringArrayHashMap(u64).init(allocator);
@@ -56,7 +56,6 @@ pub const Reader = struct {
             .syntaxQ = syntaxQ,
             .auxQ = auxQ,
             .parsedQ = parsedQ,
-            .offsetQ = offsetQ,
             .internedStrings = internedStrings,
             .internedNumbers = internedNumbers,
             .internedFloats = internedFloats,
@@ -69,7 +68,6 @@ pub const Reader = struct {
         self.syntaxQ.deinit();
         self.auxQ.deinit();
         self.parsedQ.deinit();
-        self.offsetQ.deinit();
         self.internedStrings.deinit();
         self.internedNumbers.deinit();
         self.internedFloats.deinit();
@@ -79,7 +77,6 @@ pub const Reader = struct {
         self.allocator.destroy(self.syntaxQ);
         self.allocator.destroy(self.auxQ);
         self.allocator.destroy(self.parsedQ);
-        self.allocator.destroy(self.offsetQ);
         self.allocator.destroy(self.internedStrings);
         self.allocator.destroy(self.internedNumbers);
         self.allocator.destroy(self.internedFloats);
@@ -109,8 +106,7 @@ pub fn process_chunk(chunk: []u8, reader: *Reader, allocator: Allocator, io: std
 
     const parsedCapacity = reader.syntaxQ.list.items.len + 1;
     try reader.parsedQ.reserve(parsedCapacity);
-    try reader.offsetQ.reserve(parsedCapacity);
-    var p = ParserImpl.init(chunk, reader.syntaxQ, reader.auxQ, reader.parsedQ, reader.offsetQ, allocator, &resolution);
+    var p = ParserImpl.init(chunk, reader.syntaxQ, reader.auxQ, reader.parsedQ, allocator, &resolution);
     p.startParse();
     std.log.debug("\n------------- Parsed Queue --------------- \n", .{});
     std.log.debug("Parsed queue: {any}", .{reader.parsedQ.list.items});

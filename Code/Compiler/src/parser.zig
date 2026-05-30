@@ -15,8 +15,17 @@ pub const Parser = struct {
     const Self = @This();
     buffer: []const u8,
     syntaxQ: *TokenQueue,
+    parsedQ: *ParsedQueue,
 
     // parsed: ParsedQueue
+    fn init(buffer: []const u8, syntaxQ: *TokenQueue, parsedQ: *ParsedQueue) Self {
+        return Self{ .buffer = buffer, .syntaxQ = syntaxQ, .parsedQ = parsedQ };
+    }
+    fn deinit(_: *Self) void {}
+
+    fn parse(self: *Self) void {
+        self.parsePrefix();
+    }
 
     fn parsePrefix(self: *Self) void {
         // parsePrefix: We're looking for a unary operator or an operand.i
@@ -32,6 +41,7 @@ pub const Parser = struct {
             .grp_open_paren, .grp_open_brace, .grp_open_bracket, .grp_indent => self.grouping(token),
             // TODO: prefix keywords like class, fn
         }
+        // It's important that this remains tail recursive. No further actions should occur after the switch.
     }
 
     fn parseInfix(self: *Self) void {
@@ -49,11 +59,7 @@ pub const Parser = struct {
 
             TK.grp_close_paren, TK.grp_close_brace, TK.grp_close_bracket, TK.grp_dedent => self.endGroup(token),
         }
-    }
-
-    fn emit(self: *Self, token: Token) void {
-        // Emit a parsed token to the output queue.
-
+        // It's important that this function remains tail recursive. No further actions should happen after the switch.
     }
 
     fn literal(self: *Self, token: Token) void {
@@ -68,42 +74,53 @@ pub const Parser = struct {
     }
 
     fn unaryOp(self: *Self, token: Token) void {
-        //
+        self.pushOp(token);
         self.parsePrefix(); // Expect more unary ops or the left side op
     }
 
     fn binaryOp(self: *Self, token: Token) void {
-        // self.pushOp
+        self.pushOp(token);
         self.parsePrefix();
     }
 
     fn grouping(self: *Self, token: Token) void {
         // We can quickly go from the open to the close by doing -1.
+        self.pushOp(token);
         self.parsePrefix(); // Treat as if it's a beginning of a sub-expression.
     }
 
     fn endGroup(self: *Self, token: Token) void {
+        // Grouping kinds are laid out in close, open pairs. From current close, +1 gives you the open kind.
+        self.parsedQ.flushUntilKind(@enumFromInt(@intFromEnum(token.kind) + 1));
         self.parseInfix(); // Treat this whole node as being a left operator. Look for the infix operand next.
     }
 
-    fn endParse(self: *Self) void {
+    fn endParse(_: *Self) void {
         // Check the parser state and make sure we're in a good terminal state.
         // i.e. no left over state.
 
     }
 
     fn assign(self: *Self, token: Token) void {
+        // TODO: Self resolution
+        self.pushOp(token);
         self.parsePrefix();
     }
 
     fn associate(self: *Self, token: Token) void {
-        //
+        self.pushOp(token);
+        // This set can be reduced down to just fn / class.
+        self.parsedQ.flushUntil(tok.KEYWORD_START);
         self.parsePrefix();
     }
 
     fn separator(self: *Self, token: Token) void {
-        // flush
+        self.parsedQ.flush(token);
         self.parsePrefix();
+    }
+
+    fn pushOp(self: *Self, token: Token) void {
+        self.parsedQ.pushOp(token, self.syntaxQ.head);
     }
 };
 
@@ -114,14 +131,13 @@ pub const ParsedQueue = struct {
     // We take advantage of the fact that none of the precedence sensitive operators are storing anything extra in their tokens.
     // So we use the spare-space within the token to store original indexes.
     opStack: std.array_list.AlignedManaged(Token, null),
-    parsedQ: std.array_list.Aligned(Token, null),
+    parsedQ: *TokenQueue,
     // We no longer maintain a separate offset queue.
     // New-lines give general location. Operands are always in order. And operators carry their index within them.
 
-    pub fn init(allocator: Allocator) Self {
+    pub fn init(allocator: Allocator, parsedQ: *TokenQueue) !Self {
         // TODO: Pre-allocate capacity?
-        const opStack = std.array_list.AlignedManaged(Token, null).init(allocator);
-        const parsedQ = std.array_list.Aligned(Token);
+        const opStack = std.ArrayList(Token).initCapacity(allocator, 32);
         return Self{ .opStack = opStack, .parsedQ = parsedQ };
     }
 
@@ -172,14 +188,14 @@ pub const ParsedQueue = struct {
         }
     }
 
-    fn flushUntilToken(self: *Self, kind: tok.Kind) !void {
+    fn flushUntilKind(self: *Self, kind: tok.Kind) !void {
         // You could write a specialized version of this without the bitset, but this is cleaner.
         try self.flushUntil(bitset.token_bitset(&[_]tok.Kind{kind}));
     }
 
-    pub fn pushOp(self: *Self, token: Token, index: u32) !void {
+    pub fn pushOp(self: *Self, token: Token, index: usize) !void {
         self.flush(token);
-        token.data.raw = index;
+        token.data.raw = @truncate(index);
         self.opStack.append(token);
     }
 
