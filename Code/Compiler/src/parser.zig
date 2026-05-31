@@ -2,12 +2,12 @@
 // https://erikeidt.github.io/The-Double-E-Method.html
 const std = @import("std");
 const tok = @import("token.zig");
-const lex = @import("lexer.zig");
 const bitset = @import("bitset.zig");
+const TokenQueue = @import("lexer.zig").TokenQueue;
+const KindRanges = @import("ir/kind_ranges.zig").KindRanges;
 
 const Token = tok.Token;
-const TK = tok.Kind;
-pub const TokenQueue = lex.TokenQueue;
+const Kind = tok.Kind;
 const Allocator = std.mem.Allocator;
 const isKind = bitset.isKind;
 
@@ -55,14 +55,14 @@ pub const Parser = struct {
         std.debug.assert(@intFromEnum(token.kind) < tok.AUX_KIND_START);
 
         switch (token.kind) {
-            TK.op_gte, TK.op_dbl_eq, TK.op_lte, TK.op_not_eq, TK.op_choice, TK.op_pow, TK.op_gt, TK.op_lt, TK.op_div, TK.op_dot_member, TK.op_sub, TK.op_add, TK.op_mul, TK.op_mod, TK.op_and, TK.op_or, TK.op_in, TK.op_is, TK.op_as, TK.op_identifier => self.binaryOp(token),
+            .op_gte, .op_dbl_eq, .op_lte, .op_not_eq, .op_choice, .op_pow, .op_gt, .op_lt, .op_div, .op_dot_member, .op_sub, .op_add, .op_mul, .op_mod, .op_and, .op_or, .op_in, .op_is, .op_as, .op_identifier => self.binaryOp(token),
 
-            TK.op_assign_eq, TK.op_div_eq, TK.op_minus_eq, TK.op_plus_eq, TK.op_mul_eq => self.assign(token),
-            TK.op_colon_assoc => self.associate(token),
+            .op_assign_eq, .op_div_eq, .op_minus_eq, .op_plus_eq, .op_mul_eq => self.assign(token),
+            .op_colon_assoc => self.associate(token),
 
-            TK.sep_comma, TK.sep_newline => self.separator(token),
+            .sep_comma, .sep_newline => self.separator(token),
 
-            TK.grp_close_paren, TK.grp_close_brace, TK.grp_close_bracket, TK.grp_dedent => self.endGroup(token),
+            .grp_close_paren, .grp_close_brace, .grp_close_bracket, .grp_dedent => self.endGroup(token),
             else => return,
         }
         // It's important that this function remains tail recursive. No further actions should happen after the switch.
@@ -141,13 +141,14 @@ pub const ParsedQueue = struct {
     // We take advantage of the fact that none of the precedence sensitive operators are storing anything extra in their tokens.
     // So we use the spare-space within the token to store original indexes.
     opStack: std.array_list.Aligned(Token, null),
+    kindCounts: *KindRanges,
     parsedQ: *TokenQueue,
     // We no longer maintain a separate offset queue.
     // New-lines give general location. Operands are always in order. And operators carry their index within them.
 
-    pub fn init(allocator: Allocator, parsedQ: *TokenQueue) !Self {
+    pub fn init(allocator: Allocator, parsedQ: *TokenQueue, kindCounts: *KindRanges) !Self {
         const opStack = try std.array_list.Aligned(Token, null).initCapacity(allocator, 32);
-        return Self{ .opStack = opStack, .parsedQ = parsedQ };
+        return Self{ .opStack = opStack, .parsedQ = parsedQ, .kindCounts = kindCounts };
     }
 
     pub fn deinit(self: *Self, allocator: Allocator) void {
@@ -166,7 +167,12 @@ pub const ParsedQueue = struct {
 
     pub fn emit(self: *Self, token: Token) void {
         // Reader ensures parsedQ is sized appropriately by lexed size.
+        self.emitAs(token, token.kind);
+    }
+
+    pub fn emitAs(self: *Self, token: Token, kind: Kind) void {
         self.parsedQ.push(token);
+        _ = self.kindCounts.incKind(kind);
     }
 
     pub fn flush(self: *Self, token: Token) void {

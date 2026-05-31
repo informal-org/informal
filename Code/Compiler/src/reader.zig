@@ -7,6 +7,7 @@ const codegen = @import("codegen.zig");
 const rs = @import("resolution.zig");
 const macho = @import("macho.zig");
 const build_options = @import("build_options");
+const KindRanges = @import("ir/kind_ranges.zig").KindRanges;
 const Allocator = std.mem.Allocator;
 const StringArrayHashMap = std.array_hash_map.StringArrayHashMap;
 
@@ -18,6 +19,7 @@ pub const Reader = struct {
     allocator: Allocator,
     syntaxQ: *TokenQueue,
     auxQ: *TokenQueue,
+    kindRanges: *KindRanges,
     parsedElements: *TokenQueue,
     parsedQ: *parser.ParsedQueue,
     internedStrings: *StringArrayHashMap(u64),
@@ -33,11 +35,14 @@ pub const Reader = struct {
         const auxQ = try allocator.create(TokenQueue);
         auxQ.* = try TokenQueue.init(allocator);
 
+        const kindRanges = try allocator.create(KindRanges);
+        kindRanges.* = KindRanges{};
+
         const parsedElements = try allocator.create(TokenQueue);
         parsedElements.* = try TokenQueue.init(allocator);
 
         const parsedQ = try allocator.create(parser.ParsedQueue);
-        parsedQ.* = try parser.ParsedQueue.init(allocator, parsedElements);
+        parsedQ.* = try parser.ParsedQueue.init(allocator, parsedElements, kindRanges);
 
         const internedStrings = try allocator.create(StringArrayHashMap(u64));
         internedStrings.* = StringArrayHashMap(u64).init(allocator);
@@ -56,6 +61,7 @@ pub const Reader = struct {
             .allocator = allocator,
             .syntaxQ = syntaxQ,
             .auxQ = auxQ,
+            .kindRanges = kindRanges,
             .parsedElements = parsedElements,
             .parsedQ = parsedQ,
             .internedStrings = internedStrings,
@@ -79,6 +85,7 @@ pub const Reader = struct {
         // Free the allocated structs themselves
         self.allocator.destroy(self.syntaxQ);
         self.allocator.destroy(self.auxQ);
+        self.allocator.destroy(self.kindRanges);
         self.allocator.destroy(self.parsedQ);
         self.allocator.destroy(self.parsedElements);
         self.allocator.destroy(self.internedStrings);

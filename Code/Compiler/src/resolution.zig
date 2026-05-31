@@ -18,6 +18,7 @@
 
 const std = @import("std");
 const print = std.debug.print;
+const TokenQueue = @import("lexer.zig").TokenQueue;
 const parser = @import("parser.zig");
 const tok = @import("token.zig");
 const Token = tok.Token;
@@ -63,11 +64,11 @@ pub const Resolution = struct {
 
     scopeStack: std.array_list.Aligned(Scope, null),
 
-    parsedQ: *parser.TokenQueue,
+    parsedQ: *TokenQueue,
 
     scopeId: u16,
 
-    pub fn init(allocator: std.mem.Allocator, maxSymbols: u32, parsedQ: *parser.TokenQueue) !Self {
+    pub fn init(allocator: std.mem.Allocator, maxSymbols: u32, parsedQ: *TokenQueue) !Self {
         const declarations = try allocator.alloc(u32, maxSymbols);
         @memset(declarations, UNDECLARED_SENTINEL);
 
