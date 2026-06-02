@@ -10,7 +10,6 @@ const expectEqual = std.testing.expectEqual;
 
 test "Test token sizes" {
     try expect(@bitSizeOf(Token) == 64);
-    try expect(@bitSizeOf(Token) == 64);
 }
 
 test "Test precedence table" {

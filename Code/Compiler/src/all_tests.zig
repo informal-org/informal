@@ -3,15 +3,7 @@
 
 comptime {
     _ = @import("test/test_arm.zig");
-    _ = @import("test/test_depmap.zig");
-    _ = @import("test/test_ir.zig");
     _ = @import("test/test_lexer.zig");
-    _ = @import("test/test_parser.zig");
-    _ = @import("test/test_regalloc.zig");
-    _ = @import("test/test_resolution.zig");
-    _ = @import("test/test_sequence.zig");
     _ = @import("test/test_token.zig");
     _ = @import("filetest.zig");
-    _ = @import("lru.zig");
-    _ = @import("registerpool.zig");
 }

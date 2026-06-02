@@ -1,13 +1,12 @@
 const std = @import("std");
 const tok = @import("../token.zig");
 const lexer_mod = @import("../lexer.zig");
-const parser_mod = @import("../parser.zig");
 
 const Token = tok.Token;
 const TK = tok.Kind;
 const StringArrayHashMap = std.array_hash_map.StringArrayHashMap;
 const Lexer = lexer_mod.Lexer;
-const TokenQueue = parser_mod.TokenQueue;
+const TokenQueue = lexer_mod.TokenQueue;
 
 const test_allocator = std.testing.allocator;
 const expect = std.testing.expect;
@@ -46,8 +45,8 @@ fn testSymbol(buf: []const u8, kind: TK) !void {
 }
 
 test "Token equality" {
-    const auxtok_bits: u64 = @bitCast(Token.lex(TK.aux_stream_end, 3, 5));
-    const le_expected_bits: u64 = 0x000005_00000003_ff_00;
+    const auxtok_bits: u64 = @bitCast(Token.lex(TK.op_dbl_eq, 3, 5));
+    const le_expected_bits: u64 = 0x000005_00000003_01_00;
     try expect(auxtok_bits == le_expected_bits);
 
     const other_bits: u64 = @bitCast(Token.lex(TK.aux, 10, 20));
