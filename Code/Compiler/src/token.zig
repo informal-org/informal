@@ -129,6 +129,8 @@ pub const Data = packed union {
     // Aux token source positions (whitespace, newline, indentation).
     aux: Aux,
 
+    irags: IrArgs,
+
     pub const Ident = packed struct(u48) {
         symbol_id: u16,
         prev_offset: u16,
@@ -159,6 +161,8 @@ pub const Data = packed union {
         position: u32,
         length: u16,
     };
+
+    pub const IrArgs = packed struct(u48) { left: u24, right: u24 };
 };
 
 pub const Flags = packed struct(u8) {
@@ -253,6 +257,10 @@ pub const Token = packed struct(u64) {
             .data = .{ .ident = .{ .symbol_id = reg, .prev_offset = self.data.ident.prev_offset, .next_offset = self.data.ident.next_offset } },
             .flags = self.flags,
         };
+    }
+
+    pub fn ir(self: Token, left: u24, right: u24) Token {
+        return Token{ .kind = self.kind, .data = .{ .irags = .{ .left = left, .right = right } }, .flags = Flags.empty() };
     }
 };
 

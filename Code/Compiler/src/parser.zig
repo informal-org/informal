@@ -140,29 +140,29 @@ pub const ParsedQueue = struct {
     // TODO: We can know exactly what to size this from the lexer if we can maintain a counter.
     // We take advantage of the fact that none of the precedence sensitive operators are storing anything extra in their tokens.
     // So we use the spare-space within the token to store original indexes.
-    opStack: std.array_list.Aligned(Token, null),
+    precedenceStack: std.array_list.Aligned(Token, null),
     kindCounts: *KindRanges,
     parsedQ: *TokenQueue,
     // We no longer maintain a separate offset queue.
     // New-lines give general location. Operands are always in order. And operators carry their index within them.
 
     pub fn init(allocator: Allocator, parsedQ: *TokenQueue, kindCounts: *KindRanges) !Self {
-        const opStack = try std.array_list.Aligned(Token, null).initCapacity(allocator, 32);
-        return Self{ .opStack = opStack, .parsedQ = parsedQ, .kindCounts = kindCounts };
+        const precedenceStack = try std.array_list.Aligned(Token, null).initCapacity(allocator, 32);
+        return Self{ .precedenceStack = precedenceStack, .parsedQ = parsedQ, .kindCounts = kindCounts };
     }
 
     pub fn deinit(self: *Self, allocator: Allocator) void {
-        self.opStack.deinit(allocator);
+        self.precedenceStack.deinit(allocator);
     }
 
     pub fn reset(self: *Self) void {
-        self.opStack.clearRetainingCapacity();
+        self.precedenceStack.clearRetainingCapacity();
     }
 
     pub fn reserve(self: *Self, allocator: Allocator, maxOpStreak: usize) !void {
-        std.log.info("Reserving opstack capacity for {d}", .{maxOpStreak});
+        std.log.info("Reserving precedencestack capacity for {d}", .{maxOpStreak});
         // We know the longest streak of operators after lexing (breaking on newlines).
-        try self.opStack.ensureTotalCapacityPrecise(allocator, maxOpStreak);
+        try self.precedenceStack.ensureTotalCapacityPrecise(allocator, maxOpStreak);
     }
 
     pub fn emit(self: *Self, token: Token) void {
@@ -181,8 +181,8 @@ pub const ParsedQueue = struct {
         const tokValue = @intFromEnum(token.kind);
         std.debug.assert(tokValue < tok.TBL_PRECEDENCE_FLUSH.len);
         const flushBitset = tok.TBL_PRECEDENCE_FLUSH[tokValue];
-        while (self.opStack.items.len > 0) {
-            const top = self.opStack.items[self.opStack.items.len - 1];
+        while (self.precedenceStack.items.len > 0) {
+            const top = self.precedenceStack.items[self.precedenceStack.items.len - 1];
             const topKind = top.kind;
             if (flushBitset.isSet(@intFromEnum(topKind))) {
                 self.popOp();
@@ -195,8 +195,8 @@ pub const ParsedQueue = struct {
     pub fn flushUntil(self: *Self, set: bitset.BitSet64) void {
         // Flush while will keep flushing as long as the bitset pattern is met.
         // Flush until will keep flushing until the bitset pattern is met. Then flush that and stop.
-        while (self.opStack.items.len > 0) {
-            const tokNode = self.opStack.items[self.opStack.items.len - 1];
+        while (self.precedenceStack.items.len > 0) {
+            const tokNode = self.precedenceStack.items[self.precedenceStack.items.len - 1];
             const tokKind = tokNode.kind;
             if (isKind(set, tokKind)) { // tok.KEYWORD_START
                 self.popOp();
@@ -219,7 +219,7 @@ pub const ParsedQueue = struct {
     }
 
     pub fn flushAll(self: *Self) void {
-        while (self.opStack.items.len > 0) {
+        while (self.precedenceStack.items.len > 0) {
             self.popOp();
         }
     }
@@ -228,10 +228,10 @@ pub const ParsedQueue = struct {
         self.flush(token);
         var opToken = token;
         opToken.data.raw = @truncate(index);
-        self.opStack.appendAssumeCapacity(opToken);
+        self.precedenceStack.appendAssumeCapacity(opToken);
     }
 
     pub fn popOp(self: *Self) void {
-        self.emit(self.opStack.pop() orelse return);
+        self.emit(self.precedenceStack.pop() orelse return);
     }
 };

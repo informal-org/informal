@@ -28,6 +28,7 @@ pub const KindRanges = struct {
 
     pub fn lockRanges(self: *Self) u32 {
         // Turn kind counts -> kind starts by cumulative sum. Return total length.
+        // Invariant: Must be called only once!
         var total = 0;
         for (self.kindRanges, 0..) |kindCount, i| {
             self.kindRanges[i] = total;
