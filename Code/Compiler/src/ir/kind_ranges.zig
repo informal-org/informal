@@ -17,7 +17,6 @@ pub const KindRanges = struct {
     // After all elements are added, it points to the end of each range.
     // Only assertion is that IR conversion MUST insert the same exact count of elements that parser counted. Never more or less (i.e. if we do constant folding, add sentinels). Else the end boundaries will be off.
     kindRanges: [NUM_KINDS]u32 = [_]u32{0} ** NUM_KINDS,
-    kindSnapshot: [NUM_KINDS]u32 = [_]u32{0} ** NUM_KINDS,
 
     pub fn incKind(self: *Self, kind: Kind) u32 {
         // Called by parser to increment counts
@@ -40,13 +39,14 @@ pub const KindRanges = struct {
         return total;
     }
 
-    pub fn snapshot(self: *Self) blocks.Block {
+    pub fn snapshot(self: *Self, cursor: KindRanges) blocks.Block {
         // Take a snapshot of the kind-ranges after a block is complete
         // Indicating which kinds are present, and how many of each kind.
+        // Self is the snapshot. Base is the moving cursor.
         const block = blocks.Block{ .kinds = BitSet64.initEmpty(), .counts = BitSet64.initEmpty() };
 
         for (0..NUM_KINDS) |index| {
-            const numKindAdded = self.kindRanges[index] - self.kindSnapshot[index];
+            const numKindAdded = cursor.kindRanges[index] - self.kindRanges[index];
             if (numKindAdded != 0) {
                 // Then this kind was added since last snapshot.
                 block.kinds.set(index);
@@ -57,9 +57,24 @@ pub const KindRanges = struct {
                 block.counts.set(endIndex);
 
                 // Snapshot for the next round.
-                self.kindSnapshot[index] = self.kindRanges[index];
+                self.kindRanges[index] = cursor.kindRanges[index];
             }
         }
         return block;
+    }
+
+    pub fn iter(self: *Self, block: blocks.Block, direction: blocks.Direction) void {
+        const kindIter = block.kinds.iterator(.{});
+        const countIter = block.counts.iterator(.{});
+        std.debug.assert(block.kinds.count() == block.counts.count());
+        var prevCount = 0;
+        for (kindIter.next()) |kindIndex| {
+            const count = (countIter.next() orelse unreachable) - prevCount;
+            prevCount = count;
+            switch (direction) {
+                .forward => self.kindRanges[kindIndex] += count,
+                .reverse => self.kingRanges[kindIndex] -= count,
+            }
+        }
     }
 };
