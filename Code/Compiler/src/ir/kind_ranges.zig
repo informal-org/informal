@@ -53,7 +53,7 @@ pub const KindRanges = struct {
                 // Set the next bit after N slots to indicate that many elements of this kind are present.
                 const endIndex = block.counts.findLastSet() + numKindAdded;
                 // Overall block sizes are capped, so this should never overflow.
-                std.debug.assert(endIndex < NUM_KINDS);
+                std.debug.assert(endIndex < blocks.MAX_BLOCK_LEN);
                 block.counts.set(endIndex);
 
                 // Snapshot for the next round.

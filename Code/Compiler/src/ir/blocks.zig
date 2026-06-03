@@ -1,7 +1,10 @@
+const std = @import("std");
 const BitSet64 = @import("../bitset.zig").BitSet64;
 const KindRanges = @import("kind_ranges.zig").KindRanges;
 
 pub const MAX_BLOCK_LEN = 64;
+const Allocator = std.mem.Allocator;
+const BlockList = std.array_list.Aligned(Block, null);
 
 pub const Block = struct {
     const Self = @This();
@@ -18,4 +21,5 @@ pub const Block = struct {
 pub const Blocks = struct {
     const Self = @This();
     kindRanges: *KindRanges,
+    blocks: BlockList,
 };
