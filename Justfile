@@ -38,4 +38,3 @@ informal NAME='run':
 	./out.bin
 	echo "\nRan with code: $?"
 	[ $? -eq 13 ] || true
-
