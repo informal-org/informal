@@ -6,7 +6,6 @@ const resolution = @import("resolution.zig");
 
 const Allocator = std.mem.Allocator;
 const Token = tok.Token;
-const StringArrayHashMap = std.array_hash_map.StringArrayHashMap;
 const TK = tok.Kind;
 const print = std.debug.print;
 const platform = @import("darwin.zig");
@@ -103,7 +102,7 @@ pub const Codegen = struct {
         return reg;
     }
 
-    pub fn fixupConstRefs(self: *Self, parsedQueue: []Token, strConsts: *StringArrayHashMap(u64)) !void {
+    pub fn fixupConstRefs(self: *Self, parsedQueue: []Token, strConsts: *std.StringHashMap(u64)) !void {
         // Constnat references appear after the code, so their relative address is unknown until we know the total code size.
         // So during code-generation, we emit just the constant ID to the object code locations.
         // Then reuse the token-space as linked-list links - An absolute reference to the associated object-code location
@@ -117,7 +116,9 @@ pub const Codegen = struct {
 
         // Using the lengths from here does pollute the cache a bit with unnecessary string data.
         // But it avoids needing to store the lengths separately.
-        for (0.., strConsts.keys()) |index, strElem| {
+        var strConstIter = strConsts.keyIterator();
+        var index: usize = 0;
+        while (strConstIter.next()) |strElem| : (index += 1) {
             // const stringPadding = std.mem.alignForward(usize, strElem.len, 8);
             constOffsets[index] = @truncate(self.totalConstSize);
             self.totalConstSize += strElem.len; // + stringPadding;
@@ -180,7 +181,7 @@ pub const Codegen = struct {
         return @truncate(binaryIdx);
     }
 
-    pub fn emitAll(self: *Self, tokenQueue: []Token, strConsts: *StringArrayHashMap(u64)) !void {
+    pub fn emitAll(self: *Self, tokenQueue: []Token, strConsts: *std.StringHashMap(u64)) !void {
         std.log.debug("\n------------- Codegen --------------- ", .{});
 
         // Reserve a couple of registers.

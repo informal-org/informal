@@ -4,7 +4,7 @@ const lexer_mod = @import("../lexer.zig");
 
 const Token = tok.Token;
 const TK = tok.Kind;
-const StringArrayHashMap = std.array_hash_map.StringArrayHashMap;
+const StringHashMap = std.StringHashMap;
 const Lexer = lexer_mod.Lexer;
 const TokenQueue = lexer_mod.TokenQueue;
 
@@ -19,7 +19,7 @@ fn testToken(buffer: []u8, expected: []const Token, aux: ?[]const Token) !void {
     var auxQ = try TokenQueue.init(test_allocator);
     try syntaxQ.reserve(buffer.len);
     try auxQ.reserve(buffer.len);
-    var internedStrings = StringArrayHashMap(u64).init(test_allocator);
+    var internedStrings = std.StringHashMap(u64).init(test_allocator);
     var internedNumbers = std.AutoHashMap(u64, u64).init(test_allocator);
     var internedFloats = std.AutoHashMap(f64, u64).init(test_allocator);
     var symbolTable = std.StringHashMap(u64).init(test_allocator);
