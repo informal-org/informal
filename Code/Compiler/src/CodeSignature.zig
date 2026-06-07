@@ -50,22 +50,18 @@ pub fn ParallelHasher(comptime PHasher: type) type {
             const results = try self.allocator.alloc(std.Io.File.ReadPositionalError!usize, out.len);
             defer self.allocator.free(results);
 
+            const threads = try self.allocator.alloc(std.Thread, thread_count);
+            defer self.allocator.free(threads);
+
             var next_index = std.atomic.Value(usize).init(0);
-            var wg: std.Thread.WaitGroup = .{};
             for (0..thread_count) |thread_index| {
                 const buffer = buffers[thread_index * chunk_size ..][0..chunk_size];
-                std.Thread.WaitGroup.spawnManager(&wg, worker, .{
-                    self.io,
-                    file,
-                    out,
-                    results,
-                    chunk_size,
-                    file_size,
-                    buffer,
-                    &next_index,
-                });
+                threads[thread_index] = try std.Thread.spawn(.{}, worker, .{ self.io, file, out, results, chunk_size, file_size, buffer, &next_index });
             }
-            wg.wait();
+
+            for (threads) |thread| {
+                thread.join();
+            }
 
             for (results) |result| {
                 _ = try result;
@@ -241,11 +237,10 @@ pub fn sign(writer: anytype, file: std.Io.File, io: std.Io, args: SignArgs) !voi
 
     // Part 5 - Hash signature -----------------------------------------------------------
     // Hash the file contents
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
+    const allocator = std.heap.smp_allocator;
 
-    var code_slots: std.ArrayListUnmanaged([HASH_SIZE]u8) = .{};
-    try code_slots.ensureTotalCapacityPrecise(allocator, nCodeSlots);
+    var code_slots = try std.ArrayListUnmanaged([HASH_SIZE]u8).initCapacity(allocator, nCodeSlots);
+    // try code_slots.ensureTotalCapacityPrecise(allocator, nCodeSlots);
     code_slots.items.len = nCodeSlots;
 
     var hasher = ParallelHasher(Sha256){ .allocator = allocator, .io = io };

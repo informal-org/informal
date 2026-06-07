@@ -26,9 +26,9 @@ pub fn main(init: std.process.Init) !void {
     }
     // std.debug.print("Reading file: {s}\n", .{filename});
 
-    const start = try std.time.Instant.now();
+    const start = std.Io.Clock.cpu_thread.now(init.io);
     try reader.compile_file(init.io, filename);
-    const endTime = try std.time.Instant.now();
-    const since = endTime.since(start);
-    std.debug.print("Time taken: {d}μs / {d}ms\n", .{ since / std.time.ns_per_us, since / std.time.ns_per_ms });
+    const endTime = std.Io.Clock.cpu_thread.now(init.io);
+    const since = start.durationTo(endTime).nanoseconds;
+    std.debug.print("Time taken: {d}μs / {d}ms\n", .{ @divTrunc(since, std.time.ns_per_us), @divTrunc(since, std.time.ns_per_ms) });
 }

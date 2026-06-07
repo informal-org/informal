@@ -43,7 +43,7 @@ pub const KindRanges = struct {
         // Take a snapshot of the kind-ranges after a block is complete
         // Indicating which kinds are present, and how many of each kind.
         // Self is the snapshot. Base is the moving cursor.
-        const block = blocks.Block{ .kinds = BitSet64.initEmpty(), .counts = BitSet64.initEmpty() };
+        var block = blocks.Block{ .kinds = BitSet64.initEmpty(), .counts = BitSet64.initEmpty() };
 
         for (0..NUM_KINDS) |index| {
             const numKindAdded = cursor.kindRanges[index] - self.kindRanges[index];
@@ -51,7 +51,7 @@ pub const KindRanges = struct {
                 // Then this kind was added since last snapshot.
                 block.kinds.set(index);
                 // Set the next bit after N slots to indicate that many elements of this kind are present.
-                const endIndex = block.counts.findLastSet() + numKindAdded;
+                const endIndex = (block.counts.findLastSet() orelse 0) + numKindAdded;
                 // Overall block sizes are capped, so this should never overflow.
                 std.debug.assert(endIndex < blocks.MAX_BLOCK_LEN);
                 block.counts.set(endIndex);
@@ -64,8 +64,8 @@ pub const KindRanges = struct {
     }
 
     pub fn iter(self: *Self, block: blocks.Block, direction: blocks.Direction) void {
-        const kindIter = block.kinds.iterator(.{});
-        const countIter = block.counts.iterator(.{});
+        var kindIter = block.kinds.iterator(.{});
+        var countIter = block.counts.iterator(.{});
         std.debug.assert(block.kinds.count() == block.counts.count());
         var prevCount = 0;
         for (kindIter.next()) |kindIndex| {
@@ -73,7 +73,7 @@ pub const KindRanges = struct {
             prevCount = count;
             switch (direction) {
                 .forward => self.kindRanges[kindIndex] += count,
-                .reverse => self.kingRanges[kindIndex] -= count,
+                .reverse => self.kindRanges[kindIndex] -= count,
             }
         }
     }

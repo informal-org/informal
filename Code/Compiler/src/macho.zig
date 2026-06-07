@@ -32,7 +32,6 @@ const codesig = @import("CodeSignature.zig");
 const print = std.debug.print;
 const Allocator = std.mem.Allocator;
 const DEBUG = false;
-const StringArrayHashMap = std.array_hash_map.StringArrayHashMap;
 
 // 32bit = 0xfeedface :)
 const MH_MAGIC = 0xfeedfacf;
@@ -719,7 +718,7 @@ pub const MachOLinker = struct {
         self.headerBuffer.clearAndFree();
     }
 
-    pub fn emitBinary(self: *Self, io: std.Io, code: []const u32, internedStrings: *StringArrayHashMap(u64), constSize: usize, outfile: []const u8) !void {
+    pub fn emitBinary(self: *Self, io: std.Io, code: []const u32, internedStrings: *std.StringHashMap(u64), constSize: usize, outfile: []const u8) !void {
         // Note: Need to ensure the file doesn't exist. If the file exists without the execute permission bit, it won't get set and you'll get an error.
         const file = try std.Io.Dir.cwd().createFile(
             io,
@@ -886,10 +885,12 @@ pub const MachOLinker = struct {
 
         // Emit the constants after code with padding for alignment.
         try writeZeroPadding(&writer, @as(u64, codeConstAlignmentPadding));
-        for (internedStrings.keys()) |key| {
+        var internedStringKeys = internedStrings.keyIterator();
+        while (internedStringKeys.next()) |key| {
             // We can add additional alignment in between constants as well here.
             // It doesn't seem strictly necessary. Unclear if it'll be a plus or minus for performance.
-            _ = try std.Io.Writer.writeVec(@constCast(&writer.interface), &[_][]const u8{key});
+            // _ = try std.Io.Writer.writeVec(@constCast(&writer.interface), &[_][]const u8{key});
+            try writer.interface.writeAll(key.*);
         }
 
         // Zero pad for 16 byte alignment.

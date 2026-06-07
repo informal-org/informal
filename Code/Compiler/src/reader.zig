@@ -9,7 +9,6 @@ const macho = @import("macho.zig");
 const build_options = @import("build_options");
 const KindRanges = @import("ir/kind_ranges.zig").KindRanges;
 const Allocator = std.mem.Allocator;
-const StringArrayHashMap = std.array_hash_map.StringArrayHashMap;
 
 const ParserImpl = parser.Parser;
 const TokenQueue = lex.TokenQueue;
@@ -22,7 +21,7 @@ pub const Reader = struct {
     kindRanges: *KindRanges,
     parsedElements: *TokenQueue,
     parsedQ: *parser.ParsedQueue,
-    internedStrings: *StringArrayHashMap(u64),
+    internedStrings: *std.StringHashMap(u64),
     internedNumbers: *std.AutoHashMap(u64, u64),
     internedFloats: *std.AutoHashMap(f64, u64),
     internedSymbols: *std.StringHashMap(u64),
@@ -44,8 +43,8 @@ pub const Reader = struct {
         const parsedQ = try allocator.create(parser.ParsedQueue);
         parsedQ.* = try parser.ParsedQueue.init(allocator, parsedElements, kindRanges);
 
-        const internedStrings = try allocator.create(StringArrayHashMap(u64));
-        internedStrings.* = StringArrayHashMap(u64).init(allocator);
+        const internedStrings = try allocator.create(std.StringHashMap(u64));
+        internedStrings.* = std.StringHashMap(u64).init(allocator);
 
         const internedNumbers = try allocator.create(std.AutoHashMap(u64, u64));
         internedNumbers.* = std.AutoHashMap(u64, u64).init(allocator);
@@ -132,9 +131,9 @@ pub fn process_chunk(chunk: []u8, reader: *Reader, allocator: Allocator, io: std
 }
 
 pub fn compile_file(io: std.Io, filename: []const u8) !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const gpa = std.heap.smp_allocator;
 
-    var reader = try Reader.init(gpa.allocator());
+    var reader = try Reader.init(gpa);
     defer reader.deinit();
 
     const file = try std.Io.Dir.cwd().openFile(io, filename, .{});
@@ -152,7 +151,7 @@ pub fn compile_file(io: std.Io, filename: []const u8) !void {
         if (readResult == 0) {
             break;
         }
-        try process_chunk(buffer[0..readResult], reader, gpa.allocator(), io, &out_name, readResult);
+        try process_chunk(buffer[0..readResult], reader, gpa, io, &out_name, readResult);
         // TODO: Safety check - there's an implicit assumption that the contents of the buffer are not referenced after chunk processing is done.
         // Else it's a use after free or it might be referencing something else than intended.
         // TODO: Handle larger files beyond the 16kb size.

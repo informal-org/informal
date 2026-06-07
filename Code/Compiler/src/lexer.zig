@@ -5,7 +5,6 @@ const bitset = @import("bitset.zig");
 const build_options = @import("build_options");
 
 const print = std.debug.print;
-const StringArrayHashMap = std.array_hash_map.StringArrayHashMap;
 
 const Token = tok.Token;
 const TK = tok.Kind;
@@ -79,7 +78,7 @@ pub const Lexer = struct {
     // The lexer can still identify the type and the boundaries, but avoid the tiny-allocations and remain purely IO bound that way.
     // The parser would then be responsible for normalizing these into globally or chunk-relative interned values.
     // That also has the added advantage of being more incremental, since later stages can merge/alias identifiers in a chunk-relative manner.
-    internedStrings: *StringArrayHashMap(u64),
+    internedStrings: *std.StringHashMap(u64),
     internedNumbers: *std.AutoHashMap(u64, u64), // Key is the const. Val = the index.
     internedFloats: *std.AutoHashMap(f64, u64),
 
@@ -93,7 +92,7 @@ pub const Lexer = struct {
         buffer: []u8,
         syntaxQ: *TokenQueue,
         auxQ: *TokenQueue,
-        internedStrings: *StringArrayHashMap(u64),
+        internedStrings: *std.StringHashMap(u64),
         internedNumbers: *std.AutoHashMap(u64, u64),
         internedFloats: *std.AutoHashMap(f64, u64),
         symbolTable: *std.StringHashMap(u64),

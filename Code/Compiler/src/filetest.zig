@@ -50,8 +50,8 @@ fn exitCodeTest(io: std.Io, filename: []const u8) !u32 {
     switch (run_result.term) {
         .exited => |exitcode| return exitcode,
         .signal => |sig| return @intFromEnum(sig),
-        .stopped => |_| return 999,
-        .unknown => |_| return 999,
+        .stopped => return 999,
+        .unknown => return 999,
     }
 }
 
