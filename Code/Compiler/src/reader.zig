@@ -118,8 +118,8 @@ pub fn process_chunk(chunk: []u8, reader: *Reader, allocator: Allocator, io: std
     try reader.parsedQ.reserve(allocator, lexer.maxOpStreak);
     var p = ParserImpl.init(chunk, reader.syntaxQ, reader.parsedQ);
     p.parse();
-    std.log.debug("\n------------- Parsed Queue --------------- \n", .{});
-    std.log.debug("Parsed queue: {any}", .{reader.parsedElements.list.items});
+    // std.log.debug("\n------------- Parsed Queue --------------- \n", .{});
+    // std.log.debug("Parsed queue: {any}", .{reader.parsedElements.list.items});
 
     var c = codegen.Codegen.init(allocator, chunk);
     try c.emitAll(reader.parsedElements.list.items, reader.internedStrings);

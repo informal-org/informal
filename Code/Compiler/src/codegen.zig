@@ -131,10 +131,10 @@ pub const Codegen = struct {
         const alignmentPadding = codeSize - std.mem.alignBackward(usize, codeSize, 16);
         const textStart = std.mem.alignBackward(u64, 0x4000 - codeSize - self.totalConstSize - alignmentPadding - 16, 16);
         const constStart: u12 = @truncate(textStart + codeSize + alignmentPadding);
-        std.log.debug("Alignment padding {x}", .{alignmentPadding});
-        std.log.debug("Code size {x}", .{codeSize});
-        std.log.debug("Text start {x}", .{textStart});
-        std.log.debug("Const start {x}", .{constStart});
+        // std.log.debug("Alignment padding {x}", .{alignmentPadding});
+        // std.log.debug("Code size {x}", .{codeSize});
+        // std.log.debug("Text start {x}", .{textStart});
+        // std.log.debug("Const start {x}", .{constStart});
 
         // Index safety - since the zero index in the parser queue is always reserved for the start-node,
         // it'll never contain a constant. So we can safely use it as a sentinel value.
@@ -148,7 +148,7 @@ pub const Codegen = struct {
 
             // Replace it with the computed position for that constant.
             const constOffset = constOffsets[constId] + constStart;
-            std.log.debug("Const id {d}, rel offset {d} offset {x}", .{ constId, constOffsets[constId], constOffset });
+            // std.log.debug("Const id {d}, rel offset {d} offset {x}", .{ constId, constOffsets[constId], constOffset });
 
             // TODO: We can stuff the proper register into the flags / kind fields.
             const instr = arm.addi(arm.Reg.x1, arm.Reg.x1, @truncate(constOffset));
@@ -182,7 +182,7 @@ pub const Codegen = struct {
     }
 
     pub fn emitAll(self: *Self, tokenQueue: []Token, strConsts: *std.StringHashMap(u64)) !void {
-        std.log.debug("\n------------- Codegen --------------- ", .{});
+        // std.log.debug("\n------------- Codegen --------------- ", .{});
 
         // Reserve a couple of registers.
         self.registerMap.set(0);

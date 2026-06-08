@@ -802,8 +802,8 @@ pub const Lexer = struct {
         std.debug.assert(self.lineNo == 0); // Should start at line 0
         std.debug.assert(self.depth == 0); // Should start at depth 0
 
-        std.log.debug("\n------------- Lexer Start --------------- \n", .{});
-        std.log.debug("Buffer length: {d}", .{self.buffer.len});
+        // std.log.debug("\n------------- Lexer Start --------------- \n", .{});
+        // std.log.debug("Buffer length: {d}", .{self.buffer.len});
 
         while (self.index < self.buffer.len) {
             const ch = self.buffer[self.index];
@@ -906,22 +906,22 @@ pub const Lexer = struct {
         self.resetOpStreak();
         try self.flushPrev(false);
 
-        std.log.debug("\n------------- Lexer End --------------- \n", .{});
-        std.log.debug("Final stats: syntaxTokens={d} auxTokens={d} symbols={d} strings={d} numbers={d}", .{
-            self.QIdx[SYNTAX_Q],
-            self.QIdx[AUX_Q],
-            self.symbolTable.count(),
-            self.internedStrings.count(),
-            self.internedNumbers.count(),
-        });
+        // std.log.debug("\n------------- Lexer End --------------- \n", .{});
+        // std.log.debug("Final stats: syntaxTokens={d} auxTokens={d} symbols={d} strings={d} numbers={d}", .{
+        //     self.QIdx[SYNTAX_Q],
+        //     self.QIdx[AUX_Q],
+        //     self.symbolTable.count(),
+        //     self.internedStrings.count(),
+        //     self.internedNumbers.count(),
+        // });
 
-        var symbolIter = self.symbolTable.iterator();
-        while (symbolIter.next()) |entry| {
-            std.log.debug("Symbol {d: <3} {s}", .{
-                entry.value_ptr.*,
-                entry.key_ptr.*,
-            });
-        }
+        // var symbolIter = self.symbolTable.iterator();
+        // while (symbolIter.next()) |entry| {
+        //     std.log.debug("Symbol {d: <3} {s}", .{
+        //         entry.value_ptr.*,
+        //         entry.key_ptr.*,
+        //     });
+        // }
 
         // Post: both queues should have at least stream markers
         std.debug.assert(self.syntaxQ.list.items.len > 0);

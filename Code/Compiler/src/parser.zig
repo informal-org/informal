@@ -160,7 +160,7 @@ pub const ParsedQueue = struct {
     }
 
     pub fn reserve(self: *Self, allocator: Allocator, maxOpStreak: usize) !void {
-        std.log.info("Reserving precedencestack capacity for {d}", .{maxOpStreak});
+        // std.log.info("Reserving precedencestack capacity for {d}", .{maxOpStreak});
         // We know the longest streak of operators after lexing (breaking on newlines).
         try self.precedenceStack.ensureTotalCapacityPrecise(allocator, maxOpStreak);
     }

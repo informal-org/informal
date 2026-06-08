@@ -32,6 +32,7 @@ pub const Block = struct {
 
 pub const Blocks = struct {
     const Self = @This();
+    // TODO: Should this be the snapshot or the moving cursor? Should I manage both here and auto-snapshot on end / append block?
     kindRanges: *KindRanges,
     blocks: BlockList,
 
@@ -70,8 +71,9 @@ pub fn BlockIter(comptime direction: Direction) type {
 
         pub fn init(blocks: *Blocks) Self {
             // Forward = empty kind ranges.
-            // Reverse = Init kind ranges to a snapshot of the end state.
-            return Self{ .blocks = blocks, .kindRanges = KindRanges{}, .kindIter = KindIterator{ .iter = BitSet64.empty.iterator(.{}) }, .countIter = CountIterator{ .iter = BitSet64.empty.iterator(.{}), .prevCount = 0 } };
+            // Reverse = TODO: Init kind ranges to a snapshot of the end state.
+            const kindRanges = KindRanges{};
+            return Self{ .blocks = blocks, .kindRanges = kindRanges, .kindIter = KindIterator{ .iter = BitSet64.empty.iterator(.{}) }, .countIter = CountIterator{ .iter = BitSet64.empty.iterator(.{}), .prevCount = 0 } };
         }
 
         pub fn nextBlock(self: *Self) ?Block {
