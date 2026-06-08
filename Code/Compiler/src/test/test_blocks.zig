@@ -21,6 +21,20 @@ pub fn kindCount(kinds: *KindRanges, kind: Kind) usize {
     return kinds.kindRanges[@intFromEnum(kind)];
 }
 
+pub fn expectKinds(blockIter: *BlockIter, expected: []const Kind) !void {
+    for (expected) |expectedValue| {
+        try expectEqual(expectedValue, blockIter.kindIter.next());
+    }
+    try expectEqual(null, blockIter.kindIter.next());
+}
+
+pub fn expectCounts(blockIter: *BlockIter, counts: []const u8) !void {
+    for (counts) |expectedCount| {
+        try expectEqual(expectedCount, blockIter.countIter.next());
+    }
+    try expectEqual(null, blockIter.countIter.next());
+}
+
 test "Test kind counts" {
     var blockSnapshots = KindRanges{};
     var kindRanges = KindRanges{};
@@ -40,20 +54,31 @@ test "Test kind counts" {
     blocks.appendBlock(block0);
 
     // Test with some new kinds and some existing kind.
-    addKindNTimes(&kindRanges, Kind.lit_string, 2);
     addKindNTimes(&kindRanges, Kind.identifier, 4);
+    addKindNTimes(&kindRanges, Kind.lit_string, 2);
     addKindNTimes(&kindRanges, Kind.op_add, 1);
     const block1 = blockSnapshots.snapshot(kindRanges);
     try expect(block1.kinds.count() == 3);
     try expect(block1.counts.count() == 3);
+    blocks.appendBlock(block1);
 
     var blockIter = BlockIter.init(&blocks);
-    while (blockIter.nextBlock()) |block| {
-        std.debug.print("got block .{}\n", .{block});
-        while (blockIter.kindIter.next()) |kind| {
-            std.debug.print("Got kind .{}\n", .{kind});
-            const count = blockIter.countIter.next() orelse unreachable;
-            std.debug.print("Got count .{}\n", .{count});
-        }
-    }
+    try expectEqual(block0, blockIter.nextBlock());
+    try expectKinds(&blockIter, &[_]Kind{ Kind.identifier, Kind.lit_number });
+    try expectCounts(&blockIter, &[_]u8{ 5, 7 });
+
+    try expectEqual(block1, blockIter.nextBlock());
+    // Should appear in Kind order, not in insertion order.
+    try expectKinds(&blockIter, &[_]Kind{ Kind.op_add, Kind.identifier, Kind.lit_string });
+    try expectCounts(&blockIter, &[_]u8{ 1, 4, 2 });
+
+    try expectEqual(null, blockIter.nextBlock());
+    // while (blockIter.nextBlock()) |block| {
+    //     std.debug.print("got block .{}\n", .{block});
+    //     while (blockIter.kindIter.next()) |kind| {
+    //         std.debug.print("Got kind .{}\n", .{kind});
+    //         const count = blockIter.countIter.next() orelse unreachable;
+    //         std.debug.print("Got count .{}\n", .{count});
+    //     }
+    // }
 }
