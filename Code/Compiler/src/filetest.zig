@@ -28,10 +28,10 @@ fn exitCodeTest(io: std.Io, filename: []const u8) !u32 {
 
     while (true) {
         const buffer_array = [_][]u8{buffer_slice};
-        const readResult = try file.readStreaming(io, &buffer_array);
-        if (readResult == 0) {
-            break;
-        }
+        const readResult = file.readStreaming(io, &buffer_array) catch |err| switch (err) {
+            error.EndOfStream => break,
+            else => return err,
+        };
         try reader.process_chunk(buffer[0..readResult], re, test_allocator, io, &out_name, readResult);
 
         buffer = undefined;

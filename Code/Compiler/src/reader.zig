@@ -147,10 +147,10 @@ pub fn compile_file(io: std.Io, filename: []const u8) !void {
 
     while (true) {
         const buffer_array = [_][]u8{buffer_slice};
-        const readResult = try file.readStreaming(io, &buffer_array);
-        if (readResult == 0) {
-            break;
-        }
+        const readResult = file.readStreaming(io, &buffer_array) catch |err| switch (err) {
+            error.EndOfStream => break,
+            else => return err,
+        };
         try process_chunk(buffer[0..readResult], reader, gpa, io, &out_name, readResult);
         // TODO: Safety check - there's an implicit assumption that the contents of the buffer are not referenced after chunk processing is done.
         // Else it's a use after free or it might be referencing something else than intended.

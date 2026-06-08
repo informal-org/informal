@@ -65,12 +65,10 @@ pub const KindRanges = struct {
 
     pub fn iter(self: *Self, block: blocks.Block, direction: blocks.Direction) void {
         var kindIter = block.kinds.iterator(.{});
-        var countIter = block.counts.iterator(.{});
+        var countIter = blocks.CountIterator{ .iter = block.counts.iterator(.{}), .prevCount = 0 };
         std.debug.assert(block.kinds.count() == block.counts.count());
-        var prevCount = 0;
-        for (kindIter.next()) |kindIndex| {
-            const count = (countIter.next() orelse unreachable) - prevCount;
-            prevCount = count;
+        while (kindIter.next()) |kindIndex| {
+            const count = countIter.next() orelse unreachable;
             switch (direction) {
                 .forward => self.kindRanges[kindIndex] += count,
                 .reverse => self.kindRanges[kindIndex] -= count,
