@@ -32,13 +32,12 @@ pub const Block = struct {
 
 pub const Blocks = struct {
     const Self = @This();
-    // TODO: Should this be the snapshot or the moving cursor? Should I manage both here and auto-snapshot on end / append block?
-    kindRanges: *KindRanges,
+    kindRanges: KindRanges,
     blocks: BlockList,
 
-    pub fn init(allocator: Allocator, kindRanges: *KindRanges, length: u32) !Self {
+    pub fn init(allocator: Allocator, length: u32) !Self {
         const blocks = try BlockList.initCapacity(allocator, length);
-        return Self{ .kindRanges = kindRanges, .blocks = blocks };
+        return Self{ .kindRanges = KindRanges{}, .blocks = blocks };
     }
 
     pub fn deinit(self: *Self, allocator: Allocator) void {
@@ -47,6 +46,10 @@ pub const Blocks = struct {
 
     pub fn appendBlock(self: *Self, block: Block) void {
         self.blocks.appendAssumeCapacity(block);
+    }
+
+    pub fn snapshotBlock(self: *Self, kindCursor: *KindRanges) void {
+        self.appendBlock(self.kindRanges.snapshot(kindCursor));
     }
 
     pub fn get(self: *Self, index: usize) Block {
@@ -65,8 +68,7 @@ pub fn BlockIter(comptime direction: Direction) type {
         const Self = @This();
         blocks: *Blocks,
         endRanges: KindRanges,
-        // Cumulative sum initialized each iteration.
-        baseRanges: KindRanges,
+
         kindIter: KindIterator,
         countIter: CountIterator,
         blockIndex: usize = 0, // Actual block IDs start at 1. That's important for depmap block membership detection.
@@ -94,6 +96,16 @@ pub fn BlockIter(comptime direction: Direction) type {
             }
             return null;
         }
+
+        pub fn nextRange(self: *Self, kind: Kind) ?Range {
+            const kindIndex = @intFromEnum(kind);
+            const kindEnd = self.endRanges.kindRanges[kindIndex];
+            const kindCount = self.countIter.next();
+            if (kindCount != null) {
+                return Range{ .current = kindEnd - @as(u32, kindCount), .end = kindEnd };
+            }
+            return null;
+        }
     };
 }
 
@@ -117,5 +129,19 @@ pub const CountIterator = struct {
         const gap: u8 = countu8 - self.prevCount;
         self.prevCount = countu8;
         return gap;
+    }
+};
+
+pub const Range = struct {
+    current: u32 = 0,
+    end: u32 = 0,
+
+    pub fn next(self: *Range) ?i32 {
+        if (self.current >= self.end) {
+            return null;
+        }
+        const val = self.current;
+        self.current += 1;
+        return val;
     }
 };

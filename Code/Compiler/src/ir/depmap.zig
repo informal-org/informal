@@ -22,14 +22,19 @@ pub const DepMap = struct {
     inputStart: u8 = 0,
     nextLocalId: u8 = 0,
 
-    pub fn init(allocator: std.mem.Allocator, len: usize) !Self {
+    pub fn init(allocator: std.mem.Allocator, irq: *IRQueue) !Self {
+        const len = irq.tokensByKind.items.len;
         var deps = try std.MultiArrayList(IrNodeRefs).initCapacity(allocator, len);
         for (0..len) |_| {
             const nodeRef = IrNodeRefs{ .deps = BitSet64.initEmpty(), .refs = BitSet64.initEmpty(), .inputBlock = 0, .inputId = 0 };
             deps.appendAssumeCapacity(nodeRef);
         }
 
-        return Self{ .deps = deps };
+        return Self{ .deps = deps, .irq = irq };
+    }
+
+    pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
+        self.deps.deinit(allocator);
     }
 
     pub fn getLocalIndex(self: *Self, blockIndex: u32, index: u24) u8 {
@@ -71,34 +76,30 @@ pub const DepMap = struct {
         }
     }
 
-    pub fn build(self: *Self, blocks: *Blocks, irq: *IRQueue) void {
-        self.irq = irq;
-        const blockIter = BlockIter.init(&blocks);
-        while (blockIter.nextBlock()) |_| {
-            // Iterate once to assign local numbering to all members of this block.
-            // I've experimented with computing this on the fly (with end ranges and a cumulative base per kind), but this ends up more simpler and more efficient
-            // and trades off space we need to allocate anyway for input ID numbering.
-            self.nextLocalId = 0;
-            while (blockIter.kindIter.next()) |kind| {
-                const kindIndex = @intFromEnum(kind);
-                std.debug.assert(kindIndex < 64);
-                const kindStart = blockIter.startRanges.kindRanges[kindIndex];
-                const count = blockIter.countIter.next() orelse unreachable;
-                for (kindStart..(kindStart + count)) |i| {
-                    self.deps.items(.inputBlock)[i] = blockIter.blockIndex;
-                    self.deps.items(.inputId)[i] = self.nextLocalId;
-                    self.nextLocalId += 1;
-                }
+    fn assignLocalNumbering(self: *Self, blockIter: *BlockIter) void {
+        // Iterate once to assign local numbering to all members of this block.
+        // I've experimented with computing this on the fly (with end ranges and a cumulative base per kind), but this ends up more simpler and more efficient
+        // and trades off space we need to allocate anyway for input ID numbering.
+        self.nextLocalId = 0;
+        while (blockIter.kindIter.next()) |kind| {
+            var kindRange = blockIter.nextRange(kind) orelse unreachable;
+            while (kindRange.next()) |i| {
+                self.deps.items(.inputBlock)[i] = blockIter.blockIndex;
+                self.deps.items(.inputId)[i] = self.nextLocalId;
+                self.nextLocalId += 1;
             }
-            self.inputStart = self.nextLocalId;
-            blockIter.resetIter();
+        }
+        self.inputStart = self.nextLocalId;
+        blockIter.resetIter();
+    }
 
+    pub fn build(self: *Self, blocks: *Blocks) void {
+        var blockIter = BlockIter.init(blocks);
+        while (blockIter.nextBlock()) |_| {
+            self.assignLocalNumbering(&blockIter);
             while (blockIter.kindIter.next()) |kind| {
-                const kindIndex = @intFromEnum(kind);
-                const kindStart = blockIter.startRanges.kindRanges[kindIndex];
-                const count = blockIter.countIter.next() orelse unreachable;
-
-                for (kindStart..(kindStart + count)) |i| {
+                var kindRange = blockIter.nextRange(kind) orelse unreachable;
+                while (kindRange.next()) |i| {
                     self.addDependency(blockIter.blockIndex, kind, i);
                 }
             }

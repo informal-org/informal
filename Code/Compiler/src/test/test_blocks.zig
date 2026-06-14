@@ -45,11 +45,11 @@ test "Test kind counts" {
     addKindNTimes(&kindRanges, Kind.lit_number, 7);
     std.debug.assert(kindCount(&kindRanges, Kind.identifier) == 5);
     std.debug.assert(kindCount(&kindRanges, Kind.lit_number) == 7);
-    var blocks = try Blocks.init(allocator, &kindRanges, 2);
+    var blocks = try Blocks.init(allocator, 2);
     defer blocks.deinit(allocator);
 
     // Convert kind counts into blocks.
-    const block0 = blockSnapshots.snapshot(kindRanges);
+    const block0 = blockSnapshots.snapshot(&kindRanges);
     try expect(block0.kinds.count() == 2);
     try expect(block0.counts.count() == 2);
     blocks.appendBlock(block0);
@@ -58,7 +58,7 @@ test "Test kind counts" {
     addKindNTimes(&kindRanges, Kind.identifier, 4);
     addKindNTimes(&kindRanges, Kind.lit_string, 2);
     addKindNTimes(&kindRanges, Kind.op_add, 1);
-    const block1 = blockSnapshots.snapshot(kindRanges);
+    const block1 = blockSnapshots.snapshot(&kindRanges);
     try expect(block1.kinds.count() == 3);
     try expect(block1.counts.count() == 3);
     blocks.appendBlock(block1);
@@ -83,5 +83,3 @@ test "Test kind counts" {
     //     }
     // }
 }
-
-test "Test depmap" {}

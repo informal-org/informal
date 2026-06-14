@@ -1,7 +1,7 @@
 const std = @import("std");
 const tok = @import("../token.zig");
-const KindRanges = @import("ir/kind_ranges.zig").KindRanges;
-const TokenQueue = @import("lexer.zig").TokenQueue;
+const KindRanges = @import("kind_ranges.zig").KindRanges;
+const TokenQueue = @import("../lexer.zig").TokenQueue;
 
 const Allocator = std.mem.Allocator;
 const Token = tok.Token;
@@ -15,13 +15,15 @@ pub const IRQueue = struct {
     tokensByKind: TokenList,
 
     pub fn init(allocator: Allocator, kindCounts: *KindRanges, maxOpStreak: usize, length: usize) !Self {
-        kindCounts.lockRanges();
+        const kindLen = kindCounts.lockRanges();
+        // TODO: We can probably just eliminate length param.
+        std.debug.assert(kindLen == length);
         const opStack = try IRIndexStack.initCapacity(allocator, maxOpStreak);
         const irq = try TokenList.initCapacity(allocator, length);
         return Self{ .kindCounts = kindCounts, .opStack = opStack, .tokensByKind = irq };
     }
 
-    pub fn deinit(self: *Self, allocator: Allocator) !void {
+    pub fn deinit(self: *Self, allocator: Allocator) void {
         self.opStack.deinit(allocator);
         self.tokensByKind.deinit(allocator);
     }
@@ -39,7 +41,7 @@ pub const IRQueue = struct {
         // TODO: Error handling
         const right = self.opStack.pop() orelse unreachable;
         const left = self.opStack.pop() orelse unreachable;
-        const binOp = token.ir(token, left, right);
+        const binOp = token.ir(left, right);
         self.emitKind(binOp);
     }
 

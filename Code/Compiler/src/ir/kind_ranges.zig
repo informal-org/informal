@@ -31,7 +31,7 @@ pub const KindRanges = struct {
     pub fn lockRanges(self: *Self) u32 {
         // Turn kind counts -> kind starts by cumulative sum. Return total length.
         // Invariant: Must be called only once!
-        var total = 0;
+        var total: u32 = 0;
         for (self.kindRanges, 0..) |kindCount, i| {
             self.kindRanges[i] = total;
             total += kindCount;
@@ -39,7 +39,7 @@ pub const KindRanges = struct {
         return total;
     }
 
-    pub fn snapshot(self: *Self, cursor: KindRanges) blocks.Block {
+    pub fn snapshot(self: *Self, cursor: *KindRanges) blocks.Block {
         // Take a snapshot of the kind-ranges after a block is complete
         // Indicating which kinds are present, and how many of each kind.
         // Self is the snapshot. Base is the moving cursor.
@@ -63,7 +63,7 @@ pub const KindRanges = struct {
         return block;
     }
 
-    pub fn iter(self: *Self, block: blocks.Block, direction: blocks.Direction, base: *KindRanges) void {
+    pub fn iter(self: *Self, block: blocks.Block, direction: blocks.Direction) void {
         // Self is the cursor that moves.
         // Base is the snapshot which becomes the old self
         // Allows us to move the start ranges as we move ends.
@@ -73,14 +73,8 @@ pub const KindRanges = struct {
         while (kindIter.next()) |kindIndex| {
             const count = countIter.next() orelse unreachable;
             switch (direction) {
-                .forward => {
-                    base.kindRanges[kindIndex] = self.kindRanges[kindIndex];
-                    self.kindRanges[kindIndex] += count;
-                },
-                .reverse => {
-                    base.kindRanges[kindIndex] = self.kindRanges[kindIndex];
-                    self.kindRanges[kindIndex] -= count;
-                },
+                .forward => self.kindRanges[kindIndex] += count,
+                .reverse => self.kindRanges[kindIndex] -= count,
             }
         }
     }

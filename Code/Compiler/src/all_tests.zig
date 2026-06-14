@@ -6,5 +6,6 @@ comptime {
     _ = @import("test/test_lexer.zig");
     _ = @import("test/test_token.zig");
     _ = @import("test/test_blocks.zig");
+    _ = @import("test/test_depmap.zig");
     _ = @import("filetest.zig");
 }
