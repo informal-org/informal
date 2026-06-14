@@ -64,27 +64,31 @@ pub fn BlockIter(comptime direction: Direction) type {
     return struct {
         const Self = @This();
         blocks: *Blocks,
-        startRanges: KindRanges,
         endRanges: KindRanges,
         // Cumulative sum initialized each iteration.
         baseRanges: KindRanges,
         kindIter: KindIterator,
         countIter: CountIterator,
-        blockIndex: usize = 0,
+        blockIndex: usize = 0, // Actual block IDs start at 1. That's important for depmap block membership detection.
 
         pub fn init(blocks: *Blocks) Self {
             // Forward = empty kind ranges.
             // Reverse = TODO: Init kind ranges to a snapshot of the end state.
             const kindRanges = KindRanges{};
-            return Self{ .blocks = blocks, .endRanges = kindRanges, .startRanges = KindRanges{}, .kindIter = KindIterator{ .iter = BitSet64.empty.iterator(.{}) }, .countIter = CountIterator{ .iter = BitSet64.empty.iterator(.{}), .prevCount = 0 } };
+            return Self{ .blocks = blocks, .endRanges = kindRanges, .kindIter = KindIterator{ .iter = BitSet64.empty.iterator(.{}) }, .countIter = CountIterator{ .iter = BitSet64.empty.iterator(.{}), .prevCount = 0 } };
+        }
+
+        pub fn resetIter(self: *Self) void {
+            const block = self.blocks.get(self.blockIndex);
+            self.kindIter = KindIterator{ .iter = block.kinds.iterator(.{}) };
+            self.countIter = CountIterator{ .iter = block.counts.iterator(.{}), .prevCount = 0 };
         }
 
         pub fn nextBlock(self: *Self) ?Block {
             if (self.blockIndex < self.blocks.len()) {
                 const block = self.blocks.get(self.blockIndex);
-                self.endRanges.iter(block, direction, &self.startRanges);
-                self.kindIter = KindIterator{ .iter = block.kinds.iterator(.{}) };
-                self.countIter = CountIterator{ .iter = block.counts.iterator(.{}), .prevCount = 0 };
+                self.endRanges.iter(block, direction);
+                self.resetIter();
                 self.blockIndex += 1;
                 return block;
             }

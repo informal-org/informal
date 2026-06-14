@@ -19,7 +19,8 @@ pub const DepMap = struct {
     const Self = @This();
     deps: std.MultiArrayList(IrNodeRefs),
     irq: *IRQueue,
-    blockIter: *BlockIter,
+    inputStart: u8 = 0,
+    nextLocalId: u8 = 0,
 
     pub fn init(allocator: std.mem.Allocator, len: usize) !Self {
         var deps = try std.MultiArrayList(IrNodeRefs).initCapacity(allocator, len);
@@ -31,41 +32,75 @@ pub const DepMap = struct {
         return Self{ .deps = deps };
     }
 
-    pub fn getLocalIndex(self: *Self, blockIter: BlockIter, index: usize) u8 {
-        const node = self.irq.tokensByKind.items[index];
-        const kind = @intFromEnum(node.kind);
-        std.debug.assert(kind < 64);
-        const kindStart = self.blockIter.startRanges.kindRanges[kind];
-        const kindEnd = self.blockIter.endRanges.kindRanges[kind];
-        // If it's within that range, it's within the local block.
-        // Else, assign an input index for it.
-        // TODO: Need to double-check boundary conditions here. Not sure if this shoudl be <= / >=
-        if(index > kindStart & index < kindEnd) {
-            // Base offset. Mask kinds by this kind index 1, to see which kind this is.
-            // Then the op is nth set bit.
+    pub fn getLocalIndex(self: *Self, blockIndex: u32, index: u24) u8 {
+        const elemBlock = self.deps.items(.inputBlock)[index];
+        if (elemBlock == blockIndex) {
+            // This is already a block-local numbering.
+            return self.deps.items(.inputId)[index];
+        } else {
+            // It's an block-external input we haven't seen before. Assign it the next ID.
+            const elemId = self.nextLocalId;
+            std.debug.assert(self.nextLocalId < 64);
+            self.deps.items(.inputBlock)[index] = blockIndex;
+            self.deps.items(.inputId)[index] = elemId;
+            self.nextLocalId += 1;
+            return elemId;
         }
     }
 
-    pub fn addDependency(self: *Self, block: *blk.Block, kind: Kind, index: u32) void {
+    fn trackDep(self: *Self, elemIndex: u32, refIndex: u24, elemLocal: u8, refLocal: u8) void {
+        self.deps.items(.deps)[elemIndex].set(refLocal);
+        if (refLocal < self.inputStart) {
+            // It's a local element. Track deps.
+            self.deps.items(.refs)[refIndex].set(elemLocal);
+        }
+    }
+
+    pub fn addDependency(self: *Self, blockIndex: u32, kind: Kind, index: u32) void {
+        std.debug.assert(self.deps.items(.inputBlock)[index] == blockIndex);
+        const currentId = self.deps.items(.inputId)[index];
         const irNode = self.irq.tokensByKind.items[index];
         switch (kind) {
             .lit_number => {},
             .op_add, .op_mul => {
                 const left = irNode.data.irags.left;
+                self.trackDep(index, left, currentId, self.getLocalIndex(blockIndex, left));
                 const right = irNode.data.irags.right;
+                self.trackDep(index, right, currentId, self.getLocalIndex(blockIndex, right));
             },
         }
     }
 
     pub fn build(self: *Self, blocks: *Blocks, irq: *IRQueue) void {
         self.irq = irq;
-        self.blockIter =
-        var blockIter = BlockIter.init(&blocks);
-        while (blockIter.nextBlock()) |block| {
-            // var nextInputId = 0;
+        const blockIter = BlockIter.init(&blocks);
+        while (blockIter.nextBlock()) |_| {
+            // Iterate once to assign local numbering to all members of this block.
+            // I've experimented with computing this on the fly (with end ranges and a cumulative base per kind), but this ends up more simpler and more efficient
+            // and trades off space we need to allocate anyway for input ID numbering.
+            self.nextLocalId = 0;
             while (blockIter.kindIter.next()) |kind| {
+                const kindIndex = @intFromEnum(kind);
+                std.debug.assert(kindIndex < 64);
+                const kindStart = blockIter.startRanges.kindRanges[kindIndex];
                 const count = blockIter.countIter.next() orelse unreachable;
-                std.debug.print("Got block .{} kind .{} count .{}\n", .{ block, kind, count });
+                for (kindStart..(kindStart + count)) |i| {
+                    self.deps.items(.inputBlock)[i] = blockIter.blockIndex;
+                    self.deps.items(.inputId)[i] = self.nextLocalId;
+                    self.nextLocalId += 1;
+                }
+            }
+            self.inputStart = self.nextLocalId;
+            blockIter.resetIter();
+
+            while (blockIter.kindIter.next()) |kind| {
+                const kindIndex = @intFromEnum(kind);
+                const kindStart = blockIter.startRanges.kindRanges[kindIndex];
+                const count = blockIter.countIter.next() orelse unreachable;
+
+                for (kindStart..(kindStart + count)) |i| {
+                    self.addDependency(blockIter.blockIndex, kind, i);
+                }
             }
         }
     }
