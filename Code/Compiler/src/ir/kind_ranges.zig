@@ -63,15 +63,24 @@ pub const KindRanges = struct {
         return block;
     }
 
-    pub fn iter(self: *Self, block: blocks.Block, direction: blocks.Direction) void {
+    pub fn iter(self: *Self, block: blocks.Block, direction: blocks.Direction, base: *KindRanges) void {
+        // Self is the cursor that moves.
+        // Base is the snapshot which becomes the old self
+        // Allows us to move the start ranges as we move ends.
         var kindIter = block.kinds.iterator(.{});
         var countIter = blocks.CountIterator{ .iter = block.counts.iterator(.{}), .prevCount = 0 };
         std.debug.assert(block.kinds.count() == block.counts.count());
         while (kindIter.next()) |kindIndex| {
             const count = countIter.next() orelse unreachable;
             switch (direction) {
-                .forward => self.kindRanges[kindIndex] += count,
-                .reverse => self.kindRanges[kindIndex] -= count,
+                .forward => {
+                    base.kindRanges[kindIndex] = self.kindRanges[kindIndex];
+                    self.kindRanges[kindIndex] += count;
+                },
+                .reverse => {
+                    base.kindRanges[kindIndex] = self.kindRanges[kindIndex];
+                    self.kindRanges[kindIndex] -= count;
+                },
             }
         }
     }

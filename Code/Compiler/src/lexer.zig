@@ -20,9 +20,9 @@ const MAX_LITERAL_NUMBER: u64 = 1 << 16; // 65536
 const MAX_TOKENS_PER_LINE: u32 = 65535;
 const MAX_INDENT_DEPTH: u6 = 21; // 21 levels × 3 bits = 63 bits in u64 stack
 const MAX_INDENT_INCREMENT: u8 = 7; // Maximum spaces per single indent level
-const RECOMMENDED_INDENT_SIZE: u8 = 4; // Recommended indent size
+const RECOMMENDED_INDENT_SIZE: u8 = 4;
 
-// Character sets and bitsets
+// Character level definitions
 const DELIMITERS = bitset.character_bitset("()[]{}\"'.,:; \t\n");
 const MULTICHAR_SYMBOL_CHARS = "!*+-/<=>";
 // Microoptimization - the multichar bitset can fit in u64 since all of these are < 64.
@@ -209,7 +209,7 @@ pub const Lexer = struct {
         // NewLine in SyntaxQueue points to AuxQueue (32bit) and offset of previous line (16)
         // NewLine in AuxQueue stores char offset (32 bit) and absolute line number cache (16 bit)
         const prevOffset = self.QIdx[SYNTAX_Q] - self.lineQIndex; // Soft assumption - max tokens per line.
-        std.debug.assert(prevOffset <= MAX_TOKENS_PER_LINE); // Verify max tokens per line assumption
+        std.debug.assert(prevOffset <= MAX_TOKENS_PER_LINE);
 
         const auxIndex = self.QIdx[AUX_Q] + 1;
 

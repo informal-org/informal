@@ -10,6 +10,7 @@ const Blocks = blk.Blocks;
 const Direction = blk.Direction;
 const BlockIter = blk.BlockIter(Direction.forward);
 const allocator = std.testing.allocator;
+const DepMap = @import("../ir/depmap.zig").DepMap;
 
 pub fn addKindNTimes(kinds: *KindRanges, kind: Kind, n: usize) void {
     for (0..n) |_| {
@@ -82,3 +83,5 @@ test "Test kind counts" {
     //     }
     // }
 }
+
+test "Test depmap" {}
