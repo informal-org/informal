@@ -46,7 +46,7 @@ pub const DepMap = struct {
             // It's an block-external input we haven't seen before. Assign it the next ID.
             const elemId = self.nextLocalId;
             std.debug.assert(self.nextLocalId < 64);
-            self.deps.items(.inputBlock)[index] = blockIndex;
+            self.deps.items(.inputBlock)[index] = @truncate(blockIndex);
             self.deps.items(.inputId)[index] = elemId;
             self.nextLocalId += 1;
             return elemId;
@@ -73,6 +73,7 @@ pub const DepMap = struct {
                 const right = irNode.data.irags.right;
                 self.trackDep(index, right, currentId, self.getLocalIndex(blockIndex, right));
             },
+            else => {},
         }
     }
 
@@ -84,7 +85,7 @@ pub const DepMap = struct {
         while (blockIter.kindIter.next()) |kind| {
             var kindRange = blockIter.nextRange(kind) orelse unreachable;
             while (kindRange.next()) |i| {
-                self.deps.items(.inputBlock)[i] = blockIter.blockIndex;
+                self.deps.items(.inputBlock)[i] = @truncate(blockIter.blockIndex);
                 self.deps.items(.inputId)[i] = self.nextLocalId;
                 self.nextLocalId += 1;
             }

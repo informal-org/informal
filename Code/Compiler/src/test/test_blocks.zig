@@ -45,7 +45,7 @@ test "Test kind counts" {
     addKindNTimes(&kindRanges, Kind.lit_number, 7);
     std.debug.assert(kindCount(&kindRanges, Kind.identifier) == 5);
     std.debug.assert(kindCount(&kindRanges, Kind.lit_number) == 7);
-    var blocks = try Blocks.init(allocator, 2);
+    var blocks = try Blocks.init(allocator, &kindRanges, 2);
     defer blocks.deinit(allocator);
 
     // Convert kind counts into blocks.

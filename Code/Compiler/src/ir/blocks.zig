@@ -35,9 +35,13 @@ pub const Blocks = struct {
     kindRanges: KindRanges,
     blocks: BlockList,
 
-    pub fn init(allocator: Allocator, length: u32) !Self {
+    pub fn init(allocator: Allocator, kindRanges: *KindRanges, length: u32) !Self {
         const blocks = try BlockList.initCapacity(allocator, length);
-        return Self{ .kindRanges = KindRanges{}, .blocks = blocks };
+        var blockKindRanges = KindRanges{};
+        for (kindRanges.kindRanges, 0..) |range, i| {
+            blockKindRanges.kindRanges[i] = range;
+        }
+        return Self{ .kindRanges = blockKindRanges, .blocks = blocks };
     }
 
     pub fn deinit(self: *Self, allocator: Allocator) void {
@@ -71,7 +75,7 @@ pub fn BlockIter(comptime direction: Direction) type {
 
         kindIter: KindIterator,
         countIter: CountIterator,
-        blockIndex: usize = 0, // Actual block IDs start at 1. That's important for depmap block membership detection.
+        blockIndex: u32 = 0, // Actual block IDs start at 1. That's important for depmap block membership detection.
 
         pub fn init(blocks: *Blocks) Self {
             // Forward = empty kind ranges.
@@ -100,8 +104,7 @@ pub fn BlockIter(comptime direction: Direction) type {
         pub fn nextRange(self: *Self, kind: Kind) ?Range {
             const kindIndex = @intFromEnum(kind);
             const kindEnd = self.endRanges.kindRanges[kindIndex];
-            const kindCount = self.countIter.next();
-            if (kindCount != null) {
+            if (self.countIter.next()) |kindCount| {
                 return Range{ .current = kindEnd - @as(u32, kindCount), .end = kindEnd };
             }
             return null;
@@ -136,7 +139,7 @@ pub const Range = struct {
     current: u32 = 0,
     end: u32 = 0,
 
-    pub fn next(self: *Range) ?i32 {
+    pub fn next(self: *Range) ?u32 {
         if (self.current >= self.end) {
             return null;
         }

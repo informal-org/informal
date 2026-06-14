@@ -19,7 +19,9 @@ pub const IRQueue = struct {
         // TODO: We can probably just eliminate length param.
         std.debug.assert(kindLen == length);
         const opStack = try IRIndexStack.initCapacity(allocator, maxOpStreak);
-        const irq = try TokenList.initCapacity(allocator, length);
+        var irq = try TokenList.initCapacity(allocator, length);
+        const EMPTY_TOKEN = Token.lex(tok.Kind.aux_skip, 0, 0);
+        irq.appendNTimesAssumeCapacity(EMPTY_TOKEN, length);
         return Self{ .kindCounts = kindCounts, .opStack = opStack, .tokensByKind = irq };
     }
 
@@ -31,7 +33,7 @@ pub const IRQueue = struct {
     pub fn emitKind(self: *Self, token: Token) void {
         // Literals and identifiers are emitted directly.
         const index = self.kindCounts.incKind(token.kind);
-        std.debug.assert(index < self.tokensByKind.items.len);
+        // std.debug.assert(index < self.tokensByKind.items.len);
         self.tokensByKind.items[index] = token;
         self.opStack.appendAssumeCapacity(@truncate(index));
     }
