@@ -85,7 +85,7 @@ pub fn BlockIter(comptime direction: Direction) type {
         }
 
         pub fn resetIter(self: *Self) void {
-            const block = self.blocks.get(self.blockIndex);
+            const block = self.blocks.get(self.blockIndex - 1);
             self.kindIter = KindIterator{ .iter = block.kinds.iterator(.{}) };
             self.countIter = CountIterator{ .iter = block.counts.iterator(.{}), .prevCount = 0 };
         }
@@ -94,8 +94,8 @@ pub fn BlockIter(comptime direction: Direction) type {
             if (self.blockIndex < self.blocks.len()) {
                 const block = self.blocks.get(self.blockIndex);
                 self.endRanges.iter(block, direction);
-                self.resetIter();
                 self.blockIndex += 1;
+                self.resetIter();
                 return block;
             }
             return null;

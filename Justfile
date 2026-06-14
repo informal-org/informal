@@ -13,7 +13,7 @@ basic-test:
     zig build && ./zig-out/bin/Former ../../Tests/FileTests/add.ifi
 
 test:
-	zig build test --summary all
+	zig build test
 
 release:
     zig build -Doptimize=ReleaseFast

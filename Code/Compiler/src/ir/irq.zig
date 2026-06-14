@@ -11,18 +11,19 @@ const IRIndexStack = std.array_list.Aligned(u24, null);
 pub const IRQueue = struct {
     const Self = @This();
     kindCounts: *KindRanges,
+    kindCursor: KindRanges,
     opStack: IRIndexStack,
     tokensByKind: TokenList,
 
     pub fn init(allocator: Allocator, kindCounts: *KindRanges, maxOpStreak: usize, length: usize) !Self {
-        const kindLen = kindCounts.lockRanges();
+        const kindCursor = kindCounts.lockRanges();
         // TODO: We can probably just eliminate length param.
-        std.debug.assert(kindLen == length);
+        std.debug.assert(kindCursor.kindRanges[63] == length);
         const opStack = try IRIndexStack.initCapacity(allocator, maxOpStreak);
         var irq = try TokenList.initCapacity(allocator, length);
         const EMPTY_TOKEN = Token.lex(tok.Kind.aux_skip, 0, 0);
         irq.appendNTimesAssumeCapacity(EMPTY_TOKEN, length);
-        return Self{ .kindCounts = kindCounts, .opStack = opStack, .tokensByKind = irq };
+        return Self{ .kindCounts = kindCounts, .kindCursor = kindCursor, .opStack = opStack, .tokensByKind = irq };
     }
 
     pub fn deinit(self: *Self, allocator: Allocator) void {
@@ -32,7 +33,7 @@ pub const IRQueue = struct {
 
     pub fn emitKind(self: *Self, token: Token) void {
         // Literals and identifiers are emitted directly.
-        const index = self.kindCounts.incKind(token.kind);
+        const index = self.kindCursor.incKind(token.kind);
         // std.debug.assert(index < self.tokensByKind.items.len);
         self.tokensByKind.items[index] = token;
         self.opStack.appendAssumeCapacity(@truncate(index));

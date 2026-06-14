@@ -55,7 +55,9 @@ pub const DepMap = struct {
 
     fn trackDep(self: *Self, elemIndex: u32, refIndex: u24, elemLocal: u8, refLocal: u8) void {
         self.deps.items(.deps)[elemIndex].set(refLocal);
+        std.debug.print("Track dep of .{} : .{}\n", .{ elemIndex, refLocal });
         if (refLocal < self.inputStart) {
+            std.debug.print("Track ref to .{} from .{}\n", .{ refIndex, elemLocal });
             // It's a local element. Track deps.
             self.deps.items(.refs)[refIndex].set(elemLocal);
         }
@@ -95,12 +97,16 @@ pub const DepMap = struct {
     }
 
     pub fn build(self: *Self, blocks: *Blocks) void {
+        std.debug.print("Building", .{});
         var blockIter = BlockIter.init(blocks);
         while (blockIter.nextBlock()) |_| {
             self.assignLocalNumbering(&blockIter);
+            std.debug.print("Local numbers assigned", .{});
             while (blockIter.kindIter.next()) |kind| {
+                std.debug.print("Iter kind .{}", .{kind});
                 var kindRange = blockIter.nextRange(kind) orelse unreachable;
                 while (kindRange.next()) |i| {
+                    std.debug.print("Processing .{}", .{i});
                     self.addDependency(blockIter.blockIndex, kind, i);
                 }
             }

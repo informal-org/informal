@@ -28,15 +28,16 @@ pub const KindRanges = struct {
         return countCursor;
     }
 
-    pub fn lockRanges(self: *Self) u32 {
+    pub fn lockRanges(self: *Self) KindRanges {
         // Turn kind counts -> kind starts by cumulative sum. Return total length.
         // Invariant: Must be called only once!
+        var locked = KindRanges{};
         var total: u32 = 0;
         for (self.kindRanges, 0..) |kindCount, i| {
-            self.kindRanges[i] = total;
+            locked.kindRanges[i] = total;
             total += kindCount;
         }
-        return total;
+        return locked;
     }
 
     pub fn snapshot(self: *Self, cursor: *KindRanges) blocks.Block {
