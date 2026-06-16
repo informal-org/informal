@@ -36,7 +36,6 @@ pub fn Queue(comptime t: type, comptime default: t) type {
         }
 
         pub fn push(self: *Self, value: t) void {
-            // std.debug.print("pushing value to queue {any}\n", .{value});
             std.debug.assert(self.tail <= self.list.capacity);
             self.list.appendAssumeCapacity(value);
             self.tail += 1;

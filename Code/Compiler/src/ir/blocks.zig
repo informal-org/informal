@@ -32,16 +32,20 @@ pub const Block = struct {
 
 pub const Blocks = struct {
     const Self = @This();
-    kindRanges: KindRanges,
+    // TODO: Maintaining both here kinda sucks. Is there a better way?
+    kindBase: KindRanges,
+    kindCursor: KindRanges,
     blocks: BlockList,
 
     pub fn init(allocator: Allocator, kindRanges: *KindRanges, length: u32) !Self {
         const blocks = try BlockList.initCapacity(allocator, length);
         var blockKindRanges = KindRanges{};
+        var kindBases = KindRanges{};
         for (kindRanges.kindRanges, 0..) |range, i| {
+            kindBases.kindRanges[i] = range;
             blockKindRanges.kindRanges[i] = range;
         }
-        return Self{ .kindRanges = blockKindRanges, .blocks = blocks };
+        return Self{ .kindBase = kindBases, .kindCursor = blockKindRanges, .blocks = blocks };
     }
 
     pub fn deinit(self: *Self, allocator: Allocator) void {
@@ -53,7 +57,7 @@ pub const Blocks = struct {
     }
 
     pub fn snapshotBlock(self: *Self, kindCursor: *KindRanges) void {
-        self.appendBlock(self.kindRanges.snapshot(kindCursor));
+        self.appendBlock(self.kindCursor.snapshot(kindCursor));
     }
 
     pub fn get(self: *Self, index: usize) Block {
@@ -80,14 +84,14 @@ pub fn BlockIter(comptime direction: Direction) type {
         pub fn init(blocks: *Blocks) Self {
             // Forward = empty kind ranges.
             // Reverse = TODO: Init kind ranges to a snapshot of the end state.
-            const kindRanges = KindRanges{};
-            return Self{ .blocks = blocks, .endRanges = kindRanges, .kindIter = KindIterator{ .iter = BitSet64.empty.iterator(.{}) }, .countIter = CountIterator{ .iter = BitSet64.empty.iterator(.{}), .prevCount = 0 } };
+            const kindRanges = blocks.kindBase;
+            return Self{ .blocks = blocks, .endRanges = kindRanges, .kindIter = KindIterator{ .iter = BitSet64.empty.iterator(.{}) }, .countIter = CountIterator{ .iter = BitSet64.empty.iterator(.{}), .prevCount = null } };
         }
 
         pub fn resetIter(self: *Self) void {
             const block = self.blocks.get(self.blockIndex - 1);
             self.kindIter = KindIterator{ .iter = block.kinds.iterator(.{}) };
-            self.countIter = CountIterator{ .iter = block.counts.iterator(.{}), .prevCount = 0 };
+            self.countIter = CountIterator{ .iter = block.counts.iterator(.{}), .prevCount = null };
         }
 
         pub fn nextBlock(self: *Self) ?Block {
@@ -123,15 +127,24 @@ pub const KindIterator = struct {
 
 pub const CountIterator = struct {
     iter: BitSet64.Iterator(.{}),
-    prevCount: u8 = 0,
+    prevCount: ?u8 = null, // MUST be null initialized!
 
     pub fn next(self: *CountIterator) ?u8 {
-        const count = self.iter.next() orelse return null;
-        std.debug.assert(count < 255);
-        const countu8: u8 = @truncate(count);
-        const gap: u8 = countu8 - self.prevCount;
-        self.prevCount = countu8;
-        return gap;
+        if (self.prevCount) |previous| {
+            const count = self.iter.next() orelse return null;
+            std.debug.assert(count < 255);
+            const countu8: u8 = @truncate(count);
+            const gap: u8 = countu8 - previous;
+            self.prevCount = countu8;
+            return gap;
+        } else {
+            // Set the initial bit. Zero init causes issues when first bit is set at 0.
+            const count = self.iter.next() orelse return null;
+            self.prevCount = @truncate(count);
+            // 0th index set = count 1.
+            // 1st index set = count 2. etc. for first count. From there it's the gaps.
+            return @truncate(count + 1);
+        }
     }
 };
 

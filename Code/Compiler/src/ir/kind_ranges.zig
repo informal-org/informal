@@ -45,17 +45,20 @@ pub const KindRanges = struct {
         // Indicating which kinds are present, and how many of each kind.
         // Self is the snapshot. Base is the moving cursor.
         var block = blocks.Block{ .kinds = BitSet64.initEmpty(), .counts = BitSet64.initEmpty() };
-
         for (0..NUM_KINDS) |index| {
             const numKindAdded = cursor.kindRanges[index] - self.kindRanges[index];
             if (numKindAdded != 0) {
                 // Then this kind was added since last snapshot.
                 block.kinds.set(index);
                 // Set the next bit after N slots to indicate that many elements of this kind are present.
-                const endIndex = (block.counts.findLastSet() orelse 0) + numKindAdded;
-                // Overall block sizes are capped, so this should never overflow.
-                std.debug.assert(endIndex < blocks.MAX_BLOCK_LEN);
-                block.counts.set(endIndex);
+                if (block.counts.findLastSet()) |prevEnd| {
+                    // Overall block sizes are capped, so this should never overflow.
+                    const endIndex = prevEnd + numKindAdded;
+                    std.debug.assert(endIndex < blocks.MAX_BLOCK_LEN);
+                    block.counts.set(endIndex);
+                } else {
+                    block.counts.set(numKindAdded - 1);
+                }
 
                 // Snapshot for the next round.
                 self.kindRanges[index] = cursor.kindRanges[index];
@@ -69,7 +72,7 @@ pub const KindRanges = struct {
         // Base is the snapshot which becomes the old self
         // Allows us to move the start ranges as we move ends.
         var kindIter = block.kinds.iterator(.{});
-        var countIter = blocks.CountIterator{ .iter = block.counts.iterator(.{}), .prevCount = 0 };
+        var countIter = blocks.CountIterator{ .iter = block.counts.iterator(.{}), .prevCount = null };
         std.debug.assert(block.kinds.count() == block.counts.count());
         while (kindIter.next()) |kindIndex| {
             const count = countIter.next() orelse unreachable;

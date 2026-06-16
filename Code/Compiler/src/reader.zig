@@ -96,8 +96,6 @@ pub const Reader = struct {
 };
 
 pub fn process_chunk(chunk: []u8, reader: *Reader, allocator: Allocator, io: std.Io, out_filename: []u8, chunkSize: usize) !void {
-
-    // std.debug.print("Processing next chunk\n", .{});
     reader.syntaxQ.reset();
     reader.auxQ.reset();
     reader.parsedElements.reset();

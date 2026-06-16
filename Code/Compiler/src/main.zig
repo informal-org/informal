@@ -24,7 +24,6 @@ pub fn main(init: std.process.Init) !void {
         std.debug.print("Usage: Former <filename>\n", .{});
         return error.Unreachable;
     }
-    // std.debug.print("Reading file: {s}\n", .{filename});
 
     const start = std.Io.Clock.cpu_thread.now(init.io);
     try reader.compile_file(init.io, filename);
