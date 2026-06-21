@@ -2,6 +2,7 @@ const std = @import("std");
 const tok = @import("../token.zig");
 const BitSet64 = @import("../bitset.zig").BitSet64;
 const KindRanges = @import("kind_ranges.zig").KindRanges;
+const KindCursor = @import("kind_ranges.zig").KindCursor;
 const Kind = tok.Kind;
 
 pub const Direction = enum {
@@ -32,20 +33,13 @@ pub const Block = struct {
 
 pub const Blocks = struct {
     const Self = @This();
-    // TODO: Maintaining both here kinda sucks. Is there a better way?
-    kindBase: KindRanges,
-    kindCursor: KindRanges,
+    kindCursor: KindCursor,
+
     blocks: BlockList,
 
-    pub fn init(allocator: Allocator, kindRanges: *KindRanges, length: u32) !Self {
+    pub fn init(allocator: Allocator, kindCounts: *KindRanges, length: u32) !Self {
         const blocks = try BlockList.initCapacity(allocator, length);
-        var blockKindRanges = KindRanges{};
-        var kindBases = KindRanges{};
-        for (kindRanges.kindRanges, 0..) |range, i| {
-            kindBases.kindRanges[i] = range;
-            blockKindRanges.kindRanges[i] = range;
-        }
-        return Self{ .kindBase = kindBases, .kindCursor = blockKindRanges, .blocks = blocks };
+        return Self{ .kindCursor = KindCursor.init(kindCounts), .blocks = blocks };
     }
 
     pub fn deinit(self: *Self, allocator: Allocator) void {
@@ -57,7 +51,7 @@ pub const Blocks = struct {
     }
 
     pub fn snapshotBlock(self: *Self, kindCursor: *KindRanges) void {
-        self.appendBlock(self.kindCursor.snapshot(kindCursor));
+        self.appendBlock(self.kindCursor.cursor.snapshot(kindCursor));
     }
 
     pub fn get(self: *Self, index: usize) Block {
@@ -84,7 +78,7 @@ pub fn BlockIter(comptime direction: Direction) type {
         pub fn init(blocks: *Blocks) Self {
             // Forward = empty kind ranges.
             // Reverse = TODO: Init kind ranges to a snapshot of the end state.
-            const kindRanges = blocks.kindBase;
+            const kindRanges = blocks.kindCursor.counts.lockRanges();
             return Self{ .blocks = blocks, .endRanges = kindRanges, .kindIter = KindIterator{ .iter = BitSet64.empty.iterator(.{}) }, .countIter = CountIterator{ .iter = BitSet64.empty.iterator(.{}), .prevCount = null } };
         }
 

@@ -1,6 +1,7 @@
 const std = @import("std");
 const tok = @import("../token.zig");
 const KindRanges = @import("kind_ranges.zig").KindRanges;
+const KindCursor = @import("kind_ranges.zig").KindCursor;
 const TokenQueue = @import("../lexer.zig").TokenQueue;
 
 const Allocator = std.mem.Allocator;
@@ -10,20 +11,17 @@ const IRIndexStack = std.array_list.Aligned(u24, null);
 
 pub const IRQueue = struct {
     const Self = @This();
-    kindCounts: *KindRanges,
-    kindCursor: KindRanges,
+    kindCursor: KindCursor,
     opStack: IRIndexStack,
     tokensByKind: TokenList,
 
     pub fn init(allocator: Allocator, kindCounts: *KindRanges, maxOpStreak: usize, length: usize) !Self {
-        const kindCursor = kindCounts.lockRanges();
-        // TODO: We can probably just eliminate length param.
-        std.debug.assert(kindCursor.kindRanges[63] == length);
+        const kindCursor = KindCursor.init(kindCounts);
         const opStack = try IRIndexStack.initCapacity(allocator, maxOpStreak);
         var irq = try TokenList.initCapacity(allocator, length);
         const EMPTY_TOKEN = Token.lex(tok.Kind.aux_skip, 0, 0);
         irq.appendNTimesAssumeCapacity(EMPTY_TOKEN, length);
-        return Self{ .kindCounts = kindCounts, .kindCursor = kindCursor, .opStack = opStack, .tokensByKind = irq };
+        return Self{ .kindCursor = kindCursor, .opStack = opStack, .tokensByKind = irq };
     }
 
     pub fn deinit(self: *Self, allocator: Allocator) void {
@@ -33,7 +31,7 @@ pub const IRQueue = struct {
 
     pub fn emitKind(self: *Self, token: Token) void {
         // Literals and identifiers are emitted directly.
-        const index = self.kindCursor.incKind(token.kind);
+        const index = self.kindCursor.cursor.incKind(token.kind);
         // std.debug.assert(index < self.tokensByKind.items.len);
         self.tokensByKind.items[index] = token;
         self.opStack.appendAssumeCapacity(@truncate(index));

@@ -20,14 +20,14 @@ test "Test depmap" {
 
     const NUM_BLOCKS = 1;
     // Note that kind ranges is locked at this point after irq init.
-    var blocks = try blk.Blocks.init(allocator, &irq.kindCursor, NUM_BLOCKS);
+    var blocks = try blk.Blocks.init(allocator, irq.kindCursor.counts, NUM_BLOCKS);
     defer blocks.deinit(allocator);
 
     irq.emitKind(Token.lex(Kind.lit_number, 42, 0));
     irq.emitKind(Token.lex(Kind.lit_number, 28, 1));
     irq.emitBinary(Token.lex(Kind.op_add, 0, 0));
 
-    blocks.snapshotBlock(&irq.kindCursor);
+    blocks.snapshotBlock(&irq.kindCursor.cursor);
 
     var depmap = try DepMap.init(allocator, &irq);
     defer depmap.deinit(allocator);

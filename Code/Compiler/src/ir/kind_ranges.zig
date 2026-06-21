@@ -67,6 +67,14 @@ pub const KindRanges = struct {
         return block;
     }
 
+    pub fn clone(self: *Self) KindRanges {
+        var copy = KindRanges{};
+        for (0..NUM_KINDS) |i| {
+            copy.kindRanges[i] = self.kindRanges[i];
+        }
+        return copy;
+    }
+
     pub fn iter(self: *Self, block: blocks.Block, direction: blocks.Direction) void {
         // Self is the cursor that moves.
         // Base is the snapshot which becomes the old self
@@ -81,5 +89,27 @@ pub const KindRanges = struct {
                 .reverse => self.kindRanges[kindIndex] -= count,
             }
         }
+    }
+};
+
+pub const KindCursor = struct {
+    const Self = @This();
+    counts: *KindRanges,
+    bases: KindRanges,
+    cursor: KindRanges,
+
+    pub fn init(counts: *KindRanges) Self {
+        var bases = counts.lockRanges();
+        return Self{ .counts = counts, .bases = bases, .cursor = bases.clone() };
+    }
+
+    pub fn reset(self: *Self) void {
+        for (0..NUM_KINDS) |i| {
+            self.cursor.kindRanges[i] = self.bases.kindRanges[i];
+        }
+    }
+
+    pub fn iter(self: *Self, block: blocks.Block, direction: blocks.Direction) void {
+        self.cursor.iter(block, direction);
     }
 };
