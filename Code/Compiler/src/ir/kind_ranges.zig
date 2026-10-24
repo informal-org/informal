@@ -16,12 +16,12 @@ pub const KindRanges = struct {
     // At initialization, it become the cumulative count - which is the "start" cursor. It moves with each insert.
     // After all elements are added, it points to the end of each range.
     // Only assertion is that IR conversion MUST insert the same exact count of elements that parser counted. Never more or less (i.e. if we do constant folding, add sentinels). Else the end boundaries will be off.
-    kindRanges: [NUM_KINDS]u32 = [_]u32{0} ** NUM_KINDS,
+    kindRanges: [NUM_KINDS]u32 = @splat(0), // [_]u32{0} ** NUM_KINDS,
 
     pub fn incKind(self: *Self, kind: Kind) u32 {
         // Called by parser to increment counts
         // Called by IR conversion as a cursor for insertion.
-        const kindId = @intFromEnum(kind);
+        const kindId = @backingInt(kind);
         std.debug.assert(kindId < NUM_KINDS);
         const countCursor = self.kindRanges[kindId];
         self.kindRanges[kindId] = countCursor + 1;
@@ -44,7 +44,7 @@ pub const KindRanges = struct {
         // Take a snapshot of the kind-ranges after a block is complete
         // Indicating which kinds are present, and how many of each kind.
         // Self is the snapshot. Base is the moving cursor.
-        var block = blocks.Block{ .kinds = BitSet64.initEmpty(), .counts = BitSet64.initEmpty() };
+        var block = blocks.Block{ .kinds = BitSet64.empty, .counts = BitSet64.empty };
         for (0..NUM_KINDS) |index| {
             const numKindAdded = cursor.kindRanges[index] - self.kindRanges[index];
             if (numKindAdded != 0) {

@@ -940,14 +940,14 @@ pub const MachOLinker = struct {
         _ = try std.Io.Writer.writeVec(@constCast(&writer.interface), &[_][]const u8{str2});
         const byte4: u8 = 0;
         _ = try std.Io.Writer.writeVec(@constCast(&writer.interface), &[_][]const u8{&[_]u8{byte4}});
-        const zero4 = [_]u8{0} ** 4;
+        const zero4: [4]u8 = @splat(0);
         _ = try std.Io.Writer.writeVec(@constCast(&writer.interface), &[_][]const u8{&zero4});
 
         try writer.flush();
         try codesig.sign(&writer, file, io, signArgs);
 
         // Indicates end of file.
-        const zero4_2 = [_]u8{0} ** 4;
+        const zero4_2: [4]u8 = @splat(0);
         _ = try std.Io.Writer.writeVec(@constCast(&writer.interface), &[_][]const u8{&zero4_2});
 
         try writer.flush();

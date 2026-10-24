@@ -68,10 +68,7 @@ pub fn build(b: *std.Build) void {
 
     // This allows the user to pass arguments to the application in the build
     // command itself, like this: `zig build run -- arg1 arg2 etc`
-    if (b.args) |args| {
-        run_cmd.addArgs(args);
-    }
-
+    run_cmd.addPassthruArgs();
     // Creates a test executable that will run `test` blocks from the executable's
     // root module.
     const test_options = b.addOptions();

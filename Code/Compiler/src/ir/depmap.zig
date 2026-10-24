@@ -26,7 +26,7 @@ pub const DepMap = struct {
         const len = irq.tokensByKind.items.len;
         var deps = try std.MultiArrayList(IrNodeRefs).initCapacity(allocator, len);
         for (0..len) |_| {
-            const nodeRef = IrNodeRefs{ .deps = BitSet64.initEmpty(), .refs = BitSet64.initEmpty(), .inputBlock = 0, .inputId = 0 };
+            const nodeRef = IrNodeRefs{ .deps = BitSet64.empty, .refs = BitSet64.empty, .inputBlock = 0, .inputId = 0 };
             deps.appendAssumeCapacity(nodeRef);
         }
 

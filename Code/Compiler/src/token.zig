@@ -305,8 +305,8 @@ pub const TokenWriter = struct {
     }
 };
 
-pub const AUX_KIND_START: u6 = @intFromEnum(Kind.aux);
-pub const GROUPING_KIND_START: u6 = @intFromEnum(Kind.grp_close_brace); // First grouping token, reverse ascii.
+pub const AUX_KIND_START: u6 = @backingInt(Kind.aux);
+pub const GROUPING_KIND_START: u6 = @backingInt(Kind.grp_close_brace); // First grouping token, reverse ascii.
 
 pub fn createToken(kind: Kind) Token {
     return Token.lex(kind, 0, 0);
@@ -427,7 +427,7 @@ pub const TBL_PRECEDENCE_FLUSH = initPrecedenceTable();
 fn initPrecedenceTable() [64]bitset.BitSet64 {
     @setEvalBranchQuota(10000);
     var flushTbl: [64]bitset.BitSet64 = undefined;
-    const flushNothing = bitset.BitSet64.initEmpty();
+    const flushNothing = bitset.BitSet64.empty;
     for (0..64) |i| {
         flushTbl[i] = flushNothing;
     }
@@ -438,7 +438,7 @@ fn initPrecedenceTable() [64]bitset.BitSet64 {
         for (0..64) |i| {
             // Assumption: Each op only shows up in one precedence level.
             if (level.isSet(i)) {
-                flushTbl[i] = getFlushBitset(@enumFromInt(i));
+                flushTbl[i] = getFlushBitset(@fromBackingInt(@intCast(i)));
             }
         }
     }
@@ -449,8 +449,8 @@ fn getFlushBitset(kind: TK) bitset.BitSet64 {
     // For each token, you flush all tokens with higher precedence, since those operations
     // must be done before this lower-precedence op.
     // Also flush if precedence is equal and left-associative, to respect left-to-right precedence.
-    var bs: bitset.BitSet64 = bitset.BitSet64.initEmpty();
-    const tokenKind: u6 = @intFromEnum(kind);
+    var bs: bitset.BitSet64 = bitset.BitSet64.empty;
+    const tokenKind: u6 = @backingInt(kind);
     for (PRECEDENCE_LEVELS) |level| {
         if (!level.isSet(tokenKind)) {
             bs = bs.unionWith(level);
@@ -476,18 +476,18 @@ pub fn getInverseComparisonLookupTable() u64 {
     const comparison_ops = [_]TK{ TK.op_dbl_eq, TK.op_not_eq, TK.op_lt, TK.op_gte, TK.op_gt, TK.op_lte };
     for (0.., comparison_ops) |i, op| {
         // Only 4 bits are significant. Rest should be 0. Truncate to 6 bits so multiply doesn't overflow.
-        const opShift: u6 = @as(u6, @truncate(@intFromEnum(op))) * 4;
+        const opShift: u6 = @as(u6, @truncate(@backingInt(op))) * 4;
         // XOR 1 to get the index of the reverse operation.
-        const inverseOp: u64 = @intFromEnum(comparison_ops[i ^ 1]);
+        const inverseOp: u64 = @backingInt(comparison_ops[i ^ 1]);
         table |= (inverseOp << opShift);
     }
     return table;
 }
 
 pub fn inverseComparison(tok: Kind) Kind {
-    const tokVal: u6 = @as(u6, @truncate(@intFromEnum(tok)));
+    const tokVal: u6 = @as(u6, @truncate(@backingInt(tok)));
     const inverseVal = (COMPARISON_INVERSE >> (tokVal * 4)) & 0xF;
-    return @enumFromInt(inverseVal);
+    return @fromBackingInt(@intCast(inverseVal));
 }
 
 test {

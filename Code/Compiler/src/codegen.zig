@@ -37,7 +37,7 @@ pub const Codegen = struct {
     const Self = @This();
     allocator: Allocator,
     objCode: std.array_list.AlignedManaged(u32, null),
-    registerMap: bitset.BitSet32 = bitset.BitSet32.initEmpty(), // Bitmap of which registers are in use.
+    registerMap: bitset.BitSet32 = bitset.BitSet32.empty, // Bitmap of which registers are in use.
     buffer: []const u8,
     regStack: u64 = 0,
 
@@ -71,11 +71,11 @@ pub const Codegen = struct {
     pub fn getFreeReg(self: *Self) arm.Reg {
         const freeCount = self.registerMap.count();
         self.registerMap.set(freeCount);
-        return @enumFromInt(freeCount);
+        return @fromBackingInt(@intCast(freeCount));
     }
 
     pub fn freeReg(self: *Self, reg: arm.Reg) void {
-        self.registerMap.unset(@intFromEnum(reg));
+        self.registerMap.unset(@backingInt(reg));
     }
 
     pub fn emit_syscall(self: *Self, syscall: Syscall, arg: arm.Reg) !void {
@@ -86,18 +86,18 @@ pub const Codegen = struct {
         }
 
         try self.objCode.append(arm.orr(arm.Reg.x0, arg, arm.WZR));
-        try self.objCode.append(arm.movz(arm.Reg.x16, @intFromEnum(syscall)));
+        try self.objCode.append(arm.movz(arm.Reg.x16, @backingInt(syscall)));
 
         // Syscall - with an exit code we can read from bash.
         try self.objCode.append(arm.svc(0));
     }
 
     pub fn pushReg(self: *Self, reg: arm.Reg) void {
-        self.regStack = (self.regStack << 5) | @intFromEnum(reg);
+        self.regStack = (self.regStack << 5) | @backingInt(reg);
     }
 
     pub fn popReg(self: *Self) arm.Reg {
-        const reg: arm.Reg = @enumFromInt(self.regStack & 0b11111);
+        const reg: arm.Reg = @fromBackingInt(@intCast(self.regStack & 0b11111));
         self.regStack = (self.regStack >> 5);
         return reg;
     }
@@ -253,7 +253,7 @@ pub const Codegen = struct {
                         reg = self.getFreeReg();
                         self.pushReg(reg);
                         // Save which register this identifier is associated with to the parsed queue so future refs can look it up.
-                        tokenQueue[index] = token.assignReg(@intFromEnum(reg));
+                        tokenQueue[index] = token.assignReg(@backingInt(reg));
                         std.log.debug("DECL @{any}, {s}", .{ index, @tagName(reg) });
                     } else {
                         // Find what register this identifier is at by following the usage chain.
@@ -262,11 +262,11 @@ pub const Codegen = struct {
                         const register = tokenQueue[prevRefDecIndex].data.ident.symbol_id;
                         const signedOffset: i16 = @bitCast(offset);
                         std.log.debug("REF @{any}, x{any} offset {any}", .{ prevRefDecIndex, register, signedOffset });
-                        reg = @enumFromInt(register);
+                        reg = @fromBackingInt(@intCast(register));
                         self.pushReg(reg);
 
                         // Save that register to this identifier's location.
-                        tokenQueue[index] = token.assignReg(@intFromEnum(reg));
+                        tokenQueue[index] = token.assignReg(@backingInt(reg));
                     }
                 },
                 TK.op_assign_eq => {
