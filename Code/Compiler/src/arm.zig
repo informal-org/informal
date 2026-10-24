@@ -764,7 +764,7 @@ pub const BTITarget = enum(u3) {
 pub fn bti(target: BTITarget) u32 {
     return @as(u32, @bitCast(SystemHint{
         .CRm = 0b0100,
-        .op2 = @intFromEnum(target),
+        .op2 = @backingInt(target),
     }));
 }
 
@@ -777,7 +777,7 @@ pub const StoreSharedHint = enum(u3) {
 pub fn stshh(hint: StoreSharedHint) u32 {
     return @as(u32, @bitCast(SystemHint{
         .CRm = 0b0110,
-        .op2 = @intFromEnum(hint),
+        .op2 = @backingInt(hint),
     }));
 }
 
@@ -892,15 +892,15 @@ pub const BranchRegister = packed struct(u32) {
 };
 
 pub fn br(rn: Reg) u32 {
-    return BranchRegister.encode(BranchRegister.Op.BR, @intFromEnum(rn));
+    return BranchRegister.encode(BranchRegister.Op.BR, @backingInt(rn));
 }
 
 pub fn blr(rn: Reg) u32 {
-    return BranchRegister.encode(BranchRegister.Op.BLR, @intFromEnum(rn));
+    return BranchRegister.encode(BranchRegister.Op.BLR, @backingInt(rn));
 }
 
 pub fn ret(rn: Reg) u32 {
-    return BranchRegister.encode(BranchRegister.Op.RET, @intFromEnum(rn));
+    return BranchRegister.encode(BranchRegister.Op.RET, @backingInt(rn));
 }
 
 pub fn eret() u32 {
@@ -992,10 +992,10 @@ pub const TestAndBranchImm = packed struct(u32) {
         const b5: u1 = @truncate((bitnum & 0b100000) >> 5);
 
         return @as(u32, @bitCast(TestAndBranchImm{
-            .rt = @intFromEnum(rt),
+            .rt = @backingInt(rt),
             .imm14 = label,
             .b40 = b40,
-            .op = @intFromEnum(op),
+            .op = @backingInt(op),
             .b5 = b5,
         }));
     }

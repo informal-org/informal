@@ -19,7 +19,7 @@ pub fn addKindNTimes(kinds: *KindRanges, kind: Kind, n: usize) void {
 }
 
 pub fn kindCount(kinds: *KindRanges, kind: Kind) usize {
-    return kinds.kindRanges[@intFromEnum(kind)];
+    return kinds.kindRanges[@backingInt(kind)];
 }
 
 pub fn expectKinds(blockIter: *BlockIter, expected: []const Kind) !void {

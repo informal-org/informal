@@ -150,7 +150,7 @@ pub const Lexer = struct {
     }
 
     fn flushPrev(self: *Lexer, nextSyntax: bool) !void {
-        const isSyntax = @intFromEnum(self.prevToken.kind) < tok.AUX_KIND_START;
+        const isSyntax = @backingInt(self.prevToken.kind) < tok.AUX_KIND_START;
         if (isSyntax) {
             self.prevToken.flags.alt = !nextSyntax;
             try self.syntaxQ.pushDynamic(self.prevToken);
@@ -163,7 +163,7 @@ pub const Lexer = struct {
     // Newlines and numbers have some special behavior.
     fn emitAux(self: *Lexer, v: Token) !void {
         // Pre: token being emitted should be an aux token
-        std.debug.assert(@intFromEnum(v.kind) >= tok.AUX_KIND_START);
+        std.debug.assert(@backingInt(v.kind) >= tok.AUX_KIND_START);
 
         // Emit the previous token and then queue up this one.
         try self.flushPrev(false);
@@ -173,7 +173,7 @@ pub const Lexer = struct {
 
     fn emitToken(self: *Lexer, v: Token) !void {
         // Pre: token being emitted should be a syntax token
-        std.debug.assert(@intFromEnum(v.kind) < tok.AUX_KIND_START);
+        std.debug.assert(@backingInt(v.kind) < tok.AUX_KIND_START);
 
         try self.flushPrev(true);
         self.prevToken = v;

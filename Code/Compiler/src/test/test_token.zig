@@ -13,17 +13,17 @@ test "Test token sizes" {
 }
 
 test "Test precedence table" {
-    const dotFlush = tok.TBL_PRECEDENCE_FLUSH[@intFromEnum(TK.op_dot_member)];
+    const dotFlush = tok.TBL_PRECEDENCE_FLUSH[@backingInt(TK.op_dot_member)];
     try expectEqual(1, dotFlush.count());
 
-    const divFlush = tok.TBL_PRECEDENCE_FLUSH[@intFromEnum(TK.op_div)];
+    const divFlush = tok.TBL_PRECEDENCE_FLUSH[@backingInt(TK.op_div)];
     try expectEqual(7, divFlush.count()); // 7 higher/equal precedence operators.
     // When you see a div, flush all of these operators (but not lower precedence ones like add, sub, etc.)
     const divFlushExpected = bitset.token_bitset(&[_]TK{ TK.op_mod, TK.op_div, TK.op_mul, TK.op_pow, TK.op_unary_minus, TK.op_not, TK.op_dot_member });
     try expectEqual(divFlushExpected.mask, divFlush.mask);
 
     // Test right-associative. Should not flush itself.
-    const powFlush = tok.TBL_PRECEDENCE_FLUSH[@intFromEnum(TK.op_pow)];
+    const powFlush = tok.TBL_PRECEDENCE_FLUSH[@backingInt(TK.op_pow)];
     try expectEqual(3, powFlush.count());
     const powFlushExpected = bitset.token_bitset(&[_]TK{ TK.op_dot_member, TK.op_unary_minus, TK.op_not });
     try expectEqual(powFlushExpected.mask, powFlush.mask);

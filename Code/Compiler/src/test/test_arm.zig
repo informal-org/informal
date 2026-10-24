@@ -27,7 +27,7 @@ fn exitCodeTest(io: std.Io, code: []const u32) !u32 {
 
     switch (run_result.term) {
         .exited => |exitcode| return exitcode,
-        .signal => |sig| return @intFromEnum(sig),
+        .signal => |sig| return @backingInt(sig),
         .stopped => return 999,
         .unknown => return 999,
     }

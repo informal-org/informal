@@ -32,7 +32,7 @@ pub const Parser = struct {
         // TODO: I do wonder if combining both parsers into a labeled switch would perform better.
         const token = self.syntaxQ.pop();
         if (token.kind == .aux_stream_end) return;
-        std.debug.assert(@intFromEnum(token.kind) < tok.AUX_KIND_START); // Give compiler some hints on bounds so it can optimize the switch better.
+        std.debug.assert(@backingInt(token.kind) < tok.AUX_KIND_START); // Give compiler some hints on bounds so it can optimize the switch better.
 
         switch (token.kind) {
             .lit_string, .lit_bool, .lit_number, .lit_null => self.literal(token),
@@ -52,7 +52,7 @@ pub const Parser = struct {
             self.parsedQ.flushAll();
             return;
         }
-        std.debug.assert(@intFromEnum(token.kind) < tok.AUX_KIND_START);
+        std.debug.assert(@backingInt(token.kind) < tok.AUX_KIND_START);
 
         switch (token.kind) {
             .op_gte, .op_dbl_eq, .op_lte, .op_not_eq, .op_choice, .op_pow, .op_gt, .op_lt, .op_div, .op_dot_member, .op_sub, .op_add, .op_mul, .op_mod, .op_and, .op_or, .op_in, .op_is, .op_as, .op_identifier => self.binaryOp(token),
@@ -101,7 +101,7 @@ pub const Parser = struct {
 
     fn endGroup(self: *Self, token: Token) void {
         // Grouping kinds are laid out in close, open pairs. From current close, +1 gives you the open kind.
-        self.parsedQ.flushUntilKind(@enumFromInt(@intFromEnum(token.kind) + 1));
+        self.parsedQ.flushUntilKind(@fromBackingInt(@intCast(@backingInt(token.kind) + 1)));
         self.parseInfix(); // Treat this whole node as being a left operator. Look for the infix operand next.
     }
 
@@ -178,13 +178,13 @@ pub const ParsedQueue = struct {
     pub fn flush(self: *Self, token: Token) void {
         // Flush all tokens with higher precedence / associativity.
         // Those operations must be emitted/done first before the current token.
-        const tokValue = @intFromEnum(token.kind);
+        const tokValue = @backingInt(token.kind);
         std.debug.assert(tokValue < tok.TBL_PRECEDENCE_FLUSH.len);
         const flushBitset = tok.TBL_PRECEDENCE_FLUSH[tokValue];
         while (self.precedenceStack.items.len > 0) {
             const top = self.precedenceStack.items[self.precedenceStack.items.len - 1];
             const topKind = top.kind;
-            if (flushBitset.isSet(@intFromEnum(topKind))) {
+            if (flushBitset.isSet(@backingInt(topKind))) {
                 self.popOp();
             } else {
                 break;

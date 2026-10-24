@@ -100,7 +100,7 @@ pub fn BlockIter(comptime direction: Direction) type {
         }
 
         pub fn nextRange(self: *Self, kind: Kind) ?Range {
-            const kindIndex = @intFromEnum(kind);
+            const kindIndex = @backingInt(kind);
             const kindEnd = self.endRanges.kindRanges[kindIndex];
             if (self.countIter.next()) |kindCount| {
                 return Range{ .current = kindEnd - @as(u32, kindCount), .end = kindEnd };
@@ -115,7 +115,7 @@ pub const KindIterator = struct {
 
     pub fn next(self: *KindIterator) ?Kind {
         const kindIndex = self.iter.next() orelse return null;
-        return @enumFromInt(kindIndex);
+        return @fromBackingInt(@intCast(kindIndex));
     }
 };
 
