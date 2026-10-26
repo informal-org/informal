@@ -18,27 +18,27 @@ pub const KindRanges = struct {
     // Only assertion is that IR conversion MUST insert the same exact count of elements that parser counted. Never more or less (i.e. if we do constant folding, add sentinels). Else the end boundaries will be off.
     kindRanges: [NUM_KINDS]u32 = @splat(0), // [_]u32{0} ** NUM_KINDS,
 
-    pub fn incKind(self: *Self, kind: Kind) u32 {
-        // Called by parser to increment counts
-        // Called by IR conversion as a cursor for insertion.
-        const kindId = @backingInt(kind);
-        std.debug.assert(kindId < NUM_KINDS);
-        const countCursor = self.kindRanges[kindId];
-        self.kindRanges[kindId] = countCursor + 1;
-        return countCursor;
-    }
+    // pub fn incKind(self: *Self, kind: Kind) u32 {
+    //     // Called by parser to increment counts
+    //     // Called by IR conversion as a cursor for insertion.
+    //     const kindId = @backingInt(kind);
+    //     std.debug.assert(kindId < NUM_KINDS);
+    //     const countCursor = self.kindRanges[kindId];
+    //     self.kindRanges[kindId] = countCursor + 1;
+    //     return countCursor;
+    // }
 
-    pub fn lockRanges(self: *Self) KindRanges {
-        // Turn kind counts -> kind starts by cumulative sum. Return total length.
-        // Invariant: Must be called only once!
-        var locked = KindRanges{};
-        var total: u32 = 0;
-        for (self.kindRanges, 0..) |kindCount, i| {
-            locked.kindRanges[i] = total;
-            total += kindCount;
-        }
-        return locked;
-    }
+    // pub fn lockRanges(self: *Self) KindRanges {
+    //     // Turn kind counts -> kind starts by cumulative sum. Return total length.
+    //     // Invariant: Must be called only once!
+    //     var locked = KindRanges{};
+    //     var total: u32 = 0;
+    //     for (self.kindRanges, 0..) |kindCount, i| {
+    //         locked.kindRanges[i] = total;
+    //         total += kindCount;
+    //     }
+    //     return locked;
+    // }
 
     pub fn snapshot(self: *Self, cursor: *KindRanges) blocks.Block {
         // Take a snapshot of the kind-ranges after a block is complete
@@ -67,13 +67,13 @@ pub const KindRanges = struct {
         return block;
     }
 
-    pub fn clone(self: *Self) KindRanges {
-        var copy = KindRanges{};
-        for (0..NUM_KINDS) |i| {
-            copy.kindRanges[i] = self.kindRanges[i];
-        }
-        return copy;
-    }
+    // pub fn clone(self: *Self) KindRanges {
+    //     var copy = KindRanges{};
+    //     for (0..NUM_KINDS) |i| {
+    //         copy.kindRanges[i] = self.kindRanges[i];
+    //     }
+    //     return copy;
+    // }
 
     pub fn iter(self: *Self, block: blocks.Block, direction: blocks.Direction) void {
         // Self is the cursor that moves.
@@ -92,24 +92,45 @@ pub const KindRanges = struct {
     }
 };
 
+fn incKindHelper(kindCursors: *[NUM_KINDS]u32, kind: Kind) u32 {
+    const kindId = @backingInt(kind);
+    std.debug.assert(kindId < NUM_KINDS);
+    const count = kindCursors[kindId];
+    kindCursors[kindId] = count + 1;
+    return count;
+}
+
+pub const KindCounts = struct {
+    // Counter for how many of each kind of tokens are seen in a step.
+    // Useful for pre-allocating in later steps. i.e. count during parse, pre-allocate IR nodes.
+    const Self = @This();
+    counts: [NUM_KINDS]u32 = @splat(0),
+
+    pub fn incKind(self: *Self, kind: Kind) void {
+        _ = incKindHelper(&self.counts, kind);
+    }
+};
+
 pub const KindCursor = struct {
     const Self = @This();
-    counts: *KindRanges,
-    bases: KindRanges,
-    cursor: KindRanges,
+    // Absolute index position for a kind.
+    cursor: [NUM_KINDS]u32 = @splat(0),
 
-    pub fn init(counts: *KindRanges) Self {
-        var bases = counts.lockRanges();
-        return Self{ .counts = counts, .bases = bases, .cursor = bases.clone() };
-    }
-
-    pub fn reset(self: *Self) void {
-        for (0..NUM_KINDS) |i| {
-            self.cursor.kindRanges[i] = self.bases.kindRanges[i];
+    pub fn init(kindCounts: KindCounts) Self {
+        var starts = Self{};
+        var total: u32 = 0;
+        for (kindCounts.counts, 0..) |count, i| {
+            starts.cursor[i] = total;
+            total += count;
         }
+        return starts;
     }
 
-    pub fn iter(self: *Self, block: blocks.Block, direction: blocks.Direction) void {
-        self.cursor.iter(block, direction);
+    pub fn incKind(self: *Self, kind: Kind) u32 {
+        return incKindHelper(&self.cursor, kind);
     }
+
+    //     pub fn iter(self: *Self, block: blocks.Block, direction: blocks.Direction) void {
+    //         self.cursor.iter(block, direction);
+    //     }
 };

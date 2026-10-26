@@ -1,7 +1,7 @@
 const std = @import("std");
 const tok = @import("../token.zig");
 const BitSet64 = @import("../bitset.zig").BitSet64;
-const KindRanges = @import("kind_ranges.zig").KindRanges;
+const KindCounts = @import("kind_ranges.zig").KindCounts;
 const KindCursor = @import("kind_ranges.zig").KindCursor;
 const Kind = tok.Kind;
 
@@ -37,7 +37,7 @@ pub const Blocks = struct {
 
     blocks: BlockList,
 
-    pub fn init(allocator: Allocator, kindCounts: *KindRanges, length: u32) !Self {
+    pub fn init(allocator: Allocator, kindCounts: KindCounts, length: u32) !Self {
         const blocks = try BlockList.initCapacity(allocator, length);
         return Self{ .kindCursor = KindCursor.init(kindCounts), .blocks = blocks };
     }
@@ -50,7 +50,7 @@ pub const Blocks = struct {
         self.blocks.appendAssumeCapacity(block);
     }
 
-    pub fn snapshotBlock(self: *Self, kindCursor: *KindRanges) void {
+    pub fn snapshotBlock(self: *Self, kindCursor: *KindCursor) void {
         self.appendBlock(self.kindCursor.cursor.snapshot(kindCursor));
     }
 

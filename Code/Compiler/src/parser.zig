@@ -4,7 +4,7 @@ const std = @import("std");
 const tok = @import("token.zig");
 const bitset = @import("bitset.zig");
 const TokenQueue = @import("lexer.zig").TokenQueue;
-const KindRanges = @import("ir/kind_ranges.zig").KindRanges;
+const KindCounts = @import("ir/kind_ranges.zig").KindCounts;
 
 const Token = tok.Token;
 const Kind = tok.Kind;
@@ -141,14 +141,16 @@ pub const ParsedQueue = struct {
     // We take advantage of the fact that none of the precedence sensitive operators are storing anything extra in their tokens.
     // So we use the spare-space within the token to store original indexes.
     precedenceStack: std.array_list.Aligned(Token, null),
-    kindCounts: *KindRanges,
+    kindCounts: KindCounts = .{},
     parsedQ: *TokenQueue,
     // We no longer maintain a separate offset queue.
     // New-lines give general location. Operands are always in order. And operators carry their index within them.
 
-    pub fn init(allocator: Allocator, parsedQ: *TokenQueue, kindCounts: *KindRanges) !Self {
+    pub fn init(allocator: Allocator, parsedQ: *TokenQueue) !Self {
         const precedenceStack = try std.array_list.Aligned(Token, null).initCapacity(allocator, 32);
-        return Self{ .precedenceStack = precedenceStack, .parsedQ = parsedQ, .kindCounts = kindCounts };
+        // const kindCounts = try allocator.create(KindCounts);
+        // kindCounts.* = KindCounts{};
+        return Self{ .precedenceStack = precedenceStack, .parsedQ = parsedQ };
     }
 
     pub fn deinit(self: *Self, allocator: Allocator) void {
@@ -156,6 +158,7 @@ pub const ParsedQueue = struct {
     }
 
     pub fn reset(self: *Self) void {
+        self.kindCounts = .{}; // Zero it
         self.precedenceStack.clearRetainingCapacity();
     }
 
