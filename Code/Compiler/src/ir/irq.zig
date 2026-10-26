@@ -1,6 +1,6 @@
 const std = @import("std");
 const tok = @import("../token.zig");
-const KindRanges = @import("kind_ranges.zig").KindRanges;
+const KindCounts = @import("kind_ranges.zig").KindCounts;
 const KindCursor = @import("kind_ranges.zig").KindCursor;
 const TokenQueue = @import("../lexer.zig").TokenQueue;
 
@@ -15,7 +15,7 @@ pub const IRQueue = struct {
     opStack: IRIndexStack,
     tokensByKind: TokenList,
 
-    pub fn init(allocator: Allocator, kindCounts: *KindRanges, maxOpStreak: usize, length: usize) !Self {
+    pub fn init(allocator: Allocator, kindCounts: KindCounts, maxOpStreak: usize, length: usize) !Self {
         const kindCursor = KindCursor.init(kindCounts);
         const opStack = try IRIndexStack.initCapacity(allocator, maxOpStreak);
         var irq = try TokenList.initCapacity(allocator, length);
@@ -31,7 +31,7 @@ pub const IRQueue = struct {
 
     pub fn emitKind(self: *Self, token: Token) void {
         // Literals and identifiers are emitted directly.
-        const index = self.kindCursor.cursor.incKind(token.kind);
+        const index = self.kindCursor.incKind(token.kind);
         // std.debug.assert(index < self.tokensByKind.items.len);
         self.tokensByKind.items[index] = token;
         self.opStack.appendAssumeCapacity(@truncate(index));
