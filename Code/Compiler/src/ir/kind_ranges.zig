@@ -6,92 +6,6 @@ const BitSet64 = @import("../bitset.zig").BitSet64;
 const NUM_KINDS = 64;
 const Kind = tok.Kind;
 
-pub const KindRanges = struct {
-    // An abstraction to maintain how many of each kind of element there are.
-    // IR stores elements by kind.
-    const Self = @This();
-
-    // There's 3 bits of information packed into this.
-    // During parsing, this stores the count of each token kind.
-    // At initialization, it become the cumulative count - which is the "start" cursor. It moves with each insert.
-    // After all elements are added, it points to the end of each range.
-    // Only assertion is that IR conversion MUST insert the same exact count of elements that parser counted. Never more or less (i.e. if we do constant folding, add sentinels). Else the end boundaries will be off.
-    kindRanges: [NUM_KINDS]u32 = @splat(0), // [_]u32{0} ** NUM_KINDS,
-
-    // pub fn incKind(self: *Self, kind: Kind) u32 {
-    //     // Called by parser to increment counts
-    //     // Called by IR conversion as a cursor for insertion.
-    //     const kindId = @backingInt(kind);
-    //     std.debug.assert(kindId < NUM_KINDS);
-    //     const countCursor = self.kindRanges[kindId];
-    //     self.kindRanges[kindId] = countCursor + 1;
-    //     return countCursor;
-    // }
-
-    // pub fn lockRanges(self: *Self) KindRanges {
-    //     // Turn kind counts -> kind starts by cumulative sum. Return total length.
-    //     // Invariant: Must be called only once!
-    //     var locked = KindRanges{};
-    //     var total: u32 = 0;
-    //     for (self.kindRanges, 0..) |kindCount, i| {
-    //         locked.kindRanges[i] = total;
-    //         total += kindCount;
-    //     }
-    //     return locked;
-    // }
-    //
-    //     pub fn snapshot(self: *Self, cursor: *KindRanges) blocks.Block {
-    //         // Take a snapshot of the kind-ranges after a block is complete
-    //         // Indicating which kinds are present, and how many of each kind.
-    //         // Self is the snapshot. Base is the moving cursor.
-    //         var block = blocks.Block{ .kinds = BitSet64.empty, .counts = BitSet64.empty };
-    //         for (0..NUM_KINDS) |index| {
-    //             const numKindAdded = cursor.kindRanges[index] - self.kindRanges[index];
-    //             if (numKindAdded != 0) {
-    //                 // Then this kind was added since last snapshot.
-    //                 block.kinds.set(index);
-    //                 // Set the next bit after N slots to indicate that many elements of this kind are present.
-    //                 if (block.counts.findLastSet()) |prevEnd| {
-    //                     // Overall block sizes are capped, so this should never overflow.
-    //                     const endIndex = prevEnd + numKindAdded;
-    //                     std.debug.assert(endIndex < blocks.MAX_BLOCK_LEN);
-    //                     block.counts.set(endIndex);
-    //                 } else {
-    //                     block.counts.set(numKindAdded - 1);
-    //                 }
-    //
-    //                 // Snapshot for the next round.
-    //                 self.kindRanges[index] = cursor.kindRanges[index];
-    //             }
-    //         }
-    //         return block;
-    //     }
-
-    // pub fn clone(self: *Self) KindRanges {
-    //     var copy = KindRanges{};
-    //     for (0..NUM_KINDS) |i| {
-    //         copy.kindRanges[i] = self.kindRanges[i];
-    //     }
-    //     return copy;
-    // }
-
-    // pub fn iter(self: *Self, block: blocks.Block, direction: blocks.Direction) void {
-    //     // Self is the cursor that moves.
-    //     // Base is the snapshot which becomes the old self
-    //     // Allows us to move the start ranges as we move ends.
-    //     var kindIter = block.kinds.iterator(.{});
-    //     var countIter = blocks.CountIterator{ .iter = block.counts.iterator(.{}), .prevCount = null };
-    //     std.debug.assert(block.kinds.count() == block.counts.count());
-    //     while (kindIter.next()) |kindIndex| {
-    //         const count = countIter.next() orelse unreachable;
-    //         switch (direction) {
-    //             .forward => self.kindRanges[kindIndex] += count,
-    //             .reverse => self.kindRanges[kindIndex] -= count,
-    //         }
-    //     }
-    // }
-};
-
 fn incKindHelper(kindCursors: *[NUM_KINDS]u32, kind: Kind, amt: u32) u32 {
     const kindId = @backingInt(kind);
     std.debug.assert(kindId < NUM_KINDS);
@@ -133,8 +47,4 @@ pub const KindCursor = struct {
     pub fn addKind(self: *Self, kind: Kind, count: u32) void {
         _ = incKindHelper(&self.cursor, kind, count);
     }
-
-    //     pub fn iter(self: *Self, block: blocks.Block, direction: blocks.Direction) void {
-    //         self.cursor.iter(block, direction);
-    //     }
 };

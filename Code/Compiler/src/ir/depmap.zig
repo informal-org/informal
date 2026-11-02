@@ -77,7 +77,7 @@ pub const DepMap = struct {
         }
     }
 
-    fn assignLocalNumbering(self: *Self, blockIter: *BlockIter) void {
+    fn assignLocalNumbering(self: *Self, blockIter: *Blocks.Iterator) void {
         // Iterate once to assign local numbering to all members of this block.
         // I've experimented with computing this on the fly (with end ranges and a cumulative base per kind), but this ends up more simpler and more efficient
         // and trades off space we need to allocate anyway for input ID numbering.
@@ -95,8 +95,8 @@ pub const DepMap = struct {
     }
 
     pub fn build(self: *Self, blocks: *Blocks) void {
-        var blockIter = BlockIter.init(blocks);
-        while (blockIter.nextBlock()) |_| {
+        var blockIter = blocks.iterator();
+        while (blockIter.nextBlock()) |block| {
             self.assignLocalNumbering(&blockIter);
             while (blockIter.kindIter.next()) |kind| {
                 var kindRange = blockIter.nextRange(kind) orelse unreachable;

@@ -44,39 +44,14 @@ pub const Block = struct {
 
     pub fn len(self: Self) usize {
         const lastCount = self.counts.findLastSet();
-        if (lastCount) {
-            return lastCount + 1;
-        }
+        if (lastCount) |last| return last + 1;
         return 0;
     }
-
-    // pub fn kindIter(self: *Self) KindIterator {
-    //     return .{ .iter = self.kinds.iterator(.{}) };
-    // }
 
     pub const Iterator = struct {
         kinds: KindSet.Iterator,
         counts: BitSet64.Iterator(.{}),
-        prevCountIndex: u32 = 0,
-
-        // pub fn next(self: *CountIterator) ?u8 {
-        //     if (self.prevCount) |previous| {
-        //         const count = self.iter.next() orelse return null;
-        //         std.debug.assert(count < 255);
-        //         const countu8: u8 = @truncate(count);
-        //         const gap: u8 = countu8 - previous;
-        //         self.prevCount = countu8;
-        //         return gap;
-        //     } else {
-        //         // Set the initial bit. Zero init causes issues when first bit is set at 0.
-        //         const count = self.iter.next() orelse return null;
-        //         self.prevCount = @truncate(count);
-        //         // 0th index set = count 1.
-        //         // 1st index set = count 2. etc. for first count. From there it's the gaps.
-        //         return @truncate(count + 1);
-        //     }
-        // }
-        //
+        prevCountIndex: u32 = 0, // TODO: Make sure we test the case where the first bit is set at 0. Should return 1 still.
 
         pub fn next(self: *Iterator) ?KindCount {
             const nextKind = self.kinds.next() orelse return null;
@@ -86,6 +61,10 @@ pub const Block = struct {
             // const nextCount = self.counts.next() orelse unreachable; // The two should be in lock-step, so if kinds isn't null, this one shouldn't ever be - else it's indicative of a bug elsewhere.
             return KindCount{ .kind = nextKind, .count = count };
         }
+    };
+
+    pub const Ranges = struct {
+
     };
 
     pub fn iterator(self: Self) Iterator {
@@ -126,10 +105,6 @@ pub const Blocks = struct {
         cursor: KindCursor,
         blockIndex: u32 = 0, // Actual block IDs start at 1. That's important for depmap block membership detection.
 
-        pub fn init(blks: *Blocks) Iterator {
-            return Iterator{ .blocks = blks, .cursor = blks.starts };
-        }
-
         fn advance(self: *Iterator, block: Block) void {
             var iter = block.iterator();
             while (iter.next()) |e| {
@@ -147,42 +122,16 @@ pub const Blocks = struct {
             return null;
         }
     };
+
+    pub fn iterator(self: *Self) Iterator {
+        return Iterator {
+            .blocks = self,
+            .cursor = self.starts
+        }
+    }
 };
 
 // pub fn BlockIter() type {
-//     return struct {
-//         const Self = @This();
-//         blocks: *Blocks,
-//         cursor: KindCursor,
-//
-//         kindIter: KindIterator,
-//         countIter: CountIterator,
-//         blockIndex: u32 = 0, // Actual block IDs start at 1. That's important for depmap block membership detection.
-//
-//         pub fn init(blocks: *Blocks) Self {
-//             // Forward = empty kind ranges.
-//             // Reverse = TODO: Init kind ranges to a snapshot of the end state.
-//             const kindRanges = blocks.kindCursor.counts.lockRanges();
-//             return Self{ .blocks = blocks, .cursor = kindRanges, .kindIter = KindIterator{ .iter = BitSet64.empty.iterator(.{}) }, .countIter = CountIterator{ .iter = BitSet64.empty.iterator(.{}), .prevCount = null } };
-//         }
-//
-//         pub fn resetIter(self: *Self) void {
-//             const block = self.blocks.get(self.blockIndex - 1);
-//             self.kindIter = KindIterator{ .iter = block.kinds.iterator(.{}) };
-//             self.countIter = CountIterator{ .iter = block.counts.iterator(.{}), .prevCount = null };
-//         }
-//
-//         pub fn nextBlock(self: *Self) ?Block {
-//             if (self.blockIndex < self.blocks.len()) {
-//                 const block = self.blocks.get(self.blockIndex);
-//                 self.cursor.iter(block, direction);
-//                 self.blockIndex += 1;
-//                 self.resetIter();
-//                 return block;
-//             }
-//             return null;
-//         }
-//
 //         pub fn nextRange(self: *Self, kind: Kind) ?Range {
 //             const kindIndex = @backingInt(kind);
 //             const kindEnd = self.cursor.kindRanges[kindIndex];
@@ -210,19 +159,6 @@ pub const KindSet = struct {
         return .{ .iter = self.kinds.iterator(.{}) };
     }
 };
-
-// pub const KindIterator = struct {
-//     iter: BitSet64.Iterator(.{}),
-//
-//     pub fn next(self: *KindIterator) ?Kind {
-//         const kindIndex = self.iter.next() orelse return null;
-//         return @fromBackingInt(@intCast(kindIndex));
-//     }
-// };
-
-// pub const CountIterator = struct {
-//
-// };
 
 pub const Range = struct {
     current: u32 = 0,
