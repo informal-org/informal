@@ -5,29 +5,49 @@ const stdbits = std.bit_set;
 
 pub const BitSet128 = stdbits.IntegerBitSet(128);
 
-pub const TblOp = enum(u5) {
-    // Lexer ops
-    none, // Do nothing
-    emit, // Emit a token
-    emit_int, // Parse selection as int.
-    // Parser ops
-    err, // Terminate with error
-    out, // Emit current token.
-    shift, // Precedence shift.
-    finish, // Flush remaining
-};
-
-pub const TblState = packed struct(u32) {
-    transition_id: u16,
-    width: u2, // 2^n wide transition table size. Really belongs with the transition table, but size works out better here.
-    op: TblOp, // Action on state activation.
-    consume: bool, // Consume the symbol that led here, or false - dispatch on it again.
-    arg: u8, // Arg for op.
-};
-
 pub const Table = struct {
-    states: []TblState,
-    // TODO: need to figure out how we go from transition_id and width to the right index range in both of these arrays.
-    transitions: []u128,
-    next_states: []u16,
+    const Self = @This();
+
+    pub const Op = enum(u5) {
+        // Lexer ops
+        none, // Do nothing
+        emit, // Emit a token
+        emit_int, // Parse selection as int.
+        // Parser ops
+        err, // Terminate with error
+        out, // Emit current token.
+        shift, // Precedence shift.
+        finish, // Flush remaining
+    };
+
+    pub const State = packed struct(u32) {
+        transition_id: u16,
+        width: u2, // 2^n wide transition table size. Really belongs with the transition table, but size works out better here.
+        consume: bool, // Consume the symbol that led here, or false - dispatch on it again.
+        op: Op, // Action on state activation.
+        arg: u8, // Arg for op.
+    };
+
+    states: []State,
+    // 1<<width transition bitsets at transition_id offset, with the slot immediately after being the ID->u16 state ID map (up to 8 u16 states)
+    transitions: []align(8) const u8,
+
+    pub fn next(
+        self: Self,
+        current: State,
+        char: u7,
+    ) State {
+        const start_bit = @as(usize, char) << current.width;
+        // Split that into the top part and bottom part.
+        const transition_byte = current.transition_id + (start_bit >> 3); // div by 8
+        const byte_idx = start_bit & 7; // Basically % 8 to find remainder = bottom 3 bits.
+        const width_mask: u16 = (1 << (1 << current.width)) - 1;
+        // Since width is 1, 2, 4, 8 it never crosses bytes.
+        const next_state_id = (self.transitions[transition_byte] >> byte_idx) & width_mask;
+        const NEXT_STATE_WIDTH = 1; // in bytes.
+        const next_state_base = current.transition_id + (16 << current.width) + (NEXT_STATE_WIDTH * next_state_id);
+        // If we have more than 255 states, need to read multiple bytes starting at base and turn it into a state ID. Same concept.
+        const next_state = self.transitions[next_state_base];
+        return self.states[next_state];
+    }
 };
