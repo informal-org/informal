@@ -63,9 +63,7 @@ pub const Block = struct {
         }
     };
 
-    pub const Ranges = struct {
-
-    };
+    pub const Ranges = struct {};
 
     pub fn iterator(self: Self) Iterator {
         std.debug.assert(self.kinds.kinds.count() == self.counts.count());
@@ -124,10 +122,10 @@ pub const Blocks = struct {
     };
 
     pub fn iterator(self: *Self) Iterator {
-        return Iterator {
+        return Iterator{
             .blocks = self,
-            .cursor = self.starts
-        }
+            .cursor = self.starts,
+        };
     }
 };
 

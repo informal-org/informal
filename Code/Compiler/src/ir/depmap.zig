@@ -96,7 +96,7 @@ pub const DepMap = struct {
 
     pub fn build(self: *Self, blocks: *Blocks) void {
         var blockIter = blocks.iterator();
-        while (blockIter.nextBlock()) |block| {
+        while (blockIter.nextBlock()) |_| {
             self.assignLocalNumbering(&blockIter);
             while (blockIter.kindIter.next()) |kind| {
                 var kindRange = blockIter.nextRange(kind) orelse unreachable;
