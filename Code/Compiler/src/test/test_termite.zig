@@ -55,30 +55,42 @@ fn state(comptime field: []const u8, width: u2) Table.State {
     };
 }
 
-const states = [_]Table.State{ state("start", 3), state("num", 0) };
+const start = state("start", 3);
+const num = state("num", 0);
 
-const table = Table{ .states = &states, .transitions = std.mem.asBytes(&fixture) };
+const dispatch = std.EnumArray(States, Table.State).init(.{
+    .start = start,
+    .num = num,
+    .emit_num = start,
+    .plus = start,
+    .star = start,
+    .end = undefined,
+    .err = undefined,
+});
 
-const Case = struct { from: States, sym: u7, to: States };
-const cases = [_]Case{
-    .{ .from = .start, .sym = '1', .to = .num },
-    .{ .from = .num, .sym = '+', .to = .emit_num },
-    .{ .from = .start, .sym = '+', .to = .plus },
-    .{ .from = .start, .sym = '2', .to = .num },
-    .{ .from = .start, .sym = '3', .to = .num },
-    .{ .from = .start, .sym = '4', .to = .num },
-    .{ .from = .num, .sym = '*', .to = .emit_num },
-    .{ .from = .start, .sym = '*', .to = .star },
-    .{ .from = .start, .sym = '5', .to = .num },
-    .{ .from = .start, .sym = '6', .to = .num },
-    .{ .from = .num, .sym = 0, .to = .emit_num },
-    .{ .from = .start, .sym = 0, .to = .end },
+const table = Table{ .states = &dispatch.values, .transitions = std.mem.asBytes(&fixture) };
+
+const Step = struct { sym: u7, to: States };
+const steps = [_]Step{
+    .{ .sym = '1', .to = .num },
+    .{ .sym = '+', .to = .emit_num },
+    .{ .sym = '+', .to = .plus },
+    .{ .sym = '2', .to = .num },
+    .{ .sym = '3', .to = .num },
+    .{ .sym = '4', .to = .num },
+    .{ .sym = '*', .to = .emit_num },
+    .{ .sym = '*', .to = .star },
+    .{ .sym = '5', .to = .num },
+    .{ .sym = '6', .to = .num },
+    .{ .sym = 0, .to = .emit_num },
+    .{ .sym = 0, .to = .end },
 };
 
 test "1+234*56" {
-    for (cases) |c| {
-        errdefer std.debug.print("from {s} on {d}\n", .{ @tagName(c.from), c.sym });
-        const got: States = @fromBackingInt(table.next(states[@backingInt(c.from)], c.sym));
-        try std.testing.expectEqual(c.to, got);
+    var cur: States = .start;
+    for (steps) |s| {
+        errdefer std.debug.print("from {s} on {d}\n", .{ @tagName(cur), s.sym });
+        cur = @fromBackingInt(table.next(dispatch.get(cur), s.sym));
+        try std.testing.expectEqual(s.to, cur);
     }
 }
