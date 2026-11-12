@@ -65,10 +65,12 @@ const tok = @import("../token.zig");
 const q = @import("../queue.zig");
 
 const Token = tok.Token;
+const TK = tok.Kind;
 pub const TokenQueue = q.Queue(Token, tok.AUX_STREAM_END);
 
 const SYNTAX_Q: u1 = 0;
 const AUX_Q: u1 = 1;
+const MAX_LITERAL_NUMBER: u64 = 1 << 16; // 65536
 
 pub const Lexer = struct {
     const Self = @This();
@@ -110,8 +112,48 @@ pub const Lexer = struct {
         // Pre: token being emitted should be a syntax token
         // std.debug.assert(@backingInt(v.kind) < tok.AUX_KIND_START);
 
-        try self.flushPrev(v.kind < tok.AUX_KIND_START);
+        try self.flushPrev(@backingInt(v.kind) < tok.AUX_KIND_START);
         self.prevToken = v;
         // self.QIdx[SYNTAX_Q] += 1;
+    }
+
+    pub fn lex(self: *Lexer) !void {
+        var state = self.table.states[0];
+        var tokStart: usize = 0;
+        while (self.index < self.buffer.len) {
+            const ch = self.buffer[self.index];
+            // Error on invalid or non-ascii bytes
+            std.debug.assert(ch < 0x80);
+            // const ch = if (self.index == self.buffer.len) 0 else ;
+
+            const nextStateId = self.table.next(state, @truncate(ch));
+            state = self.table.states[nextStateId];
+            if (state.consume) {
+                self.index += 1;
+            }
+            switch (state.op) {
+                .emit => {
+                    try self.emit(tok.createToken(@fromBackingInt(@intCast(state.arg))));
+                    tokStart = self.index;
+                },
+                .emit_int => {
+                    const value: u64 = std.fmt.parseInt(u64, self.buffer[tokStart..self.index], 10) catch 0;
+                    std.debug.assert(value <= MAX_LITERAL_NUMBER);
+                    const len = self.index - tokStart;
+                    try self.emit(Token.lex(TK.lit_number, @truncate(value), @truncate(len)));
+                    tokStart = self.index;
+                },
+                .err => {
+                    std.debug.assert(false);
+                },
+                .none => {},
+                else => {
+                    std.debug.assert(false);
+                },
+            }
+        }
+        // null terminated.
+        std.debug.assert(self.buffer[self.buffer.len - 1] == 0);
+        try self.flushPrev(false);
     }
 };
