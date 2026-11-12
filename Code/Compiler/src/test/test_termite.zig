@@ -90,7 +90,8 @@ test "1+234*56" {
     var cur: States = .start;
     for (steps) |s| {
         errdefer std.debug.print("from {s} on {d}\n", .{ @tagName(cur), s.sym });
-        cur = @fromBackingInt(table.next(dispatch.get(cur), s.sym));
-        try std.testing.expectEqual(s.to, cur);
+        const got: States = @fromBackingInt(table.next(dispatch.get(cur), s.sym));
+        try std.testing.expectEqual(s.to, got);
+        cur = got;
     }
 }
