@@ -66,7 +66,7 @@ const dispatch = std.EnumArray(States, Table.State).init(.{
     .emit_num = state("start", START_WIDTH, Table.Op.emit_int, false, @backingInt(tok.Kind.lit_number)),
     .plus = state("start", START_WIDTH, Table.Op.emit, true, @backingInt(tok.Kind.op_add)),
     .star = state("start", START_WIDTH, Table.Op.emit, true, @backingInt(tok.Kind.op_mul)),
-    .end = state("start", START_WIDTH, Table.Op.emit, true, @backingInt(tok.Kind.aux_stream_end)),
+    .end = state("start", START_WIDTH, Table.Op.emit_end, true, 0),
     .err = state("start", START_WIDTH, Table.Op.err, false, 0),
 });
 

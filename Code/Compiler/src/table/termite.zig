@@ -10,7 +10,9 @@ pub const Table = struct {
         // Lexer ops
         none, // Do nothing
         emit, // Emit a token
+        emit_aux,
         emit_int, // Parse selection as int.
+        emit_end,
         // Parser ops
         err, // Terminate with error
         out, // Emit current token.
@@ -72,6 +74,9 @@ const SYNTAX_Q: u1 = 0;
 const AUX_Q: u1 = 1;
 const MAX_LITERAL_NUMBER: u64 = 1 << 16; // 65536
 
+pub const MemError = std.mem.Allocator.Error;
+pub const OpFn = *const fn (*Lexer, u8) MemError!void;
+
 pub const Lexer = struct {
     const Self = @This();
     table: Table,
@@ -80,6 +85,16 @@ pub const Lexer = struct {
     auxQ: *TokenQueue,
     prevToken: Token,
     index: u32,
+    tokenStart: u32,
+
+    const ops = std.EnumArray(Table.Op, OpFn).initDefault(err, .{
+        .none = none,
+        .emit = emit,
+        .emit_aux = emitAux,
+        .emit_int = emitInt,
+        .emit_end = emit_end,
+        .err = err,
+    });
 
     pub fn init(
         table: Table,
@@ -94,6 +109,7 @@ pub const Lexer = struct {
             .auxQ = auxQ,
             .prevToken = tok.AUX_STREAM_START,
             .index = 0,
+            .tokenStart = 0,
         };
     }
 
@@ -108,18 +124,50 @@ pub const Lexer = struct {
         }
     }
 
-    fn emit(self: *Lexer, v: Token) !void {
+    fn token(arg: u8) Token {
+        return tok.createToken(@fromBackingInt(@intCast(arg)));
+    }
+
+    fn emitToken(self: *Lexer, t: Token) !void {
+        try self.flushPrev(true);
+        self.prevToken = t;
+        self.tokenStart = self.index;
+    }
+
+    fn emit(self: *Lexer, arg: u8) !void {
         // Pre: token being emitted should be a syntax token
         // std.debug.assert(@backingInt(v.kind) < tok.AUX_KIND_START);
-
-        try self.flushPrev(@backingInt(v.kind) < tok.AUX_KIND_START);
-        self.prevToken = v;
+        const t = token(arg);
+        try self.emitToken(t);
         // self.QIdx[SYNTAX_Q] += 1;
+    }
+
+    fn emitAux(self: *Lexer, arg: u8) !void {
+        const t = token(arg);
+        try self.flushPrev(false);
+        self.prevToken = t;
+        self.tokenStart = self.index;
+    }
+
+    fn emitInt(self: *Lexer, _: u8) !void {
+        const value: u64 = std.fmt.parseInt(u64, self.buffer[self.tokenStart..self.index], 10) catch 0;
+        std.debug.assert(value <= MAX_LITERAL_NUMBER);
+        const len = self.index - self.tokenStart;
+        try self.emitToken(Token.lex(TK.lit_number, @truncate(value), @truncate(len)));
+    }
+
+    fn emit_end(self: *Lexer, _: u8) !void {
+        try self.emitAux(@backingInt(TK.aux_stream_end));
+        try self.flushPrev(false);
+    }
+
+    fn none(_: *Lexer, _: u8) !void {}
+    fn err(_: *Lexer, _: u8) !void {
+        std.debug.assert(false);
     }
 
     pub fn lex(self: *Lexer) !void {
         var state = self.table.states[0];
-        var tokStart: usize = 0;
         while (self.index < self.buffer.len) {
             const ch = self.buffer[self.index];
             // Error on invalid or non-ascii bytes
@@ -131,29 +179,10 @@ pub const Lexer = struct {
             if (state.consume) {
                 self.index += 1;
             }
-            switch (state.op) {
-                .emit => {
-                    try self.emit(tok.createToken(@fromBackingInt(@intCast(state.arg))));
-                    tokStart = self.index;
-                },
-                .emit_int => {
-                    const value: u64 = std.fmt.parseInt(u64, self.buffer[tokStart..self.index], 10) catch 0;
-                    std.debug.assert(value <= MAX_LITERAL_NUMBER);
-                    const len = self.index - tokStart;
-                    try self.emit(Token.lex(TK.lit_number, @truncate(value), @truncate(len)));
-                    tokStart = self.index;
-                },
-                .err => {
-                    std.debug.assert(false);
-                },
-                .none => {},
-                else => {
-                    std.debug.assert(false);
-                },
-            }
+
+            try ops.get(state.op)(self, state.arg);
+            if (state.op == .emit_end) return;
         }
-        // null terminated.
-        std.debug.assert(self.buffer[self.buffer.len - 1] == 0);
-        try self.flushPrev(false);
+        unreachable;
     }
 };
