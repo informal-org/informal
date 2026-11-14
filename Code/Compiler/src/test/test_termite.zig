@@ -131,7 +131,8 @@ fn testLex(buffer: []const u8, expected: []const Token, aux: ?[]const Token) !vo
     // defer internedNumbers.deinit();
     // defer internedFloats.deinit();
     // defer symbolTable.deinit();
-    try lexer.lex();
+    // try lexer.lex();
+    try lexer.genLex(table);
 
     try testQueueEquals(buffer, &syntaxQ, expected);
     if (aux) |auxExpected| {

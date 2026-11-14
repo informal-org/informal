@@ -48,16 +48,20 @@ pub const Table = struct {
         return @as(usize, 16) << width;
     }
 
+    pub fn nextStateId(self: Self, current: State, char: u7) u8 {
+        const offset = slot(current.width, char);
+        // Read state number from map
+        const next_state = (self.transitions[current.transition_id + offset.byte] >> offset.shift) & offset.mask;
+        return next_state;
+    }
+
     pub fn next(
         self: Self,
         current: State,
         char: u7,
     ) u8 {
-        const offset = slot(current.width, char);
-        const bitmapBase: usize = current.transition_id;
-        const nextStateBase: usize = bitmapBase + bitmapSize(current.width);
-        // Read state number from map
-        const next_state = (self.transitions[bitmapBase + offset.byte] >> offset.shift) & offset.mask;
+        const nextStateBase: usize = current.transition_id + bitmapSize(current.width);
+        const next_state = self.nextStateId(current, char);
         // Resolve what actual state that maps to.
         return self.transitions[nextStateBase + next_state];
     }
@@ -184,5 +188,27 @@ pub const Lexer = struct {
             if (state.op == .emit_end) return;
         }
         unreachable;
+    }
+
+    pub fn genLex(self: *Lexer, comptime table: Table) !void {
+        @setEvalBranchQuota(table.states.len * 128 * 8);
+        s: switch (@as(u8, 0)) {
+            inline 0...table.states.len - 1 => |id| {
+                const state = comptime table.states[id];
+                if (state.consume) self.index += 1;
+                try (comptime ops.get(state.op))(self, state.arg);
+                if (state.op == .emit_end) return;
+
+                const ch = self.buffer[self.index];
+                std.debug.assert(ch < 0x80);
+                const next_state = table.nextStateId(state, @truncate(ch));
+                const nextStateBase: usize = state.transition_id + Table.bitmapSize(state.width);
+                switch (next_state) {
+                    inline 0...@min(ENTRY_WIDTH_MASKS[state.width], 127) => |e| continue :s comptime table.transitions[nextStateBase + e],
+                    else => unreachable,
+                }
+            },
+            else => unreachable,
+        }
     }
 };
