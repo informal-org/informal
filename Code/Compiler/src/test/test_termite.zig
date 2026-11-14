@@ -2,7 +2,7 @@ const std = @import("std");
 const termite = @import("../table/termite.zig");
 const Table = termite.Table;
 
-const States = enum(u8) { start, num, emit_num, plus, star, end, err };
+const States = enum(u8) { start, num, emit_num, sym, end, err };
 
 fn Transition(comptime width: u2) type {
     return extern struct {
@@ -31,17 +31,19 @@ fn Transition(comptime width: u2) type {
 const Start = Transition(3);
 const Num = Transition(0);
 const DIGITS = "0123456789";
+const SYMBOLS = "%*+,-./";
 
-const Fixture = extern struct { start: Start, num: Num };
+const Fixture = extern struct { start: Start, num: Num, sym: Num };
 const fixture = blk: {
     var f = std.mem.zeroes(Fixture);
     f.start.route(0, "", .err);
     f.start.route(1, DIGITS, .num);
-    f.start.route(2, "+", .plus);
-    f.start.route(3, "*", .star);
+    f.start.route(2, SYMBOLS, .sym);
     f.start.route(4, "\x00", .end);
     f.num.route(0, "", .emit_num);
     f.num.route(1, DIGITS, .num);
+    f.sym.route(0, "", .start);
+    f.sym.route(1, SYMBOLS, .start);
     break :blk f;
 };
 
@@ -64,8 +66,7 @@ const dispatch = std.EnumArray(States, Table.State).init(.{
     .start = state("start", START_WIDTH, Table.Op.none, false, 0),
     .num = state("num", NUM_WIDTH, Table.Op.none, true, 0),
     .emit_num = state("start", START_WIDTH, Table.Op.emit_int, false, @backingInt(tok.Kind.lit_number)),
-    .plus = state("start", START_WIDTH, Table.Op.emit, true, @backingInt(tok.Kind.op_add)),
-    .star = state("start", START_WIDTH, Table.Op.emit, true, @backingInt(tok.Kind.op_mul)),
+    .sym = state("sym", NUM_WIDTH, Table.Op.emit_sym, true, @backingInt(tok.Kind.op_div)), // arg = base.
     .end = state("start", START_WIDTH, Table.Op.emit_end, true, 0),
     .err = state("start", START_WIDTH, Table.Op.err, false, 0),
 });
@@ -76,12 +77,14 @@ const Step = struct { sym: u7, to: States };
 const steps = [_]Step{
     .{ .sym = '1', .to = .num },
     .{ .sym = '+', .to = .emit_num },
-    .{ .sym = '+', .to = .plus },
+    .{ .sym = '+', .to = .sym },
+    .{ .sym = '2', .to = .start },
     .{ .sym = '2', .to = .num },
     .{ .sym = '3', .to = .num },
     .{ .sym = '4', .to = .num },
     .{ .sym = '*', .to = .emit_num },
-    .{ .sym = '*', .to = .star },
+    .{ .sym = '*', .to = .sym },
+    .{ .sym = '5', .to = .start },
     .{ .sym = '5', .to = .num },
     .{ .sym = '6', .to = .num },
     .{ .sym = 0, .to = .emit_num },
