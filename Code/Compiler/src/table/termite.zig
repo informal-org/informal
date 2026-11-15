@@ -3,6 +3,7 @@ const std = @import("std");
 const stdbits = std.bit_set;
 pub const BitSet128 = stdbits.IntegerBitSet(128);
 const bitset = @import("../bitset.zig");
+const ParsedQueue = @import("../parser.zig").ParsedQueue;
 
 pub const ENTRY_WIDTH_MASKS = [4]u8{ 0x01, 0x03, 0x0F, 0xFF };
 
@@ -19,9 +20,9 @@ pub const Table = struct {
         emit_sym,
         // Parser ops
         err, // Terminate with error
-        out, // Emit current token.
-        shift, // Precedence shift.
-        finish, // Flush remaining
+        emit_val, // Emit current token.
+        push_op, // Precedence shift.
+        flush_all, // Flush remaining
     };
 
     pub const State = packed struct(u32) {
@@ -35,6 +36,8 @@ pub const Table = struct {
     states: []const State,
     // 1<<width transition bitsets at transition_id offset, with the slot immediately after being the ID->u16 state ID map.
     transitions: []const u8,
+
+    parserStartId: usize,
 
     pub const Slot = struct { byte: usize, shift: u3, mask: u8 };
 
@@ -94,6 +97,8 @@ pub const Lexer = struct {
     prevToken: Token,
     index: u32,
     tokenStart: u32,
+    parsedQ: *ParsedQueue,
+    parseState: Table.State,
 
     const ops = std.EnumArray(Table.Op, OpFn).initDefault(err, .{
         .none = none,
@@ -102,23 +107,23 @@ pub const Lexer = struct {
         .emit_int = emitInt,
         .emit_end = emitEnd,
         .emit_sym = emitSym,
+        .emit_val = emitVal,
+        .push_op = pushOp,
+        .flush_all = none,
         .err = err,
     });
 
-    pub fn init(
-        table: Table,
-        buffer: []const u8,
-        syntaxQ: *TokenQueue,
-        auxQ: *TokenQueue,
-    ) Self {
+    pub fn init(table: Table, buffer: []const u8, syntaxQ: *TokenQueue, auxQ: *TokenQueue, parsedQ: *ParsedQueue) Self {
         return Self{
             .table = table,
             .buffer = buffer,
             .syntaxQ = syntaxQ,
             .auxQ = auxQ,
+            .parsedQ = parsedQ,
             .prevToken = tok.AUX_STREAM_START,
             .index = 0,
             .tokenStart = 0,
+            .parseState = table.states[table.parserStartId],
         };
     }
 
@@ -127,6 +132,7 @@ pub const Lexer = struct {
         if (isSyntax) {
             self.prevToken.flags.alt = !nextSyntax;
             try self.syntaxQ.pushDynamic(self.prevToken);
+            try self.parse();
         } else {
             self.prevToken.flags.alt = nextSyntax;
             try self.auxQ.pushDynamic(self.prevToken);
@@ -141,6 +147,10 @@ pub const Lexer = struct {
         try self.flushPrev(true);
         self.prevToken = t;
         self.tokenStart = self.index;
+    }
+
+    fn emitVal(self: *Lexer, _: Table.State) !void {
+        self.parsedQ.emit(self.prevToken);
     }
 
     fn emit(self: *Lexer, state: Table.State) !void {
@@ -186,6 +196,22 @@ pub const Lexer = struct {
         std.debug.assert(false);
     }
 
+    fn pushOp(self: *Lexer, state: Table.State) !void {
+        const bottom: u7 = @truncate(@backingInt(TK.aux_stream_start));
+        self.parseState = self.table.states[self.table.next(state, bottom)];
+    }
+
+    fn op(self: *Lexer, state: Table.State) !void {
+        try ops.get(state.op)(self, state);
+    }
+
+    pub fn parse(self: *Lexer) MemError!void {
+        const tokenKind = self.prevToken.kind;
+        const nextStateId = self.table.next(self.parseState, @truncate(@backingInt(tokenKind)));
+        self.parseState = self.table.states[nextStateId];
+        try self.op(self.parseState);
+    }
+
     pub fn lex(self: *Lexer) !void {
         var state = self.table.states[0];
         while (self.index < self.buffer.len) {
@@ -200,7 +226,7 @@ pub const Lexer = struct {
                 self.index += 1;
             }
 
-            try ops.get(state.op)(self, state);
+            try self.op(state);
             if (state.op == .emit_end) return;
         }
         unreachable;

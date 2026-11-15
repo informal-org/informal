@@ -1,8 +1,12 @@
 const std = @import("std");
 const termite = @import("../table/termite.zig");
 const Table = termite.Table;
+const tok = @import("../token.zig");
+const Token = tok.Token;
+const TK = tok.Kind;
+const ParsedQueue = @import("../parser.zig").ParsedQueue;
 
-const States = enum(u8) { start, num, emit_num, sym, end, err };
+const States = enum(u8) { start, num, emit_num, sym, end, err, expect_arg, value, prec_mul, prec_add, prec_end, parse_end };
 
 fn Transition(comptime width: u2) type {
     return extern struct {
@@ -28,12 +32,28 @@ fn Transition(comptime width: u2) type {
     };
 }
 
-const Start = Transition(3);
-const Num = Transition(0);
+const Transition0 = Transition(0); // Num
+const Transition1 = Transition(1); // Val
+const Transition3 = Transition(3); // Start
 const DIGITS = "0123456789";
 const SYMBOLS = "%*+,-./";
 
-const Fixture = extern struct { start: Start, num: Num, sym: Num };
+const TK_NUM = [_]u8{@backingInt(TK.lit_number)};
+const TK_MUL = [_]u8{@backingInt(TK.op_mul)};
+const TK_ADD = [_]u8{@backingInt(TK.op_add)};
+const TK_END = [_]u8{@backingInt(TK.aux_stream_end)};
+const POP_MUL_ADD = [_]u8{ @backingInt(TK.op_mul), @backingInt(TK.op_add) };
+
+const Fixture = extern struct {
+    start: Transition3,
+    num: Transition0,
+    sym: Transition0, // Lexer sStates
+    operand: Transition0,
+    value: Transition1, // parser states
+    prec_mul: Transition0,
+    prec_add: Transition0,
+    prec_end: Transition0, // Precedence
+};
 const fixture = blk: {
     var f = std.mem.zeroes(Fixture);
     f.start.route(0, "", .err);
@@ -44,6 +64,20 @@ const fixture = blk: {
     f.num.route(1, DIGITS, .num);
     f.sym.route(0, "", .start);
     f.sym.route(1, SYMBOLS, .start);
+    // Parser states
+    f.operand.route(0, "", .err);
+    f.operand.route(1, &TK_NUM, .value);
+    f.value.route(0, "", .err);
+    f.value.route(1, &TK_MUL, .prec_mul);
+    f.value.route(2, &TK_ADD, .prec_add);
+    f.value.route(3, &TK_END, .prec_end);
+    f.prec_mul.route(0, "", .expect_arg);
+    f.prec_mul.route(1, &TK_MUL, .prec_mul);
+    f.prec_add.route(0, "", .expect_arg);
+    f.prec_add.route(1, &POP_MUL_ADD, .prec_add);
+    f.prec_end.route(0, "", .parse_end);
+    f.prec_end.route(1, &POP_MUL_ADD, .prec_end);
+
     break :blk f;
 };
 
@@ -69,9 +103,17 @@ const dispatch = std.EnumArray(States, Table.State).init(.{
     .sym = state("sym", NUM_WIDTH, Table.Op.emit_sym, true, @backingInt(tok.Kind.op_div)), // arg = base.
     .end = state("start", START_WIDTH, Table.Op.emit_end, true, 0),
     .err = state("start", START_WIDTH, Table.Op.err, false, 0),
+
+    // Parser
+    .expect_arg = state("operand", 0, Table.Op.none, false, 0),
+    .value = state("value", 1, Table.Op.emit_val, false, 0),
+    .prec_mul = state("prec_mul", 0, Table.Op.push_op, false, 0),
+    .prec_add = state("prec_add", 0, Table.Op.push_op, false, 0),
+    .prec_end = state("prec_end", 0, Table.Op.flush_all, false, 0),
+    .parse_end = state("operand", 0, Table.Op.none, false, 0),
 });
 
-const table = Table{ .states = &dispatch.values, .transitions = std.mem.asBytes(&fixture) };
+const table = Table{ .states = &dispatch.values, .transitions = std.mem.asBytes(&fixture), .parserStartId = @backingInt(States.expect_arg) };
 
 const Step = struct { sym: u7, to: States };
 const steps = [_]Step{
@@ -101,8 +143,6 @@ test "1+234*56" {
     }
 }
 
-const tok = @import("../token.zig");
-const Token = tok.Token;
 const TokenQueue = termite.TokenQueue;
 
 const test_allocator = std.testing.allocator;
@@ -111,9 +151,14 @@ const expectEqual = std.testing.expectEqual;
 const testutils = @import("./testutils.zig");
 const testQueueEquals = testutils.testQueueEquals;
 
-fn testLex(buffer: []const u8, expected: []const Token, aux: ?[]const Token) !void {
+fn testLex(buffer: []const u8, expected: []const Token, aux: ?[]const Token, parsed: ?[]const Token) !void {
     var syntaxQ = try TokenQueue.init(test_allocator);
     var auxQ = try TokenQueue.init(test_allocator);
+    var parsedTokens = try TokenQueue.init(test_allocator);
+    defer parsedTokens.deinit();
+    try parsedTokens.reserve(buffer.len);
+    var parsedQ = try ParsedQueue.init(test_allocator, &parsedTokens);
+    defer parsedQ.deinit(test_allocator);
     try syntaxQ.reserve(buffer.len);
     try auxQ.reserve(buffer.len);
     // var internedStrings = std.StringHashMap(u64).init(test_allocator);
@@ -126,6 +171,7 @@ fn testLex(buffer: []const u8, expected: []const Token, aux: ?[]const Token) !vo
         buffer,
         &syntaxQ,
         &auxQ,
+        &parsedQ,
     );
 
     defer syntaxQ.deinit();
@@ -141,6 +187,10 @@ fn testLex(buffer: []const u8, expected: []const Token, aux: ?[]const Token) !vo
     if (aux) |auxExpected| {
         try testQueueEquals(buffer, &auxQ, auxExpected);
     }
+
+    if (parsed) |parsedExpected| {
+        try testQueueEquals(buffer, &parsedTokens, parsedExpected);
+    }
 }
 
 test "lex 1+234*56" {
@@ -150,5 +200,10 @@ test "lex 1+234*56" {
         Token.lex(.lit_number, 234, 3),
         tok.createToken(.op_mul),
         Token.lex(.lit_number, 56, 2).nextAlt(),
-    }, &[_]Token{ tok.AUX_STREAM_START.nextAlt(), tok.AUX_STREAM_END });
+    }, &[_]Token{ tok.AUX_STREAM_START.nextAlt(), tok.AUX_STREAM_END }, null);
+}
+
+test "parse 7" {
+    const seven = Token.lex(.lit_number, 7, 1).nextAlt();
+    try testLex("7\x00", &[_]Token{seven}, null, &[_]Token{seven});
 }
