@@ -109,11 +109,12 @@ pub const Lexer = struct {
         .emit_sym = emitSym,
         .emit_val = emitVal,
         .push_op = pushOp,
-        .flush_all = none,
+        .flush_all = flushAll,
         .err = err,
     });
 
     pub fn init(table: Table, buffer: []const u8, syntaxQ: *TokenQueue, auxQ: *TokenQueue, parsedQ: *ParsedQueue) Self {
+        parsedQ.precedenceStack.appendAssumeCapacity(tok.AUX_STREAM_START);
         return Self{
             .table = table,
             .buffer = buffer,
@@ -182,6 +183,7 @@ pub const Lexer = struct {
     fn emitEnd(self: *Lexer, _: Table.State) !void {
         try self.emitAuxHelper(@backingInt(TK.aux_stream_end));
         try self.flushPrev(false);
+        try self.parse();
     }
 
     fn emitSym(self: *Lexer, state: Table.State) !void {
@@ -196,9 +198,38 @@ pub const Lexer = struct {
         std.debug.assert(false);
     }
 
-    fn pushOp(self: *Lexer, state: Table.State) !void {
-        const bottom: u7 = @truncate(@backingInt(TK.aux_stream_start));
-        self.parseState = self.table.states[self.table.next(state, bottom)];
+    fn precTop(self: *Lexer) u7 {
+        const top = self.parsedQ.precedenceStack.items[self.parsedQ.precedenceStack.items.len - 1];
+        return @truncate(@backingInt(top.kind));
+    }
+
+    fn flush(self: *Lexer, currentState: Table.State) Table.State {
+        while (self.parsedQ.precedenceStack.items.len > 0) {
+            const tokValue = self.precTop();
+            const nextStateId = self.table.next(currentState, tokValue);
+            const nextState = self.table.states[nextStateId];
+            if (nextState == currentState) {
+                self.parsedQ.popOp();
+            } else {
+                return nextState;
+            }
+        }
+        return currentState;
+    }
+
+    fn pushOp(self: *Lexer, currentState: Table.State) !void {
+        // const bottom: u7 = @truncate(@backingInt(TK.aux_stream_start));
+        // self.parseState = self.table.states[self.table.next(state, bottom)];
+        const nextState = self.flush(currentState);
+        const index = self.syntaxQ.tail; // Is this right? It's head in the old version.
+        var opToken = self.prevToken;
+        opToken.data.raw = @truncate(index);
+        self.parsedQ.precedenceStack.appendAssumeCapacity(opToken);
+        self.parseState = nextState;
+    }
+
+    fn flushAll(self: *Lexer, state: Table.State) !void {
+        self.parseState = self.flush(state);
     }
 
     fn op(self: *Lexer, state: Table.State) !void {
