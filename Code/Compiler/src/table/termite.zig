@@ -5,84 +5,9 @@ pub const BitSet128 = stdbits.IntegerBitSet(128);
 const bitset = @import("../bitset.zig");
 const ParsedQueue = @import("../parser.zig").ParsedQueue;
 
-pub const ENTRY_WIDTH_MASKS = [4]u8{ 0x01, 0x03, 0x0F, 0xFF };
-
-pub const Table = struct {
-    const Self = @This();
-
-    pub const Op = enum(u5) {
-        // Lexer ops
-        none, // Do nothing
-        emit, // Emit a token
-        emit_aux,
-        emit_int, // Parse selection as int.
-        emit_end,
-        emit_sym,
-        // Parser ops
-        err, // Terminate with error
-        emit_val, // Emit current token.
-        push_op, // Precedence shift.
-        push_prefix_op,
-        flush_all, // Flush remaining
-    };
-
-    pub const State = packed struct(u32) {
-        transition_id: u16,
-        width: u2, // 2^n wide transition table size. Really belongs with the transition table, but size works out better here.
-        consume: bool, // Consume the symbol that led here, or false - dispatch on it again.
-        op: Op, // Action on state activation.
-        arg: u8, // Arg for op.
-    };
-
-    states: []const State,
-    // 1<<width transition bitsets at transition_id offset, with the slot immediately after being the ID->u16 state ID map.
-    transitions: []const u8,
-
-    parserStartId: usize,
-
-    pub const Slot = struct { byte: usize, shift: u3, mask: u8 };
-
-    pub inline fn slot(width: u2, ch: u7) Slot {
-        const bit = @as(usize, ch) << width;
-        // Since width is 1, 2, 4, 8 it never crosses bytes.
-        return .{
-            .byte = bit >> 3, // div by 8
-            .shift = @truncate(bit),
-            .mask = ENTRY_WIDTH_MASKS[width],
-        };
-    }
-
-    pub inline fn bitmapSize(width: u2) usize {
-        return @as(usize, 16) << width;
-    }
-
-    pub fn targets(comptime self: Table, comptime state: State) []const u8 {
-        const start = state.transition_id + bitmapSize(state.width);
-        const len: usize = @min(ENTRY_WIDTH_MASKS[state.width], 127);
-        return self.transitions[start .. start + len + 1];
-    }
-
-    pub fn nextStateId(self: Self, current: State, char: u7) u8 {
-        const offset = slot(current.width, char);
-        // Read state number from map
-        const next_state = (self.transitions[current.transition_id + offset.byte] >> offset.shift) & offset.mask;
-        return next_state;
-    }
-
-    pub fn next(
-        self: Self,
-        current: State,
-        char: u7,
-    ) u8 {
-        const nextStateBase: usize = current.transition_id + bitmapSize(current.width);
-        const next_state = self.nextStateId(current, char);
-        // Resolve what actual state that maps to.
-        return self.transitions[nextStateBase + next_state];
-    }
-};
-
 const tok = @import("../token.zig");
 const q = @import("../queue.zig");
+const Table = @import("table.zig").Table;
 
 const Token = tok.Token;
 const TK = tok.Kind;
@@ -152,7 +77,7 @@ pub fn Termite(comptime table: Table) type {
         }
 
         fn flushPrev(self: *Self, nextSyntax: bool) !void {
-            const isSyntax = @backingInt(self.prevToken.kind) < tok.AUX_KIND_START;
+            const isSyntax = @backingInt(self.prevToken.kind) < table.auxStart;
             if (isSyntax) {
                 self.prevToken.flags.alt = !nextSyntax;
                 try self.syntaxQ.pushDynamic(self.prevToken);

@@ -1,6 +1,7 @@
 const std = @import("std");
 const termite = @import("../table/termite.zig");
-const Table = termite.Table;
+const tbl = @import("../table/table.zig");
+const Table = tbl.Table;
 const tok = @import("../token.zig");
 const Token = tok.Token;
 const TK = tok.Kind;
@@ -11,7 +12,7 @@ const States = enum(u8) { start, num, emit_num, sym, end, err, expect_arg, value
 fn Transition(comptime width: u2) type {
     return extern struct {
         bitmap: [Table.bitmapSize(width)]u8,
-        next_states: [@as(usize, termite.ENTRY_WIDTH_MASKS[width]) + 1]u8,
+        next_states: [@as(usize, tbl.ENTRY_WIDTH_MASKS[width]) + 1]u8,
 
         pub fn set(self: *@This(), char: u7, value: u8) void {
             const s = Table.slot(width, char);
@@ -118,7 +119,7 @@ const dispatch = std.EnumArray(States, Table.State).init(.{
     .prefix_neg = state("operand", 1, Table.Op.push_prefix_op, false, @backingInt(TK.op_unary_minus)),
 });
 
-const table = Table{ .states = &dispatch.values, .transitions = std.mem.asBytes(&fixture), .parserStartId = @backingInt(States.expect_arg) };
+const table = Table{ .states = &dispatch.values, .transitions = std.mem.asBytes(&fixture), .parserStartId = @backingInt(States.expect_arg), .auxStart = tok.AUX_KIND_START };
 
 const Step = struct { sym: u7, to: States };
 const steps = [_]Step{
