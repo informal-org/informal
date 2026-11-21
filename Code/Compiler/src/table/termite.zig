@@ -96,7 +96,7 @@ pub const MemError = std.mem.Allocator.Error;
 pub fn Termite(comptime table: Table) type {
     return struct {
         const Self = @This();
-        pub const OpFn = *const fn (*Self, Table.State) MemError!void;
+        // pub const OpFn = *const fn (*Self, Table.State) MemError!void;
 
         buffer: []const u8,
         syntaxQ: *TokenQueue,
@@ -107,18 +107,33 @@ pub fn Termite(comptime table: Table) type {
         parsedQ: *ParsedQueue,
         parseState: Table.State,
 
-        const ops = std.EnumArray(Table.Op, OpFn).initDefault(err, .{
-            .none = none,
-            .emit = emit,
-            .emit_aux = emitAux,
-            .emit_int = emitInt,
-            .emit_end = emitEnd,
-            .emit_sym = emitSym,
-            .emit_val = emitVal,
-            .push_op = pushOp,
-            .flush_all = flushAll,
-            .err = err,
-        });
+        // const ops = std.EnumArray(Table.Op, OpFn).initDefault(err, .{
+        //     .none = none,
+        //     .emit = emit,
+        //     .emit_aux = emitAux,
+        //     .emit_int = emitInt,
+        //     .emit_end = emitEnd,
+        //     .emit_sym = emitSym,
+        //     .emit_val = emitVal,
+        //     .push_op = pushOp,
+        //     .flush_all = flushAll,
+        //     .err = err,
+        // });
+
+        inline fn runOp(self: *Self, comptime state: Table.State) MemError!void {
+            switch (state.op) {
+                .emit => try self.emit(state),
+                .emit_aux => try self.emitAux(state),
+                .emit_int => try self.emitInt(state),
+                .emit_end => try self.emitEnd(state),
+                .emit_sym => try self.emitSym(state),
+                .emit_val => try self.emitVal(state),
+                .push_op => try self.pushOp(state),
+                .flush_all => try self.flushAll(state),
+                .err => try self.err(state),
+                .none => try self.none(state),
+            }
+        }
 
         pub fn init(buffer: []const u8, syntaxQ: *TokenQueue, auxQ: *TokenQueue, parsedQ: *ParsedQueue) Self {
             parsedQ.precedenceStack.appendAssumeCapacity(tok.AUX_STREAM_START);
@@ -238,16 +253,16 @@ pub fn Termite(comptime table: Table) type {
             self.parseState = self.flush(state);
         }
 
-        fn op(self: *Self, state: Table.State) !void {
-            try ops.get(state.op)(self, state);
-        }
+        // fn op(self: *Self, state: Table.State) !void {
+        //     try ops.get(state.op)(self, state);
+        // }
 
-        pub fn parse(self: *Self) MemError!void {
-            const tokenKind = self.prevToken.kind;
-            const nextStateId = table.next(self.parseState, @truncate(@backingInt(tokenKind)));
-            self.parseState = table.states[nextStateId];
-            try self.op(self.parseState);
-        }
+        // pub fn parse(self: *Self) MemError!void {
+        //     const tokenKind = self.prevToken.kind;
+        //     const nextStateId = table.next(self.parseState, @truncate(@backingInt(tokenKind)));
+        //     self.parseState = table.states[nextStateId];
+        //     try self.op(self.parseState);
+        // }
 
         pub fn genParse(self: *Self) MemError!void {
             @setEvalBranchQuota(table.states.len * 128 * 8);
@@ -259,7 +274,8 @@ pub fn Termite(comptime table: Table) type {
                         inline 0...targets.len - 1 => |i| {
                             const next = comptime table.states[targets[i]];
                             self.parseState = next;
-                            return @call(.always_inline, comptime ops.get(next.op), .{ self, next });
+                            return self.runOp(next);
+                            // return @call(.always_inline, comptime self.runOp(next), .{ self, next });
                         },
                         else => unreachable,
                     }
@@ -268,25 +284,25 @@ pub fn Termite(comptime table: Table) type {
             unreachable;
         }
 
-        pub fn lex(self: *Self) !void {
-            var state = table.states[0];
-            while (self.index < self.buffer.len) {
-                const ch = self.buffer[self.index];
-                // Error on invalid or non-ascii bytes
-                std.debug.assert(ch < 0x80);
-                // const ch = if (self.index == self.buffer.len) 0 else ;
-
-                const nextStateId = table.next(state, @truncate(ch));
-                state = table.states[nextStateId];
-                if (state.consume) {
-                    self.index += 1;
-                }
-
-                try self.op(state);
-                if (state.op == .emit_end) return;
-            }
-            unreachable;
-        }
+        //         pub fn lex(self: *Self) !void {
+        //             var state = table.states[0];
+        //             while (self.index < self.buffer.len) {
+        //                 const ch = self.buffer[self.index];
+        //                 // Error on invalid or non-ascii bytes
+        //                 std.debug.assert(ch < 0x80);
+        //                 // const ch = if (self.index == self.buffer.len) 0 else ;
+        //
+        //                 const nextStateId = table.next(state, @truncate(ch));
+        //                 state = table.states[nextStateId];
+        //                 if (state.consume) {
+        //                     self.index += 1;
+        //                 }
+        //
+        //                 try self.op(state);
+        //                 if (state.op == .emit_end) return;
+        //             }
+        //             unreachable;
+        //         }
 
         pub fn genLex(self: *Self) !void {
             @setEvalBranchQuota(table.states.len * 128 * 8);
@@ -294,7 +310,8 @@ pub fn Termite(comptime table: Table) type {
                 inline 0...table.states.len - 1 => |id| {
                     const state = comptime table.states[id];
                     if (state.consume) self.index += 1;
-                    try (comptime ops.get(state.op))(self, state);
+                    // try (comptime ops.get(state.op))(self, state);
+                    try self.runOp(state);
                     if (state.op == .emit_end) return;
 
                     const ch = self.buffer[self.index];
@@ -305,13 +322,6 @@ pub fn Termite(comptime table: Table) type {
                         inline 0...targets.len - 1 => |i| continue :s comptime targets[i],
                         else => unreachable,
                     }
-
-                    // const next_state = table.nextStateId(state, @truncate(ch));
-                    // const nextStateBase: usize = state.transition_id + Table.bitmapSize(state.width);
-                    // switch (next_state) {
-                    //     inline 0... => |e| continue :s comptime table.transitions[nextStateBase + e],
-                    //     else => unreachable,
-                    // }
                 },
                 else => unreachable,
             }
