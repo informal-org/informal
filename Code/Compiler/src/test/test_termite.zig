@@ -166,8 +166,7 @@ fn testLex(buffer: []const u8, expected: []const Token, aux: ?[]const Token, par
     // var internedFloats = std.AutoHashMap(f64, u64).init(test_allocator);
     // var symbolTable = std.StringHashMap(u64).init(test_allocator);
 
-    var lexer = termite.Lexer.init(
-        table,
+    var lexer = termite.Termite(table).init(
         buffer,
         &syntaxQ,
         &auxQ,
@@ -181,7 +180,7 @@ fn testLex(buffer: []const u8, expected: []const Token, aux: ?[]const Token, par
     // defer internedFloats.deinit();
     // defer symbolTable.deinit();
     // try lexer.lex();
-    try lexer.genLex(table);
+    try lexer.genLex();
 
     try testQueueEquals(buffer, &syntaxQ, expected);
     if (aux) |auxExpected| {

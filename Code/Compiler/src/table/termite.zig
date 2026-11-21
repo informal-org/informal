@@ -55,6 +55,12 @@ pub const Table = struct {
         return @as(usize, 16) << width;
     }
 
+    pub fn targets(comptime self: Table, comptime state: State) []const u8 {
+        const start = state.transition_id + bitmapSize(state.width);
+        const len: usize = @min(ENTRY_WIDTH_MASKS[state.width], 127);
+        return self.transitions[start .. start + len + 1];
+    }
+
     pub fn nextStateId(self: Self, current: State, char: u7) u8 {
         const offset = slot(current.width, char);
         // Read state number from map
@@ -86,202 +92,221 @@ const AUX_Q: u1 = 1;
 const MAX_LITERAL_NUMBER: u64 = 1 << 16; // 65536
 
 pub const MemError = std.mem.Allocator.Error;
-pub const OpFn = *const fn (*Lexer, Table.State) MemError!void;
 
-pub const Lexer = struct {
-    const Self = @This();
-    table: Table,
-    buffer: []const u8,
-    syntaxQ: *TokenQueue,
-    auxQ: *TokenQueue,
-    prevToken: Token,
-    index: u32,
-    tokenStart: u32,
-    parsedQ: *ParsedQueue,
-    parseState: Table.State,
+pub fn Termite(comptime table: Table) type {
+    return struct {
+        const Self = @This();
+        pub const OpFn = *const fn (*Self, Table.State) MemError!void;
 
-    const ops = std.EnumArray(Table.Op, OpFn).initDefault(err, .{
-        .none = none,
-        .emit = emit,
-        .emit_aux = emitAux,
-        .emit_int = emitInt,
-        .emit_end = emitEnd,
-        .emit_sym = emitSym,
-        .emit_val = emitVal,
-        .push_op = pushOp,
-        .flush_all = flushAll,
-        .err = err,
-    });
+        buffer: []const u8,
+        syntaxQ: *TokenQueue,
+        auxQ: *TokenQueue,
+        prevToken: Token,
+        index: u32,
+        tokenStart: u32,
+        parsedQ: *ParsedQueue,
+        parseState: Table.State,
 
-    pub fn init(table: Table, buffer: []const u8, syntaxQ: *TokenQueue, auxQ: *TokenQueue, parsedQ: *ParsedQueue) Self {
-        parsedQ.precedenceStack.appendAssumeCapacity(tok.AUX_STREAM_START);
-        return Self{
-            .table = table,
-            .buffer = buffer,
-            .syntaxQ = syntaxQ,
-            .auxQ = auxQ,
-            .parsedQ = parsedQ,
-            .prevToken = tok.AUX_STREAM_START,
-            .index = 0,
-            .tokenStart = 0,
-            .parseState = table.states[table.parserStartId],
-        };
-    }
+        const ops = std.EnumArray(Table.Op, OpFn).initDefault(err, .{
+            .none = none,
+            .emit = emit,
+            .emit_aux = emitAux,
+            .emit_int = emitInt,
+            .emit_end = emitEnd,
+            .emit_sym = emitSym,
+            .emit_val = emitVal,
+            .push_op = pushOp,
+            .flush_all = flushAll,
+            .err = err,
+        });
 
-    fn flushPrev(self: *Lexer, nextSyntax: bool) !void {
-        const isSyntax = @backingInt(self.prevToken.kind) < tok.AUX_KIND_START;
-        if (isSyntax) {
-            self.prevToken.flags.alt = !nextSyntax;
-            try self.syntaxQ.pushDynamic(self.prevToken);
-            try self.parse();
-        } else {
-            self.prevToken.flags.alt = nextSyntax;
-            try self.auxQ.pushDynamic(self.prevToken);
+        pub fn init(buffer: []const u8, syntaxQ: *TokenQueue, auxQ: *TokenQueue, parsedQ: *ParsedQueue) Self {
+            parsedQ.precedenceStack.appendAssumeCapacity(tok.AUX_STREAM_START);
+            return Self{
+                .buffer = buffer,
+                .syntaxQ = syntaxQ,
+                .auxQ = auxQ,
+                .parsedQ = parsedQ,
+                .prevToken = tok.AUX_STREAM_START,
+                .index = 0,
+                .tokenStart = 0,
+                .parseState = table.states[table.parserStartId],
+            };
         }
-    }
 
-    fn token(arg: u8) Token {
-        return tok.createToken(@fromBackingInt(@intCast(arg)));
-    }
-
-    fn emitToken(self: *Lexer, t: Token) !void {
-        try self.flushPrev(true);
-        self.prevToken = t;
-        self.tokenStart = self.index;
-    }
-
-    fn emitVal(self: *Lexer, _: Table.State) !void {
-        self.parsedQ.emit(self.prevToken);
-    }
-
-    fn emit(self: *Lexer, state: Table.State) !void {
-        // Pre: token being emitted should be a syntax token
-        // std.debug.assert(@backingInt(v.kind) < tok.AUX_KIND_START);
-        const t = token(state.arg);
-        try self.emitToken(t);
-        // self.QIdx[SYNTAX_Q] += 1;
-    }
-
-    fn emitAux(self: *Lexer, state: Table.State) !void {
-        try self.emitAuxHelper(state.arg);
-    }
-
-    fn emitAuxHelper(self: *Lexer, arg: u8) !void {
-        const t = token(arg);
-        try self.flushPrev(false);
-        self.prevToken = t;
-        self.tokenStart = self.index;
-    }
-
-    fn emitInt(self: *Lexer, _: Table.State) !void {
-        const value: u64 = std.fmt.parseInt(u64, self.buffer[self.tokenStart..self.index], 10) catch 0;
-        std.debug.assert(value <= MAX_LITERAL_NUMBER);
-        const len = self.index - self.tokenStart;
-        try self.emitToken(Token.lex(TK.lit_number, @truncate(value), @truncate(len)));
-    }
-
-    fn emitEnd(self: *Lexer, _: Table.State) !void {
-        try self.emitAuxHelper(@backingInt(TK.aux_stream_end));
-        try self.flushPrev(false);
-        try self.parse();
-    }
-
-    fn emitSym(self: *Lexer, state: Table.State) !void {
-        const bitmap = std.mem.readInt(u128, self.table.transitions[state.transition_id..][0..16], .little);
-        // TODO: Init BitSet128 from the transitions
-        const tokKind = bitset.chToKind(BitSet128{ .mask = bitmap }, self.buffer[self.tokenStart], @truncate(state.arg));
-        try self.emitToken(tok.createToken(tokKind));
-    }
-
-    fn none(_: *Lexer, _: Table.State) !void {}
-    fn err(_: *Lexer, _: Table.State) !void {
-        std.debug.assert(false);
-    }
-
-    fn precTop(self: *Lexer) u7 {
-        const top = self.parsedQ.precedenceStack.items[self.parsedQ.precedenceStack.items.len - 1];
-        return @truncate(@backingInt(top.kind));
-    }
-
-    fn flush(self: *Lexer, currentState: Table.State) Table.State {
-        while (self.parsedQ.precedenceStack.items.len > 0) {
-            const tokValue = self.precTop();
-            const nextStateId = self.table.next(currentState, tokValue);
-            const nextState = self.table.states[nextStateId];
-            if (nextState == currentState) {
-                self.parsedQ.popOp();
+        fn flushPrev(self: *Self, nextSyntax: bool) !void {
+            const isSyntax = @backingInt(self.prevToken.kind) < tok.AUX_KIND_START;
+            if (isSyntax) {
+                self.prevToken.flags.alt = !nextSyntax;
+                try self.syntaxQ.pushDynamic(self.prevToken);
+                try self.parse();
             } else {
-                return nextState;
+                self.prevToken.flags.alt = nextSyntax;
+                try self.auxQ.pushDynamic(self.prevToken);
             }
         }
-        return currentState;
-    }
 
-    fn pushOp(self: *Lexer, currentState: Table.State) !void {
-        // const bottom: u7 = @truncate(@backingInt(TK.aux_stream_start));
-        // self.parseState = self.table.states[self.table.next(state, bottom)];
-        const nextState = self.flush(currentState);
-        const index = self.syntaxQ.tail; // Is this right? It's head in the old version.
-        var opToken = self.prevToken;
-        opToken.data.raw = @truncate(index);
-        self.parsedQ.precedenceStack.appendAssumeCapacity(opToken);
-        self.parseState = nextState;
-    }
-
-    fn flushAll(self: *Lexer, state: Table.State) !void {
-        self.parseState = self.flush(state);
-    }
-
-    fn op(self: *Lexer, state: Table.State) !void {
-        try ops.get(state.op)(self, state);
-    }
-
-    pub fn parse(self: *Lexer) MemError!void {
-        const tokenKind = self.prevToken.kind;
-        const nextStateId = self.table.next(self.parseState, @truncate(@backingInt(tokenKind)));
-        self.parseState = self.table.states[nextStateId];
-        try self.op(self.parseState);
-    }
-
-    pub fn lex(self: *Lexer) !void {
-        var state = self.table.states[0];
-        while (self.index < self.buffer.len) {
-            const ch = self.buffer[self.index];
-            // Error on invalid or non-ascii bytes
-            std.debug.assert(ch < 0x80);
-            // const ch = if (self.index == self.buffer.len) 0 else ;
-
-            const nextStateId = self.table.next(state, @truncate(ch));
-            state = self.table.states[nextStateId];
-            if (state.consume) {
-                self.index += 1;
-            }
-
-            try self.op(state);
-            if (state.op == .emit_end) return;
+        fn token(arg: u8) Token {
+            return tok.createToken(@fromBackingInt(@intCast(arg)));
         }
-        unreachable;
-    }
 
-    pub fn genLex(self: *Lexer, comptime table: Table) !void {
-        @setEvalBranchQuota(table.states.len * 128 * 8);
-        s: switch (@as(u8, 0)) {
-            inline 0...table.states.len - 1 => |id| {
-                const state = comptime table.states[id];
-                if (state.consume) self.index += 1;
-                try (comptime ops.get(state.op))(self, state);
-                if (state.op == .emit_end) return;
+        fn emitToken(self: *Self, t: Token) !void {
+            try self.flushPrev(true);
+            self.prevToken = t;
+            self.tokenStart = self.index;
+        }
 
-                const ch = self.buffer[self.index];
-                std.debug.assert(ch < 0x80);
-                const next_state = table.nextStateId(state, @truncate(ch));
-                const nextStateBase: usize = state.transition_id + Table.bitmapSize(state.width);
-                switch (next_state) {
-                    inline 0...@min(ENTRY_WIDTH_MASKS[state.width], 127) => |e| continue :s comptime table.transitions[nextStateBase + e],
-                    else => unreachable,
+        fn emitVal(self: *Self, _: Table.State) !void {
+            self.parsedQ.emit(self.prevToken);
+        }
+
+        fn emit(self: *Self, state: Table.State) !void {
+            // Pre: token being emitted should be a syntax token
+            // std.debug.assert(@backingInt(v.kind) < tok.AUX_KIND_START);
+            const t = token(state.arg);
+            try self.emitToken(t);
+            // self.QIdx[SYNTAX_Q] += 1;
+        }
+
+        fn emitAux(self: *Self, state: Table.State) !void {
+            try self.emitAuxHelper(state.arg);
+        }
+
+        fn emitAuxHelper(self: *Self, arg: u8) !void {
+            const t = token(arg);
+            try self.flushPrev(false);
+            self.prevToken = t;
+            self.tokenStart = self.index;
+        }
+
+        fn emitInt(self: *Self, _: Table.State) !void {
+            const value: u64 = std.fmt.parseInt(u64, self.buffer[self.tokenStart..self.index], 10) catch 0;
+            std.debug.assert(value <= MAX_LITERAL_NUMBER);
+            const len = self.index - self.tokenStart;
+            try self.emitToken(Token.lex(TK.lit_number, @truncate(value), @truncate(len)));
+        }
+
+        fn emitEnd(self: *Self, _: Table.State) !void {
+            try self.emitAuxHelper(@backingInt(TK.aux_stream_end));
+            try self.flushPrev(false);
+            try self.parse();
+        }
+
+        fn emitSym(self: *Self, state: Table.State) !void {
+            const bitmap = std.mem.readInt(u128, table.transitions[state.transition_id..][0..16], .little);
+            // TODO: Init BitSet128 from the transitions
+            const tokKind = bitset.chToKind(BitSet128{ .mask = bitmap }, self.buffer[self.tokenStart], @truncate(state.arg));
+            try self.emitToken(tok.createToken(tokKind));
+        }
+
+        fn none(_: *Self, _: Table.State) !void {}
+        fn err(_: *Self, _: Table.State) !void {
+            std.debug.assert(false);
+        }
+
+        fn precTop(self: *Self) u7 {
+            const top = self.parsedQ.precedenceStack.items[self.parsedQ.precedenceStack.items.len - 1];
+            return @truncate(@backingInt(top.kind));
+        }
+
+        fn flush(self: *Self, currentState: Table.State) Table.State {
+            while (self.parsedQ.precedenceStack.items.len > 0) {
+                const tokValue = self.precTop();
+                const nextStateId = table.next(currentState, tokValue);
+                const nextState = table.states[nextStateId];
+                if (nextState == currentState) {
+                    self.parsedQ.popOp();
+                } else {
+                    return nextState;
                 }
-            },
-            else => unreachable,
+            }
+            return currentState;
         }
-    }
-};
+
+        fn pushOp(self: *Self, currentState: Table.State) !void {
+            // const bottom: u7 = @truncate(@backingInt(TK.aux_stream_start));
+            // self.parseState = table.states[table.next(state, bottom)];
+            const nextState = self.flush(currentState);
+            const index = self.syntaxQ.tail; // Is this right? It's head in the old version.
+            var opToken = self.prevToken;
+            opToken.data.raw = @truncate(index);
+            self.parsedQ.precedenceStack.appendAssumeCapacity(opToken);
+            self.parseState = nextState;
+        }
+
+        fn flushAll(self: *Self, state: Table.State) !void {
+            self.parseState = self.flush(state);
+        }
+
+        fn op(self: *Self, state: Table.State) !void {
+            try ops.get(state.op)(self, state);
+        }
+
+        pub fn parse(self: *Self) MemError!void {
+            const tokenKind = self.prevToken.kind;
+            const nextStateId = table.next(self.parseState, @truncate(@backingInt(tokenKind)));
+            self.parseState = table.states[nextStateId];
+            try self.op(self.parseState);
+        }
+
+        // pub fn genParse(self: *Self, comptime table: Table) !void {
+        //     @setEvalBranchQuota(table.states.len * 128 * 8);
+        //     inline for (table.states) |state| if (self.parseState == state) {
+        //         // TODO: parts of this could be comptime known too?
+        //         const nextStateId = table.next(state, @truncate(@backingInt(tokenKind)));
+        //         self.parseState = table.states[nextStateId];
+        //         try self.op(self.parseState);
+        //         break;
+        //     };
+        // }
+
+        pub fn lex(self: *Self) !void {
+            var state = table.states[0];
+            while (self.index < self.buffer.len) {
+                const ch = self.buffer[self.index];
+                // Error on invalid or non-ascii bytes
+                std.debug.assert(ch < 0x80);
+                // const ch = if (self.index == self.buffer.len) 0 else ;
+
+                const nextStateId = table.next(state, @truncate(ch));
+                state = table.states[nextStateId];
+                if (state.consume) {
+                    self.index += 1;
+                }
+
+                try self.op(state);
+                if (state.op == .emit_end) return;
+            }
+            unreachable;
+        }
+
+        pub fn genLex(self: *Self) !void {
+            @setEvalBranchQuota(table.states.len * 128 * 8);
+            s: switch (@as(u8, 0)) {
+                inline 0...table.states.len - 1 => |id| {
+                    const state = comptime table.states[id];
+                    if (state.consume) self.index += 1;
+                    try (comptime ops.get(state.op))(self, state);
+                    if (state.op == .emit_end) return;
+
+                    const ch = self.buffer[self.index];
+                    std.debug.assert(ch < 0x80);
+
+                    const targets = comptime table.targets(state);
+                    switch (table.nextStateId(state, @truncate(ch))) {
+                        inline 0...targets.len - 1 => |i| continue :s comptime targets[i],
+                        else => unreachable,
+                    }
+
+                    // const next_state = table.nextStateId(state, @truncate(ch));
+                    // const nextStateBase: usize = state.transition_id + Table.bitmapSize(state.width);
+                    // switch (next_state) {
+                    //     inline 0... => |e| continue :s comptime table.transitions[nextStateBase + e],
+                    //     else => unreachable,
+                    // }
+                },
+                else => unreachable,
+            }
+        }
+    };
+}
