@@ -218,3 +218,19 @@ test "parse 1+234*56" {
         Token.lex(.op_add, 2, 0),
     });
 }
+
+test "parse 1*234+56" {
+    try testLex("1*234+56\x00", &[_]Token{
+        Token.lex(.lit_number, 1, 1),
+        tok.createToken(.op_mul),
+        Token.lex(.lit_number, 234, 3),
+        tok.createToken(.op_add),
+        Token.lex(.lit_number, 56, 2).nextAlt(),
+    }, &[_]Token{ tok.AUX_STREAM_START.nextAlt(), tok.AUX_STREAM_END }, &[_]Token{
+        Token.lex(.lit_number, 1, 1),
+        Token.lex(.lit_number, 234, 3),
+        Token.lex(.op_mul, 2, 0),
+        Token.lex(.lit_number, 56, 2).nextAlt(),
+        Token.lex(.op_add, 4, 0),
+    });
+}
