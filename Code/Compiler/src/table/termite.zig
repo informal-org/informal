@@ -139,7 +139,7 @@ pub fn Termite(comptime table: Table) type {
             if (isSyntax) {
                 self.prevToken.flags.alt = !nextSyntax;
                 try self.syntaxQ.pushDynamic(self.prevToken);
-                try self.parse();
+                try self.genParse();
             } else {
                 self.prevToken.flags.alt = nextSyntax;
                 try self.auxQ.pushDynamic(self.prevToken);
@@ -189,7 +189,7 @@ pub fn Termite(comptime table: Table) type {
         fn emitEnd(self: *Self, _: Table.State) !void {
             try self.emitAuxHelper(@backingInt(TK.aux_stream_end));
             try self.flushPrev(false);
-            try self.parse();
+            try self.genParse();
         }
 
         fn emitSym(self: *Self, state: Table.State) !void {
@@ -249,16 +249,24 @@ pub fn Termite(comptime table: Table) type {
             try self.op(self.parseState);
         }
 
-        // pub fn genParse(self: *Self, comptime table: Table) !void {
-        //     @setEvalBranchQuota(table.states.len * 128 * 8);
-        //     inline for (table.states) |state| if (self.parseState == state) {
-        //         // TODO: parts of this could be comptime known too?
-        //         const nextStateId = table.next(state, @truncate(@backingInt(tokenKind)));
-        //         self.parseState = table.states[nextStateId];
-        //         try self.op(self.parseState);
-        //         break;
-        //     };
-        // }
+        pub fn genParse(self: *Self) MemError!void {
+            @setEvalBranchQuota(table.states.len * 128 * 8);
+            const tokenKind: u7 = @truncate(@backingInt(self.prevToken.kind));
+            inline for (table.states) |state| {
+                if (self.parseState == state) {
+                    const targets = comptime table.targets(state);
+                    switch (table.nextStateId(state, tokenKind)) {
+                        inline 0...targets.len - 1 => |i| {
+                            const next = comptime table.states[targets[i]];
+                            self.parseState = next;
+                            return @call(.always_inline, comptime ops.get(next.op), .{ self, next });
+                        },
+                        else => unreachable,
+                    }
+                }
+            }
+            unreachable;
+        }
 
         pub fn lex(self: *Self) !void {
             var state = table.states[0];
