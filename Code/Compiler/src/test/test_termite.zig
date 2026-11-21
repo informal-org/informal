@@ -119,7 +119,16 @@ const dispatch = std.EnumArray(States, Table.State).init(.{
     .prefix_neg = state("operand", 1, Table.Op.push_prefix_op, false, @backingInt(TK.op_unary_minus)),
 });
 
-const table = Table{ .states = &dispatch.values, .transitions = std.mem.asBytes(&fixture), .parserStartId = @backingInt(States.expect_arg), .auxStart = tok.AUX_KIND_START };
+const rawTable = Table{ .states = &dispatch.values, .transitions = std.mem.asBytes(&fixture), .parserStartId = @backingInt(States.expect_arg), .auxStart = tok.AUX_KIND_START };
+
+// Just make it roundtrip through the encoding to make sure all of that code is working.
+const table = blk: {
+    var buf: [@divExact(@bitSizeOf(Table.Header), 8) + 4 * rawTable.states.len + rawTable.transitions.len]u8 = undefined;
+    var w = std.Io.Writer.fixed(&buf);
+    rawTable.write(&w) catch @compileError("round trip: buffer too small");
+    const bytes = buf;
+    break :blk Table.load(&bytes);
+};
 
 const Step = struct { sym: u7, to: States };
 const steps = [_]Step{
