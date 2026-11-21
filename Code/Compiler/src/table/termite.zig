@@ -22,6 +22,7 @@ pub const Table = struct {
         err, // Terminate with error
         emit_val, // Emit current token.
         push_op, // Precedence shift.
+        push_prefix_op,
         flush_all, // Flush remaining
     };
 
@@ -129,6 +130,7 @@ pub fn Termite(comptime table: Table) type {
                 .emit_sym => try self.emitSym(state),
                 .emit_val => try self.emitVal(state),
                 .push_op => try self.pushOp(state),
+                .push_prefix_op => try self.pushPrefixOp(state),
                 .flush_all => try self.flushAll(state),
                 .err => try self.err(state),
                 .none => try self.none(state),
@@ -242,11 +244,17 @@ pub fn Termite(comptime table: Table) type {
             // const bottom: u7 = @truncate(@backingInt(TK.aux_stream_start));
             // self.parseState = table.states[table.next(state, bottom)];
             const nextState = self.flush(currentState);
-            const index = self.syntaxQ.tail; // Is this right? It's head in the old version.
             var opToken = self.prevToken;
-            opToken.data.raw = @truncate(index);
+            opToken.data.raw = @truncate(self.syntaxQ.tail);
             self.parsedQ.precedenceStack.appendAssumeCapacity(opToken);
             self.parseState = nextState;
+        }
+
+        fn pushPrefixOp(self: *Self, currentState: Table.State) !void {
+            var opToken = self.prevToken;
+            opToken.kind = @fromBackingInt(@intCast(currentState.arg));
+            opToken.data.raw = @truncate(self.syntaxQ.tail);
+            self.parsedQ.precedenceStack.appendAssumeCapacity(opToken);
         }
 
         fn flushAll(self: *Self, state: Table.State) !void {

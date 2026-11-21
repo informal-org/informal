@@ -6,7 +6,7 @@ const Token = tok.Token;
 const TK = tok.Kind;
 const ParsedQueue = @import("../parser.zig").ParsedQueue;
 
-const States = enum(u8) { start, num, emit_num, sym, end, err, expect_arg, value, prec_mul, prec_add, prec_end, parse_end };
+const States = enum(u8) { start, num, emit_num, sym, end, err, expect_arg, value, prec_mul, prec_add, prec_end, parse_end, prefix_neg };
 
 fn Transition(comptime width: u2) type {
     return extern struct {
@@ -42,13 +42,16 @@ const TK_NUM = [_]u8{@backingInt(TK.lit_number)};
 const TK_MUL = [_]u8{@backingInt(TK.op_mul)};
 const TK_ADD = [_]u8{@backingInt(TK.op_add)};
 const TK_END = [_]u8{@backingInt(TK.aux_stream_end)};
+const TK_SUB = [_]u8{@backingInt(TK.op_sub)};
+const POP_MUL_NEG = [_]u8{ @backingInt(TK.op_mul), @backingInt(TK.op_unary_minus) };
 const POP_MUL_ADD = [_]u8{ @backingInt(TK.op_mul), @backingInt(TK.op_add) };
+const POP_ALL = [_]u8{ @backingInt(TK.op_mul), @backingInt(TK.op_add), @backingInt(TK.op_unary_minus) };
 
 const Fixture = extern struct {
     start: Transition3,
     num: Transition0,
     sym: Transition0, // Lexer sStates
-    operand: Transition0,
+    operand: Transition1,
     value: Transition1, // parser states
     prec_mul: Transition0,
     prec_add: Transition0,
@@ -67,16 +70,17 @@ const fixture = blk: {
     // Parser states
     f.operand.route(0, "", .err);
     f.operand.route(1, &TK_NUM, .value);
+    f.operand.route(2, &TK_SUB, .prefix_neg);
     f.value.route(0, "", .err);
     f.value.route(1, &TK_MUL, .prec_mul);
     f.value.route(2, &TK_ADD, .prec_add);
     f.value.route(3, &TK_END, .prec_end);
     f.prec_mul.route(0, "", .expect_arg);
-    f.prec_mul.route(1, &TK_MUL, .prec_mul);
+    f.prec_mul.route(1, &POP_MUL_NEG, .prec_mul);
     f.prec_add.route(0, "", .expect_arg);
-    f.prec_add.route(1, &POP_MUL_ADD, .prec_add);
+    f.prec_add.route(1, &POP_ALL, .prec_add);
     f.prec_end.route(0, "", .parse_end);
-    f.prec_end.route(1, &POP_MUL_ADD, .prec_end);
+    f.prec_end.route(1, &POP_ALL, .prec_end);
 
     break :blk f;
 };
@@ -105,12 +109,13 @@ const dispatch = std.EnumArray(States, Table.State).init(.{
     .err = state("start", START_WIDTH, Table.Op.err, false, 0),
 
     // Parser
-    .expect_arg = state("operand", 0, Table.Op.none, false, 0),
+    .expect_arg = state("operand", 1, Table.Op.none, false, 0),
     .value = state("value", 1, Table.Op.emit_val, false, 0),
     .prec_mul = state("prec_mul", 0, Table.Op.push_op, false, 0),
     .prec_add = state("prec_add", 0, Table.Op.push_op, false, 0),
     .prec_end = state("prec_end", 0, Table.Op.flush_all, false, 0),
-    .parse_end = state("operand", 0, Table.Op.none, false, 0),
+    .parse_end = state("operand", 1, Table.Op.none, false, 0),
+    .prefix_neg = state("operand", 1, Table.Op.push_prefix_op, false, @backingInt(TK.op_unary_minus)),
 });
 
 const table = Table{ .states = &dispatch.values, .transitions = std.mem.asBytes(&fixture), .parserStartId = @backingInt(States.expect_arg) };
@@ -231,5 +236,19 @@ test "parse 1*234+56" {
         Token.lex(.op_mul, 2, 0),
         Token.lex(.lit_number, 56, 2).nextAlt(),
         Token.lex(.op_add, 4, 0),
+    });
+}
+
+test "parse 2*-3" {
+    try testLex("2*-3\x00", &[_]Token{
+        Token.lex(.lit_number, 2, 1),
+        tok.createToken(.op_mul),
+        tok.createToken(.op_sub),
+        Token.lex(.lit_number, 3, 1).nextAlt(),
+    }, &[_]Token{ tok.AUX_STREAM_START.nextAlt(), tok.AUX_STREAM_END }, &[_]Token{
+        Token.lex(.lit_number, 2, 1),
+        Token.lex(.lit_number, 3, 1).nextAlt(),
+        Token.lex(.op_unary_minus, 3, 0),
+        Token.lex(.op_mul, 2, 0),
     });
 }
