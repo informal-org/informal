@@ -85,3 +85,7 @@ pub const Token = packed struct(u64) {
         return Token{ .flags = flags, .kind = self.kind, .data = self.data };
     }
 };
+
+pub fn createToken(kind: u8) Token {
+    return Token.lex(kind, 0, 0);
+}

@@ -2,9 +2,10 @@ const std = @import("std");
 const termite = @import("../table/termite.zig");
 const tbl = @import("../table/table.zig");
 const Table = tbl.Table;
-const tok = @import("token.zig");
+const tok = @import("../table/token.zig");
+const oldtok = @import("../token.zig");
 const Token = tok.Token;
-// const TK = tok.Kind;
+const TK = oldtok.Kind;
 // const ParsedQueue = @import("../parser.zig").ParsedQueue;
 const ParsedQueue = @import("../table/tokenqueue.zig").ParsedQueue;
 
@@ -43,11 +44,18 @@ const SYMBOLS = "%*+,-./";
 const TK_NUM = [_]u8{@backingInt(TK.lit_number)};
 const TK_MUL = [_]u8{@backingInt(TK.op_mul)};
 const TK_ADD = [_]u8{@backingInt(TK.op_add)};
-const TK_END = [_]u8{@backingInt(TK.aux_stream_end)};
+const TK_END = [_]u8{tbl.STREAM_END};
 const TK_SUB = [_]u8{@backingInt(TK.op_sub)};
 const POP_MUL_NEG = [_]u8{ @backingInt(TK.op_mul), @backingInt(TK.op_unary_minus) };
 const POP_MUL_ADD = [_]u8{ @backingInt(TK.op_mul), @backingInt(TK.op_add) };
 const POP_ALL = [_]u8{ @backingInt(TK.op_mul), @backingInt(TK.op_add), @backingInt(TK.op_unary_minus) };
+
+const NUM: u8 = @backingInt(TK.lit_number);
+const ADD: u8 = @backingInt(TK.op_add);
+const MUL: u8 = @backingInt(TK.op_mul);
+const SUB: u8 = @backingInt(TK.op_sub);
+const NEG: u8 = @backingInt(TK.op_unary_minus);
+const AUX = [_]Token{ Token.lex(tbl.STREAM_START, 0, 0).nextAlt(), Token.lex(tbl.STREAM_END, 0, 0) };
 
 const Fixture = extern struct {
     start: Transition3,
@@ -105,8 +113,8 @@ const NUM_WIDTH = 0;
 const dispatch = std.EnumArray(States, Table.State).init(.{
     .start = state("start", START_WIDTH, Table.Op.none, false, 0),
     .num = state("num", NUM_WIDTH, Table.Op.none, true, 0),
-    .emit_num = state("start", START_WIDTH, Table.Op.emit_int, false, @backingInt(tok.Kind.lit_number)),
-    .sym = state("sym", NUM_WIDTH, Table.Op.emit_sym, true, @backingInt(tok.Kind.op_div)), // arg = base.
+    .emit_num = state("start", START_WIDTH, Table.Op.emit_int, false, @backingInt(TK.lit_number)),
+    .sym = state("sym", NUM_WIDTH, Table.Op.emit_sym, true, @backingInt(TK.op_div)), // arg = base.
     .end = state("start", START_WIDTH, Table.Op.emit_end, true, 0),
     .err = state("start", START_WIDTH, Table.Op.err, false, 0),
 
@@ -120,7 +128,7 @@ const dispatch = std.EnumArray(States, Table.State).init(.{
     .prefix_neg = state("operand", 1, Table.Op.push_prefix_op, false, @backingInt(TK.op_unary_minus)),
 });
 
-const rawTable = Table{ .states = &dispatch.values, .transitions = std.mem.asBytes(&fixture), .parserStartId = @backingInt(States.expect_arg), .auxStart = tok.AUX_KIND_START };
+const rawTable = Table{ .states = &dispatch.values, .transitions = std.mem.asBytes(&fixture), .parserStartId = @backingInt(States.expect_arg), .auxStart = oldtok.AUX_KIND_START };
 
 // Just make it roundtrip through the encoding to make sure all of that code is working.
 const table = blk: {
@@ -167,14 +175,32 @@ const expectEqual = std.testing.expectEqual;
 const testutils = @import("./testutils.zig");
 const testQueueEquals = testutils.testQueueEquals;
 
+fn printToken(t: Token) void {
+    std.debug.print(" {d}:{d}/{d}{s}", .{ t.kind, t.data.literal.value, t.data.literal.length, if (t.flags.alt) "'" else "" });
+}
+
+fn expectTokens(actual: []const Token, expected: []const Token) !void {
+    errdefer {
+        std.debug.print("\nexpected:", .{});
+        for (expected) |t| printToken(t);
+        std.debug.print("\nactual:  ", .{});
+        for (actual) |t| printToken(t);
+        std.debug.print("\n", .{});
+    }
+    try expectEqual(expected.len, actual.len);
+    for (expected, actual) |e, a| {
+        try expectEqual(@as(u64, @bitCast(e)), @as(u64, @bitCast(a)));
+    }
+}
+
 fn testLex(buffer: []const u8, expected: []const Token, aux: ?[]const Token, parsed: ?[]const Token) !void {
     var syntaxQ = try TokenQueue.init(test_allocator);
     var auxQ = try TokenQueue.init(test_allocator);
-    var parsedTokens = try TokenQueue.init(test_allocator);
-    defer parsedTokens.deinit();
-    try parsedTokens.reserve(buffer.len);
-    var parsedQ = try ParsedQueue.init(test_allocator, &parsedTokens);
-    defer parsedQ.deinit(test_allocator);
+    // var parsedTokens = try TokenQueue.init(test_allocator);
+    // defer parsedTokens.deinit();
+    // try parsedTokens.reserve(buffer.len);
+    var parsedQ = try ParsedQueue.init(test_allocator);
+    defer parsedQ.deinit();
     try syntaxQ.reserve(buffer.len);
     try auxQ.reserve(buffer.len);
     // var internedStrings = std.StringHashMap(u64).init(test_allocator);
@@ -198,68 +224,66 @@ fn testLex(buffer: []const u8, expected: []const Token, aux: ?[]const Token, par
     // try lexer.lex();
     try lexer.genLex();
 
-    try testQueueEquals(buffer, &syntaxQ, expected);
-    if (aux) |auxExpected| {
-        try testQueueEquals(buffer, &auxQ, auxExpected);
-    }
-
-    if (parsed) |parsedExpected| {
-        try testQueueEquals(buffer, &parsedTokens, parsedExpected);
-    }
+    try expectTokens(syntaxQ.list.items, expected);
+    if (aux) |auxExpected| try expectTokens(auxQ.list.items, auxExpected);
+    if (parsed) |parsedExpected| try expectTokens(parsedQ.parsedQ.items, parsedExpected);
 }
+
+const TOK_START = tok.createToken(tbl.STREAM_START).nextAlt();
+const TOK_END = tok.createToken(tbl.STREAM_END);
 
 test "lex 1+234*56" {
     try testLex("1+234*56\x00", &[_]Token{
-        Token.lex(.lit_number, 1, 1),
-        tok.createToken(.op_add),
-        Token.lex(.lit_number, 234, 3),
-        tok.createToken(.op_mul),
-        Token.lex(.lit_number, 56, 2).nextAlt(),
-    }, &[_]Token{ tok.AUX_STREAM_START.nextAlt(), tok.AUX_STREAM_END }, null);
+        Token.lex(NUM, 1, 1),
+        tok.createToken(ADD),
+        Token.lex(NUM, 234, 3),
+        tok.createToken(MUL),
+        Token.lex(NUM, 56, 2).nextAlt(),
+    }, &[_]Token{ TOK_START, TOK_END }, null);
 }
 
 test "parse 1+234*56" {
     try testLex("1+234*56\x00", &[_]Token{
-        Token.lex(.lit_number, 1, 1),
-        tok.createToken(.op_add),
-        Token.lex(.lit_number, 234, 3),
-        tok.createToken(.op_mul),
-        Token.lex(.lit_number, 56, 2).nextAlt(),
-    }, &[_]Token{ tok.AUX_STREAM_START.nextAlt(), tok.AUX_STREAM_END }, &[_]Token{
-        Token.lex(.lit_number, 1, 1),
-        Token.lex(.lit_number, 234, 3),
-        Token.lex(.lit_number, 56, 2).nextAlt(),
-        Token.lex(.op_mul, 4, 0),
-        Token.lex(.op_add, 2, 0),
+        Token.lex(NUM, 1, 1),
+        tok.createToken(ADD),
+        Token.lex(NUM, 234, 3),
+        tok.createToken(MUL),
+        Token.lex(NUM, 56, 2).nextAlt(),
+    }, &[_]Token{ TOK_START, TOK_END }, &[_]Token{
+        Token.lex(NUM, 1, 1),
+        Token.lex(NUM, 234, 3),
+        Token.lex(NUM, 56, 2).nextAlt(),
+        Token.lex(MUL, 4, 0),
+        Token.lex(ADD, 2, 0),
     });
 }
 
 test "parse 1*234+56" {
     try testLex("1*234+56\x00", &[_]Token{
-        Token.lex(.lit_number, 1, 1),
-        tok.createToken(.op_mul),
-        Token.lex(.lit_number, 234, 3),
-        tok.createToken(.op_add),
-        Token.lex(.lit_number, 56, 2).nextAlt(),
-    }, &[_]Token{ tok.AUX_STREAM_START.nextAlt(), tok.AUX_STREAM_END }, &[_]Token{
-        Token.lex(.lit_number, 1, 1),
-        Token.lex(.lit_number, 234, 3),
-        Token.lex(.op_mul, 2, 0),
-        Token.lex(.lit_number, 56, 2).nextAlt(),
-        Token.lex(.op_add, 4, 0),
+        Token.lex(NUM, 1, 1),
+        tok.createToken(MUL),
+        Token.lex(NUM, 234, 3),
+        tok.createToken(ADD),
+        Token.lex(NUM, 56, 2).nextAlt(),
+    }, &[_]Token{ TOK_START, TOK_END }, &[_]Token{
+        Token.lex(NUM, 1, 1),
+        Token.lex(NUM, 234, 3),
+        Token.lex(MUL, 2, 0),
+        Token.lex(NUM, 56, 2).nextAlt(),
+        Token.lex(ADD, 4, 0),
     });
 }
 
 test "parse 2*-3" {
     try testLex("2*-3\x00", &[_]Token{
-        Token.lex(.lit_number, 2, 1),
-        tok.createToken(.op_mul),
-        tok.createToken(.op_sub),
-        Token.lex(.lit_number, 3, 1).nextAlt(),
-    }, &[_]Token{ tok.AUX_STREAM_START.nextAlt(), tok.AUX_STREAM_END }, &[_]Token{
-        Token.lex(.lit_number, 2, 1),
-        Token.lex(.lit_number, 3, 1).nextAlt(),
-        Token.lex(.op_unary_minus, 3, 0),
-        Token.lex(.op_mul, 2, 0),
+        Token.lex(NUM, 2, 1),
+        tok.createToken(MUL),
+        tok.createToken(SUB),
+        Token.lex(NUM, 3, 1).nextAlt(),
+    }, &[_]Token{ TOK_START, TOK_END }, &[_]Token{
+        Token.lex(NUM, 2, 1),
+        Token.lex(NUM, 3, 1).nextAlt(),
+        Token.lex(@backingInt(TK.op_unary_minus), 3, 0),
+        Token.lex(MUL, 2, 0),
     });
 }
