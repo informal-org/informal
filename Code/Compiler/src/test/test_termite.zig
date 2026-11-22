@@ -2,10 +2,11 @@ const std = @import("std");
 const termite = @import("../table/termite.zig");
 const tbl = @import("../table/table.zig");
 const Table = tbl.Table;
-const tok = @import("../token.zig");
+const tok = @import("token.zig");
 const Token = tok.Token;
-const TK = tok.Kind;
-const ParsedQueue = @import("../parser.zig").ParsedQueue;
+// const TK = tok.Kind;
+// const ParsedQueue = @import("../parser.zig").ParsedQueue;
+const ParsedQueue = @import("../table/tokenqueue.zig").ParsedQueue;
 
 const States = enum(u8) { start, num, emit_num, sym, end, err, expect_arg, value, prec_mul, prec_add, prec_end, parse_end, prefix_neg };
 

@@ -3,15 +3,16 @@ const std = @import("std");
 const stdbits = std.bit_set;
 pub const BitSet128 = stdbits.IntegerBitSet(128);
 const bitset = @import("../bitset.zig");
-const ParsedQueue = @import("../parser.zig").ParsedQueue;
+const ParsedQueue = @import("tokenqueue.zig").ParsedQueue;
 
-const tok = @import("../token.zig");
+const tok = @import("token.zig");
 const q = @import("../queue.zig");
-const Table = @import("table.zig").Table;
+const tbl = @import("table.zig");
+const Table = tbl.Table;
 
 const Token = tok.Token;
-const TK = tok.Kind;
-pub const TokenQueue = q.Queue(Token, tok.AUX_STREAM_END);
+// const TK = tok.Kind;
+pub const TokenQueue = q.Queue(Token, Token.lex(tbl.STREAM_END, 0, 0));
 
 const SYNTAX_Q: u1 = 0;
 const AUX_Q: u1 = 1;
@@ -63,13 +64,14 @@ pub fn Termite(comptime table: Table) type {
         }
 
         pub fn init(buffer: []const u8, syntaxQ: *TokenQueue, auxQ: *TokenQueue, parsedQ: *ParsedQueue) Self {
-            parsedQ.precedenceStack.appendAssumeCapacity(tok.AUX_STREAM_START);
+            const start = Token.lex(tbl.STREAM_START, 0, 0);
+            parsedQ.precedenceStack.appendAssumeCapacity(start);
             return Self{
                 .buffer = buffer,
                 .syntaxQ = syntaxQ,
                 .auxQ = auxQ,
                 .parsedQ = parsedQ,
-                .prevToken = tok.AUX_STREAM_START,
+                .prevToken = start,
                 .index = 0,
                 .tokenStart = 0,
                 .parseState = table.states[table.parserStartId],
@@ -77,7 +79,7 @@ pub fn Termite(comptime table: Table) type {
         }
 
         fn flushPrev(self: *Self, nextSyntax: bool) !void {
-            const isSyntax = @backingInt(self.prevToken.kind) < table.auxStart;
+            const isSyntax = self.prevToken.kind < table.auxStart;
             if (isSyntax) {
                 self.prevToken.flags.alt = !nextSyntax;
                 try self.syntaxQ.pushDynamic(self.prevToken);
@@ -89,17 +91,17 @@ pub fn Termite(comptime table: Table) type {
         }
 
         fn token(arg: u8) Token {
-            return tok.createToken(@fromBackingInt(@intCast(arg)));
+            return Token.lex(arg, 0, 0);
         }
 
-        fn emitToken(self: *Self, t: Token) !void {
+        fn emitToken(self: *Self, t: Token) MemError!void {
             try self.flushPrev(true);
             self.prevToken = t;
             self.tokenStart = self.index;
         }
 
-        fn emitVal(self: *Self, _: Table.State) !void {
-            self.parsedQ.emit(self.prevToken);
+        fn emitVal(self: *Self, _: Table.State) MemError!void {
+            try self.parsedQ.emit(self.prevToken);
         }
 
         fn emit(self: *Self, state: Table.State) !void {
@@ -121,15 +123,15 @@ pub fn Termite(comptime table: Table) type {
             self.tokenStart = self.index;
         }
 
-        fn emitInt(self: *Self, _: Table.State) !void {
+        fn emitInt(self: *Self, state: Table.State) !void {
             const value: u64 = std.fmt.parseInt(u64, self.buffer[self.tokenStart..self.index], 10) catch 0;
             std.debug.assert(value <= MAX_LITERAL_NUMBER);
             const len = self.index - self.tokenStart;
-            try self.emitToken(Token.lex(TK.lit_number, @truncate(value), @truncate(len)));
+            try self.emitToken(Token.lex(state.arg, @truncate(value), @truncate(len)));
         }
 
         fn emitEnd(self: *Self, _: Table.State) !void {
-            try self.emitAuxHelper(@backingInt(TK.aux_stream_end));
+            try self.emitAuxHelper(tbl.STREAM_END);
             try self.flushPrev(false);
             try self.genParse();
         }
@@ -137,8 +139,9 @@ pub fn Termite(comptime table: Table) type {
         fn emitSym(self: *Self, state: Table.State) !void {
             const bitmap = std.mem.readInt(u128, table.transitions[state.transition_id..][0..16], .little);
             // TODO: Init BitSet128 from the transitions
-            const tokKind = bitset.chToKind(BitSet128{ .mask = bitmap }, self.buffer[self.tokenStart], @truncate(state.arg));
-            try self.emitToken(tok.createToken(tokKind));
+            // const chIndex: u7 = index128(bitset, ch);
+            const tokKind = @as(u8, bitset.index128(BitSet128{ .mask = bitmap }, self.buffer[self.tokenStart])) + state.arg;
+            try self.emitToken(Token.lex(tokKind, 0, 0));
         }
 
         fn none(_: *Self, _: Table.State) !void {}
@@ -146,44 +149,27 @@ pub fn Termite(comptime table: Table) type {
             std.debug.assert(false);
         }
 
-        fn precTop(self: *Self) u7 {
-            const top = self.parsedQ.precedenceStack.items[self.parsedQ.precedenceStack.items.len - 1];
-            return @truncate(@backingInt(top.kind));
+        fn flush(self: *Self, comptime currentState: Table.State) MemError!Table.State {
+            try self.parsedQ.flush(comptime table.popSet(currentState));
+            const nextStateId = table.next(currentState, self.parsedQ.top());
+            return table.states[nextStateId];
         }
 
-        fn flush(self: *Self, currentState: Table.State) Table.State {
-            while (self.parsedQ.precedenceStack.items.len > 0) {
-                const tokValue = self.precTop();
-                const nextStateId = table.next(currentState, tokValue);
-                const nextState = table.states[nextStateId];
-                if (nextState == currentState) {
-                    self.parsedQ.popOp();
-                } else {
-                    return nextState;
-                }
-            }
-            return currentState;
-        }
-
-        fn pushOp(self: *Self, currentState: Table.State) !void {
+        fn pushOp(self: *Self, comptime currentState: Table.State) !void {
             // const bottom: u7 = @truncate(@backingInt(TK.aux_stream_start));
             // self.parseState = table.states[table.next(state, bottom)];
-            const nextState = self.flush(currentState);
-            var opToken = self.prevToken;
-            opToken.data.raw = @truncate(self.syntaxQ.tail);
-            self.parsedQ.precedenceStack.appendAssumeCapacity(opToken);
-            self.parseState = nextState;
+            self.parseState = try self.flush(currentState);
+            try self.parsedQ.pushOp(self.prevToken, self.syntaxQ.tail);
         }
 
         fn pushPrefixOp(self: *Self, currentState: Table.State) !void {
-            var opToken = self.prevToken;
-            opToken.kind = @fromBackingInt(@intCast(currentState.arg));
-            opToken.data.raw = @truncate(self.syntaxQ.tail);
-            self.parsedQ.precedenceStack.appendAssumeCapacity(opToken);
+            var t = self.prevToken;
+            t.kind = currentState.arg;
+            try self.parsedQ.pushOp(t, self.syntaxQ.tail);
         }
 
-        fn flushAll(self: *Self, state: Table.State) !void {
-            self.parseState = self.flush(state);
+        fn flushAll(self: *Self, comptime state: Table.State) !void {
+            self.parseState = try self.flush(state);
         }
 
         // fn op(self: *Self, state: Table.State) !void {
@@ -199,7 +185,7 @@ pub fn Termite(comptime table: Table) type {
 
         pub fn genParse(self: *Self) MemError!void {
             @setEvalBranchQuota(table.states.len * 128 * 8);
-            const tokenKind: u7 = @truncate(@backingInt(self.prevToken.kind));
+            const tokenKind: u7 = @truncate(self.prevToken.kind);
             inline for (table.states) |state| {
                 if (self.parseState == state) {
                     const targets = comptime table.targets(state);

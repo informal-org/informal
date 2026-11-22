@@ -1,6 +1,10 @@
 const std = @import("std");
+const BitSet128 = @import("../bitset.zig").BitSet128;
 
 pub const ENTRY_WIDTH_MASKS = [4]u8{ 0x01, 0x03, 0x0F, 0xFF };
+
+pub const STREAM_END: u8 = 127;
+pub const STREAM_START: u8 = 126;
 
 pub const Table = struct {
     const Self = @This();
@@ -75,6 +79,15 @@ pub const Table = struct {
         const next_state = self.nextStateId(current, char);
         // Resolve what actual state that maps to.
         return self.transitions[nextStateBase + next_state];
+    }
+
+    pub fn popSet(self: Self, comptime state: State) BitSet128 {
+        // @setEvalBranchQuota(128);
+        var popset = BitSet128.empty;
+        for (0..128) |i| {
+            if (self.states[self.next(state, @intCast(i))] == state) popset.set(i);
+        }
+        return popset;
     }
 
     pub const Header = packed struct(u40) {
