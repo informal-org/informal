@@ -55,7 +55,6 @@ const ADD: u8 = @backingInt(TK.op_add);
 const MUL: u8 = @backingInt(TK.op_mul);
 const SUB: u8 = @backingInt(TK.op_sub);
 const NEG: u8 = @backingInt(TK.op_unary_minus);
-const AUX = [_]Token{ Token.lex(tbl.STREAM_START, 0, 0).nextAlt(), Token.lex(tbl.STREAM_END, 0, 0) };
 
 const Fixture = extern struct {
     start: Transition3,
@@ -229,15 +228,15 @@ fn testLex(buffer: []const u8, expected: []const Token, aux: ?[]const Token, par
     if (parsed) |parsedExpected| try expectTokens(parsedQ.parsedQ.items, parsedExpected);
 }
 
-const TOK_START = tok.createToken(tbl.STREAM_START).nextAlt();
-const TOK_END = tok.createToken(tbl.STREAM_END);
+const TOK_START = tok.token(tbl.STREAM_START).nextAlt();
+const TOK_END = tok.token(tbl.STREAM_END);
 
 test "lex 1+234*56" {
     try testLex("1+234*56\x00", &[_]Token{
         Token.lex(NUM, 1, 1),
-        tok.createToken(ADD),
+        tok.token(ADD),
         Token.lex(NUM, 234, 3),
-        tok.createToken(MUL),
+        tok.token(MUL),
         Token.lex(NUM, 56, 2).nextAlt(),
     }, &[_]Token{ TOK_START, TOK_END }, null);
 }
@@ -245,9 +244,9 @@ test "lex 1+234*56" {
 test "parse 1+234*56" {
     try testLex("1+234*56\x00", &[_]Token{
         Token.lex(NUM, 1, 1),
-        tok.createToken(ADD),
+        tok.token(ADD),
         Token.lex(NUM, 234, 3),
-        tok.createToken(MUL),
+        tok.token(MUL),
         Token.lex(NUM, 56, 2).nextAlt(),
     }, &[_]Token{ TOK_START, TOK_END }, &[_]Token{
         Token.lex(NUM, 1, 1),
@@ -261,9 +260,9 @@ test "parse 1+234*56" {
 test "parse 1*234+56" {
     try testLex("1*234+56\x00", &[_]Token{
         Token.lex(NUM, 1, 1),
-        tok.createToken(MUL),
+        tok.token(MUL),
         Token.lex(NUM, 234, 3),
-        tok.createToken(ADD),
+        tok.token(ADD),
         Token.lex(NUM, 56, 2).nextAlt(),
     }, &[_]Token{ TOK_START, TOK_END }, &[_]Token{
         Token.lex(NUM, 1, 1),
@@ -277,13 +276,13 @@ test "parse 1*234+56" {
 test "parse 2*-3" {
     try testLex("2*-3\x00", &[_]Token{
         Token.lex(NUM, 2, 1),
-        tok.createToken(MUL),
-        tok.createToken(SUB),
+        tok.token(MUL),
+        tok.token(SUB),
         Token.lex(NUM, 3, 1).nextAlt(),
     }, &[_]Token{ TOK_START, TOK_END }, &[_]Token{
         Token.lex(NUM, 2, 1),
         Token.lex(NUM, 3, 1).nextAlt(),
-        Token.lex(@backingInt(TK.op_unary_minus), 3, 0),
+        Token.lex(NEG, 3, 0),
         Token.lex(MUL, 2, 0),
     });
 }

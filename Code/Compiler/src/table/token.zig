@@ -86,6 +86,6 @@ pub const Token = packed struct(u64) {
     }
 };
 
-pub fn createToken(kind: u8) Token {
+pub fn token(kind: u8) Token {
     return Token.lex(kind, 0, 0);
 }

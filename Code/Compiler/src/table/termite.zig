@@ -6,6 +6,7 @@ const bitset = @import("../bitset.zig");
 const ParsedQueue = @import("tokenqueue.zig").ParsedQueue;
 
 const tok = @import("token.zig");
+const token = tok.token;
 const q = @import("../queue.zig");
 const tbl = @import("table.zig");
 const Table = tbl.Table;
@@ -88,10 +89,6 @@ pub fn Termite(comptime table: Table) type {
                 self.prevToken.flags.alt = nextSyntax;
                 try self.auxQ.pushDynamic(self.prevToken);
             }
-        }
-
-        fn token(arg: u8) Token {
-            return Token.lex(arg, 0, 0);
         }
 
         fn emitToken(self: *Self, t: Token) MemError!void {
