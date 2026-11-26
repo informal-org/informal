@@ -1,4 +1,6 @@
 const std = @import("std");
+const carp = @import("../table/carpenter.zig");
+const Transition = carp.Transition;
 const termite = @import("../table/termite.zig");
 const tbl = @import("../table/table.zig");
 const Table = tbl.Table;
@@ -10,30 +12,6 @@ const TK = oldtok.Kind;
 const ParsedQueue = @import("../table/tokenqueue.zig").ParsedQueue;
 
 const States = enum(u8) { start, num, emit_num, sym, end, err, expect_arg, value, prec_mul, prec_add, prec_end, parse_end, prefix_neg };
-
-fn Transition(comptime width: u2) type {
-    return extern struct {
-        bitmap: [Table.bitmapSize(width)]u8,
-        next_states: [@as(usize, tbl.ENTRY_WIDTH_MASKS[width]) + 1]u8,
-
-        pub fn set(self: *@This(), char: u7, value: u8) void {
-            const s = Table.slot(width, char);
-            std.debug.assert(value <= s.mask);
-            self.bitmap[s.byte] = (self.bitmap[s.byte] & ~(s.mask << s.shift)) | (value << s.shift);
-        }
-
-        pub fn setAll(self: *@This(), chars: []const u8, value: u8) void {
-            for (chars) |ch| {
-                self.set(@intCast(ch), value);
-            }
-        }
-
-        pub fn route(self: *@This(), value: u8, chars: []const u8, target: States) void {
-            self.setAll(chars, value);
-            self.next_states[value] = @backingInt(target);
-        }
-    };
-}
 
 const Transition0 = Transition(0); // Num
 const Transition1 = Transition(1); // Val
@@ -66,30 +44,31 @@ const Fixture = extern struct {
     prec_add: Transition0,
     prec_end: Transition0, // Precedence
 };
+
 const fixture = blk: {
     var f = std.mem.zeroes(Fixture);
-    f.start.route(0, "", .err);
-    f.start.route(1, DIGITS, .num);
-    f.start.route(2, SYMBOLS, .sym);
-    f.start.route(4, "\x00", .end);
-    f.num.route(0, "", .emit_num);
-    f.num.route(1, DIGITS, .num);
-    f.sym.route(0, "", .start);
-    f.sym.route(1, SYMBOLS, .start);
+    f.start.route(0, "", @backingInt(States.err));
+    f.start.route(1, DIGITS, @backingInt(States.num));
+    f.start.route(2, SYMBOLS, @backingInt(States.sym));
+    f.start.route(4, "\x00", @backingInt(States.end));
+    f.num.route(0, "", @backingInt(States.emit_num));
+    f.num.route(1, DIGITS, @backingInt(States.num));
+    f.sym.route(0, "", @backingInt(States.start));
+    f.sym.route(1, SYMBOLS, @backingInt(States.start));
     // Parser states
-    f.operand.route(0, "", .err);
-    f.operand.route(1, &TK_NUM, .value);
-    f.operand.route(2, &TK_SUB, .prefix_neg);
-    f.value.route(0, "", .err);
-    f.value.route(1, &TK_MUL, .prec_mul);
-    f.value.route(2, &TK_ADD, .prec_add);
-    f.value.route(3, &TK_END, .prec_end);
-    f.prec_mul.route(0, "", .expect_arg);
-    f.prec_mul.route(1, &POP_MUL_NEG, .prec_mul);
-    f.prec_add.route(0, "", .expect_arg);
-    f.prec_add.route(1, &POP_ALL, .prec_add);
-    f.prec_end.route(0, "", .parse_end);
-    f.prec_end.route(1, &POP_ALL, .prec_end);
+    f.operand.route(0, "", @backingInt(States.err));
+    f.operand.route(1, &TK_NUM, @backingInt(States.value));
+    f.operand.route(2, &TK_SUB, @backingInt(States.prefix_neg));
+    f.value.route(0, "", @backingInt(States.err));
+    f.value.route(1, &TK_MUL, @backingInt(States.prec_mul));
+    f.value.route(2, &TK_ADD, @backingInt(States.prec_add));
+    f.value.route(3, &TK_END, @backingInt(States.prec_end));
+    f.prec_mul.route(0, "", @backingInt(States.expect_arg));
+    f.prec_mul.route(1, &POP_MUL_NEG, @backingInt(States.prec_mul));
+    f.prec_add.route(0, "", @backingInt(States.expect_arg));
+    f.prec_add.route(1, &POP_ALL, @backingInt(States.prec_add));
+    f.prec_end.route(0, "", @backingInt(States.parse_end));
+    f.prec_end.route(1, &POP_ALL, @backingInt(States.prec_end));
 
     break :blk f;
 };
