@@ -25,3 +25,38 @@ pub fn Transition(comptime width: u2) type {
         }
     };
 }
+
+// Empty string = Otherwise
+pub const Route = struct { []const u8, u8 };
+pub const StateRoute = struct {
+    state: Table.State,
+    on: []const Route,
+};
+
+fn route(op: Table.Op, consume: bool, arg: u8, routes: []const Route) StateRoute {
+    const width = if (routes.len == 0) 0 else tbl.getWidthOf(@intCast(routes.len - 1));
+    return StateRoute{
+        .state = .{
+            .op = op,
+            .consume = consume,
+            .arg = arg,
+            .width = width,
+            .transition_id = 0, // Will be filled in at a later stage.
+        },
+        .on = routes,
+    };
+}
+
+pub fn build(comptime routes: []const StateRoute, comptime parser_start: u8, comptime aux_start: u8) Table {
+    return comptime blk: {
+        var states: [routes.len]Table.State = undefined;
+        var transitions: []const u8 = &.{};
+        for (routes, 0..) |r, i| {
+            var state = r.state;
+            if (r.on.len == 0) {
+                state.transition_id = states[0].transition_id;
+                state.width = states[0].width;
+            }
+        }
+    };
+}

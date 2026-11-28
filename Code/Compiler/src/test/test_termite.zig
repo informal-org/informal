@@ -1,6 +1,8 @@
 const std = @import("std");
 const carp = @import("../table/carpenter.zig");
 const Transition = carp.Transition;
+const StateRoute = carp.StateRoute;
+const route = carp.route;
 const termite = @import("../table/termite.zig");
 const tbl = @import("../table/table.zig");
 const Table = tbl.Table;
@@ -116,6 +118,13 @@ const table = blk: {
     const bytes = buf;
     break :blk Table.load(&bytes);
 };
+
+const state_routes = [_]StateRoute{route(Table.Op.none, false, 0, .{
+    .{ "", @backingInt(States.err) },
+    .{ DIGITS, @backingInt(States.num) },
+    .{ SYMBOLS, @backingInt(States.sym) },
+    .{ "\x00", @backingInt(States.end) },
+})};
 
 const Step = struct { sym: u7, to: States };
 const steps = [_]Step{

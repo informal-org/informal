@@ -59,6 +59,7 @@ pub fn Termite(comptime table: Table) type {
                 .push_op => try self.pushOp(state),
                 .push_prefix_op => try self.pushPrefixOp(state),
                 .flush_all => try self.flushAll(state),
+                .skip => try self.skip(state),
                 .err => try self.err(state),
                 .none => try self.none(state),
             }
@@ -104,7 +105,7 @@ pub fn Termite(comptime table: Table) type {
         fn emit(self: *Self, state: Table.State) !void {
             // Pre: token being emitted should be a syntax token
             // std.debug.assert(@backingInt(v.kind) < tok.AUX_KIND_START);
-            const t = token(state.arg);
+            const t = Token.lex(state.arg, self.tokenStart, @truncate(self.index - self.tokenStart));
             try self.emitToken(t);
             // self.QIdx[SYNTAX_Q] += 1;
         }
@@ -167,6 +168,10 @@ pub fn Termite(comptime table: Table) type {
 
         fn flushAll(self: *Self, comptime state: Table.State) !void {
             self.parseState = try self.flush(state);
+        }
+
+        fn skip(self: *Self, _: Table.State) !void {
+            self.tokenStart = self.index;
         }
 
         // fn op(self: *Self, state: Table.State) !void {

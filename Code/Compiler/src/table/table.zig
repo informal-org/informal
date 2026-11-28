@@ -23,6 +23,7 @@ pub const Table = struct {
         push_op, // Precedence shift.
         push_prefix_op,
         flush_all, // Flush remaining
+        skip, // Move the cursor ahead without emitting
     };
 
     pub const State = packed struct(u32) {
@@ -140,3 +141,10 @@ pub const Table = struct {
         };
     }
 };
+
+// See which size width would fit n
+pub fn getWidthOf(n: u8) u2 {
+    var w: u2 = 0;
+    while (ENTRY_WIDTH_MASKS[w] < n) w += 1;
+    return w;
+}
